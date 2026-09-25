@@ -110,7 +110,7 @@ pub fun kflatc_cli(): int32 {
 
 /// One `key value` line each, which komp reads to know what it is running.
 fun kflatc_version(): int32 {
-    println("kflatc 0.1.0")
+    println("kflatc ${kflat_version()}")
     println("abi ${interface_compiler_abi()}")
     println("runtime ${interface_runtime_abi()}")
     println("target ${interface_target()}")

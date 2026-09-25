@@ -135,7 +135,7 @@ pub fun run_cli(): int32 {
     }
     // Before the positional form, which would read `--version` as a directory.
     if wants_version() {
-        runtime_println("komp 0.1.0")
+        println("komp ${kflat_version()}")
         return 0
     }
     if nargs < 1 {
@@ -145,7 +145,7 @@ pub fun run_cli(): int32 {
     val a0: str = cli_arg_get(0)
 
     if a0 == "version" {
-        runtime_println("komp 0.1.0")
+        println("komp ${kflat_version()}")
         return 0
     }
     if a0 == "help" {
