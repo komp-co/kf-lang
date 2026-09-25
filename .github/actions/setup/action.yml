@@ -17,6 +17,11 @@ runs:
 
     - uses: actions/cache@v4
       with:
+        path: ~/.cache/kflat/seeds
+        key: seed-${{ hashFiles('bootstrap/stage0.toml') }}
+
+    - uses: actions/cache@v4
+      with:
         path: ~/.ccache
         key: ccache-${{ github.job }}-${{ github.sha }}
         restore-keys: ccache-${{ github.job }}-

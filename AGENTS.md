@@ -17,7 +17,7 @@ Komp is a self-hosted KFlat compiler. Its source workspace lives under
 `compiler/`; repository-level assets stay at the root:
 
 ```
-bootstrap/   — checked-in C seed and self-hosting script
+bootstrap/   — the pinned seed (`stage0.toml`) and the self-hosting script
 compiler/    — compiler workspace (`kf.toml`, `kf-*` passes, `komp/`, `kflatc/`)
 docs/book/   — the user-facing book
 libs/        — KFlat language libraries (core, alloc, std)
@@ -41,7 +41,7 @@ no single-file mode.
 
 | Command | Purpose |
 |---|---|
-| `bash bootstrap/build.sh` | Full build from checked-in C seed via `cc` + fixpoint self-compile |
+| `sh bootstrap/build.sh` | Full build from the released seed via `cc` + fixpoint self-compile |
 | `sh scripts/check.sh` | All CI gates: fixpoint, ratchets, CLI checks, crate test sweep |
 | `komp test compiler/<crate>` | Run one crate's `@test` functions |
 | `komp build <dir>` | Compile to C and link, artifacts under `target/kflat` |

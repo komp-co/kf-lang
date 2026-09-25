@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Compatibility entry point for the checked-in C seed bootstrap.
+# Compatibility entry point: bootstrap/build.sh.
 
 set -euo pipefail
 

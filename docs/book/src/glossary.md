@@ -8,8 +8,8 @@ and emits a warning. The programmer can then add an explicit `.clone()` or
 restructure to avoid the copy.
 
 **Bootstrap** — The chain that builds komp from nothing but a C compiler and
-a checked-in C seed. The seed (`bootstrap/komp.c`) is the frozen output of a
-past compiler build; it can compile the current KFlat source to produce a
+a seed. The seed is a released komp and kflatc as C, pinned by
+`bootstrap/stage0.toml`; it can compile the current KFlat source to produce a
 new binary, which then produces identical C output — the fixpoint.
 
 **Box** — A unique-ownership heap pointer (`Box<T>`). Allocates on creation,
