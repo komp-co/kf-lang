@@ -27,7 +27,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          version=$(sed -n 's/^ *return "\(.*\)"$/\1/p' compiler/kf-driver/src/cli/version.kf)
+          version=$(sed -n 's/^ *return "\(.*\)"$/\1/p' compiler/kf-shared/src/version.kf)
           if gh release view "v$version" > /dev/null 2>&1; then
             echo "v$version is already released; a release PR must bump kflat_version()" >&2
             exit 1

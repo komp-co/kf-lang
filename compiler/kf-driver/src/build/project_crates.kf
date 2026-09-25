@@ -2,9 +2,9 @@
 // graph, dependencies first and the root last.
 
 import alloc.list.*
+import kf_shared.absolutize
+import kf_shared.join_path
 
-import kf_driver.project.absolutize
-import kf_driver.project.join_path
 
 extern "C" fun access(path: str, mode: int32): int32
 

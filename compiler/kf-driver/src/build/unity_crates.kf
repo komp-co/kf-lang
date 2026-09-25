@@ -9,6 +9,7 @@ import kf_assemble.stamp_module_owner
 
 import kf_driver.*
 import kf_driver.testing.*
+import kf_shared.publish_text
 
 /// Compiles `crates`, dependencies first and the root last, into the C at
 /// `out`. `with_tests` adds the root's `_test.kf` files and a generated test

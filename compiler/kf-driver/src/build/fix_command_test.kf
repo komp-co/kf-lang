@@ -2,8 +2,8 @@
 // parent, which a textual prefix test mistakes for containment.
 
 import core.assert.assert_eq
-import kf_driver.project.absolutize
-import kf_driver.project.canonicalize_path
+import kf_shared.absolutize
+import kf_shared.canonicalize_path
 
 fun canon(p: str): String {
     return canonicalize_path(absolutize(p).as_str())

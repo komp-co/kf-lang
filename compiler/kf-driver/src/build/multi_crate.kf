@@ -9,6 +9,7 @@ import std.process.*
 import kf_core.ast.*
 
 import kf_driver.project.*
+import kf_shared.join_path
 
 extern "C" fun write_file(path: str, content: str): void
 

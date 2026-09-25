@@ -4,6 +4,13 @@
 // no compiler, archiver or linker.
 
 import alloc.list.*
+import kf_shared.crate_source_path
+import kf_shared.crate_interface_path
+import kf_shared.crate_object_path
+import kf_shared.crate_artifact_manifest_path
+import kf_shared.crate_archive_path
+import kf_shared.binary_path
+import kf_shared.ensure_dir
 
 
 extern "C" fun access(path: str, mode: int32): int32

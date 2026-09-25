@@ -3,6 +3,9 @@
 import alloc.list.*
 import core.text.last_index_of
 import alloc.text_edit.replace
+import kf_shared.join_path
+import kf_shared.resolve_path
+import kf_shared.normalized_path
 
 extern "C" fun access(path: str, mode: int32): int32
 

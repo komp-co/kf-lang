@@ -5,6 +5,9 @@
 import alloc.list.*
 
 import kf_driver.project.*
+import kf_shared.absolutize
+import kf_shared.normalized_path
+import kf_shared.canonicalize_path
 
 extern "C" fun access(path: str, mode: int32): int32
 // The compiler binary's directory, to find the bundled stdlib.

@@ -13,6 +13,8 @@ import kf_driver.*
 import kf_interface.emit.emit_interface_full
 import kf_driver.testing.*
 import kf_codegen.emit.glue.deep_clone_module
+import kf_shared.crate_interface_path
+import kf_shared.render_json_error
 
 /// kflatc's `check`: the crate, its tests included, type-checked against its
 /// dependencies' interfaces in `tdir`. Nothing is written. Returns the number

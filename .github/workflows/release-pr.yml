@@ -27,11 +27,15 @@ jobs:
         env:
           BASE: ${{ github.base_ref }}
         run: |
-          read_version() { sed -n 's/^ *return "\(.*\)"$/\1/p'; }
-          new=$(read_version < compiler/kf-driver/src/cli/version.kf)
-          old=$(git show "origin/$BASE:compiler/kf-driver/src/cli/version.kf" 2>/dev/null | read_version)
+          # The file is found by what it defines, so moving it breaks no release.
+          version_at() {
+            file=$(git grep -l "fun kflat_version" "$1" -- compiler | head -1)
+            [ -n "$file" ] && git show "$file" | sed -n 's/^ *return "\(.*\)"$/\1/p'
+          }
+          new=$(version_at HEAD)
+          old=$(version_at "origin/$BASE")
           echo "main has ${old:-none}, this PR releases $new"
           if [ -n "$old" ] && [ "$(printf '%s\n%s\n' "$old" "$new" | sort -V | tail -1)" != "$new" -o "$old" = "$new" ]; then
-            echo "bump kflat_version() in compiler/kf-driver/src/cli/version.kf past $old" >&2
+            echo "bump kflat_version() in compiler/kf-shared/src/version.kf past $old" >&2
             exit 1
           fi

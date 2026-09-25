@@ -44,7 +44,7 @@ behind*, not about batching.
 `main` holds only released states. A merge into it **is** a release:
 
 1. Open a PR from `development` into `main` that raises `kflat_version()`
-   (`compiler/kf-driver/src/cli/version.kf`). The `release-pr` check refuses
+   (`compiler/kf-shared/src/version.kf`). The `release-pr` check refuses
    any other source branch, and a version that does not go up.
 2. Merge it. The release workflow builds the seed from the pinned one, checks
    the fixpoint, and publishes `vX.Y.Z` with `kflat-seed-X.Y.Z.tar.gz`.

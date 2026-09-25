@@ -11,6 +11,7 @@ members = [
     "kf-lower",
     "kf-codegen",
     "kf-interface",
+    "kf-shared",
     "kf-driver",
     "../libs/core",
     "../libs/alloc",

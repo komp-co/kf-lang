@@ -120,7 +120,7 @@ fi
 CRATES="${CRATES:-compiler/kf-core compiler/kf-parse compiler/kf-assemble
         compiler/kf-resolve compiler/kf-typecheck compiler/kf-mono
         compiler/kf-lower compiler/kf-codegen compiler/kf-interface
-        compiler/kf-driver libs/core libs/alloc libs/std ../json}"
+        compiler/kf-shared compiler/kf-driver libs/core libs/alloc libs/std ../json}"
 CHECK_CLI="${CHECK_CLI:-1}"
 
 # Peak RSS a single crate's `komp test` may reach, in MB: a ceiling with room
