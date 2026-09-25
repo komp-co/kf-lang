@@ -43,8 +43,6 @@ entry point and can only be used as a dependency.
 The generated template for a binary crate:
 
 ```kflat
-import core.display.*
-
 fun main(): int32 {
     println("Hello, world!")
     return 0

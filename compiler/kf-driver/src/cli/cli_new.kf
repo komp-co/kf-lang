@@ -8,10 +8,8 @@ extern "C" fun system(cmd: str): int32
 extern "C" fun kf_current_dir(): String
 
 fun main_kf_src(): str {
-    return """import core.display.*
-
-fun main(): int32 {
-    println(String.from("Hello, world!"))
+    return """fun main(): int32 {
+    println("Hello, world!")
     return 0
 }
 """
