@@ -1,6 +1,7 @@
 // `komp new` and `komp init`.
 
-import core.text.last_index_of
+import core.text.ends_with_in
+import core.text.last_index_of_in
 import alloc.text_edit.replace
 
 // libc system(3); only compare its result with 0.
@@ -16,7 +17,7 @@ fun main_kf_src(): str {
 }
 
 fun new_project(name: str): int32 {
-    val crate_name = crate_name_from_dir(name)
+    val crate_name = crate_name_from_dir(basename_of(name).as_str())
     val mkdir_full = "mkdir -p ${name}/src"
     val _rc = system(mkdir_full.as_str())
     val toml_path = join_two(String.from(name), String.from("kf.toml"))
@@ -41,14 +42,15 @@ fun crate_name_from_dir(name: str): String {
     return name.replace("-", "_")
 }
 
-/// After the last `/`, without a trailing newline.
+/// After the last `/`, without a trailing newline or trailing slashes.
 fun basename_of(path: str): String {
-    val start: uint64 = when (path.last_index_of("/")) {
+    var end = path.byte_len()
+    if path.ends_with("\n") { end = end - 1 }
+    while end > 1 && path.ends_with_in(end, "/") { end = end - 1 }
+    val start: uint64 = when (path.last_index_of_in(end, "/")) {
         Some(slash) => slash + 1
         None => 0
     }
-    var end = path.byte_len()
-    if path.ends_with("\n") { end = end - 1 }
     return path.substring(start, end)
 }
 

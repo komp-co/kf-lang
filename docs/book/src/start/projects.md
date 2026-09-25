@@ -25,8 +25,9 @@ version = "0.1.0"
 kind = "bin"
 ```
 
-The name is derived from the directory: hyphens become underscores (`my-project`
-→ `my_project`), because the crate name becomes a C identifier.
+The name is derived from the directory's own name, the last component of the
+path you give: hyphens become underscores (`komp new work/my-project` →
+`my_project`), because the crate name becomes a C identifier.
 
 ### kind: library vs binary
 
