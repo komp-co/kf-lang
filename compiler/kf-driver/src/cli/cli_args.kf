@@ -52,7 +52,7 @@ fun test_flags_well_formed(nargs: int32, start: int32): bool {
     var i: int32 = start
     while i < nargs {
         val a = cli_arg_get(i)
-        if a == "--workspace" {
+        if a == "--workspace" || is_fetch_flag(a) {
             i = i + 1
         } else {
             val takes_value = a == "--case" || a == "--filter" || a == "--manifest-path"

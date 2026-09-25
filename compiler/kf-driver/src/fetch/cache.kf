@@ -1,0 +1,32 @@
+// Where fetched crates live: one directory per pinned source, never changed
+// once written, shared by every project on the machine.
+
+import kf_shared.normalized_path
+
+extern "C" fun kf_env_get(name: str): str
+extern "C" fun access(path: str, mode: int32): int32
+
+/// `$KFLAT_CACHE`, else `$XDG_CACHE_HOME/kflat`, else `~/.cache/kflat`: the
+/// directory `bootstrap/seed.sh` keeps seeds in.
+pub fun cache_root(): String {
+    val explicit = unsafe { kf_env_get("KFLAT_CACHE") }
+    if explicit != "" { return normalized_path(explicit) }
+    val xdg = unsafe { kf_env_get("XDG_CACHE_HOME") }
+    if xdg != "" { return normalized_path("${xdg}/kflat".as_str()) }
+    val home = unsafe { kf_env_get("HOME") }
+    return normalized_path("${home}/.cache/kflat".as_str())
+}
+
+/// The crate root a row's source unpacks to, keyed by what pins it.
+pub fun LockEntry.cached_root(cache: str): String {
+    if self.tarball.byte_len() > 0 {
+        val digest = self.checksum.as_str().substring(7, self.checksum.byte_len()) // after "sha256:"
+        return "${cache}/tarball/${digest}"
+    }
+    return "${cache}/git/${self.rev}"
+}
+
+/// A fetch finished: the crate root holds its manifest.
+pub fun is_fetched(crate_root: str): bool {
+    return unsafe { access("${crate_root}/kf.toml".as_str(), 0) } == 0
+}

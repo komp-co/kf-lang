@@ -71,3 +71,54 @@ fun freestanding_false_is_read_as_written(): void {
     val manifest = parse_manifest("[project]\nname = \"probe\"\nfreestanding = false\n")
     assert_eq(manifest.freestanding, false, "freestanding = false stays hosted")
 }
+
+fun one_dependency(row: str): Manifest {
+    return parse_manifest("[project]\nname = \"app\"\n\n[dependencies]\n${row}\n".as_str())
+}
+
+@test
+fun a_path_inside_a_git_url_is_not_a_path(): void {
+    val manifest = one_dependency("json = { git = \"https://example.org/path/json.git\" }")
+    assert_eq(manifest.deps.at(0).path.as_str(), "", "only a whole `path` key is a path")
+}
+
+@test
+fun a_git_dependency_keeps_its_tag(): void {
+    val manifest = one_dependency("json = { git = \"https://example.org/json.git\", tag = \"v0.2.0\" }")
+    assert_eq(manifest.deps.at(0).tag.as_str(), "v0.2.0", "the ref travels with the source")
+}
+
+@test
+fun a_dependency_without_a_source_is_an_error(): void {
+    val manifest = one_dependency("json = \"0.2\"")
+    assert_eq(manifest.error.as_str(), "dependency `json` names no source: give it `path`, `git` or `tarball`",
+        "a bare version needs an index, which komp does not read")
+}
+
+@test
+fun a_dependency_with_two_sources_is_an_error(): void {
+    val manifest = one_dependency("json = { path = \"../json\", git = \"https://example.org/json.git\" }")
+    assert_eq(manifest.error.as_str(), "dependency `json` names more than one of `path`, `git` and `tarball`",
+        "which one would win is not the user's to guess")
+}
+
+@test
+fun a_ref_without_git_is_an_error(): void {
+    val manifest = one_dependency("json = { path = \"../json\", tag = \"v1\" }")
+    assert_eq(manifest.error.as_str(), "dependency `json`: `rev`, `tag` and `branch` apply only to a `git` source",
+        "a path has no refs")
+}
+
+@test
+fun two_refs_are_an_error(): void {
+    val manifest = one_dependency("json = { git = \"https://example.org/json.git\", tag = \"v1\", branch = \"main\" }")
+    assert_eq(manifest.error.as_str(), "dependency `json` names more than one of `rev`, `tag` and `branch`",
+        "one ref picks one commit")
+}
+
+@test
+fun a_checksum_needs_its_algorithm(): void {
+    val manifest = one_dependency("json = { tarball = \"https://example.org/json.tar.gz\", checksum = \"abc\" }")
+    assert_eq(manifest.error.as_str(), "dependency `json`: a checksum is written `sha256:<hex digest>`",
+        "the prefix leaves room for another algorithm")
+}

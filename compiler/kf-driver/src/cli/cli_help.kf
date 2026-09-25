@@ -10,6 +10,7 @@ pub fun command_usage(command: str): str {
     if command == "test"  { return "komp test [--unity] [<project-dir>] [--case <substring>] [--filter <substring>]" }
     if command == "fix"   { return "komp fix [--dry-run] [--manifest-path <path>] [<project-dir>]" }
     if command == "query" { return "komp query <what> --file <path> [--offset <N>] [--overlay <path>]" }
+    if command == "update" { return "komp update [-p <crate>] [--manifest-path <path>] [<project-dir>]" }
     if command == "new"   { return "komp new <name>" }
     if command == "init"  { return "komp init" }
     if command == "version" { return "komp version" }
@@ -70,6 +71,12 @@ Takes no project directory: komp finds the crate itself.
   --offset <N>       byte offset the question is about
   --overlay <path>   read the buffer from here instead of from disk"""
     }
+    if command == "update" {
+        return """Resolve every git and tarball dependency again: a tag or branch
+moves to the commit it names now. Fetches, and rewrites kf.lock.
+
+  -p, --package <c>   update the workspace holding this member"""
+    }
     if command == "new" { return "Create a new project in a new directory of that name." }
     if command == "init" { return "Create a new project in the current directory." }
     if command == "version" { return "Print the compiler version." }
@@ -98,6 +105,7 @@ pub fun print_usage(): void {
     runtime_println("  test      run the project's @test functions")
     runtime_println("  fix       apply the repairs the checker suggests")
     runtime_println("  query     answer one editor question as JSON")
+    runtime_println("  update    re-resolve fetched dependencies and rewrite kf.lock")
     runtime_println("  new       create a new project")
     runtime_println("  init      create a new project in the current directory")
     runtime_println("  version   print the compiler version")
@@ -105,6 +113,9 @@ pub fun print_usage(): void {
     runtime_println("The project directory defaults to the current directory, or is")
     runtime_println("named by --manifest-path. At a workspace, a command runs on its")
     runtime_println("default-member; --package <crate> and --workspace choose others.")
+    runtime_println("Git and tarball dependencies are fetched before a build and pinned in")
+    runtime_println("kf.lock: --locked fails rather than change it, --offline rather than")
+    runtime_println("fetch.")
     runtime_println("Global: -q, --quiet suppress warnings; -h, --help print this.")
     runtime_println("")
     runtime_println("`komp <command> --help` describes one command.")

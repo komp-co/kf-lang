@@ -71,6 +71,7 @@ pub fun run_on_selected(command: str, project: str, nargs: int32, flag: bool): i
 }
 
 fun run_on_crate(command: str, root: str, nargs: int32, flag: bool): int32 {
+    if !fetched_for(root, nargs) { return 1 }
     if command == "check" { return check_crate(root, flag) }
     if command == "fix" { return run_fix(root, flag) }
     if command == "build" { return build_project_separate_verbose(root, "", flag) }
