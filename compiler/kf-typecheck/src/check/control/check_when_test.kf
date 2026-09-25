@@ -40,3 +40,32 @@ fun guard_diags(subject_name: str, guard: ExprKind): List<Diagnostic> {
     val diags = guard_diags("bool", ExprKind.Variable(intern("v")))
     assert_eq(diags.size(), 0, "the binder is a bool")
 }
+
+fun literal_diags(subject_name: str, kind: PatternKind): List<Diagnostic> {
+    var arms = List.new<Arm>()
+    arms.push(coverage_arm(kind, false))
+    arms.push(coverage_arm(PatternKind.Wildcard, false))
+    return coverage_diags(subject_name, arms, false)
+}
+
+@test fun an_integer_pattern_on_an_integer_is_accepted(): void {
+    assert_eq(literal_diags("uint8", PatternKind.LitInt(3)).size(), 0, "3 fits a uint8")
+}
+
+@test fun an_integer_pattern_on_a_str_is_rejected(): void {
+    val diags = literal_diags("str", PatternKind.LitInt(1))
+    val expected = "this pattern is an integer, but the subject is `str`"
+    assert_eq(diags.at(0).primary.message.as_str(), expected, "the mismatch is named")
+}
+
+@test fun a_char_pattern_on_an_integer_is_rejected(): void {
+    assert_eq(literal_diags("int32", PatternKind.LitChar(97)).size(), 1, "'a' is not an int32")
+}
+
+@test fun a_bool_pattern_on_a_char_is_rejected(): void {
+    assert_eq(literal_diags("char", PatternKind.LitBool(true)).size(), 1, "true is not a char")
+}
+
+@test fun a_char_pattern_on_a_char_is_accepted(): void {
+    assert_eq(literal_diags("char", PatternKind.LitChar(97)).size(), 0, "'a' is a char")
+}

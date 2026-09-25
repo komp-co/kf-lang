@@ -166,9 +166,9 @@ fun Pattern.report_shadowing_pattern(ctx: &var TypeCtx): void {
 pub fun Pattern.check_pattern(subject_ty: Type, ctx: &var TypeCtx): void {
     when (self.kind) {
         Wildcard => return
-        LitInt(_) => return
-        LitBool(_) => return
-        LitChar(_) => return
+        LitInt(_) => self.check_literal_pattern(subject_ty, "an integer", ctx)
+        LitBool(_) => self.check_literal_pattern(subject_ty, "a `bool`", ctx)
+        LitChar(_) => self.check_literal_pattern(subject_ty, "a `char`", ctx)
         // Strings are rejected by the parser; alternations are not built yet.
         LitStr(_) => return
         Or(_) => return
@@ -178,6 +178,47 @@ pub fun Pattern.check_pattern(subject_ty: Type, ctx: &var TypeCtx): void {
         }
         StructPat(_, _, _) => return
         Poison => return
+    }
+}
+
+/// A literal pattern compares by value, so the subject must be of the
+/// literal's own kind. A borrow is matched through.
+fun Pattern.check_literal_pattern(subject_ty: Type, literal: str, ctx: &var TypeCtx): void {
+    val subject = when (subject_ty.kind) {
+        RefTo(_, pointee) => unsafe { *pointee }
+        _ => subject_ty
+    }
+    val fits = when (subject.kind) {
+        Poison => true
+        Generic(_) => true
+        Projection(_, _) => true
+        Bool => self.kind.is_bool_literal()
+        Char => self.kind.is_char_literal()
+        _ => is_integer_type(subject) && self.kind.is_int_literal()
+    }
+    if fits { return }
+    val message = "this pattern is ${literal}, but the subject is `${subject_ty.display_type(ctx)}`"
+    ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+}
+
+fun PatternKind.is_int_literal(): bool {
+    return when (self) {
+        LitInt(_) => true
+        _ => false
+    }
+}
+
+fun PatternKind.is_bool_literal(): bool {
+    return when (self) {
+        LitBool(_) => true
+        _ => false
+    }
+}
+
+fun PatternKind.is_char_literal(): bool {
+    return when (self) {
+        LitChar(_) => true
+        _ => false
     }
 }
 

@@ -59,6 +59,25 @@ fun is_vowel(c: char): bool {
 }
 ```
 
+A literal pattern must be of the subject's own kind: an integer pattern needs
+an integer subject, `'a'` a `char`, and `true` a `bool`. Anything else is
+rejected, naming both:
+
+```kflat
+fun main(): int32 {
+    val s = String.from("abc")
+    return when s {
+        1 => 5
+        _ => 0
+    }
+}
+```
+
+```console
+$ komp check .
+src/main.kf:4:9: error: this pattern is an integer, but the subject is `String`
+```
+
 There is deliberately no float literal pattern: matching on float equality is
 a trap, and no language worth copying allows it.
 
