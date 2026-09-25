@@ -29,10 +29,11 @@ compiler: if komp can no longer reproduce itself, this fails.
 ## A new seed
 
 The seed only has to *build* the current source, so it can lag. A new one
-comes from a release: bump `kflat_version()`, merge, and push the tag
-`vX.Y.Z`. The release workflow builds the seed from the pinned one, checks the
-fixpoint, and publishes `kflat-seed-X.Y.Z.tar.gz` with its sha256. Pinning it
-is then an ordinary change to `stage0.toml`.
+comes from a release: a PR from `development` into `main` that raises
+`kflat_version()`. Merging it runs the release workflow, which builds the seed
+from the pinned one, checks the fixpoint, and publishes
+`kflat-seed-X.Y.Z.tar.gz` with its sha256 under the tag `vX.Y.Z`. Pinning it is
+then an ordinary change to `stage0.toml`.
 
 To try a seed before releasing it:
 

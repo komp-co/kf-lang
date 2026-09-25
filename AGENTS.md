@@ -186,6 +186,9 @@ The repository is `komp-co/komp` on GitHub, with `json`, `kf-lsp` and
 | Command | Purpose |
 |---|---|
 | `gh issue create --repo komp-co/komp ...` | Create an issue |
-| `gh pr create --repo komp-co/komp ...` | Open a pull request |
+| `gh pr create --repo komp-co/komp --base development ...` | Open a pull request |
 | `gh pr checks <n> --repo komp-co/komp` | Watch a PR's CI |
 | `gh pr merge <n> --repo komp-co/komp` | Merge once CI is green |
+
+Work merges into `development`. A PR from `development` into `main` is a
+release; CONTRIBUTING.md has the steps.

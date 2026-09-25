@@ -1,14 +1,19 @@
 name: Release
 
-# Pushing a `vX.Y.Z` tag publishes a release whose asset is the seed: this
-# commit's komp and kflatc as C, built from the pinned seed and verified by the
-# fixpoint. Pinning that release in bootstrap/stage0.toml makes it the seed.
+# A merge into `main` is a release: this workflow builds the seed, this
+# commit's komp and kflatc as C, from the pinned seed, verifies the fixpoint,
+# and publishes it under the tag `v<kflat_version()>`. Pinning that release in
+# bootstrap/stage0.toml makes it the seed.
 on:
   push:
-    tags: ['v*']
+    branches: [main]
 
 permissions:
   contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -17,13 +22,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
 
-      - name: The tag names the version in the source
+      - name: Read the version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           version=$(sed -n 's/^ *return "\(.*\)"$/\1/p' compiler/kf-driver/src/cli/version.kf)
-          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
-            echo "tag $GITHUB_REF_NAME, but kflat_version() says $version" >&2
+          if gh release view "v$version" > /dev/null 2>&1; then
+            echo "v$version is already released; a release PR must bump kflat_version()" >&2
             exit 1
           fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Build the seed and verify the fixpoint
         run: sh bootstrap/build.sh --seed-out dist
@@ -31,6 +40,7 @@ jobs:
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/* \
-            --title "kflat ${GITHUB_REF_NAME#v}" --generate-notes
+          gh release create "v$VERSION" dist/* --target "$GITHUB_SHA" \
+            --title "kflat $VERSION" --generate-notes

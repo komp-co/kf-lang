@@ -36,12 +36,24 @@ behind*, not about batching.
   - `type` ∈ `feat`, `fix`, `hardening`, `perf`, `docs`, `chore`
   - examples: `fix/5-unresolved-dep-error`, `hardening/1-token-peek-borrow`
 - Reference the issue in commits; close it from the PR with `Closes #<n>`.
-- **Never commit directly to `main`.** All changes land via PR.
+- **PRs target `development`**, the default branch. Nothing is committed to
+  `development` or `main` directly.
 
-## main protection
+## Releases: `development` into `main`
 
-`main` is protected **server-side**: GitHub refuses a direct push, so every
-change lands via PR whatever your local setup does.
+`main` holds only released states. A merge into it **is** a release:
+
+1. Open a PR from `development` into `main` that raises `kflat_version()`
+   (`compiler/kf-driver/src/cli/version.kf`). The `release-pr` check refuses
+   any other source branch, and a version that does not go up.
+2. Merge it. The release workflow builds the seed from the pinned one, checks
+   the fixpoint, and publishes `vX.Y.Z` with `kflat-seed-X.Y.Z.tar.gz`.
+3. To build from the new seed, pin it in `bootstrap/stage0.toml` in an
+   ordinary PR into `development`.
+
+Both branches are protected **server-side**: GitHub refuses a direct push, and
+a merge needs green CI, so every change lands via PR whatever your local setup
+does.
 
 A `pre-push` hook mirrors that rule locally, so the refusal arrives before the
 round trip rather than after it. Enable it once per clone:
@@ -57,7 +69,7 @@ still stands, which is the point of having both.
 
 `.github/workflows/ci.yml` runs on every pull request — whatever it targets, so
 a stacked PR is covered before its base merges — on every push to `main`, and
-once a night.
+once a night on `development`.
 
 A `classify` job first decides what the PR needs (`scripts/ci-classify.sh`):
 
@@ -81,8 +93,8 @@ The fixpoint job uploads the komp it verified, and the other three wait for
 it and reuse it rather than each building one from the seed. `cc` goes through
 ccache, kept across runs with `actions/cache`.
 
-All four are required checks on `main`; a job skipped by `classify` counts as
-passed. Each CI run costs about ten minutes, so group related changes into one
+All four are required checks on `development` and `main`; a job skipped by
+`classify` counts as passed. Each CI run costs about ten minutes, so group related changes into one
 PR rather than opening many small ones.
 
 Run both gates locally before pushing — same checks, no round trip. It takes
@@ -129,10 +141,11 @@ stage1) or `FAIL: the seed rejected the current source` (a KFlat error).
 
 Split the work so every commit on `main` bootstraps from the pinned seed:
 
-1. **PR 1** — the compiler change, without using it in `compiler/`. Merge it,
-   bump `kflat_version()`, and push the release tag: the release workflow
-   publishes a seed that knows the change.
-2. **PR 2** — pin that release in `stage0.toml`, and the change that depends
+1. **PR 1** — the compiler change, without using it in `compiler/`, into
+   `development`.
+2. **A release** — `development` into `main`, raising `kflat_version()`: the
+   release workflow publishes a seed that knows the change.
+3. **PR 2** — pin that release in `stage0.toml`, and the change that depends
    on it.
 
 Before releasing, try the seed locally: `bootstrap/build.sh --seed-out DIR`
