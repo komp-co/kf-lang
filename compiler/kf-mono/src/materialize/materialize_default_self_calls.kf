@@ -91,6 +91,10 @@ mutating fun Stmt.stamp_stmt(owner_name: str, suffix: str, siblings: &List<Strin
             stamp_expr(unsafe { &var *subj_ptr }, owner_name, suffix, siblings)
             while i in 0..arms.size() {
                 val arm = arms.at_mut(i)
+                when (arm.guard) {
+                    Some(guard) => stamp_expr(unsafe { &var *guard }, owner_name, suffix, siblings)
+                    None => { }
+                }
                 stamp_stmt_list(&var arm.body, owner_name, suffix, siblings)
             }
         }
@@ -134,6 +138,10 @@ mutating fun Expr.stamp_expr(owner_name: str, suffix: str, siblings: &List<Strin
             stamp_expr(unsafe { &var *subj_ptr }, owner_name, suffix, siblings)
             while i in 0..arms.size() {
                 val arm = arms.at_mut(i)
+                when (arm.guard) {
+                    Some(guard) => stamp_expr(unsafe { &var *guard }, owner_name, suffix, siblings)
+                    None => { }
+                }
                 stamp_stmt_list(&var arm.body, owner_name, suffix, siblings)
             }
         }

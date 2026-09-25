@@ -24,16 +24,33 @@ pub fun check_when_arms(subject_ty: Type, arms: &var List<Arm>, span: Span, ctx:
         }
         (unsafe { &*pattern_ptr }).report_shadowing_pattern(ctx)
         (unsafe { &*pattern_ptr }).check_pattern(subject_ty, ctx)
-        var j = 0
-        while j < arm.body.size() {
+        // CONSTRAINT: after check_pattern, so the guard sees the arm's binders.
+        when (arm.guard) {
+            Some(guard) => check_when_guard(guard, ctx)
+            None => { }
+        }
+        while j in 0..arm.body.size() {
             (arm.body.at_mut(j)).check_stmt(ctx)
-            j = j + 1
         }
         ctx.truncate_locals(outer_locals)
     }
     // After reclassification.
     report_non_exhaustive_when(subject_ty, arms, span, ctx)
     report_covered_when_arms(arms, ctx)
+}
+
+fun check_when_guard(guard: Ptr<Expr>, ctx: &var TypeCtx): void {
+    check_expr(unsafe { &var *guard }, ctx)
+    val ty = unsafe { guard.ty }
+    val is_bool = when (ty.kind) {
+        Bool => true
+        Never => true
+        Poison => true
+        _ => false
+    }
+    if is_bool { return }
+    val message = "a `when` guard must be a `bool`, found `${ty.display_type(ctx)}`"
+    ctx.emit(new_diagnostic(Severity.Error, new_label(unsafe { guard.span }, message)))
 }
 
 /// The join of every arm's type, then every arm made to carry it. Two passes,

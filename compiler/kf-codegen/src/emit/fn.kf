@@ -106,6 +106,10 @@ mutating fun Stmt.deref_self_stmt(owner: str): void {
             deref_self_expr_ptr(subj, owner)
             while i in 0..arms.size() {
                 var a = arms.at_mut(i)
+                when (a.guard) {
+                    Some(guard) => deref_self_expr_ptr(guard, owner)
+                    None => { }
+                }
                 deref_self_stmt_list(&var a.body, owner)
             }
         }
@@ -113,6 +117,10 @@ mutating fun Stmt.deref_self_stmt(owner: str): void {
             deref_self_expr_ptr(subj, owner)
             while i in 0..sarms.size() {
                 var sa = sarms.at_mut(i)
+                when (sa.guard) {
+                    Some(guard) => deref_self_expr_ptr(guard, owner)
+                    None => { }
+                }
                 deref_self_stmt_list(&var sa.body, owner)
             }
         }

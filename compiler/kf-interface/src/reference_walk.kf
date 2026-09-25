@@ -184,12 +184,20 @@ fun Stmt.collect_stmt_names(out: &var List<String>): void {
         When(subj, arms) => {
             collect_expr_names(unsafe { &*subj }, out)
             while arm in &arms {
+                when (arm.guard) {
+                    Some(guard) => collect_expr_names(unsafe { &*guard }, out)
+                    None => { }
+                }
                 collect_stmt_list_names(&arm.body, out)
             }
         }
         Switch(subj, sarms) => {
             collect_expr_names(unsafe { &*subj }, out)
             while arm in &sarms {
+                when (arm.guard) {
+                    Some(guard) => collect_expr_names(unsafe { &*guard }, out)
+                    None => { }
+                }
                 collect_stmt_list_names(&arm.body, out)
             }
         }

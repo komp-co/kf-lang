@@ -90,6 +90,20 @@ fun area(s: Shape): int32 {
 }
 ```
 
+A guard is any `bool` expression. It can call a method on the binder, or
+compare it with `==` through the type's `Equal`, which is how a `when` matches
+a value that no literal pattern can spell:
+
+```kflat
+fun classify(p: Point, target: &Point): int32 {
+    return when p {
+        v if v == *target => 1
+        v if v.is_origin() => 2
+        _ => 3
+    }
+}
+```
+
 A guarded arm covers nothing for exhaustiveness purposes — its condition may
 be false at runtime — so the `when` above still needs the unguarded
 `Circle(r)` arm. Dropping it is an error, not a silent fallthrough.
