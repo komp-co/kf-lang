@@ -1,0 +1,41 @@
+// A workspace shares one target directory, so two komp processes may write
+// one artifact at once. Every artifact is written under a process-private
+// name and renamed over the real one; rename(2) is atomic within a
+// filesystem, and two writers produce the same bytes.
+
+import alloc.path.Path
+import std.fs.create_dir_all
+
+extern "C" fun getpid(): int32
+extern "C" fun rename(from: str, to: str): int32
+extern "C" fun unlink(path: str): int32
+
+pub fun staging_path(path: str): String {
+    val pid = unsafe { getpid() }
+    return "${path}.tmp.${pid}"
+}
+
+pub fun publish_staged(staged: str, path: str): bool {
+    return unsafe { rename(staged, path) } == 0
+}
+
+/// Failures leave nothing behind.
+pub fun discard_staged(staged: str): void {
+    val _gone = unsafe { unlink(staged) }
+}
+
+pub fun publish_text(path: str, content: str): bool {
+    val staged = staging_path(path)
+    write_file(staged.as_str(), content)
+    if publish_staged(staged.as_str(), path) { return true }
+    discard_staged(staged.as_str())
+    runtime_println("error: could not write ${path}")
+    return false
+}
+
+/// Creates `path` and any missing parents; false, reported, when it cannot.
+pub fun ensure_dir(path: str): bool {
+    if create_dir_all(Path.new(path)) { return true }
+    runtime_println("error: could not create ${path}")
+    return false
+}

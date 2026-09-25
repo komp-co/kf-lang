@@ -1,0 +1,107 @@
+// A store into a place: naming the overwritten value so it is dropped after
+// the store, and when that is unsafe.
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+
+/// A reference or `Box` points at a live value; a raw `Ptr<T>` may point at
+/// fresh `alloc<T>()` memory, where running a destructor crashes.
+fun points_at_a_live_value(t: Type): bool {
+    return when (t.kind) {
+        RefTo(_, _) => true
+        BoxOf(_) => true
+        _ => false
+    }
+}
+
+/// An expression naming the value about to be overwritten, or null. Accepts
+/// a field of a local struct, a field through a reference, or a deref of a
+/// reference or `Box` (read through a temp bound in `out`).
+fun rebuild_overwritten_place(place_ptr: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>): Ptr<Expr>? {
+    val pe = unsafe { *place_ptr }
+    when (pe.kind) {
+        Deref(innerp) => {
+            val inner = unsafe { *innerp }
+            if !points_at_a_live_value(inner.ty) { return null }
+            val tmp_id = ctx.block_counter
+            ctx.block_counter = tmp_id + 1
+            val tmp_sym = intern(("__place_${u64_to_str(tmp_id)}").as_str())
+            val init: Ptr<Expr> = unsafe { alloc<Expr>() }
+            unsafe { *init = inner }
+            out.push(new_stmt(pe.span, StmtKind.LetVal(tmp_sym, null, init)))
+            var tv = new_expr(inner.span, ExprKind.Variable(tmp_sym))
+            tv.ty = inner.ty
+            unsafe { *innerp = tv.clone() }
+            val tp: Ptr<Expr> = unsafe { alloc<Expr>() }
+            unsafe { *tp = tv }
+            var old = new_expr(pe.span, ExprKind.Deref(tp))
+            old.ty = pe.ty
+            val op: Ptr<Expr> = unsafe { alloc<Expr>() }
+            unsafe { *op = old }
+            return op
+        }
+        FieldAccess(basep, fname) => {
+            val be = unsafe { *basep }
+            if !ty_is_struct_value(be.ty) && !points_at_a_live_value(be.ty) { return null }
+            when (be.kind) {
+                Variable(bname) => {
+                    var bv = new_expr(be.span, ExprKind.Variable(bname))
+                    bv.ty = be.ty
+                    val bp: Ptr<Expr> = unsafe { alloc<Expr>() }
+                    unsafe { *bp = bv }
+                    var fe = new_expr(pe.span, ExprKind.FieldAccess(bp, fname))
+                    fe.ty = pe.ty
+                    val fp: Ptr<Expr> = unsafe { alloc<Expr>() }
+                    unsafe { *fp = fe }
+                    return fp
+                }
+                _ => return null
+            }
+        }
+        _ => return null
+    }
+}
+
+/// `h.f = rhs` drops the overwritten value by aliasing it into a temp before
+/// the store and releasing the temp after:
+///
+///     String ____old_1 = (__h).s;
+///     (__h).s = String_from__From__str("beta");
+///     __kf_v2_string_drop(____old_1);
+///
+/// CONSTRAINT: only for an `OwnedFresh` rhs. `h.s = h.s` would otherwise free
+/// the buffer the field now holds; anything else keeps the leak.
+///
+/// The temp's name, or null when it does not apply.
+fun lower_place_assign_drop(place_ptr: Ptr<Expr>, rhs_ptr: Ptr<Expr>, span: Span, ctx: &var RcCtx,
+                            out: &var List<Stmt>): Sym? {
+    val pe = unsafe { *place_ptr }
+    if !is_heap_ty_rc(pe.ty) { return null }
+    when (classify_binding(unsafe { *rhs_ptr }, ctx)) {
+        OwnedFresh => { }
+        _ => return null
+    }
+    if rhs_may_share_the_place(rhs_ptr, ctx) { return null }
+    val copy = rebuild_overwritten_place(place_ptr, ctx, out) ?: return null
+    val tmp_id = ctx.block_counter
+    ctx.block_counter = tmp_id + 1
+    val tmp_name = "__old_${u64_to_str(tmp_id)}"
+    val tmp_sym = intern(tmp_name.as_str())
+    out.push(new_stmt(span, StmtKind.LetVal(tmp_sym, null, copy)))
+    return tmp_sym
+}
+
+/// A constructor is fresh as a whole but not in its arguments:
+/// `td.kind = Function(params, ret, body)` over binders of `td.kind` rebuilds
+/// around the old storage. The old value is dropped only when every variable
+/// the rhs names is owned outright here; otherwise it leaks.
+fun rhs_may_share_the_place(rhs_ptr: Ptr<Expr>, ctx: &var RcCtx): bool {
+    var names = List.new<String>()
+    collect_var_names_in_expr(unsafe { &*rhs_ptr }, &var names)
+    while n in &names {
+        if ctx.rc_owning_frame(n.as_str()) < 0 { return true }
+    }
+    return false
+}

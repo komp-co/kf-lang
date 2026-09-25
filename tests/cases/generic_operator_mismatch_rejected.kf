@@ -1,0 +1,9 @@
+//! build: fail
+//! deps: core, alloc
+
+import alloc.list.*
+
+fun main(): int32 {
+    val values = List.new<bool>()
+    return values + 1
+}

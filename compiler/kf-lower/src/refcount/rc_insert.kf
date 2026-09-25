@@ -1,0 +1,234 @@
+// Scope-exit releases as inline `Release(name)` statements at the end of each
+// scope, plus retain wrapping at alias stores.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_lower.ownership.*
+pub mutating fun Module.rc_insert_module(list_name: Sym): void {
+    val names = self.compute_move_only_names(list_name)
+    val tp: Ptr<List<ParamEntry>> = unsafe { alloc<List<ParamEntry>>() }
+    unsafe { *tp = self.build_param_table() }
+    val vp: Ptr<VariantPayloads> = unsafe { alloc<VariantPayloads>() }
+    unsafe { *vp = self.variant_payloads_of() }
+    val string_name = self.lang_type_name(lang_string_key())
+    while i in 0..self.decls.size() {
+        rc_insert_top_decl_pv(self.decls.at_mut(i), names, tp, vp, string_name)
+    }
+}
+
+/// `vp` says which payloads each enum variant owns, so a `when` arm can take
+/// responsibility for those it binds.
+pub fun rc_insert_top_decl_pv(td: &var TopDecl, names: List<String>, tp: Ptr<List<ParamEntry>>, vp: Ptr<VariantPayloads>,
+                              string_name: Sym): void {
+    when (td.kind) {
+        Function(params, ret, body, p, u, m, s) => {
+            val fn_name_a = td.name.as_string()
+            var ctx = new_rc_ctx(fn_name_a)
+            // Deep-cloned: `names` is shared across decls and RcCtx frees it.
+            ctx.move_only_names = clone_str_list(&names)
+            ctx.ptable = tp
+            ctx.variants = vp
+            ctx.string_name = string_name
+            val _idx = ctx.push_frame(false)
+            track_value_params(&params, &var ctx)
+            val new_body = rc_insert_stmt_list(body, &var ctx)
+            val releases = ctx.pop_frame()
+            val final_body = append_releases(new_body, releases)
+            td.kind = TopDeclKind.Function(params, ret, final_body, p, u, m, s)
+        }
+        ImplBlock(methods) => {
+            while i in 0..methods.size() {
+                rc_insert_top_decl_pv(methods.at_mut(i), names, tp, vp, string_name)
+            }
+            td.kind = TopDeclKind.ImplBlock(methods)
+        }
+        Struct(_, _) => return
+        EnumDecl(_, _) => return
+        Extern(_, _, _, _) => return
+        AssocType(_bounds) => return
+        AssocTypeBinding(_chosen) => return
+        TraitDecl(_, _, _) => return
+        TraitImpl(_, _) => return
+        Poison => return
+    }
+}
+
+
+fun push_stmts(out: &var List<Stmt>, items: List<Stmt>): void {
+    while item in &items {
+        out.push(item)
+    }
+}
+
+enum BorrowMode { Value, Borrow }
+
+/// Names moved into the returned value, as opposed to borrowed to compute a
+/// fresh one; only these escape the pre-return drop. Receivers, deref and
+/// operator operands are borrows; bare variables, fields, arguments and
+/// branches are value positions.
+fun Expr.collect_moved_names(mode: BorrowMode, out: &var List<String>): void {
+    when (self.kind) {
+        Variable(name) => {
+            // Lending, a byte view or a clone moves nothing into the result.
+            if self.coerce == coerce_addr_of() { return }
+            if self.coerce == coerce_to_cstr() { return }
+            if self.coerce == coerce_clone() { return }
+            when (mode) { Value => out.push(name.as_string())  Borrow => {} }
+        }
+        Release(name) => {
+            when (mode) { Value => out.push(name.as_string())  Borrow => {} }
+        }
+        Call(_n, args) => collect_moved_names_list(args, BorrowMode.Value, out)
+        StructLit(_n, finits) => {
+            while fi in &finits {
+                val vp: Ptr<Expr> = fi.value
+                collect_moved_names(unsafe { *vp }, BorrowMode.Value, out)
+            }
+        }
+        Binary(lp, _op, rp) => {
+            collect_moved_names(unsafe { *lp }, BorrowMode.Borrow, out)
+            collect_moved_names(unsafe { *rp }, BorrowMode.Borrow, out)
+        }
+        Unary(_op, ip) => collect_moved_names(unsafe { *ip }, BorrowMode.Borrow, out)
+        Deref(ip) => collect_moved_names(unsafe { *ip }, BorrowMode.Borrow, out)
+        MethodCall(recv_ptr, _m, args) => {
+            collect_moved_names(unsafe { *recv_ptr }, BorrowMode.Borrow, out)
+            collect_moved_names_list(args, BorrowMode.Value, out)
+        }
+        FieldAccess(obj_ptr, _f) => collect_moved_names(unsafe { *obj_ptr }, BorrowMode.Borrow, out)
+        IfExpr(c, t, el) => {
+            collect_moved_names(unsafe { *c }, BorrowMode.Borrow, out)
+            collect_moved_names(unsafe { *t }, BorrowMode.Value, out)
+            collect_moved_names(unsafe { *el }, BorrowMode.Value, out)
+        }
+        // Already a statement: the when-expression desugar ran first.
+        WhenExpr(_, _) => { }
+        Cast(ip, _t) => collect_moved_names(unsafe { *ip }, BorrowMode.Borrow, out)
+        DynCoerce(ip, _vtable) => collect_moved_names(unsafe { *ip }, BorrowMode.Borrow, out)
+        Retain(ip) => collect_moved_names(unsafe { *ip }, BorrowMode.Borrow, out)
+        LitInt(_v) => return
+        LitStr(_s) => return
+        LitFloat(_) => return
+        LitChar(_) => return
+        LitBool(_b) => return
+        Lambda(_, _) => return
+        Block(_) => return
+        Poison => return
+    }
+}
+
+fun collect_moved_names_list(args: List<Expr>, mode: BorrowMode, out: &var List<String>): void {
+    while item in &args {
+        item.collect_moved_names(mode, out)
+    }
+}
+
+/// Every variable name in `e`, excluded from an early exit's drops: dropping
+/// what the return still reads is a use-after-free. Conservative: an
+/// unmoved name leaks rather than crashes.
+fun Expr.collect_var_names_in_expr(out: &var List<String>): void {
+    when (self.kind) {
+        Variable(name) => out.push(name.as_string())
+        Release(name) => out.push(name.as_string())
+        Call(_n, args) => collect_var_names_in_list(args, out)
+        StructLit(_n, finits) => {
+            while fi in &finits {
+                val vp: Ptr<Expr> = fi.value
+                collect_var_names_in_expr(unsafe { *vp }, out)
+            }
+        }
+        Binary(lp, _op, rp) => {
+            collect_var_names_in_expr(unsafe { *lp }, out)
+            collect_var_names_in_expr(unsafe { *rp }, out)
+        }
+        Unary(_op, ip) => collect_var_names_in_expr(unsafe { *ip }, out)
+        Deref(ip) => collect_var_names_in_expr(unsafe { *ip }, out)
+        MethodCall(recv_ptr, _m, args) => {
+            if !self.is_static_call { collect_var_names_in_expr(unsafe { *recv_ptr }, out) }
+            collect_var_names_in_list(args, out)
+        }
+        FieldAccess(obj_ptr, _f) => collect_var_names_in_expr(unsafe { *obj_ptr }, out)
+        IfExpr(c, t, el) => {
+            collect_var_names_in_expr(unsafe { *c }, out)
+            collect_var_names_in_expr(unsafe { *t }, out)
+            collect_var_names_in_expr(unsafe { *el }, out)
+        }
+        // Already a statement: the when-expression desugar ran first.
+        WhenExpr(_, _) => { }
+        Cast(ip, _t) => collect_var_names_in_expr(unsafe { *ip }, out)
+        DynCoerce(ip, _vtable) => collect_var_names_in_expr(unsafe { *ip }, out)
+        Retain(ip) => collect_var_names_in_expr(unsafe { *ip }, out)
+        LitInt(_v) => return
+        LitStr(_s) => return
+        LitFloat(_) => return
+        LitChar(_) => return
+        LitBool(_b) => return
+        Lambda(_, _) => return
+        Block(_) => return
+        Poison => return
+    }
+}
+
+fun collect_var_names_in_list(args: List<Expr>, out: &var List<String>): void {
+    while item in &args {
+        item.collect_var_names_in_expr(out)
+    }
+}
+
+/// For a primitive return only escaping names are excluded; for a heap
+/// return every named local is, since the value may alias one.
+fun returned_var_names(expr_ptr: Ptr<Expr>?): List<String> {
+    var out = List.new<String>()
+    val ep = expr_ptr ?: return out
+    val re = unsafe { *ep }
+    if is_heap_ty_rc(re.ty) {
+        re.collect_var_names_in_expr(&var out)
+    } else {
+        re.collect_moved_names(BorrowMode.Value, &var out)
+    }
+    return out
+}
+
+fun digit_str(d: uint64): String {
+    if d == 1 { return String.from("1") }
+    if d == 2 { return String.from("2") }
+    if d == 3 { return String.from("3") }
+    if d == 4 { return String.from("4") }
+    if d == 5 { return String.from("5") }
+    if d == 6 { return String.from("6") }
+    if d == 7 { return String.from("7") }
+    if d == 8 { return String.from("8") }
+    if d == 9 { return String.from("9") }
+    return String.from("0")
+}
+
+fun u64_to_str(n: uint64): String {
+    if n < 10 { return digit_str(n) }
+    return u64_to_str(n / 10) + digit_str(n % 10)
+}
+
+fun ty_is_struct_value(t: Type): bool {
+    return when (t.kind) {
+        Struct(_n) => true
+        _ => false
+    }
+}
+
+/// `return <expr>` that must drop locals after evaluating the value, which
+/// may read through them: capture, drop, return the temp.
+fun lower_return_drop_after_eval(ep: Ptr<Expr>?, rels: List<Stmt>, ctx: &var RcCtx, out: &var List<Stmt>): void {
+    val rp = ep ?: return
+    val re = unsafe { *rp }
+    val tmp_id = ctx.block_counter
+    ctx.block_counter = tmp_id + 1
+    val tmp_name = "__retval_${u64_to_str(tmp_id)}"
+    out.push(new_stmt(re.span, StmtKind.LetVal(intern(tmp_name.as_str()), null, rp)))
+    push_stmts(out, rels)
+    var v = new_expr(re.span, ExprKind.Variable(intern(tmp_name.as_str())))
+    v.ty = re.ty
+    val vp: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *vp = v }
+    val operand: Ptr<Expr>? = vp
+    out.push(new_stmt(re.span, StmtKind.Return(operand)))
+}

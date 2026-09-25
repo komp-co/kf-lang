@@ -1,0 +1,116 @@
+// `T?` is sugar for `Option<T>`.
+/// The language finds the optional type by key, not name.
+@lang("option")
+pub enum Option<T> {
+    Some(T)
+    None
+}
+
+
+impl Option<T> {
+    pub fun is_some(): bool {
+        return when (self) {
+            Some(_v) => true
+            None => false
+        }
+        return false
+    }
+
+    pub fun is_none(): bool {
+        return when (self) {
+            Some(_v) => false
+            None => true
+        }
+        return true
+    }
+
+    /// The payload, or a controlled abort. `!!` desugars to this; prefer `?:`
+    /// where a default will do.
+    ///
+    /// Copies out of the borrowed `self`, so the option stays usable.
+    pub fun unwrap(): T {
+        when (self) {
+            Some(v) => { return v }
+            None => {}
+        }
+        unsafe { panic("Option.unwrap called on a None") }
+    }
+}
+
+// An `Option<T>` is comparable exactly when its payload is.
+
+impl Equal for Option<T: Equal> {
+    fun equals(other: &Option<T>): bool {
+        when (self) {
+            Some(a) => {
+                when (other) {
+                    Some(b) => { return a == b }
+                    None => { return false }
+                }
+            }
+            None => {
+                when (other) {
+                    Some(_b) => { return false }
+                    None => { return true }
+                }
+            }
+        }
+        return false
+    }
+}
+
+impl Copy for Option<T: Copy> { }
+
+impl Clone for Option<T: Clone> {
+    fun clone(): Option<T> {
+        when (self) {
+            Some(v) => { return Option.Some<T>(v.clone()) }
+            None => { return Option.None<T>() }
+        }
+        return Option.None<T>()
+    }
+}
+
+// `None` hashes to 0; `Some(v)` remixes the payload's hash, so `Some(x)` and
+// `x` differ.
+impl Hash for Option<T: Hash> {
+    fun hash(): uint64 {
+        when (self) {
+            Some(v) => { return mix_uint64(v.hash()) }
+            None => { return 0 }
+        }
+        return 0
+    }
+}
+
+impl Default for Option<T> {
+    static fun default(): Option<T> {
+        return Option.None<T>()
+    }
+}
+
+impl Try for Option<T> {
+    type Output = T
+    type Residual = Option<Never>
+
+    fun branch(): Branch<T, Option<Never>> {
+        if self.is_none() {
+            return Branch.Break<T, Option<Never>>(Option.None<Never>())
+        }
+        // CONSTRAINT: through a typed local: a call argument is a borrow
+        // position, and the option would drop the aliased payload too.
+        val payload: T = self.unwrap()
+        return Branch.Continue<T, Option<Never>>(payload)
+    }
+
+    static fun from_output(o: T): Option<T> {
+        return Option.Some<T>(o)
+    }
+}
+
+impl FromResidual<Option<Never>> for Option<T> {
+    // A `None` is a `None` at every payload type.
+    static fun from_residual(_r: Option<Never>): Option<T> {
+        return Option.None<T>()
+    }
+}

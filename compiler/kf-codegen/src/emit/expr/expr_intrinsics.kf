@@ -1,0 +1,159 @@
+import alloc.list.*
+
+import kf_core.ast.*
+
+import kf_codegen.concat_all
+
+fun Expr.struct_lit_name(sname: String): String {
+    if self.mangled_callee.as_str().equals("") {
+        return sname
+    }
+    return self.mangled_callee.as_string()
+}
+
+fun emit_struct_lit(sname: String, finits: List<FieldInit>): String {
+    var parts = List.new<String>()
+    parts.push(String.from("__"))
+    parts.push(sname.clone())
+    parts.push(String.from("_new("))
+    while i in 0..finits.size() {
+        if i > 0 { parts.push(String.from(", ")) }
+        val fi = *finits.at(i)
+        val vp = fi.value
+        val v = unsafe { *vp }
+        parts.push(v.emit_expr())
+    }
+    parts.push(String.from(")"))
+    return concat_all(parts)
+}
+
+// `alloc__<T>()` is `(<Tc>*)kf_alloc(sizeof(<Tc>))`. The fragment is a KFlat
+// type name and must be mapped to C: `int32` is `int32_t`.
+fun emit_alloc_generic(name: str): String {
+    val n = name.byte_len()
+    val cty = cname_of_mangle(name.substring(7, n).as_str())
+    var parts = List.new<String>()
+    parts.push(String.from("("))
+    parts.push(cty.clone())
+    parts.push(String.from("*)kf_alloc(sizeof("))
+    parts.push(cty.clone())
+    parts.push(String.from("))"))
+    return concat_all(parts)
+}
+
+// `sizeof__<T>()` is `sizeof(<Tc>)`, mapped as for alloc.
+fun emit_sizeof_generic(name: str): String {
+    val n = name.byte_len()
+    val cty = cname_of_mangle(name.substring(8, n).as_str())
+    var parts = List.new<String>()
+    parts.push(String.from("sizeof("))
+    parts.push(cty.clone())
+    parts.push(String.from(")"))
+    return concat_all(parts)
+}
+
+// `drop_in_place__<Tc>(p)` runs Tc's destructor in place; a no-op for a
+// primitive.
+fun emit_drop_in_place_generic(name: str, args: List<Expr>): String {
+    val n = name.byte_len()
+    val frag = name.substring(15, n)
+    val cty = cname_of_mangle(frag.as_str())
+    val rel = release_fn_for_ctype(cty.as_str())
+    if rel.as_str().byte_len() == 0 {
+        return String.from("((void)0)")
+    }
+    var parts = List.new<String>()
+    parts.push(rel.clone())
+    parts.push(String.from("(*"))
+    val arg0 = *args.at(0)
+    parts.push(arg0.emit_expr())
+    parts.push(String.from(")"))
+    return concat_all(parts)
+}
+
+// `ptr_read__<Tc>(p)` is `(*(p))`: the bits move, and nothing is dropped.
+fun emit_ptr_read(args: List<Expr>): String {
+    val arg0 = *args.at(0)
+    return "(*(${emit_expr(arg0).as_str()}))"
+}
+
+// `clone_place__<Tc>(p)`: a deep copy of the pointee, or a plain copy for a
+// primitive or pointer.
+fun emit_clone_place_generic(name: str, args: List<Expr>): String {
+    val n = name.byte_len()
+    val frag = name.substring(13, n)
+    val cty = cname_of_mangle(frag.as_str())
+    val cfn = clone_fn_for_ctype(cty.as_str())
+    var parts = List.new<String>()
+    val has_clone = cfn.as_str().byte_len() > 0
+    if has_clone {
+        parts.push(cfn.clone())
+        parts.push(String.from("((*"))
+        val arg0 = *args.at(0)
+        parts.push(arg0.emit_expr())
+        parts.push(String.from("))"))
+        return concat_all(parts)
+    }
+    parts.push(String.from("(*"))
+    val arg0b = *args.at(0)
+    parts.push(arg0b.emit_expr())
+    parts.push(String.from(")"))
+    return concat_all(parts)
+}
+
+// `alloc_array__<Tc>(n)` is `((<Tc>*)kf_alloc(sizeof(<Tc>) * (n)))`.
+fun emit_alloc_array_generic(name: str, args: List<Expr>): String {
+    val n = name.byte_len()
+    val frag = name.substring(13, n)
+    val cty = cname_of_mangle(frag.as_str())
+    var parts = List.new<String>()
+    parts.push(String.from("(("))
+    parts.push(cty.clone())
+    parts.push(String.from("*)kf_alloc(sizeof("))
+    parts.push(cty.clone())
+    parts.push(String.from(") * ("))
+    val arg0 = *args.at(0)
+    parts.push(arg0.emit_expr())
+    parts.push(String.from(")))"))
+    return concat_all(parts)
+}
+
+// `realloc_array__<Tc>(ptr, n)` is
+// `((<Tc>*)kf_realloc((ptr), sizeof(<Tc>) * (n)))`.
+fun emit_realloc_array_generic(name: str, args: List<Expr>): String {
+    val n = name.byte_len()
+    val frag = name.substring(15, n)
+    val cty = cname_of_mangle(frag.as_str())
+    var parts = List.new<String>()
+    parts.push(String.from("(("))
+    parts.push(cty.clone())
+    parts.push(String.from("*)kf_realloc("))
+    val arg0 = *args.at(0)
+    parts.push(arg0.emit_expr())
+    parts.push(String.from(", sizeof("))
+    parts.push(cty.clone())
+    parts.push(String.from(") * ("))
+    val arg1 = *args.at(1)
+    parts.push(arg1.emit_expr())
+    parts.push(String.from(")))"))
+    return concat_all(parts)
+}
+
+fun emit_alloc(c_ty: str, args: List<Expr>): String {
+    var parts = List.new<String>()
+    parts.push(String.from("("))
+    parts.push(String.from(c_ty))
+    parts.push(String.from("*)kf_alloc(sizeof("))
+    parts.push(String.from(c_ty))
+    parts.push(String.from("))"))
+    return concat_all(parts)
+}
+
+fun emit_free(args: List<Expr>): String {
+    val a = *args.at(0)
+    var parts = List.new<String>()
+    parts.push(String.from("kf_free("))
+    parts.push(a.emit_expr())
+    parts.push(String.from(")"))
+    return concat_all(parts)
+}

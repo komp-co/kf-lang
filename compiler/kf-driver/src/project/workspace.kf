@@ -1,0 +1,158 @@
+// Which crates a command runs on, and where a workspace puts their output.
+
+import alloc.list.*
+import core.text.last_index_of
+import alloc.text_edit.replace
+
+extern "C" fun access(path: str, mode: int32): int32
+
+pub fun manifest_missing(root: str): bool {
+    val path = join_path(root, "kf.toml")
+    return unsafe { access(path.as_str(), 0) } != 0
+}
+
+fun manifest_source_at(dir: str): String {
+    val path = join_path(dir, "kf.toml")
+    return read_file(path.as_str())
+}
+
+pub fun is_workspace_dir(dir: str): bool {
+    if manifest_missing(dir) { return false }
+    return is_workspace_manifest(manifest_source_at(dir).as_str())
+}
+
+/// Only the implicit `.` walks up to the nearest manifest; a named directory
+/// is taken as named.
+pub fun command_dir(project: str): String {
+    if project != "." || !manifest_missing(project) { return String.from(project) }
+    val found = discover_manifest_root(project)
+    if found.as_str() == "" { return String.from(project) }
+    return found
+}
+
+/// Empty once the reason has been printed. At a workspace: its
+/// `default-member`, the `package` named, or every member for `all`. A member
+/// crate reaches the workspace listing it.
+pub fun select_crate_roots(dir: str, package: str, all: bool): List<String> {
+    var out = List.new<String>()
+    if package != "" && all {
+        runtime_println("error: `--package` and `--workspace` cannot be combined")
+        return out
+    }
+    // The build graph reports a missing manifest.
+    if manifest_missing(dir) || (!is_workspace_dir(dir) && package == "" && !all) {
+        out.push(String.from(dir))
+        return out
+    }
+    var ws = String.from(dir)
+    if !is_workspace_dir(dir) {
+        ws = enclosing_workspace(dir)
+        if ws.as_str() == "" {
+            val name = parse_manifest(manifest_source_at(dir).as_str()).name
+            if all || name.as_str() == crate_name_of(package).as_str() {
+                out.push(String.from(dir))
+                return out
+            }
+            val shown = normalized_path(dir)
+            val why = "is not `${name.as_str()}`, and `${shown.as_str()}` is in no workspace"
+            runtime_println("error: package `${package}` ${why}")
+            return out
+        }
+    }
+    if all { return workspace_member_roots(ws.as_str()) }
+    if package != "" {
+        val root = workspace_package_root(ws.as_str(), package)
+        if root.as_str() != "" { out.push(root) }
+        return out
+    }
+    val member = workspace_default_member(manifest_source_at(ws.as_str()).as_str())
+    if member.as_str() == "" {
+        val shown = normalized_path(ws.as_str())
+        val choices = "add one, or pass `--package <name>` or `--workspace`"
+        runtime_println("error: workspace `${shown.as_str()}` has no default-member: ${choices}")
+        return out
+    }
+    out.push(join_path(ws.as_str(), member.as_str()))
+    return out
+}
+
+/// The listing workspace's shared output, or the crate's own `target`.
+/// Artifacts are named per crate, so members share without collision.
+pub fun build_output_root(crate_dir: str): String {
+    val ws = enclosing_workspace(crate_dir)
+    if ws.as_str() == "" { return join_path(crate_dir, "target") }
+    val custom = workspace_target_dir(manifest_source_at(ws.as_str()).as_str())
+    if custom.as_str() == "" { return join_path(ws.as_str(), "target") }
+    return resolve_path(ws.as_str(), custom.as_str())
+}
+
+/// Joined to its root, in order.
+pub fun workspace_member_roots(ws: str): List<String> {
+    var out = List.new<String>()
+    val members = workspace_members(manifest_source_at(ws).as_str())
+    while member in &members {
+        out.push(join_path(ws, member.as_str()))
+    }
+    return out
+}
+
+fun workspace_package_root(ws: str, package: str): String {
+    val roots = workspace_member_roots(ws)
+    while candidate in &roots {
+        if !manifest_missing(candidate.as_str()) {
+            val manifest = parse_manifest(manifest_source_at(candidate.as_str()).as_str())
+            if manifest.name.as_str() == crate_name_of(package).as_str() { return candidate.clone() }
+        }
+    }
+    val shown = normalized_path(ws)
+    runtime_println("error: package `${package}` is not a member of workspace `${shown.as_str()}`")
+    return ""
+}
+
+/// A crate name, or a member directory whose `-` becomes `_`.
+fun crate_name_of(package: str): String {
+    return package.replace("-", "_")
+}
+
+/// "" unless the workspace lists it: a fixture inside a member is its own
+/// project.
+pub fun enclosing_workspace(crate_dir: str): String {
+    val wanted = normalized_path(crate_dir)
+    var here = parent_path(wanted.as_str())
+    while here.as_str() != "" {
+        if is_workspace_dir(here.as_str()) && lists_member(here.as_str(), wanted.as_str()) {
+            return here
+        }
+        val parent = parent_path(here.as_str())
+        if parent.as_str() == here.as_str() { return "" }
+        here = parent
+    }
+    return ""
+}
+
+fun lists_member(ws: str, wanted: str): bool {
+    val roots = workspace_member_roots(ws)
+    while root in &roots {
+        if normalized_path(root.as_str()).as_str() == wanted { return true }
+    }
+    return false
+}
+
+/// "" when none.
+pub fun discover_manifest_root(start: str): String {
+    var here = normalized_path(start)
+    while here.as_str() != "" {
+        if !manifest_missing(here.as_str()) { return here }
+        val parent = parent_path(here.as_str())
+        if parent.as_str() == here.as_str() { return "" }
+        here = parent
+    }
+    return ""
+}
+
+/// Everything before the last `/`: "/" for a top-level path, "" for none.
+pub fun parent_path(path: str): String {
+    val slash = path.last_index_of("/") ?: return ""
+    if slash == 0 { return String.from("/") }
+    return path.take_bytes(slash)
+}

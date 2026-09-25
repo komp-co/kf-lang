@@ -1,0 +1,50 @@
+import core.assert.assert
+import core.assert.fail
+import core.assert.assert_eq
+
+import kf_core.span.no_span
+
+@test fun int32_ty_is_int32(): void {
+    val t = int32_ty(no_span())
+    when (t.kind) {
+        Int32 => assert(true, "ok")
+        _ => fail("expected Int32")
+    }
+}
+
+@test fun int32_ty_not_poison(): void {
+    val t = int32_ty(no_span())
+    assert_eq(t.is_poison(), false, "int32 isn't poison")
+}
+
+@test fun bool_ty_not_poison(): void {
+    val t = bool_ty(no_span())
+    assert_eq(t.is_poison(), false, "bool isn't poison")
+}
+
+@test fun void_ty_not_poison(): void {
+    val t = void_ty(no_span())
+    assert_eq(t.is_poison(), false, "void isn't poison")
+}
+
+@test fun poison_ty_is_poison(): void {
+    val t = poison_ty()
+    assert_eq(t.is_poison(), true, "poison.is_poison()")
+}
+
+@test fun generic_ty_carries_name(): void {
+    val t = generic_ty(String.from("T"), no_span())
+    when (t.kind) {
+        Generic(n) => assert_eq(n.as_str(), "T", "name preserved")
+        _ => fail("expected Generic")
+    }
+}
+
+@test fun ptr_ty_wraps_inner(): void {
+    val inner = int32_ty(no_span())
+    val p = ptr_ty(inner, no_span())
+    when (p.kind) {
+        PtrTo(_) => assert(true, "ok")
+        _ => fail("expected PtrTo")
+    }
+}

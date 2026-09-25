@@ -1,0 +1,72 @@
+// `komp new` and `komp init`.
+
+import core.text.last_index_of
+import alloc.text_edit.replace
+
+// libc system(3); only compare its result with 0.
+extern "C" fun system(cmd: str): int32
+extern "C" fun kf_current_dir(): String
+
+fun main_kf_src(): str {
+    return """import core.display.*
+
+fun main(): int32 {
+    println(String.from("Hello, world!"))
+    return 0
+}
+"""
+}
+
+fun new_project(name: str): int32 {
+    val crate_name = crate_name_from_dir(name)
+    val mkdir_full = "mkdir -p ${name}/src"
+    val _rc = system(mkdir_full.as_str())
+    val toml_path = join_two(String.from(name), String.from("kf.toml"))
+    write_file(toml_path.as_str(), manifest_toml_for(crate_name.as_str()).as_str())
+    val main_path = join_three(String.from(name), String.from("src"), String.from("main.kf"))
+    write_file(main_path.as_str(), main_kf_src())
+    return 0
+}
+
+fun init_project(): int32 {
+    val cwd_s = unsafe { kf_current_dir() }
+    val dir_name = basename_of(cwd_s.as_str())
+    val crate_name = crate_name_from_dir(dir_name.as_str())
+    system("mkdir -p src")
+    write_file("kf.toml", manifest_toml_for(crate_name.as_str()).as_str())
+    write_file("src/main.kf", main_kf_src())
+    return 0
+}
+
+/// "my-project" -> "my_project"
+fun crate_name_from_dir(name: str): String {
+    return name.replace("-", "_")
+}
+
+/// After the last `/`, without a trailing newline.
+fun basename_of(path: str): String {
+    val start: uint64 = when (path.last_index_of("/")) {
+        Some(slash) => slash + 1
+        None => 0
+    }
+    var end = path.byte_len()
+    if path.ends_with("\n") { end = end - 1 }
+    return path.substring(start, end)
+}
+
+fun manifest_toml_for(crate_name: str): String {
+    val out = "[project]\nname = \"${crate_name}\"\nversion = \"0.1.0\"\nkind = \"bin\"\n"
+    return out
+}
+
+fun join_two(a: String, b: String): String {
+    var out = a
+    out.append("/")
+    out.append(b.as_str())
+    return out
+}
+
+fun join_three(a: String, b: String, c: String): String {
+    val ab = join_two(a, b)
+    return join_two(ab, c)
+}

@@ -1,0 +1,50 @@
+// The compiler komp runs, as artifacts see it: what `kflatc version` reports,
+// and the binary's own bytes.
+
+import alloc.list.*
+import std.fs.TempDir
+import std.process.*
+
+pub struct CompilerIdentity {
+    pub val abi:     String
+    pub val runtime: String
+    pub val target:  String
+    /// A rebuilt compiler rebuilds every crate, whatever its ABI says.
+    pub val binary_hash: String
+}
+
+/// None, reported, when kflatc is missing or does not say what it is.
+pub fun kflatc_identity(): CompilerIdentity? {
+    val path = kflatc_path()
+    if kflatc_missing(&path) { return Option.None }
+    val temp = TempDir.new("komp-kflatc")
+    val answer = temp.path().join("version")
+    var command = Command.new(path.as_str())
+    command.arg("version")
+    command.stdout_to(answer.clone())
+    if command.status().exit_code() != 0 {
+        println("komp: ${path} did not answer `version`")
+        return Option.None
+    }
+    val lines = read_file(answer.as_str()).lines()
+    val abi = version_field(&lines, "abi")
+    val runtime = version_field(&lines, "runtime")
+    val target = version_field(&lines, "target")
+    if abi.byte_len() == 0 || runtime.byte_len() == 0 || target.byte_len() == 0 {
+        println("komp: ${path} answered `version` without its abi, runtime and target")
+        return Option.None
+    }
+    // CONSTRAINT: the binary's raw bytes. `read_file` stops at the ELF
+    // header's first NUL, which would hash the same 7 bytes for every build.
+    val binary_hash = "${unsafe { kf_file_hash(path.as_str()) }}"
+    return Option.Some(CompilerIdentity { abi: abi, runtime: runtime, target: target, binary_hash: binary_hash })
+}
+
+/// The value of the `key value` line, or "".
+pub fun version_field(lines: &List<String>, key: str): String {
+    val prefix = "${key} "
+    while line in &lines {
+        if line.starts_with(prefix.as_str()) { return line.substring(prefix.byte_len(), line.byte_len()) }
+    }
+    return ""
+}

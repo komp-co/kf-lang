@@ -1,0 +1,26 @@
+import core.assert.assert_eq
+import alloc.path.*
+
+@test
+fun path_join_adds_separator(): void {
+    val p = Path.new("target").join("komp.c")
+    assert_eq(p.as_str(), "target/komp.c", "join separates path components")
+}
+
+@test
+fun path_file_name_returns_last_component(): void {
+    val p = Path.new("target/komp.c")
+    assert_eq(p.file_name(), "komp.c", "file_name returns final component")
+}
+
+@test
+fun path_parent_returns_containing_directory(): void {
+    val path = Path.new("/tmp/project/kf.toml")
+    assert_eq(path.parent().as_str(), "/tmp/project", "parent path")
+}
+
+@test
+fun relative_file_parent_is_current_directory(): void {
+    val path = Path.new("kf.toml")
+    assert_eq(path.parent().as_str(), ".", "relative parent")
+}

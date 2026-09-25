@@ -1,0 +1,41 @@
+import kf_core.span.*
+import kf_core.ast.*
+
+fun check_unary(op: UnaryOp, inner: Expr, span: Span, ctx: &var TypeCtx): Type {
+    if inner.ty.is_poison() { return poison_ty() }
+    when (op) {
+        Neg => {
+            if !is_numeric(inner.ty) { return poison_ty() }
+            return inner.ty
+        }
+        Not => {
+            val expected = bool_ty(no_span())
+            if !inner.ty.type_eq(expected) { return poison_ty() }
+            return inner.ty
+        }
+    }
+}
+
+fun is_float(t: Type): bool {
+    return when (t.kind) {
+        Float32 => true
+        Float64 => true
+        _ => false
+    }
+}
+
+fun is_numeric(t: Type): bool {
+    return when (t.kind) {
+        Int8 => true
+        Int16 => true
+        Int32 => true
+        Int64 => true
+        UInt8 => true
+        UInt16 => true
+        UInt32 => true
+        UInt64 => true
+        Float32 => true
+        Float64 => true
+        _ => false
+    }
+}

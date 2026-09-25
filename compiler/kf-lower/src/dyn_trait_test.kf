@@ -1,0 +1,52 @@
+import core.assert.*
+import alloc.list.*
+
+import kf_core.span.no_span
+import kf_core.ast.*
+import kf_core.ast.dyn_meta.dyn_trait_type
+
+fun lower_dyn_ref(): Type {
+    val dynamic = dyn_trait_type(intern("Show"), new_type_vec(), no_span())
+    val inner: Ptr<Type> = unsafe { alloc<Type>() }
+    unsafe { *inner = dynamic }
+    return Type { kind: TypeKind.RefTo(false, inner), provenance: Provenance.Declared(no_span()) }
+}
+
+fun lowered_dyn_body(): List<Stmt> {
+    var source = new_expr(no_span(), ExprKind.Variable(intern("point")))
+    source.ty = Type { kind: TypeKind.Struct(intern("Point")), provenance: Provenance.Declared(no_span()) }
+    source.coerce = coerce_addr_of()
+    val source_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *source_ptr = source }
+    var coercion = new_expr(no_span(), ExprKind.DynCoerce(source_ptr, intern("DynVTableInstance__Point__Show")))
+    coercion.ty = lower_dyn_ref()
+    val coercion_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *coercion_ptr = coercion }
+    var body = List.new<Stmt>()
+    body.push(new_stmt(no_span(), StmtKind.LetVal(intern("object"), null, coercion_ptr)))
+    var ctx = new_rc_ctx(String.from("use_show"))
+    val _frame = ctx.push_frame(false)
+    return rc_insert_stmt_list(body, &var ctx)
+}
+
+@test fun dyn_trait_lower_preserves_coercion(): void {
+    val body = lowered_dyn_body()
+    when (body.at(0).kind) {
+        LetVal(_, _, init) => when (unsafe { (init!!).kind }) {
+            DynCoerce(_, vtable) => assert_eq(vtable.as_str(), "DynVTableInstance__Point__Show", "lower preserves the dynamic coercion")
+            _ => assert_eq(false, true, "expected dynamic coercion")
+        }
+        _ => assert_eq(false, true, "expected local binding")
+    }
+}
+
+@test fun dyn_trait_lower_inserts_no_ownership_operations(): void {
+    val body = lowered_dyn_body()
+    when (body.at(0).kind) {
+        LetVal(_, _, init) => when (unsafe { (init!!).kind }) {
+            DynCoerce(inner, _) => assert_eq(body.size() == 1 && unsafe { inner.coerce } == coerce_addr_of(), true, "fat borrows add no retain, release, drop, or clone")
+            _ => assert_eq(false, true, "expected dynamic coercion")
+        }
+        _ => assert_eq(false, true, "expected local binding")
+    }
+}

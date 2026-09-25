@@ -1,0 +1,152 @@
+import kf_core.ast.*
+import kf_parse.lexer.*
+
+/// "_" for anything but an identifier.
+pub fun Token.ident_name_or_anon(): String {
+    return when (self.kind) {
+        Identifier(name) => name.as_string()
+        KeywordTok(_) => String.from("_")
+        Op(_) => String.from("_")
+        IntLiteral(_) => String.from("_")
+        StringLiteral(_) => String.from("_")
+        FloatLiteral(_) => String.from("_")
+        CharLiteral(_) => String.from("_")
+        Newline => String.from("_")
+        Eof => String.from("_")
+        LexError(_) => String.from("_")
+    }
+}
+
+impl Parser {
+    pub mutating fun parse_type_ref_ptr(): Ptr<TypeRef> {
+        val t = self.peek()
+        val ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
+        when (t.kind) {
+            Identifier(name) => {
+                unsafe { self.advance() }
+                val args = self.parse_type_arguments()
+                var tr = new_type_ref(t.span, TypeRefKind.Named(intern(name.as_str()), args))
+                // `C.Iter`, `Self.Item`: a `.` in type position is a
+                // projection. Chains fold left.
+                while is_op(self.peek(), Operator.Dot) {
+                    unsafe { self.advance() }              // consume `.`
+                    val member = self.peek()
+                    when (member.kind) {
+                        Identifier(mname) => {
+                            unsafe { self.advance() }
+                            val owner_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
+                            unsafe { *owner_ptr = tr }
+                            tr = new_type_ref(t.span, TypeRefKind.Projection(owner_ptr, intern(mname.as_str())))
+                        }
+                        _ => {
+                            self.parse_err(member.span, String.from("expected an associated type name after `.` in a type"))
+                            tr = type_ref_poison(t.span)
+                        }
+                    }
+                }
+                unsafe { *ptr = tr }
+            }
+            KeywordTok(k) => {
+                if t.is_keyword(Keyword.Dyn) {
+                    unsafe { self.advance() }
+                    val principal = self.peek()
+                    when (principal.kind) {
+                        Identifier(name) => {
+                            unsafe { self.advance() }
+                            val args = self.parse_type_arguments()
+                            unsafe { *ptr = new_type_ref(t.span, TypeRefKind.DynTrait(intern(name.as_str()), args)) }
+                        }
+                        _ => {
+                            self.parse_err(principal.span, String.from("expected a trait name after `dyn`"))
+                            unsafe { *ptr = type_ref_poison(t.span) }
+                        }
+                    }
+                } else {
+                    self.parse_err(t.span, "expected a type here, found keyword `${kw_str(k)}`")
+                    unsafe { *ptr = type_ref_poison(t.span) }
+                }
+            }
+            Op(op) => {
+                // `&T` / `&var T`; any other operator is an error.
+                when (op) {
+                    Amp => {
+                        unsafe { self.advance() }          // consume `&`
+                        var mutable: bool = false
+                        if is_keyword(self.peek(), Keyword.Var) {
+                            unsafe { self.advance() }       // consume `var`
+                            mutable = true
+                        }
+                        val inner_ptr = self.parse_type_ref_ptr()
+                        unsafe { *ptr = new_type_ref(t.span, TypeRefKind.Reference(mutable, inner_ptr)) }
+                    }
+                    _ => {
+                        self.parse_err(t.span, "expected a type here, found `${op_str(op)}`")
+                        unsafe { *ptr = type_ref_poison(t.span) }
+                    }
+                }
+            }
+            IntLiteral(_) => {
+                self.parse_err(t.span, String.from("expected a type here, found an integer literal"))
+                unsafe { *ptr = type_ref_poison(t.span) }
+            }
+            StringLiteral(_) => {
+                self.parse_err(t.span, String.from("expected a type here, found a string literal"))
+                unsafe { *ptr = type_ref_poison(t.span) }
+            }
+            FloatLiteral(_) => {
+                self.parse_err(t.span, String.from("expected a type here, found a float literal"))
+                unsafe { *ptr = type_ref_poison(t.span) }
+            }
+            CharLiteral(_) => {
+                self.parse_err(t.span, String.from("expected a type here, found a char literal"))
+                unsafe { *ptr = type_ref_poison(t.span) }
+            }
+            Newline => {
+                self.parse_err(t.span, String.from("expected a type here, found end of line"))
+                unsafe { *ptr = type_ref_poison(t.span) }
+            }
+            Eof => {
+                self.parse_err(t.span, String.from("expected a type here, found end of file"))
+                unsafe { *ptr = type_ref_poison(t.span) }
+            }
+            LexError(_) => {
+                // Already reported by report_lex_errors.
+                unsafe { *ptr = type_ref_poison(t.span) }
+            }
+        }
+        // `T?` is `Option<T>`, an ordinary generic enum.
+        if is_op(self.peek(), Operator.Question) {
+            unsafe { self.advance() }
+            val base: TypeRef = unsafe { *ptr }
+            var oargs = List.new<TypeRef>()
+            oargs.push(base)
+            unsafe { *ptr = new_type_ref(t.span, TypeRefKind.Named(lang_placeholder(lang_option_key()), oargs)) }
+        }
+        return ptr
+    }
+
+    pub mutating fun parse_type_arguments(): List<TypeRef> {
+        var args = List.new<TypeRef>()
+        if !is_op(self.peek(), Operator.Lt) { return args }
+        unsafe { self.advance() }
+        while true {
+            if is_op(self.peek(), Operator.Gt) {
+                unsafe { self.advance() }
+                break
+            }
+            if self.at_eof() {
+                self.parse_err(self.peek().span, String.from("unclosed type-argument list: missing `>`"))
+                break
+            }
+            val before: uint64 = self.pos
+            val arg_ptr = self.parse_type_ref_ptr()
+            args.push(unsafe { *arg_ptr })
+            unsafe { dealloc<TypeRef>(arg_ptr) }
+            if is_op(self.peek(), Operator.Comma) {
+                unsafe { self.advance() }
+            }
+            if self.pos == before { break }
+        }
+        return args
+    }
+}

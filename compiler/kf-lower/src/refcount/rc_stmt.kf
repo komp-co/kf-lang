@@ -1,0 +1,313 @@
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+
+// `when (make())`: an owning rvalue subject is hoisted into a local so its
+// scope-exit drop fires. Borrowed subjects are left alone. Returns the
+// binding to emit before the switch, if any.
+fun hoist_owned_when_subject(subj_ptr: Ptr<Expr>, span: Span, ctx: &var RcCtx): List<Stmt> {
+    var out = List.new<Stmt>()
+    val subj = unsafe { *subj_ptr }
+    if !is_heap_ty_rc(subj.ty) { return out }
+    when (subj.kind) {
+        Call(_, _) => { }
+        MethodCall(_, _, _) => { }
+        _ => return out
+    }
+    val mode = classify_binding(subj, ctx)
+    when (mode) {
+        OwnedFresh => { }
+        _ => return out
+    }
+    val tmp_id = ctx.block_counter
+    ctx.block_counter = tmp_id + 1
+    val tmp_name = "__when_own_${u64_to_str(tmp_id)}"
+    val init: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *init = subj }
+    out.push(new_stmt(span, StmtKind.LetVal(intern(tmp_name.as_str()), null, init)))
+    var v = new_expr(span, ExprKind.Variable(intern(tmp_name.as_str())))
+    v.ty = subj.ty
+    unsafe { *subj_ptr = v }
+    return out
+}
+
+// `make().as_str()`: a fresh temporary that is only borrowed is owned by
+// nobody. A method receiver is hoisted to a local so it is dropped; receivers
+// are always borrowed, so this is safe. Nested receivers hoist inner-first.
+fun hoist_borrowed_temps(ep: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>): void {
+    val e = unsafe { *ep }
+    when (e.kind) {
+        MethodCall(recv_ptr, _m, args) => {
+            hoist_borrowed_temps(recv_ptr, ctx, out)
+            while i in 0..args.size() {
+                hoist_borrowed_temps(args.at_mut(i), ctx, out)
+                maybe_hoist_borrowed_arg(args.at_mut(i), ctx, out)
+            }
+            maybe_hoist_receiver(recv_ptr, ctx, out)
+        }
+        Call(_n, args) => {
+            while i in 0..args.size() {
+                hoist_borrowed_temps(args.at_mut(i), ctx, out)
+                maybe_hoist_borrowed_arg(args.at_mut(i), ctx, out)
+            }
+        }
+        FieldAccess(obj_ptr, _f) => hoist_borrowed_temps(obj_ptr, ctx, out)
+        Binary(l, _op, r) => {
+            hoist_borrowed_temps(l, ctx, out)
+            maybe_hoist_receiver(l, ctx, out)
+            hoist_borrowed_temps(r, ctx, out)
+            maybe_hoist_borrowed_arg(r, ctx, out)
+        }
+        Unary(_op, inner) => hoist_borrowed_temps(inner, ctx, out)
+        Deref(inner) => hoist_borrowed_temps(inner, ctx, out)
+        Cast(inner, _t) => hoist_borrowed_temps(inner, ctx, out)
+        DynCoerce(inner, _vtable) => hoist_borrowed_temps(inner, ctx, out)
+        Retain(inner) => hoist_borrowed_temps(inner, ctx, out)
+        IfExpr(c, t, el) => {
+            hoist_borrowed_temps(c, ctx, out)
+            hoist_borrowed_temps(t, ctx, out)
+            hoist_borrowed_temps(el, ctx, out)
+        }
+        StructLit(_n, finits) => {
+            while finit in &finits {
+                hoist_borrowed_temps(finit.value, ctx, out)
+            }
+        }
+        _ => { }
+    }
+}
+
+// Hoists a fresh move-only temporary to a dropped local.
+//
+// CONSTRAINT: the node's coercion is carried over. A hoisted argument is
+// passed by borrow and still needs `coerce_addr_of`.
+fun maybe_hoist_owned_temp(p: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>): void {
+    val e = unsafe { *p }
+    if !e.ty.is_move_only(ctx) { return }
+    var is_temp = false
+    when (e.kind) {
+        Call(_, _) => is_temp = true
+        MethodCall(_, _, _) => is_temp = true
+        StructLit(_, _) => is_temp = true
+        Binary(_, _, _) => is_temp = true
+        _ => { }
+    }
+    if !is_temp { return }
+    val mode = classify_binding(e, ctx)
+    when (mode) {
+        OwnedFresh => { }
+        _ => return
+    }
+    val tmp_id = ctx.block_counter
+    ctx.block_counter = tmp_id + 1
+    val tmp_name = "__tmp_${u64_to_str(tmp_id)}"
+    val init: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *init = e }
+    unsafe { init.coerce = coerce_none() }
+    out.push(new_stmt(e.span, StmtKind.LetVal(intern(tmp_name.as_str()), null, init)))
+    var v = new_expr(e.span, ExprKind.Variable(intern(tmp_name.as_str())))
+    v.ty = e.ty
+    v.coerce = e.coerce
+    unsafe { *p = v }
+}
+
+fun maybe_hoist_receiver(recv_ptr: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>): void {
+    maybe_hoist_owned_temp(recv_ptr, ctx, out)
+}
+
+// A fresh rvalue passed by borrow leaks its temporary, so it is hoisted. Only
+// by borrow: a by-value argument is dropped by the callee.
+fun maybe_hoist_borrowed_arg(arg_ptr: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>): void {
+    if unsafe { arg_ptr.coerce } != coerce_addr_of() { return }
+    maybe_hoist_owned_temp(arg_ptr, ctx, out)
+}
+
+// An operator returns an owned value or a scalar, never a borrow of its
+// operand, so its borrowed operands can be hoisted. The left one first, to
+// keep left-to-right evaluation.
+fun hoist_operator_operands(ep: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>): void {
+    val e = unsafe { *ep }
+    when (e.kind) {
+        Binary(l, _op, r) => {
+            hoist_operator_operands(l, ctx, out)
+            maybe_hoist_receiver(l, ctx, out)
+            hoist_operator_operands(r, ctx, out)
+            maybe_hoist_borrowed_arg(r, ctx, out)
+        }
+        _ => { }
+    }
+}
+
+// Hoisting is safe only when the statement's output cannot carry a borrow
+// of the temp: a non-heap, non-view result. `val v = make().as_str()` is left
+// to leak.
+fun stmt_output_is_hoist_safe(e: Expr): bool {
+    if is_heap_ty_rc(e.ty) { return false }
+    if ty_is_view(e.ty) { return false }
+    return true
+}
+
+// An Expression statement discards its result, so it is always hoist-safe.
+pub mutating fun Stmt.collect_stmt_hoists(ctx: &var RcCtx): List<Stmt> {
+    var out = List.new<Stmt>()
+    when (self.kind) {
+        Expression(ep) => hoist_borrowed_temps(ep, ctx, &var out)
+        LetVal(_n, _ty, ep) => {
+            val p = ep ?: return out
+            if stmt_output_is_hoist_safe(unsafe { *p }) { hoist_borrowed_temps(p, ctx, &var out) }
+            else { hoist_operator_operands(p, ctx, &var out) }
+        }
+        // No initializer, nothing to hoist.
+        LetVar(_n, _ty, ep) => {
+            val p = ep ?: return out
+            if stmt_output_is_hoist_safe(unsafe { *p }) { hoist_borrowed_temps(p, ctx, &var out) }
+            else { hoist_operator_operands(p, ctx, &var out) }
+        }
+        Assign(_n, ep) => {
+            if stmt_output_is_hoist_safe(unsafe { *ep }) { hoist_borrowed_temps(ep, ctx, &var out) }
+            else { hoist_operator_operands(ep, ctx, &var out) }
+        }
+        AssignTo(_place, ep) => hoist_operator_operands(ep, ctx, &var out)
+        Return(ep) => {
+            val rp = ep ?: return out
+            if stmt_output_is_hoist_safe(unsafe { *rp }) { hoist_borrowed_temps(rp, ctx, &var out) }
+            else { hoist_operator_operands(rp, ctx, &var out) }
+        }
+        // An `if` condition is a bool, so its temporaries can always be
+        // hoisted ahead of the statement. Bodies hoist in their own scope.
+        //
+        // Not `while`: a hoist before the loop would evaluate the condition
+        // once.
+        If(cp, _then, _els) => hoist_borrowed_temps(cp, ctx, &var out)
+        _ => { }
+    }
+    return out
+}
+
+pub fun rc_insert_stmt(s: Stmt, ctx: &var RcCtx): Stmt {
+    when (s.kind) {
+        LetVal(name, ty_ref_ptr, init_ptr) => {
+            val ip = init_ptr ?: return s
+            val init = unsafe { *ip }
+            if is_heap_ty_rc(init.ty) {
+                val mode = classify_binding(init, ctx)
+                apply_binding_mode(mode, name.as_string(), ip, ctx)
+            }
+            init.mark_consumed_moves(ctx)
+            return s
+        }
+        LetVar(name, ty_ref_ptr, init_ptr) => {
+            val ip = init_ptr ?: return s
+            val init = unsafe { *ip }
+            if is_heap_ty_rc(init.ty) {
+                val mode = classify_binding(init, ctx)
+                apply_binding_mode(mode, name.as_string(), ip, ctx)
+            }
+            init.mark_consumed_moves(ctx)
+            return s
+        }
+        If(cond_ptr, then_body, else_body) => {
+            // The condition can consume (`if !consume(a)`).
+            mark_consumed_moves(unsafe { *cond_ptr }, ctx)
+            val _ti = ctx.push_frame(false)
+            val rewritten_then = rc_insert_stmt_list(then_body, ctx)
+            val then_releases = ctx.pop_frame()
+            val new_then = append_releases(rewritten_then, then_releases)
+            val _ei = ctx.push_frame(false)
+            val rewritten_else = rc_insert_stmt_list(else_body, ctx)
+            val else_releases = ctx.pop_frame()
+            val new_else = append_releases(rewritten_else, else_releases)
+            return new_stmt(s.span, StmtKind.If(cond_ptr, new_then, new_else))
+        }
+        // Desugar runs first; passed through if the order ever changes.
+        ForEach(_b, _s, _bd) => return s
+        While(cond_ptr, body) => {
+            val _wi = ctx.push_frame(true)
+            // Marked inside the loop frame: the condition re-runs on the
+            // back-edge.
+            mark_consumed_moves(unsafe { *cond_ptr }, ctx)
+            val rewritten_body = rc_insert_stmt_list(body, ctx)
+            val body_releases = ctx.pop_frame()
+            val new_body = append_releases(rewritten_body, body_releases)
+            return new_stmt(s.span, StmtKind.While(cond_ptr, new_body))
+        }
+        Switch(subj_ptr, arms) => {
+            mark_consumed_moves(unsafe { *subj_ptr }, ctx)
+            // Marked moved before the arm frames are pushed, so a non-binding
+            // arm can re-register it as its own.
+            val subj_e = unsafe { *subj_ptr }
+            val subj_name = subj_e.when_subject_var()
+            val subj_enum = subj_e.when_subject_enum()
+            // Declined owning payloads get generated names first, so the arm
+            // frame drops them like any binder.
+            val named_arms = name_declined_payloads(&arms, subj_enum.as_str(), ctx)
+            val consumes = subj_e.when_consumes_subject(&named_arms, ctx)
+            if consumes { ctx.rc_mark_moved(subj_name.clone()) }
+            var out_arms = List.new<SwitchArm>()
+            while arm in &named_arms {
+                val _i2 = ctx.push_frame(false)
+                var owned = List.new<String>()
+                if consumes {
+                    owned = arm.arm_owned_names(subj_enum.as_str(), subj_name.as_str(), ctx)
+                    while item in &owned {
+                        ctx.add_heap_local(item)
+                    }
+                }
+                arm.rc_add_binder_views(&owned, ctx)
+                // A guard can consume what the body would; it is marked in the
+                // arm's frame.
+                when (arm.guard) {
+                    Some(g) => mark_consumed_moves(unsafe { *g }, ctx)
+                    None => { }
+                }
+                val rest = rc_insert_stmt_list(arm.body, ctx)
+                val arm_releases = ctx.pop_frame()
+                val new_body = append_releases(rest, arm_releases)
+                out_arms.push(new_switch_arm(arm.span, arm.tag, arm.binders, arm.guard, new_body))
+            }
+            return new_stmt(s.span, StmtKind.Switch(subj_ptr, out_arms))
+        }
+        Assign(_name, rhs_ptr) => {
+            mark_assign_rhs_moved(rhs_ptr, ctx)
+            mark_consumed_moves(unsafe { *rhs_ptr }, ctx)
+            return s
+        }
+        AssignTo(_place_ptr, rhs_ptr) => {
+            mark_assign_rhs_moved(rhs_ptr, ctx)
+            mark_consumed_moves(unsafe { *rhs_ptr }, ctx)
+            return s
+        }
+        Return(expr_ptr) => {
+            val ep = expr_ptr ?: return s
+            mark_consumed_moves(unsafe { *ep }, ctx)
+            return s
+        }
+        Expression(expr_ptr) => {
+            mark_consumed_moves(unsafe { *expr_ptr }, ctx)
+            // A discarded fresh result (`render(x);`) is bound to a local so
+            // it is dropped. Only OwnedFresh; a borrowed result is not.
+            val e = unsafe { *expr_ptr }
+            if e.ty.is_move_only(ctx) {
+                val mode = classify_binding(e, ctx)
+                when (mode) {
+                    OwnedFresh => {
+                        val tmp_id = ctx.block_counter
+                        ctx.block_counter = tmp_id + 1
+                        val tmp_name = "__discard_${u64_to_str(tmp_id)}"
+                        ctx.add_heap_local(tmp_name.clone())
+                        return new_stmt(s.span, StmtKind.LetVal(intern(tmp_name.as_str()), null, expr_ptr))
+                    }
+                    _ => { }
+                }
+            }
+            return s
+        }
+        When(_, _) => return s
+        Drop(_) => return s
+        Release(_) => return s
+        Break => return s
+        Continue => return s
+        Poison => return s
+    }
+}

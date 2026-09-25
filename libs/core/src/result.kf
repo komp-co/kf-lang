@@ -1,0 +1,125 @@
+import core.panic.*
+
+// For operations that can return a typed error.
+pub enum Result<T, E> {
+    Ok(T)
+    Err(E)
+}
+
+
+// The predicates match `Ok` without a binder: `Result<void, E>.Ok` carries
+// nothing.
+impl Result<T, E> {
+    pub fun is_ok(): bool {
+        return when (self) {
+            Ok => true
+            Err(_e) => false
+        }
+        return false
+    }
+
+    pub fun is_err(): bool {
+        return when (self) {
+            Ok => false
+            Err(_e) => true
+        }
+        return true
+    }
+
+    /// The success payload, or a controlled abort on an `Err`, whose message
+    /// omits the error.
+    pub fun unwrap(): T {
+        when (self) {
+            Ok(v) => { return v }
+            Err(_e) => {}
+        }
+        unsafe { panic("Result.unwrap called on an Err") }
+    }
+
+    /// The error, or a controlled abort; what `Try.branch` reads the bail out
+    /// of. Copies out of the borrowed `self`.
+    pub fun unwrap_err(): E {
+        when (self) {
+            Ok(_v) => {}
+            Err(e) => { return e }
+        }
+        unsafe { panic("Result.unwrap_err called on an Ok") }
+    }
+}
+
+// Comparable when both arms are. No `Default`: neither `Ok` nor `Err` is a
+// defensible one.
+
+impl Equal for Result<T: Equal, E: Equal> {
+    fun equals(other: &Result<T, E>): bool {
+        when (self) {
+            Ok(a) => {
+                when (other) {
+                    Ok(b) => { return a == b }
+                    Err(_e) => { return false }
+                }
+            }
+            Err(a) => {
+                when (other) {
+                    Ok(_b) => { return false }
+                    Err(b) => { return a == b }
+                }
+            }
+        }
+        return false
+    }
+}
+
+impl Copy for Result<T: Copy, E: Copy> { }
+
+impl Clone for Result<T: Clone, E: Clone> {
+    fun clone(): Result<T, E> {
+        when (self) {
+            Ok(v) => { return Result.Ok<T, E>(v.clone()) }
+            Err(e) => { return Result.Err<T, E>(e.clone()) }
+        }
+        return Result.Err<T, E>(self.unwrap_err())
+    }
+}
+
+// The error side is mixed again, so the arms do not collide.
+impl Hash for Result<T: Hash, E: Hash> {
+    fun hash(): uint64 {
+        when (self) {
+            Ok(v) => { return mix_uint64(v.hash()) }
+            Err(e) => { return mix_uint64(mix_uint64(e.hash())) }
+        }
+        return 0
+    }
+}
+
+impl Try for Result<T, E> {
+    type Output = T
+    type Residual = Result<Never, E>
+
+    fun branch(): Branch<T, Result<Never, E>> {
+        if self.is_err() {
+            val err: E = self.unwrap_err()
+            val residual: Result<Never, E> = Result.Err<Never, E>(err)
+            return Branch.Break<T, Result<Never, E>>(residual)
+        }
+        val payload: T = self.unwrap()
+        return Branch.Continue<T, Result<Never, E>>(payload)
+    }
+
+    static fun from_output(o: T): Result<T, E> {
+        return Result.Ok<T, E>(o)
+    }
+}
+
+impl FromResidual<Result<Never, E>> for Result<T, E> {
+    // Carries the error across to a different success type.
+    static fun from_residual(r: Result<Never, E>): Result<T, E> {
+        when (r) {
+            Ok => { }
+            Err(e) => { return Result.Err<T, E>(e) }
+        }
+        // Unreachable, but the checker does not reason about `Never`.
+        unsafe { panic("a Result residual cannot be Ok: Never is uninhabited") }
+    }
+}

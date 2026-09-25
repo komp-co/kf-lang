@@ -1,0 +1,2 @@
+*.kf linguist-language=KFlat
+kf.toml linguist-language=TOML

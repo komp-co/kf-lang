@@ -1,0 +1,97 @@
+// Inlay hints: the type of each binding without an annotation, placed at the
+// end of the binder's name as the parser recorded it.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import json.writer.*
+import kf_driver.cli.render_json_error
+
+/// `{"schema_version":1,"file":..,"inlays":[{"byte_offset":N,"label":": T"}]}`
+pub fun render_inlays_json(path: str, crate: &QueryCrate): String {
+    val out = new_json_writer()
+    out.field_uint32("schema_version", 1)
+    out.field_string("file", path)
+    var arr = new_json_array_writer()
+    inlay_decl_list(&crate.module.decls, crate, &var arr)
+    out.field_raw("inlays", arr.finish().as_str())
+    return out.finish()
+}
+
+pub fun run_inlays_query(path: str, overlay_path: str): int32 {
+    val crate = crate_for_query(path, overlay_path)
+    if !crate.ok {
+        val json = render_json_error("no crate above this file, or it is not one the crate compiles")
+        runtime_println(json.as_str())
+        return 1
+    }
+    val json = render_inlays_json(path, &crate)
+    runtime_println(json.as_str())
+    return 0
+}
+
+fun inlay_decl_list(decls: &List<TopDecl>, crate: &QueryCrate, arr: &var JsonArrayWriter): void {
+    while decl in &decls {
+        decl.inlay_decl(crate, arr)
+    }
+}
+
+fun TopDecl.inlay_decl(crate: &QueryCrate, arr: &var JsonArrayWriter): void {
+    when (self.kind) {
+        Function(_p, _r, body, _pub, _u, _mut, _st) => inlay_stmt_list(body, crate, arr)
+        ImplBlock(methods) => inlay_decl_list(&methods, crate, arr)
+        TraitDecl(methods, _pub, _supers) => inlay_decl_list(&methods, crate, arr)
+        TraitImpl(_trait_ref, methods) => inlay_decl_list(&methods, crate, arr)
+        _ => {}
+    }
+}
+
+fun inlay_stmt_list(stmts: &List<Stmt>, crate: &QueryCrate, arr: &var JsonArrayWriter): void {
+    while stmt in &stmts {
+        (stmt).inlay_stmt(crate, arr)
+    }
+}
+
+fun Stmt.inlay_stmt(crate: &QueryCrate, arr: &var JsonArrayWriter): void {
+    when (self.kind) {
+        LetVal(_n, ann, init) => self.inlay_binding(ann, init, crate, arr)
+        LetVar(_n, ann, init) => self.inlay_binding(ann, init, crate, arr)
+        If(_c, then_body, else_body) => {
+            inlay_stmt_list(then_body, crate, arr)
+            inlay_stmt_list(else_body, crate, arr)
+        }
+        While(_c, body) => inlay_stmt_list(body, crate, arr)
+        ForEach(_binder, _subject, body) => inlay_stmt_list(body, crate, arr)
+        When(_subject, arms) => inlay_arm_list(&arms, crate, arr)
+        Switch(_subject, sarms) => {
+            while arm in &sarms {
+                inlay_stmt_list(&arm.body, crate, arr)
+            }
+        }
+        _ => {}
+    }
+}
+
+fun inlay_arm_list(arms: &List<Arm>, crate: &QueryCrate, arr: &var JsonArrayWriter): void {
+    while arm in &arms {
+        inlay_stmt_list(&arm.body, crate, arr)
+    }
+}
+
+/// Nothing for a binding in another file, an annotated one, one without an
+/// initializer, or a poisoned one.
+fun Stmt.inlay_binding(ann: Ptr<TypeRef>?, init_opt: Ptr<Expr>?, crate: &QueryCrate, arr: &var JsonArrayWriter): void {
+    if self.span.file_id != crate.file_id { return }
+    if ann.is_some() { return }
+    val init = init_opt ?: return
+    val ty = unsafe { init.ty }
+    if ty.is_poison() { return }
+    if self.binder.is_none() { return }
+    val at = self.binder.end
+    var label = String.from(": ")
+    label.append(ty.query_display_type(crate.sigs).as_str())
+    val o = new_json_writer()
+    o.field_uint32("byte_offset", at)
+    o.field_string("label", label.as_str())
+    arr.item_raw(o.finish().as_str())
+}

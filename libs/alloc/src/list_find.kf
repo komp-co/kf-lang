@@ -1,0 +1,48 @@
+// Searching a list, and the ends. Membership needs `Equal`, so it has its own
+// bounded impl. Comparisons go through `at`, the borrowing accessor: `get`
+// bit-copies a slot.
+
+impl List<T: Equal> {
+    /// O(n).
+    pub fun contains(x: &T): bool {
+        var i: uint64 = 0
+        while i < self.len {
+            if self.at(i).equals(x) { return true }
+            i = i + 1
+        }
+        return false
+    }
+
+    pub fun index_of(x: &T): uint64? {
+        var i: uint64 = 0
+        while i < self.len {
+            if self.at(i).equals(x) { return i }
+            i = i + 1
+        }
+        return null
+    }
+
+    pub fun last_index_of(x: &T): uint64? {
+        var i: uint64 = self.len
+        while i > 0 {
+            i = i - 1
+            if self.at(i).equals(x) { return i }
+        }
+        return null
+    }
+}
+
+// The ends need `Clone`: an Option cannot hold a borrow yet, and a bit-copy
+// double-frees an owning element. `at(0)` borrows after an `is_empty` check.
+impl List<T: Clone> {
+    pub fun first(): T? {
+        if self.len == 0 { return null }
+        return self.at(0).clone()
+    }
+
+    /// Does not remove it; `take_last` does.
+    pub fun last(): T? {
+        if self.len == 0 { return null }
+        return self.at(self.len - 1).clone()
+    }
+}

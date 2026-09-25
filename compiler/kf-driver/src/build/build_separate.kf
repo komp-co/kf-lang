@@ -1,0 +1,222 @@
+// Separate builds: crate graph, a reuse decision per crate, stale crates
+// rebuilt against their dependencies' interfaces, then `.o`, `lib<crate>.a`
+// and the linked binary under target/kflat. A build where nothing changed runs
+// no compiler, archiver or linker.
+
+import alloc.list.*
+
+
+extern "C" fun access(path: str, mode: int32): int32
+
+extern "C" fun __kf_v2_int32_to_str(v: int32): String
+
+/// Artifacts, and for a bin root a linked binary, under `<root>/target/kflat`.
+/// `extra_cflags` is caller-trusted. Returns an exit code; failures name
+/// their phase.
+pub fun build_project_separate(root_dir: str, extra_cflags: str): int32 {
+    return build_project_separate_verbose(root_dir, extra_cflags, false)
+}
+
+/// Verbose explains every reuse and rebuild decision.
+pub fun build_project_separate_verbose(root_dir: str, extra_cflags: str, verbose: bool): int32 {
+    return build_project_separate_in(root_dir, extra_cflags, verbose, "")
+}
+
+/// With the artifact directory chosen by the caller ("" for the default). The
+/// case corpus passes one shared directory, so `core` is built once for every
+/// case. Artifacts are named per crate, so sharing cannot collide.
+pub fun build_project_separate_in(root_dir: str, extra_cflags: str, verbose: bool, tdir_override: str): int32 {
+    val graph = build_crate_graph(root_dir)
+    if graph.error.as_str() != "" {
+        runtime_println(graph.error.as_str())
+        return 1
+    }
+    if graph.cycle.as_str().byte_len() > 0 {
+        var msg = String.from("error: dependency cycle: ")
+        msg.append(graph.cycle.as_str())
+        runtime_println(msg.as_str())
+        return 1
+    }
+    if graph.crates.size() == 0 {
+        runtime_println("komp build: nothing to build")
+        return 1
+    }
+    var tdir = target_dir(root_dir)
+    if tdir_override.byte_len() > 0 { tdir = String.from(tdir_override) }
+    if !ensure_dir(tdir.as_str()) { return 1 }
+    val compiler = kflatc_identity() ?: return 1
+    val profile = build_profile_key(extra_cflags, graph.freestanding)
+    var relink = false
+    var built_names = List.new<String>()
+    var built_hashes = List.new<String>()
+    var archives = List.new<String>()
+    var root_object = ""
+    while i in 0..graph.crates.size() {
+        val bc = *graph.crates.at(i)
+        val is_root = i + 1 == graph.crates.size()
+        val is_bin_root = is_root && bc.is_bin
+        val expected = bc.expected_artifact_manifest(profile.as_str(), &built_names, &built_hashes, is_bin_root, &compiler)
+        val decision = decide_crate_reuse(tdir.as_str(), &expected)
+        if decision.reuse {
+            build_note(verbose, "reusing", bc.name.as_str(), decision.reason.as_str())
+            built_names.push(String.from(bc.name.as_str()))
+            built_hashes.push(decision.interface_hash.clone())
+        } else {
+            if expected.source_fingerprint.as_str() == "" {
+                var msg = String.from("komp build: cannot rebuild ")
+                msg.append(bc.name.as_str())
+                msg.append(": sources unavailable and existing artifacts do not match (")
+                msg.append(decision.reason.as_str())
+                msg.append(")")
+                runtime_println(msg.as_str())
+                return 1
+            }
+            build_note(verbose, "building", bc.name.as_str(), decision.reason.as_str())
+            val iface_hash = bc.rebuild_crate(root_dir, tdir.as_str(), extra_cflags, &expected, is_bin_root)
+            if iface_hash.as_str() == "" { return 1 }
+            built_names.push(String.from(bc.name.as_str()))
+            built_hashes.push(iface_hash)
+            relink = true
+        }
+        if is_bin_root {
+            root_object = crate_object_path(tdir.as_str(), bc.name.as_str())
+        } else {
+            archives.push(crate_archive_path(tdir.as_str(), bc.name.as_str()))
+        }
+    }
+    if !graph.graph_root_is_bin() {
+        // A library root has nothing to link.
+        return 0
+    }
+    val root_name = graph.crates.at(graph.crates.size() - 1).name
+    val bin = binary_path(tdir.as_str(), root_name.as_str())
+    if !relink {
+        if unsafe { access(bin.as_str(), 0) } == 0 {
+            build_note(verbose, "up to date", root_name.as_str(), "nothing rebuilt")
+            return 0
+        }
+    }
+    // Dependents before dependencies: the root object, then the archives in
+    // reverse dependency order.
+    var objects = List.new<String>()
+    objects.push(root_object)
+    // The bin root's own C sources link directly; libraries archive theirs.
+    val root_bc = *graph.crates.at(graph.crates.size() - 1)
+    if !root_bc.compile_crate_c_sources(tdir.as_str(), extra_cflags, &var objects) { return 1 }
+    var reversed = List.new<String>()
+    var r: uint64 = archives.size()
+    while r > 0 {
+        reversed.push(archives.at(r - 1).clone())
+        r = r - 1
+    }
+    if !link_binary(bin.as_str(), &objects, &reversed, extra_cflags) { return 1 }
+    return 0
+}
+
+// Compiles one crate with kflatc, then builds its object, and for a library
+// its archive. Returns the interface hash, or "" if the crate did not build.
+// A process per crate also bounds memory: the compiler frees little, and a
+// chain compiled in one process costs the whole chain.
+fun BuildCrate.rebuild_crate(project: str, tdir: str, extra_cflags: str, expected: &ArtifactManifest,
+                               is_bin_root: bool): String {
+    // CONSTRAINT: unpublished before rewriting. The new `.h` is written before
+    // the compile that can fail, and a stale manifest would pair it with the
+    // old archive.
+    val name = self.name.as_str()
+    val _dropped = remove_artifact_manifest(crate_artifact_manifest_path(tdir, name).as_str())
+    val status = self.invoke_kflatc(project, tdir, &expected.dep_hashes, is_bin_root)
+    if status != 0 {
+        // A killed compiler printed nothing, so this says so.
+        if status >= 128 { println("komp build: compiling ${name} was killed (out of memory?)") }
+        return ""
+    }
+    val interface_text = read_file(crate_interface_path(tdir, name).as_str())
+    val c = crate_source_path(tdir, name)
+    val obj = crate_object_path(tdir, name)
+    if !compile_object(c.as_str(), obj.as_str(), tdir, extra_cflags) { return "" }
+    if !is_bin_root {
+        // A library archives its own C sources, so consumers get them
+        // transitively.
+        var lib_objects = List.new<String>()
+        lib_objects.push(String.from(obj.as_str()))
+        if !self.compile_crate_c_sources(tdir, extra_cflags, &var lib_objects) { return "" }
+        if !archive_objects(crate_archive_path(tdir, name).as_str(), &lib_objects) { return "" }
+    }
+    val iface_hash = content_hash(interface_text.as_str())
+    val recorded = expected.recorded_artifact_manifest(iface_hash.as_str())
+    if !write_artifact_manifest(crate_artifact_manifest_path(tdir, name).as_str(), &recorded) { return "" }
+    return iface_hash
+}
+
+// Every C source the crate ships, compiled under the target dir. False on the
+// first tool failure. C sources are not fingerprinted: a changed `.c` alone
+// needs a `.kf` change or a clean rebuild.
+pub fun BuildCrate.compile_crate_c_sources(tdir: str, extra_cflags: str, objects: &var List<String>): bool {
+    if !self.compile_c_source_list(&self.c_sources, tdir, extra_cflags, objects) { return false }
+    // Empty when the root is freestanding.
+    return self.compile_c_source_list(&self.hosted_c_sources, tdir, extra_cflags, objects)
+}
+
+fun BuildCrate.compile_c_source_list(sources: &List<String>, tdir: str, extra_cflags: str, objects: &var List<String>): bool {
+    while rel in &sources {
+        var cpath = self.root.clone()
+        cpath.append("/")
+        cpath.append(rel.as_str())
+        var opath = String.from(tdir)
+        opath.append("/")
+        opath.append(c_object_name(self.name.as_str(), rel.as_str()).as_str())
+        if !compile_object(cpath.as_str(), opath.as_str(), tdir, extra_cflags) { return false }
+        objects.push(opath)
+    }
+    return true
+}
+
+// The expected manifest with the new interface hash.
+fun ArtifactManifest.recorded_artifact_manifest(iface_hash: str): ArtifactManifest {
+    var dep_names = List.new<String>()
+    var dep_hashes = List.new<String>()
+    var i = 0
+    while i < self.dep_names.size() {
+        dep_names.push(self.dep_names.at(i).clone())
+        dep_hashes.push(self.dep_hashes.at(i).clone())
+        i = i + 1
+    }
+    return ArtifactManifest {
+        format: self.format.clone(),
+        compiler_abi: self.compiler_abi.clone(),
+        runtime_abi: self.runtime_abi.clone(),
+        name: self.name.clone(),
+        version: self.version.clone(),
+        target: self.target.clone(),
+        profile: self.profile.clone(),
+        source_fingerprint: self.source_fingerprint.clone(),
+        interface_hash: String.from(iface_hash),
+        implementation_hash: self.implementation_hash.clone(),
+        interface_file: self.interface_file.clone(),
+        header_file: self.header_file.clone(),
+        archive_file: self.archive_file.clone(),
+        dep_names: dep_names,
+        dep_hashes: dep_hashes
+    }
+}
+
+fun build_note(verbose: bool, action: str, crate_name: str, reason: str): void {
+    if !verbose { return }
+    val msg = "komp build: ${action} ${crate_name} (${reason})"
+    runtime_println(msg.as_str())
+}
+
+fun BuildGraph.graph_root_is_bin(): bool {
+    val n = self.crates.size()
+    if n == 0 { return false }
+    return self.crates.at(n - 1).is_bin
+}
+
+fun interface_hash_lookup(name: str, names: &List<String>, hashes: &List<String>): String {
+    while i in 0..names.size() {
+        if names.at(i).as_str() == name {
+            if i < hashes.size() { return hashes.at(i).clone() }
+        }
+    }
+    return ""
+}

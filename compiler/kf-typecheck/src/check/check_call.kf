@@ -1,0 +1,375 @@
+// Free-function calls and enum-variant construction.
+
+import kf_core.span.*
+import kf_core.ast.*
+import kf_core.diagnostic.new_label
+import kf_core.diagnostic.new_diagnostic
+import kf_typecheck.types.*
+import kf_typecheck.traits.str_list_has
+import kf_typecheck.check.borrow.coerce_call_arg
+
+extern "C" fun __kf_v2_int32_to_str(v: int32): String
+
+/// `alloc<T>()`, `sizeof<T>()`, `take<T>(x)` and friends, the type folded into
+/// the callee name. Only reached with `Expr.is_intrinsic` set.
+fun intrinsic_call_type(name: String, args: &var List<Expr>, type_args: &var List<TypeRef>, span: Span, ctx: &var TypeCtx): Type {
+    // `alloc<T>` -> `Ptr<T>`; `sizeof<T>` -> uint64; `dealloc<T>` -> void;
+    // `take<T>(x)` -> the argument's type.
+    if name_starts_with(name, "alloc__") {
+        if type_args.size() == 1 {
+            return ptr_ty((*type_args.at(0)).resolve_type_ref(ctx), span)
+        }
+        val frag = mangle_suffix(name, 7)
+        return ptr_ty(ty_from_mangle_frag(frag, span, ctx.string_name()), span)
+    }
+    // `alloc_array<T>` and `realloc_array<T>` return `Ptr<T>`.
+    if name_starts_with(name, "alloc_array__") {
+        if type_args.size() == 1 {
+            return ptr_ty((*type_args.at(0)).resolve_type_ref(ctx), span)
+        }
+        val frag = mangle_suffix(name, 13)
+        return ptr_ty(ty_from_mangle_frag(frag, span, ctx.string_name()), span)
+    }
+    if name_starts_with(name, "realloc_array__") {
+        if type_args.size() == 1 {
+            return ptr_ty((*type_args.at(0)).resolve_type_ref(ctx), span)
+        }
+        val frag = mangle_suffix(name, 15)
+        return ptr_ty(ty_from_mangle_frag(frag, span, ctx.string_name()), span)
+    }
+    if name_starts_with(name, "sizeof__") {
+        return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) }
+    }
+    if name_starts_with(name, "dealloc__") {
+        return void_ty(span)
+    }
+    if name_starts_with(name, "drop_in_place__") {
+        return void_ty(span)
+    }
+    // `clone_place<T>(p)`: a deep copy of the pointee, for generic container
+    // bodies where the element type stays `Generic(T)`.
+    if name_starts_with(name, "clone_place__") {
+        val frag = mangle_suffix(name, 13)
+        // Inside a generic body the fragment is a type parameter.
+        return ty_from_frag_in_scope(frag, span, ctx)
+    }
+    // `ptr_read<T>(p)`: the pointee, moved out bitwise and owned by the caller.
+    if name_starts_with(name, "ptr_read__") {
+        if args.size() > 0 { check_expr(args.at_mut(0), ctx) }
+        if type_args.size() == 1 {
+            return (*type_args.at(0)).resolve_type_ref(ctx)
+        }
+        return ty_from_frag_in_scope(mangle_suffix(name, 10), span, ctx)
+    }
+    if name_starts_with(name, "take__") {
+        if args.size() == 0 { return poison_ty() }
+        val ta = args.at_mut(0)
+        check_expr(ta, ctx)
+        return ta.ty.clone()
+    }
+    // Every intrinsic is matched above.
+    return poison_ty()
+}
+
+fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef>, is_intrinsic: bool, span: Span, ctx: &var TypeCtx): Type {
+    // CONSTRAINT: gated on the parser's flag, not the shape, which a
+    // crate-qualified free function in `alloc` shares.
+    if is_intrinsic { return intrinsic_call_type(name, args, type_args, span, ctx) }
+    // Arguments first, in place: a nested receiver needs its type even when
+    // the callee does not resolve.
+    var arg_tys = type_call_arguments(args, ctx)
+    // Runtime intrinsics are not in the sig table.
+    val rt = runtime_intrinsic_ret(name, span, ctx.string_name())
+    val rt_poison = rt.is_poison()
+    if !rt_poison {
+    // `read_file(path: str)` is often given a String; coerced here since the
+    // sig-table path is skipped.
+        if name.as_str().equals("read_file") { expect_arg(args, 0, str_ty(span), ctx) }
+        if name.as_str().equals("kf_file_hash") { expect_arg(args, 0, str_ty(span), ctx) }
+        if name.as_str().equals("write_file") {
+            expect_arg(args, 0, str_ty(span), ctx)
+            expect_arg(args, 1, str_ty(span), ctx)
+        }
+        if name.as_str().equals("panic") { expect_arg(args, 0, str_ty(span), ctx) }
+        return rt
+    }
+    val found_sig = unsafe { (*ctx.sigs).find_imported_signature(name.as_str(), ctx.owner_file, ctx.owner_crate, ctx.owner_module) }
+    if found_sig.is_none() {
+        // A genuinely unknown name.
+        report_unknown_callee(name.as_str(), span, ctx)
+        return poison_ty()
+    }
+    val sig = found_sig ?: return poison_ty()
+    ctx.qualified_callee = if unsafe { (*ctx.sigs).has_generic_twin(&sig) } {
+        crate_qualified_generic(sig.owner_crate, name.as_str())
+    } else {
+        String.from("")
+    }
+    // Marks the import used, outside the lookup so the lookup stays pure. The
+    // written name lets the import be suggested narrower.
+    val written_name = callee_surface_name(name.as_str(), ctx.sigs)
+    note_import_use_named(ctx.sigs, ctx.owner_file, sig.owner_module, intern(written_name.as_str()))
+    if args.size() != sig.params.size() {
+        ctx.emit(new_diagnostic(Severity.Error, new_label(span, "wrong number of arguments to `${callee_surface_name(name.as_str(), ctx.sigs)}`: expected ${__kf_v2_int32_to_str(sig.params.size() as int32)}, found ${__kf_v2_int32_to_str(args.size() as int32)}")))
+        return poison_ty()
+    }
+    expect_lambda_call_args(String.from(name.as_str()), &sig, args, &var arg_tys, span, ctx)
+    // Every declared generic binds from the argument at a matching parameter
+    // position (poison: unbound). Sigs without declared generics fall back to
+    // the names in the params.
+    var gnames = List.new<String>()
+    while item in &sig.generics {
+        gnames.push(item)
+    }
+    if gnames.size() == 0 {
+        while sp0 in &sig.params {
+            if sp0.kind.kind_tag() == TAG_GENERIC() {
+                val gn0 = sp0.kind.generic_name()
+                if !str_list_has(gnames, gn0.as_str()) {
+                    gnames.push(gn0)
+                }
+            }
+        }
+    }
+    var inf_tys = List.new<Type>()
+    var g0 = 0
+    while g0 < gnames.size() {
+        val gname = *gnames.at(g0)
+        var bound = poison_ty()
+    // An explicit type argument wins, and must substitute before
+    // coerce_call_arg so the argument is auto-borrowed.
+        if g0 < type_args.size() {
+            bound = (*type_args.at(g0)).resolve_type_ref(ctx)
+        }
+        if bound.is_poison() {
+            while k in 0..sig.params.size() {
+                if k >= arg_tys.size() { break }
+                val sp = *sig.params.at(k)
+                val at0 = *arg_tys.at(k)
+                // Through `&`, `Ptr` and `Box`; see bind_generic_from_param.
+                val cand = sp.bind_generic_from_param(&at0, gname.as_str(), ctx)
+                if !cand.is_poison() {
+                    bound = cand
+                    break
+                }
+            }
+        }
+        inf_tys.push(bound)
+        g0 = g0 + 1
+    }
+    if type_args.size() == 0 { infer_from_bounds(name.as_str(), &gnames, &var inf_tys, span, ctx) }
+    var saw_error = false
+    while j in 0..arg_tys.size() {
+        var expected = *sig.params.at(j)
+        var s0 = 0
+        while s0 < gnames.size() {
+            val ity = *inf_tys.at(s0)
+            if !ity.is_poison() {
+                expected = expected.subst_generic(*gnames.at(s0), ity.clone())
+            }
+            s0 = s0 + 1
+        }
+        val at = *arg_tys.at(j)
+        val outcome = coerce_call_arg(args, j, expected.clone(), ctx)
+        if !outcome.valid {
+            saw_error = true
+        } else if !outcome.coerced && !at.type_eq(expected) && !ctx.fits(at, expected) {
+            saw_error = true
+            ctx.emit(new_diagnostic(Severity.Error, new_label(span, "wrong type for argument ${__kf_v2_int32_to_str((j + 1) as int32)} of `${name.as_str()}`: expected `${expected.display_type(ctx)}`, found `${at.display_type(ctx)}`")))
+        }
+    }
+    if saw_error { return poison_ty() }
+    // Resolved together, so bounds can substitute the whole environment.
+    var bound_tys = List.new<Type>()
+    while bi in 0..gnames.size() {
+        if bi < type_args.size() {
+            bound_tys.push((*type_args.at(bi)).resolve_type_ref(ctx))
+        } else {
+            bound_tys.push(*inf_tys.at(bi))
+        }
+    }
+    // The return type is substituted from explicit type args (the only source
+    // for a parameter used just in the return), then from inference.
+    var ret = sig.ret
+    while gi in 0..gnames.size() {
+        val gname = *gnames.at(gi)
+        val binding = *bound_tys.at(gi)
+        if !binding.is_poison() {
+            check_generic_bounds_with_bindings(name.clone(), gname.clone(), binding.clone(), &gnames, &bound_tys, span, ctx)
+            ret = ret.subst_generic(gname.clone(), binding)
+        }
+    }
+    // Projections in the return type are resolved now, since this body uses
+    // the result; a still-generic owner is left for the post-pass.
+    ret = ret.resolved_projection_type("", ctx.sigs)
+    // A generic function's return type is never written at the call site.
+    ret.register_returned_instance(span, ctx)
+    // CONSTRAINT: inferred bindings are written back as explicit type args,
+    // since Mono materializes only from those. All-or-nothing, as they zip
+    // positionally.
+    if sig.generics.size() > 0 {
+        if type_args.size() == 0 {
+            var written = List.new<TypeRef>()
+            var ok = true
+            while inf_ty in &inf_tys {
+                val tr = inf_ty.ty_written_ref(span, ctx.sigs)
+                if tr.type_ref_is_poison() { ok = false }
+                written.push(tr)
+            }
+            if ok {
+                while item in &written {
+                    type_args.push(item)
+                }
+            }
+        }
+    }
+    return ret
+}
+
+/// The enum's name when `kind` names a registered enum, or "".
+fun try_get_enum_recv_name(kind: ExprKind, ctx: &var TypeCtx): String {
+    when (kind) {
+        Variable(n) => {
+            val ep = unsafe { (*ctx.sigs).find_enum(n.as_str(), ctx.owner_crate) }
+            if ep.is_none() { return "" }
+            return n.as_string()
+        }
+        _ => return ""
+    }
+}
+
+fun check_variant_construction(enum_name: String, type_args: &var List<TypeRef>, variant_name: String, args: &var List<Expr>, span: Span, ctx: &var TypeCtx): Type {
+    // Payloads are typed first so `Option.Some(value)` can infer from them.
+    var ai = 0
+    while ai < args.size() {
+        var arg = *args.at(ai)
+        check_expr(&var arg, ctx)
+        args.set(ai, arg)
+        ai = ai + 1
+    }
+    var use_args = clone_type_args(type_args)
+    var inferred = false
+    if use_args.size() == 0 {
+        use_args = infer_enum_type_args(enum_name.clone(), variant_name.clone(), args, ctx)
+        inferred = use_args.size() > 0
+    }
+    var concrete_name = enum_name.clone()
+    if use_args.size() > 0 {
+        val mangled = mangle_type_name(enum_name.as_str(), &use_args, ctx)
+        concrete_name = String.from(mangled.as_str())
+        instantiate_generic_layout(enum_name.clone(), &use_args, concrete_name.clone(), ctx)
+                    // Inferred args are written back as for a generic call;
+                    // Mono materializes only from explicit ones.
+        if inferred {
+            while use_arg in &use_args {
+                type_args.push(use_arg)
+            }
+        }
+    }
+    val sp = ctx.sigs
+    val layout = unsafe { sp.find_enum(concrete_name.as_str(), ctx.owner_crate) } ?: return poison_ty()
+    // Uninferred: checked against the template, whose `Generic(T)` payloads
+    // are not errors. rebind_template_ctor finishes once a slot is known.
+    val against_template = use_args.size() == 0 && enum_is_generic(enum_name.clone(), ctx)
+    while v in &layout.variants {
+        if v.name.as_str().equals(variant_name.as_str()) {
+            if args.size() != v.payloads.size() {
+                // Against the template the count is an upper bound. A `void`
+                // payload may be omitted (`Result<void, E>.Ok()`).
+                val omitted_are_units = v.trailing_payloads_are_unit(args.size())
+                if (!against_template || args.size() > v.payloads.size()) && !omitted_are_units {
+                    emit_ctor_arity_err(enum_name.clone(), variant_name.clone(), v.payloads.size(), args.size(), span, ctx)
+                    return poison_ty()
+                }
+            }
+            var j = 0
+            var saw_error = false
+            while j < args.size() && j < v.payloads.size() {
+                var a = *args.at(j)
+                check_expr(&var a, ctx)
+                // Written back, since `.ty` lives on the Expr itself.
+                args.set(j, a)
+                // A payload is a slot like any other: a bare `Option.None`
+                // needs the expectation.
+                if !expect_or_reject(args.at_mut(j), *v.payloads.at(j), ctx) {
+                    saw_error = true
+                    if !against_template {
+                        emit_ctor_payload_err(enum_name.clone(), variant_name.clone(), j, *v.payloads.at(j), args.at(j).ty, span, ctx)
+                    }
+                }
+                j = j + 1
+            }
+            if saw_error { return poison_ty() }
+            return Type { kind: TypeKind.EnumTy(intern(concrete_name.as_str())), provenance: Provenance.Inferred(no_span()) }
+        }
+    }
+    emit_ctor_variant_err(enum_name.clone(), variant_name.clone(), span, ctx)
+    return poison_ty()
+}
+
+fun enum_is_generic(enum_name: String, ctx: &var TypeCtx): bool {
+    val gi = unsafe { (*ctx.sigs).find_generic_info(enum_name.as_str(), ctx.owner_crate) } ?: return false
+    return gi.type_params.size() > 0
+}
+
+fun emit_ctor_arity_err(enum_name: String, variant: String, want: uint64, got: uint64, span: Span, ctx: &var TypeCtx): void {
+    val want_s = __kf_v2_int32_to_str(want as int32)
+    val got_s = __kf_v2_int32_to_str(got as int32)
+    val msg = "variant `${enum_name.as_str()}.${variant.as_str()}` takes ${want_s.as_str()} payload(s), found ${got_s.as_str()}"
+    ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+}
+
+fun emit_ctor_payload_err(enum_name: String, variant: String, idx: uint64, want: Type, got: Type, span: Span, ctx: &var TypeCtx): void {
+    val idx_s = __kf_v2_int32_to_str(idx as int32)
+    // A deferred projection's mangle must never reach a reader.
+    val want_s = want.display_type(ctx)
+    val got_s = got.display_type(ctx)
+    val msg = "payload ${idx_s.as_str()} of `${enum_name.as_str()}.${variant.as_str()}` expects `${want_s.as_str()}`, found `${got_s.as_str()}`"
+    ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+}
+
+fun emit_ctor_variant_err(enum_name: String, variant: String, span: Span, ctx: &var TypeCtx): void {
+    val msg = "no variant `${variant.as_str()}` on `${enum_name.as_str()}`"
+    ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+}
+
+// From payloads directly of a generic type (`Option<T>.Some(T)`), not nested
+// ones.
+fun infer_enum_type_args(enum_name: String, variant_name: String, args: &List<Expr>, ctx: &var TypeCtx): List<TypeRef> {
+    var out = List.new<TypeRef>()
+    val gi = unsafe { (*ctx.sigs).find_generic_info(enum_name.as_str(), ctx.owner_crate) } ?: return out
+    val layout = unsafe { (*ctx.sigs).find_enum(enum_name.as_str(), ctx.owner_crate) } ?: return out
+    while variant in &layout.variants {
+        if variant.name.as_str().equals(variant_name.as_str()) {
+            while param in &gi.type_params {
+                var found = ""
+                while ai in 0..variant.payloads.size() {
+                    val payload = *variant.payloads.at(ai)
+                    when (payload.kind) {
+                        Generic(name) => {
+                            if name.as_str().equals(param.as_str()) && ai < args.size() {
+                                found = ty_flat_ref_name(args.at(ai).ty)
+                            }
+                        }
+                        _ => { }
+                    }
+                }
+                if found.as_str().equals("") { return List.new<TypeRef>() }
+                out.push(new_type_ref(no_span(), TypeRefKind.Named(intern(found.as_str()), List.new<TypeRef>())))
+            }
+            return out
+        }
+    }
+    return out
+}
+
+/// Every remaining payload is `void`, which has no written form.
+fun VariantInfo.trailing_payloads_are_unit(from: uint64): bool {
+    if from > self.payloads.size() { return false }
+    var i = from
+    while i < self.payloads.size() {
+        if self.payloads.at(i).kind.kind_tag() != TAG_VOID() { return false }
+        i = i + 1
+    }
+    return true
+}

@@ -1,0 +1,11 @@
+[project]
+name = "kf_interface"
+version = "0.1.0"
+kind = "lib"
+
+[dependencies]
+kf_core = { path = "../kf-core" }
+kf_parse = { path = "../kf-parse" }
+core = { path = "../../libs/core" }
+alloc = { path = "../../libs/alloc" }
+json = { path = "../../../json" }

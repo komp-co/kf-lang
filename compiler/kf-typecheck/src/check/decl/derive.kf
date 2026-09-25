@@ -1,0 +1,157 @@
+// Validates annotations and expands `@derive(...)` into impls before
+// registration. The names come from kf-core's registries; the impl builders
+// are in derive_synth.kf and derive_equal_enum.kf.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_core.diagnostic.*
+
+pub fun Module.validate_annotations(diags: Ptr<List<Diagnostic>>): void {
+    while td in &self.decls {
+        // Each annotation is judged on its own.
+        while item in &td.annotations {
+            td.validate_one_annotation(item.as_str(), diags)
+        }
+    }
+}
+
+fun TopDecl.validate_one_annotation(annotation: str, diags: Ptr<List<Diagnostic>>): void {
+    if annotation.equals("") { return }
+    val kind = annotation_kind(annotation)
+    val info = lookup_annotation(kind.as_str())
+    if info.name.as_str().equals("") {
+        val message = "unknown annotation `@${kind.as_str()}`: expected ${known_annotations_summary().as_str()}"
+        unsafe { diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message))) }
+        return
+    }
+    if !annotation_target_allows(info.target, self) {
+        val message = "`@${kind.as_str()}` can only annotate ${annotation_target_phrase(info.target).as_str()}"
+        unsafe { diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message))) }
+        return
+    }
+    if kind.as_str().equals("lang") { self.validate_lang_annotation(diags) }
+    if kind.as_str().equals("prelude") { self.validate_prelude_annotation(diags) }
+    if kind.as_str().equals("derive") { self.validate_derive_options(annotation, diags) }
+    if kind.as_str().equals("allow") { self.validate_allow_names(annotation, diags) }
+}
+
+/// Options are checked against the derive registry.
+fun TopDecl.validate_derive_options(annotation: str, diags: Ptr<List<Diagnostic>>): void {
+    val options = derive_options_of(annotation)
+    var bad = false
+    while item in &options {
+        val name = item.as_str()
+        val ok = when (self.kind) {
+            Struct(_fields, _pub) => derivable_on_struct(name)
+            EnumDecl(_variants, _pub) => derivable_on_enum(name)
+            _ => false
+        }
+        if !ok { bad = true }
+    }
+    if !bad { return }
+    val expected = when (self.kind) {
+        Struct(_fields, _pub) => struct_derive_summary()
+        EnumDecl(_variants, _pub) => enum_derive_summary()
+        _ => String.from("")
+    }
+    val message = "unsupported `@derive` option: expected ${expected.as_str()}"
+    unsafe { diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message))) }
+}
+
+/// An `@allow` naming no registered lint suppresses nothing silently.
+fun TopDecl.validate_allow_names(annotation: str, diags: Ptr<List<Diagnostic>>): void {
+    val names = annotation_args(annotation, "allow")
+    while name in &names {
+        if !lint_exists(name.as_str()) {
+            val message = "`@allow(...)` names no lint `${name}`"
+            unsafe { diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message))) }
+        }
+    }
+}
+
+pub mutating fun Module.expand_derives(): void {
+    val clone_sym = self.lang_trait_name(lang_clone_key())
+    val cloned = self.types_with_impl_of(clone_sym)
+    var synth = List.new<TopDecl>()
+    while td in &self.decls {
+        val options = derive_options_of((&td).annotation_text("derive").as_str())
+        while option in &options {
+            val entry = lookup_derive(option.as_str())
+            if !entry.name.as_str().equals("") && derive_admits(entry, &td) {
+                val trait_sym = self.lang_trait_name(entry.lang_key.as_str())
+                synth.push(expand_one_derive(entry.expander, &td, trait_sym))
+            }
+        }
+        // Copy requires Clone, and a bitwise copy is already a correct clone,
+        // so `@derive(Copy)` supplies the Clone impl unless one is written.
+        if names_option(&options, "Copy") && !names_option(&options, "Clone") && !syms_contain(&cloned, td.name) {
+            synth.push(synth_clone_impl(td.name.as_string(), td.span, td.crate, td.module_path, clone_sym))
+        }
+    }
+    while item in &synth {
+        self.decls.push(item)
+    }
+}
+
+/// The types in this module that already have an impl of `trait_sym`.
+fun Module.types_with_impl_of(trait_sym: Sym): List<Sym> {
+    var out = List.new<Sym>()
+    while td in &self.decls {
+        when (td.kind) {
+            TraitImpl(tref, _methods) => {
+                when (unsafe { tref.kind }) {
+                    Named(name, _args) => { if name.id == trait_sym.id { out.push(td.name) } }
+                    _ => { }
+                }
+            }
+            _ => { }
+        }
+    }
+    return out
+}
+
+fun names_option(options: &List<String>, name: str): bool {
+    while option in options {
+        if option.as_str().equals(name) { return true }
+    }
+    return false
+}
+
+fun syms_contain(names: &List<Sym>, name: Sym): bool {
+    while each in names {
+        if each.id == name.id { return true }
+    }
+    return false
+}
+
+/// Re-checked, since tests call `expand_derives` directly.
+fun derive_admits(entry: DeriveInfo, td: &TopDecl): bool {
+    return when (td.kind) {
+        Struct(_fields, _pub) => entry.struct_ok
+        EnumDecl(_variants, _pub) => entry.enum_ok
+        _ => false
+    }
+}
+
+/// The pair was admitted, so the poison arms are unreachable.
+fun expand_one_derive(expander: DeriveExpander, td: &TopDecl, trait_sym: Sym): TopDecl {
+    return when (td.kind) {
+        Struct(fields, _p) => when (expander) {
+            Default => synth_default_impl(td.name.as_string(), &fields, td.span, td.crate, td.module_path, trait_sym)
+            Equal => synth_equal_impl(td.name.as_string(), &fields, td.span, td.crate, td.module_path, trait_sym)
+            Clone => synth_clone_impl(td.name.as_string(), td.span, td.crate, td.module_path, trait_sym)
+            Copy => synth_copy_impl(td.name.as_string(), td.span, td.decl_name_span(), td.crate,
+                                    td.module_path, trait_sym)
+            Hash => synth_hash_impl(td.name.as_string(), &fields, td.span, td.crate, td.module_path, trait_sym)
+        }
+        EnumDecl(variants, _p) => when (expander) {
+            Equal => synth_enum_equal_impl(td.name.as_string(), &variants, td.span, td.crate, td.module_path, trait_sym)
+            Clone => synth_clone_impl(td.name.as_string(), td.span, td.crate, td.module_path, trait_sym)
+            Copy => synth_copy_impl(td.name.as_string(), td.span, td.decl_name_span(), td.crate,
+                                    td.module_path, trait_sym)
+            _ => new_top_decl(td.span, String.from(""), TopDeclKind.Poison)
+        }
+        _ => new_top_decl(td.span, String.from(""), TopDeclKind.Poison)
+    }
+}

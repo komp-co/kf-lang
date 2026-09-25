@@ -1,0 +1,36 @@
+// Numbers rendered into a sink one digit at a time.
+//
+// CONSTRAINT: allocates nothing.
+
+
+fun digit(d: uint64): str {
+    if d == 0 { return "0" }
+    if d == 1 { return "1" }
+    if d == 2 { return "2" }
+    if d == 3 { return "3" }
+    if d == 4 { return "4" }
+    if d == 5 { return "5" }
+    if d == 6 { return "6" }
+    if d == 7 { return "7" }
+    if d == 8 { return "8" }
+    return "9"
+}
+
+/// Write `v` in base ten.
+@prelude
+pub fun write_uint64(out: &var dyn Write, v: uint64): void {
+    if v >= 10 { write_uint64(out, v / 10) }
+    out.write_str(digit(v % 10))
+}
+
+/// Write `v` in base ten, with a leading `-` when it is negative.
+@prelude
+pub fun write_int64(out: &var dyn Write, v: int64): void {
+    if v < 0 {
+        out.write_str("-")
+        // In uint64: the most negative int64 has no positive counterpart.
+        write_uint64(out, 0 - (v as uint64))
+        return
+    }
+    write_uint64(out, v as uint64)
+}

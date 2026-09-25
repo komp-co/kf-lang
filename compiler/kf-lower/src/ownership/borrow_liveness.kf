@@ -1,0 +1,227 @@
+// A borrow may not outlive its origin. While a local bound to a borrow of
+// another local is live, the origin may not be disturbed:
+//
+//     var out = String.from("a")
+//     val view = out.as_str()      // view borrows out
+//     out.append("b")              // may reallocate; view now dangles
+//     use(view)
+//
+// CONSTRAINT: runs after alpha_rename, so a plain name comparison is exact.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_core.diagnostic.*
+
+/// Keyed by the mangled `Type_method`: a name alone would conflate a mutating
+/// `append` on one type with a read-only one on another.
+pub struct MutatingMethod {
+    pub val mangled: String
+}
+
+pub fun Module.borrow_liveness_module(diags: Ptr<List<Diagnostic>>): void {
+    var muts = List.new<MutatingMethod>()
+    self.collect_mutating_methods(&var muts)
+    // Which parameters consume their argument. By pointer: it holds move-only
+    // lists.
+    val ptable: Ptr<List<ParamEntry>> = unsafe { alloc<List<ParamEntry>>() }
+    unsafe { *ptable = self.build_param_table() }
+    while decl in &self.decls {
+        bl_check_top_decl(decl, &muts, ptable, diags)
+    }
+}
+
+fun Module.collect_mutating_methods(out: &var List<MutatingMethod>): void {
+    while td in &self.decls {
+        when (td.kind) {
+            ImplBlock(methods) => collect_mutating_in_impl(td.name.as_str(), &methods, out)
+            TraitImpl(_tref, methods) => collect_mutating_in_impl(td.name.as_str(), &methods, out)
+            _ => { }
+        }
+    }
+}
+
+fun collect_mutating_in_impl(owner: str, methods: &List<TopDecl>, out: &var List<MutatingMethod>): void {
+    while method in &methods {
+        when (method.kind) {
+            Function(_p, _r, _b, _pub, _u, is_mutating, _st) => {
+                if is_mutating {
+                    var mangled = String.from(owner)
+                    mangled.append("_")
+                    mangled.append(method.name.as_str())
+                    out.push(MutatingMethod { mangled: mangled })
+                }
+            }
+            _ => { }
+        }
+    }
+}
+
+fun bl_check_top_decl(td: &TopDecl, muts: &List<MutatingMethod>, ptable: Ptr<List<ParamEntry>>, diags: Ptr<List<Diagnostic>>): void {
+    when (td.kind) {
+        Function(params, _r, body, _pub, _u, _mut, _st) => {
+            var names = List.new<String>()
+            names.push(String.from("self"))
+            while param in &params {
+                names.push(param.name.as_string())
+            }
+            check_stmt_list(&body, muts, ptable, &names, diags)
+        }
+        ImplBlock(methods) => {
+            while method in &methods {
+                bl_check_top_decl(method, muts, ptable, diags)
+            }
+        }
+        TraitImpl(_tref, methods) => {
+            while method in &methods {
+                bl_check_top_decl(method, muts, ptable, diags)
+            }
+        }
+        _ => { }
+    }
+}
+
+/// A borrow is checked within the block that declared it.
+fun check_stmt_list(stmts: &List<Stmt>, muts: &List<MutatingMethod>, ptable: Ptr<List<ParamEntry>>, params: &List<String>, diags: Ptr<List<Diagnostic>>): void {
+    while i in 0..stmts.size() {
+        (stmts.at(i)).check_nested_blocks(muts, ptable, params, diags)
+        val origin = (stmts.at(i)).borrow_binding_origin()
+        if origin.as_str() != "" {
+            val bound = (stmts.at(i)).binding_name()
+            if !name_in(params, origin.as_str()) {
+                report_returned_borrow_of_local(stmts, i, bound.as_str(), origin.as_str(), diags)
+            }
+            val last = last_use_index(stmts, bound.as_str(), i)
+            var j = i + 1
+            while j <= last {
+                if (stmts.at(j)).stmt_disturbs(origin.as_str(), muts) {
+                    (stmts.at(j)).emit_outlives_error(bound.as_str(), origin.as_str(), diags)
+                } else if (stmts.at(j)).stmt_moves(origin.as_str(), ptable) {
+                    (stmts.at(j)).emit_moved_error(bound.as_str(), origin.as_str(), diags)
+                }
+                j = j + 1
+            }
+        }
+    }
+}
+
+fun Stmt.emit_outlives_error(borrow: str, origin: str, diags: Ptr<List<Diagnostic>>): void {
+    val message = "`${origin}` cannot be changed here: `${borrow}` borrows it and is still used afterwards"
+    unsafe { diags.push(new_diagnostic(Severity.Error, new_label(self.span, message))) }
+}
+
+/// `val view = text.as_str()` then `return view`: TypeCheck catches the
+/// direct form; here the origin is known, so the bound form is caught too.
+fun report_returned_borrow_of_local(stmts: &List<Stmt>, from: uint64, bound: str, origin: str, diags: Ptr<List<Diagnostic>>): void {
+    var i = from + 1
+    while i < stmts.size() {
+        if (stmts.at(i)).stmt_returns(bound) {
+            val message = "cannot return `${bound}`: it borrows `${origin}`, which this function owns and drops at the return"
+            unsafe { diags.push(new_diagnostic(Severity.Error, new_label(stmts.at(i).span, message))) }
+            return
+        }
+        i = i + 1
+    }
+}
+
+fun name_in(names: &List<String>, name: str): bool {
+    while item in &names {
+        if item.as_str() == name { return true }
+    }
+    return false
+}
+
+fun Stmt.emit_moved_error(borrow: str, origin: str, diags: Ptr<List<Diagnostic>>): void {
+    val message = "`${origin}` cannot be moved here: `${borrow}` borrows it and is still used afterwards"
+    unsafe { diags.push(new_diagnostic(Severity.Error, new_label(self.span, message))) }
+}
+
+/// The local a `val`/`var` initializer borrows from, or "".
+fun Stmt.borrow_binding_origin(): String {
+    when (self.kind) {
+        LetVal(_n, _t, init) => return init_borrow_origin(init)
+        LetVar(_n, _t, init) => return init_borrow_origin(init)
+        _ => return ""
+    }
+}
+
+fun init_borrow_origin(init_opt: Ptr<Expr>?): String {
+    val init = init_opt ?: return ""
+    val e = unsafe { *init }
+    if !e.ty.bl_ty_is_borrow() { return "" }
+    return expr_borrow_root(&e)
+}
+
+fun Stmt.binding_name(): String {
+    when (self.kind) {
+        LetVal(n, _t, _i) => return n.as_string()
+        LetVar(n, _t, _i) => return n.as_string()
+        _ => return ""
+    }
+}
+
+fun Type.bl_ty_is_borrow(): bool {
+    when (self.kind) {
+        StrTy => return true
+        RefTo(_, _) => return true
+        _ => return false
+    }
+}
+
+/// The last statement mentioning `name`, or `from` when nothing does.
+fun last_use_index(stmts: &List<Stmt>, name: str, from: uint64): uint64 {
+    var last = from
+    var i = from + 1
+    while i < stmts.size() {
+        if (stmts.at(i)).stmt_mentions(name) { last = i }
+        i = i + 1
+    }
+    return last
+}
+
+fun Type.is_mutating_method(method: str, muts: &List<MutatingMethod>): bool {
+    val base = self.bl_ty_base_name()
+    if base.as_str() == "" { return false }
+    var wanted = base
+    wanted.append("_")
+    wanted.append(method)
+    while mut in &muts {
+        if mut.mangled.as_str() == wanted.as_str() { return true }
+    }
+    return false
+}
+
+/// The nominal name a method dispatches on, through any borrow.
+fun Type.bl_ty_base_name(): String {
+    when (self.kind) {
+        Struct(name) => return name.as_string()
+        EnumTy(name) => return name.as_string()
+        RefTo(_m, inner) => return bl_ty_base_name(unsafe { &*inner })
+        PtrTo(inner) => return bl_ty_base_name(unsafe { &*inner })
+        BoxOf(inner) => return bl_ty_base_name(unsafe { &*inner })
+        StrTy => return String.from("str")
+        _ => return ""
+    }
+}
+
+fun Stmt.check_nested_blocks(muts: &List<MutatingMethod>, ptable: Ptr<List<ParamEntry>>, params: &List<String>, diags: Ptr<List<Diagnostic>>): void {
+    when (self.kind) {
+        If(_c, then_body, else_body) => {
+            check_stmt_list(&then_body, muts, ptable, params, diags)
+            check_stmt_list(&else_body, muts, ptable, params, diags)
+        }
+        While(_c, body) => check_stmt_list(&body, muts, ptable, params, diags)
+        ForEach(_b, _s, body) => check_stmt_list(&body, muts, ptable, params, diags)
+        When(_s, arms) => {
+            while arm in &arms {
+                check_stmt_list(arm.body, muts, ptable, params, diags)
+            }
+        }
+        Switch(_s, arms) => {
+            while arm in &arms {
+                check_stmt_list(arm.body, muts, ptable, params, diags)
+            }
+        }
+        _ => { }
+    }
+}

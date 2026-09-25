@@ -1,0 +1,27 @@
+// Assertions for `@test` functions, needing only `Equal` and the
+// freestanding boundary intrinsics.
+
+extern "C" fun runtime_println(s: str): void
+
+@prelude
+pub fun fail(m: str): void {
+    panic(m)
+}
+
+@prelude
+pub fun assert(c: bool, m: str): void {
+    if !c {
+        runtime_println(m)
+        panic("assertion failed")
+    }
+}
+
+// `==` dispatches through `Equal`; raw `str` compares content.
+@prelude
+pub fun assert_eq<T: Equal>(a: T, b: T, m: str): void {
+    if a == b {
+        return
+    }
+    runtime_println(m)
+    panic("assertion failed")
+}

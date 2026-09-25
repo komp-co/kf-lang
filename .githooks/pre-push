@@ -1,0 +1,21 @@
+#!/bin/sh
+# Block direct pushes to main — changes go through a PR branch.
+#
+# The local mirror of GitHub's branch protection, so the refusal arrives
+# before the round trip. Enable it once per clone with:
+#
+#     git config core.hooksPath .githooks
+#
+# Emergency bypass (use sparingly): git push --no-verify
+protected="main"
+while read -r local_ref local_sha remote_ref remote_sha; do
+    case "$remote_ref" in
+        refs/heads/"$protected")
+            echo "✗ Direct push to '$protected' is blocked — open a PR from a feature branch."
+            echo "  Branch convention: <type>/<issue#>-<slug>  (e.g. fix/5-unresolved-dep-error)"
+            echo "  Emergency bypass:  git push --no-verify"
+            exit 1
+            ;;
+    esac
+done
+exit 0

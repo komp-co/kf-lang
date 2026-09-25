@@ -1,0 +1,53 @@
+// This process's own command line as both binaries read it: `-q` and
+// `--quiet` stand apart from the arguments.
+
+import core.args.arg_at
+import core.args.arg_count
+
+pub fun is_quiet_flag(arg: str): bool {
+    return arg == "-q" || arg == "--quiet"
+}
+
+/// Before `--`.
+pub fun compiler_warnings_quiet(): bool {
+    var i = 0
+    var quiet = false
+    while i < arg_count() {
+        val arg = arg_at(i)
+        if arg == "--" { return quiet }
+        if is_quiet_flag(arg) { quiet = true }
+        i = i + 1
+    }
+    return quiet
+}
+
+/// Global quiet flags before `--` are omitted.
+pub fun cli_arg_count(): int32 {
+    var count: uint64 = 0
+    var i = 0
+    var after_separator = false
+    while i < arg_count() {
+        val arg = arg_at(i)
+        if arg == "--" { after_separator = true }
+        if after_separator || !is_quiet_flag(arg) { count = count + 1 }
+        i = i + 1
+    }
+    return count
+}
+
+/// Global quiet flags before `--` are omitted.
+pub fun cli_arg_get(index: int32): str {
+    var kept = 0
+    var i = 0
+    var after_separator = false
+    while i < arg_count() {
+        val arg = arg_at(i)
+        if arg == "--" { after_separator = true }
+        if after_separator || !is_quiet_flag(arg) {
+            if kept == index as uint64 { return arg }
+            kept = kept + 1
+        }
+        i = i + 1
+    }
+    return ""
+}

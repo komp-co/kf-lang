@@ -1,0 +1,64 @@
+// Which files `komp fix` may write. A path dependency is spelled through its
+// parent, which a textual prefix test mistakes for containment.
+
+import core.assert.assert_eq
+import kf_driver.project.absolutize
+import kf_driver.project.canonicalize_path
+
+fun canon(p: str): String {
+    return canonicalize_path(absolutize(p).as_str())
+}
+
+@test
+fun a_file_inside_the_root_is_writable(): void {
+    assert_eq(fix_targets_root(canon("/w/app/src/main.kf").as_str(), canon("/w/app").as_str()), true,
+              "the crate being fixed is the point")
+}
+
+@test
+fun a_sibling_reached_through_dotdot_is_not_writable(): void {
+    // `applib = { path = "../lib" }` gives spans under `/w/app/../lib/...`.
+    val dep = canon("/w/app/../lib/src/main.kf")
+    assert_eq(dep.as_str(), "/w/lib/src/main.kf", "canonicalization is what makes the test meaningful")
+    assert_eq(fix_targets_root(dep.as_str(), canon("/w/app").as_str()), false,
+              "a dependency is not the project you pointed at")
+}
+
+@test
+fun the_raw_spelling_is_what_would_have_slipped_through(): void {
+    // The comparison that was wrong, kept so nobody reintroduces it.
+    assert_eq(fix_targets_root("/w/app/../lib/src/main.kf", "/w/app"), true,
+              "an uncanonicalized path really does pass the prefix test")
+}
+
+@test
+fun a_neighbouring_directory_sharing_a_prefix_is_not_writable(): void {
+    assert_eq(fix_targets_root(canon("/w/application/src/main.kf").as_str(), canon("/w/app").as_str()), false,
+              "`/w/app` must not match `/w/application`")
+}
+
+@test
+fun the_root_directory_itself_is_writable(): void {
+    assert_eq(fix_targets_root(canon("/w/app").as_str(), canon("/w/app").as_str()), true,
+              "an exact match is inside")
+}
+
+fun sample_report(applicability: str): String {
+    val location = "\"byte_start\":7,\"byte_end\":10,\"file\":\"/w/app/src/main.kf\""
+    val fix = "{\"title\":\"name it\",\"replacement\":\"only_one\",\"applicability\":\"${applicability}\",${location}}"
+    val secondary = "[{\"message\":\"here\",\"line\":1}]"
+    return "{\"schema_version\":3,\"secondary\":${secondary},\"fix\":${fix},\"code\":null}\n{\"fix\":null}\n"
+}
+
+@test
+fun a_machine_applicable_fix_is_read_from_the_report(): void {
+    val fixes = fixes_from_report(sample_report("machine-applicable").as_str(), "/w/app")
+    assert_eq(fixes.size() == 1 && fixes.at(0).fix.start == 7 && fixes.at(0).fix.replacement == "only_one", true,
+              "the repair, its offsets and its text come through")
+}
+
+@test
+fun a_maybe_incorrect_fix_is_left_alone(): void {
+    val fixes = fixes_from_report(sample_report("maybe-incorrect").as_str(), "/w/app")
+    assert_eq(fixes.size(), 0, "only machine-applicable repairs are written")
+}

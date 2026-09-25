@@ -1,0 +1,53 @@
+// Whether a type satisfies `Copy`, judged structurally: the builtin wrappers
+// have no impl to find, and an instance must meet its impl's own bounds.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_typecheck.types.nominal_name
+import kf_typecheck.types.resolve_type_ref
+
+/// Whether a value of type `ty` may be duplicated by copying its bytes. Poison
+/// and projections answer yes: the first was reported, the second is decided
+/// after monomorphization.
+pub fun Type.type_is_copy(ctx: &var TypeCtx): bool {
+    val copy_name = ctx.lang_trait_name(lang_copy_key())
+    return when (self.kind) {
+        PtrTo(_) => true
+        RefTo(mutable, _) => !mutable
+        BoxOf(_) => false
+        FnTy(_) => false
+        TraitTy(_) => false
+        DynTraitTy(_) => false
+        Void => true
+        Never => true
+        Poison => true
+        Projection(_, _) => true
+        Generic(name) => owner_has_bound(ctx.fn_owner.clone(), name.as_string(), copy_name.as_string(), ctx)
+        _ => self.bound_type_implements(copy_name.as_str(), ctx.sigs) &&
+             self.instance_args_are_copy(copy_name.as_str(), ctx)
+    }
+}
+
+/// Whether an instance's arguments meet what its Copy impl asks of them.
+/// Some impl whose bounded parameters all hold is enough.
+fun Type.instance_args_are_copy(copy_name: str, ctx: &var TypeCtx): bool {
+    val inst = unsafe { (*ctx.sigs).find_inst(self.kind.nominal_name().as_str()) } ?: return true
+    val impls = unsafe { (*ctx.sigs).impl_param_bounds_of(inst.base.as_str(), copy_name) }
+    if impls.size() == 0 { return true }
+    while each in &impls {
+        if each.params_meet_copy(&inst.args, copy_name, ctx) { return true }
+    }
+    return false
+}
+
+fun ImplParamBounds.params_meet_copy(args: &List<TypeRef>, copy_name: str, ctx: &var TypeCtx): bool {
+    if self.bounds.size() != args.size() { return true }
+    while i in 0..args.size() {
+        if bounds_name(self.bounds.at(i).as_str(), copy_name) {
+            val arg = resolve_type_ref(args.at(i), ctx)
+            if !arg.type_is_copy(ctx) { return false }
+        }
+    }
+    return true
+}

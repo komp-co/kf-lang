@@ -1,0 +1,19 @@
+[project]
+name = "kf_driver"
+version = "0.1.0"
+kind = "lib"
+
+[dependencies]
+kf_core = { path = "../kf-core" }
+kf_parse = { path = "../kf-parse" }
+kf_assemble = { path = "../kf-assemble" }
+kf_resolve = { path = "../kf-resolve" }
+kf_typecheck = { path = "../kf-typecheck" }
+kf_mono = { path = "../kf-mono" }
+kf_lower = { path = "../kf-lower" }
+kf_codegen = { path = "../kf-codegen" }
+kf_interface = { path = "../kf-interface" }
+core = { path = "../../libs/core" }
+alloc = { path = "../../libs/alloc" }
+std = { path = "../../libs/std" }
+json = { path = "../../../json" }

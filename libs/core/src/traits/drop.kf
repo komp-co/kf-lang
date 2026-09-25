@@ -1,0 +1,4 @@
+@lang("drop")
+pub trait Drop {
+    fun drop(): void
+}

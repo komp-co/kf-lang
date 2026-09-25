@@ -1,0 +1,316 @@
+import kf_core.span.*
+import kf_core.ast.*
+import kf_parse.parser.*
+
+extern "C" fun __kf_v2_int32_to_str(n: int32): String
+
+fun Arm.arm_body_ends_in_expression(): bool {
+    // An arm ending in an `if` yields through both branches.
+    return list_yields_value(&self.body)
+}
+
+impl Parser {
+    pub mutating fun parse_if_stmt(span: Span): Stmt {
+        unsafe { self.advance() }                     // consume `if`
+        // So `if x { ... }` is not read as a struct literal.
+        self.no_struct_lit = true
+        // A condition that is one parenthesised group ends at a visible `)`,
+        // so the body may be a single unbraced statement. `(a) == (b)` does
+        // not qualify.
+        val opens_paren: bool = is_op(self.peek(), Operator.LParen)
+        var paren_close: uint64 = 0
+        if opens_paren { paren_close = self.matching_paren_index() }
+        val cond = self.parse_expr()
+        self.no_struct_lit = false
+        val cond_is_parenthesised: bool = opens_paren && self.pos == paren_close + 1
+        val cond_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
+        unsafe { *cond_ptr = cond }
+        if cond_is_parenthesised && !is_op(self.peek(), Operator.LBrace) {
+            return self.guard_stmt(span, cond_ptr)
+        }
+        val then_body = self.parse_block()
+        var else_body = List.new<Stmt>()
+        // `else` may be on its own line; without one, rewind so the blank
+        // lines fall to the enclosing block.
+        val save_pos: uint64 = self.pos
+        self.skip_newlines()
+        val has_else: bool = is_keyword(self.peek(), Keyword.Else)
+        if has_else {
+            unsafe { self.advance() }
+            // `else if`: the chained `if` is nested as the else body's only
+            // statement.
+            if is_keyword(self.peek(), Keyword.If) {
+                val elif_span: Span = self.peek().span
+                val elif: Stmt = self.parse_if_stmt(elif_span)
+                else_body.push(elif)
+            } else {
+                else_body = self.parse_block()
+            }
+        } else {
+            self.pos = save_pos
+        }
+        return new_stmt(span, StmtKind.If(cond_ptr, then_body, else_body))
+    }
+
+    /// The `)` matching the `(` under the cursor. An unclosed group yields the
+    /// last index, so the guard form is not offered.
+    mutating fun matching_paren_index(): uint64 {
+        var depth: uint64 = 0
+        var i: uint64 = self.pos
+        while i < self.toks.size() {
+            val t = self.toks.at(i)
+            if t.is_op(Operator.LParen) { depth = depth + 1 }
+            if t.is_op(Operator.RParen) {
+                depth = depth - 1
+                if depth == 0 { return i }
+            }
+            i = i + 1
+        }
+        return i
+    }
+
+    /// The guard form's body: one statement, which must end its line.
+    mutating fun guard_stmt(span: Span, cond_ptr: Ptr<Expr>): Stmt {
+        var then_body = List.new<Stmt>()
+        val diags_before: uint64 = self.diags.size()
+        then_body.push(self.parse_stmt())
+        if self.diags.size() == diags_before {
+            // `else` after an unbraced body: name the fix.
+            if is_keyword(self.peek(), Keyword.Else) {
+                self.parse_err(self.peek().span, String.from("an `else` needs a braced `if` body — write `if (cond) { ... } else { ... }`"))
+                // Skipped so the terminator check does not report it again.
+                while !self.at_stmt_terminator() {
+                    unsafe { self.advance() }
+                }
+            } else {
+                self.require_stmt_terminator()
+            }
+        }
+        return new_stmt(span, StmtKind.If(cond_ptr, then_body, List.new<Stmt>()))
+    }
+
+    /// The only loop keyword:
+    ///
+    ///     while i < n     { ... }    // condition
+    ///     while i in a..b { ... }    // range
+    ///     while x in xs   { ... }    // collection
+    ///
+    /// A name followed by `in` selects iteration; `in` cannot start an
+    /// expression, so no backtracking is needed.
+    mutating fun parse_while(span: Span): Stmt {
+        unsafe { self.advance() }                     // consume `while`
+        if self.at_iteration_header() { return self.parse_while_in(span) }
+        self.no_struct_lit = true
+        val cond = self.parse_expr()
+        self.no_struct_lit = false
+        val cond_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
+        unsafe { *cond_ptr = cond }
+        val body = self.parse_block()
+        return new_stmt(span, StmtKind.While(cond_ptr, body))
+    }
+
+    mutating fun at_iteration_header(): bool {
+        if !is_identifier(self.peek()) { return false }
+        return is_keyword(self.peek_at(1), Keyword.In)
+    }
+
+    // `while NAME in SUBJECT`, the name not yet consumed. `a..b` is an
+    // ordinary expression, so ranges and collections share one grammar.
+    mutating fun parse_while_in(span: Span): Stmt {
+        val name: String = self.expect_name("loop variable")
+        unsafe { self.advance() }                     // consume loop variable
+        unsafe { self.advance() }                     // consume `in`
+        self.no_struct_lit = true
+        val subject = self.parse_expr()
+        self.no_struct_lit = false
+        val body = self.parse_block()
+        val subj: Ptr<Expr> = unsafe { alloc<Expr>() }
+        unsafe { *subj = subject }
+        return new_stmt(span, StmtKind.ForEach(intern(name.as_str()), subj, body))
+    }
+
+    /// `for` only opens a trait impl; as a loop it gets one diagnostic and is
+    /// parsed as `while`.
+    mutating fun for_loop_removed_err(span: Span): Stmt {
+        unsafe { self.advance() }                     // consume `for`
+        self.parse_err(span, String.from("`while` is the only loop keyword — write `while i in a..b` or `while x in xs`"))
+        if self.at_iteration_header() { return self.parse_while_in(span) }
+        return stmt_poison(span)
+    }
+
+    mutating fun parse_when_stmt(span: Span): Stmt {
+        unsafe { self.advance() }                     // consume `when`
+        var arms = List.new<Arm>()
+        val subject_ptr = self.parse_when_subject_and_arms(&var arms)
+        return new_stmt(span, StmtKind.When(subject_ptr, arms))
+    }
+
+    /// `when subject { pattern => EXPR }` in value position.
+    pub mutating fun parse_when_expr(span: Span): Expr {
+        unsafe { self.advance() }                     // consume `when`
+        var arms = List.new<Arm>()
+        val subject_ptr = self.parse_when_subject_and_arms(&var arms)
+        self.require_expression_arms(&arms)
+        return new_expr(span, ExprKind.WhenExpr(subject_ptr, arms))
+    }
+
+    /// A binding's or `return`'s operand, the only positions where a `when` is
+    /// a value: Lower needs a statement to hoist it before.
+    pub mutating fun parse_value_operand(): Expr {
+        val t = self.peek()
+        if t.is_keyword(Keyword.When) { return self.parse_when_expr(t.span) }
+        return self.parse_expr()
+    }
+
+    /// Shared by the statement and expression forms.
+    mutating fun parse_when_subject_and_arms(arms: &var List<Arm>): Ptr<Expr> {
+        // Struct literals off, so `{` opens the arms. `when x { }` and
+        // `when (x) { }` are the same grammar.
+        self.no_struct_lit = true
+        val subject_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
+        unsafe { *subject_ptr = self.parse_expr() }
+        self.no_struct_lit = false
+
+        if is_op(self.peek(), Operator.LBrace) {
+            unsafe { self.advance() }
+            while true {
+                self.skip_newlines()
+                if is_op(self.peek(), Operator.RBrace) {
+                    unsafe { self.advance() }
+                    break
+                }
+                if self.at_eof() {
+                    self.parse_err(self.peek().span, String.from("unclosed `when` body: missing `}` before the end of the file"))
+                    break
+                }
+                arms.push(self.parse_arm())
+                self.skip_newlines()
+                if is_op(self.peek(), Operator.Comma) {
+                    unsafe { self.advance() }
+                }
+            }
+        } else {
+            self.parse_err(self.peek().span, "expected `{` to open the `when` body, found ${tok_str(self.peek())}")
+        }
+        return subject_ptr
+    }
+
+    /// A `when`-expression arm must end in an expression; it may take steps
+    /// first.
+    mutating fun require_expression_arms(arms: &List<Arm>): void {
+        while arm in &arms {
+            if !arm.arm_body_ends_in_expression() {
+                self.parse_err(arm.span, String.from("each arm of a `when` used as a value must end in an expression (`pattern => expr`, or a block whose last statement is one)"))
+            }
+        }
+    }
+
+    /// `pattern => body`, where the body is one statement or a block. An
+    /// absent guard is null.
+    mutating fun parse_arm(): Arm {
+        val arm_span = self.peek().span
+        val pat_ptr: Ptr<Pattern> = unsafe { alloc<Pattern>() }
+        unsafe { *pat_ptr = self.parse_pattern() }
+
+        var guard_ptr: Ptr<Expr>? = null
+
+        if is_keyword(self.peek(), Keyword.If) {
+            unsafe { self.advance() }
+            val gp: Ptr<Expr> = unsafe { alloc<Expr>() }
+            unsafe { *gp = self.parse_expr() }
+            guard_ptr = Option.Some<Ptr<Expr>>(gp)
+        }
+
+        // Missing `=>`: the rest is taken as the body.
+        val _ar = self.expect_op(Operator.Arrow, "after the pattern in this `when` arm")
+
+        var body = List.new<Stmt>()
+        if is_op(self.peek(), Operator.LBrace) {
+            body = self.parse_block()
+        } else {
+            body.push(self.parse_stmt())
+        }
+
+        return new_arm(arm_span, pat_ptr, guard_ptr, body)
+    }
+
+    /// `_`, `42`/`-42`, `true`/`false`, `"abc"`, `'a'`, `name` (bind or bare
+    /// variant; typecheck decides), `Foo(p1, p2)`.
+    mutating fun parse_pattern(): Pattern {
+        val pat_span = self.peek().span
+
+        // Predicates rather than a Token local, which would alias the
+        // payload and double-free.
+        if is_keyword(self.peek(), Keyword.True) {
+            unsafe { self.advance() }
+            return new_pattern(pat_span, PatternKind.LitBool(true))
+        }
+        if is_keyword(self.peek(), Keyword.False) {
+            unsafe { self.advance() }
+            return new_pattern(pat_span, PatternKind.LitBool(false))
+        }
+        if is_int_literal(self.peek()) {
+            val n = int_literal_value(self.peek())
+            unsafe { self.advance() }
+            return new_pattern(pat_span, PatternKind.LitInt(n))
+        }
+        // `-1` is two tokens; a pattern folds the sign into the value.
+        if is_op(self.peek(), Operator.Minus) {
+            if is_int_literal(self.peek_at(1)) {
+                unsafe { self.advance() }
+                val n = int_literal_value(self.peek())
+                unsafe { self.advance() }
+                return new_pattern(pat_span, PatternKind.LitInt(0 - n))
+            }
+        }
+        if is_char_literal(self.peek()) {
+            val c = char_literal_value(self.peek())
+            unsafe { self.advance() }
+            return new_pattern(pat_span, PatternKind.LitChar(c))
+        }
+        if is_identifier(self.peek()) {
+            val name = ident_name_or_anon(self.peek())
+            unsafe { self.advance() }
+            if is_op(self.peek(), Operator.LParen) {
+                unsafe { self.advance() }
+                var subs = List.new<Pattern>()
+                if is_op(self.peek(), Operator.RParen) {
+                    unsafe { self.advance() }
+                } else {
+                    while true {
+                        subs.push(self.parse_pattern())
+                        if is_op(self.peek(), Operator.Comma) {
+                            unsafe { self.advance() }
+                        } else {
+                            break
+                        }
+                    }
+                    if is_op(self.peek(), Operator.RParen) {
+                        unsafe { self.advance() }
+                    }
+                }
+                return new_pattern(pat_span, PatternKind.Variant(intern(name.as_str()), subs))
+            }
+            return new_pattern(pat_span, PatternKind.Identifier(intern(name.as_str())))
+        }
+
+        // Unsupported here: reported, then resynced on the arm's `=>` so it
+        // costs one diagnostic.
+        unsafe { self.advance() }
+        self.parse_err(pat_span, String.from("unsupported pattern — `when` matches enum variants, integer, char and bool literals, a binding, or `_`"))
+        self.skip_to_arm_arrow()
+        return pattern_poison(pat_span)
+    }
+
+    /// Up to the arm's `=>`, stopping at a newline, `}` or EOF so a `when`
+    /// with no arrow does not swallow the file.
+    mutating fun skip_to_arm_arrow(): void {
+        while true {
+            if is_op(self.peek(), Operator.Arrow) { return }
+            if is_op(self.peek(), Operator.RBrace) { return }
+            if self.at_newline() { return }
+            if self.at_eof() { return }
+            unsafe { self.advance() }
+        }
+    }
+}

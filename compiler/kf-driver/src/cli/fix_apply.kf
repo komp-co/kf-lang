@@ -1,0 +1,98 @@
+// The splice engine behind `komp fix`, a function from text and edits to text,
+// free of the compiler and filesystem so it can be tested alone.
+
+import alloc.list.*
+
+
+extern "C" fun __kf_v2_int32_to_str(v: int32): String
+
+/// End-exclusive byte offsets; a zero-width range is an insertion.
+pub struct PendingFix {
+    pub val start:       uint32
+    pub val end:         uint32
+    pub val replacement: String
+    pub val title:       String
+}
+
+pub struct FixOutcome {
+    pub val text:    String
+    pub val applied: uint64
+    /// Overlapping repairs left for a later pass.
+    pub val skipped: uint64
+}
+
+/// Every non-overlapping fix written, building a fresh string in one forward
+/// pass over ascending starts, so every offset reads the original text.
+///
+/// - An edit starting before the cursor overlaps one already written and is
+///   skipped for the next pass.
+/// - An edit identical to one already written is dropped: three names from
+///   one module each suggest the same `import core.*`.
+pub fun apply_fixes(src: str, fixes: &List<PendingFix>): FixOutcome {
+    val order = ascending_by_start(fixes)
+    val n = src.byte_len()
+    var out = ""
+    var cursor = 0
+    var applied: uint64 = 0
+    var skipped: uint64 = 0
+    var written = List.new<String>()
+    var i = 0
+    while i < order.size() {
+        val f = fixes.at(order.get(i))
+        val start: uint64 = f.start as uint64
+        val end: uint64 = f.end as uint64
+        if already_written(&written, f) {
+            i = i + 1
+        } else if start < cursor || end > n || end < start {
+            // Out of range: a bug upstream, skipped rather than corrupting.
+            skipped = skipped + 1
+            i = i + 1
+        } else {
+            out.append(src.substring(cursor, start).as_str())
+            out.append(f.replacement.as_str())
+            cursor = end
+            applied = applied + 1
+            written.push(f.fix_identity())
+            i = i + 1
+        }
+    }
+    out.append(src.substring(cursor, n).as_str())
+    return FixOutcome { text: out, applied: applied, skipped: skipped }
+}
+
+/// Insertion sort, stable: equal starts keep the reported order.
+fun ascending_by_start(fixes: &List<PendingFix>): List<uint64> {
+    var order = List.new<uint64>()
+    while i in 0..fixes.size() {
+        val s = fixes.at(i).start
+        order.push(i)
+        var j = order.size() - 1
+        while j > 0 {
+            if fixes.at(order.get(j - 1)).start <= s { break }
+            val prev = order.get(j - 1)
+            order.set(j - 1, order.get(j))
+            order.set(j, prev)
+            j = j - 1
+        }
+    }
+    return order
+}
+
+/// Where it lands and what it writes; the title does not count.
+fun PendingFix.fix_identity(): String {
+    var id = ""
+    id.append(unsafe { __kf_v2_int32_to_str(self.start as int32) }.as_str())
+    id.append(":")
+    id.append(unsafe { __kf_v2_int32_to_str(self.end as int32) }.as_str())
+    id.append(":")
+    id.append(self.replacement.as_str())
+    return id
+}
+
+fun already_written(written: &List<String>, f: &PendingFix): bool {
+    val id = f.fix_identity()
+    while item in &written {
+        if item.as_str().equals(id.as_str()) { return true }
+    }
+    return false
+}

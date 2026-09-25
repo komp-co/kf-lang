@@ -1,0 +1,59 @@
+// In-place heapsort: elements move only through `swap`, so nothing is cloned
+// or dropped, and no scratch buffer is allocated.
+//
+// Not stable. O(n log n) in every case.
+
+impl List<T: Compare> {
+    /// Ascending, by the element's `Compare`.
+    pub mutating fun sort(): void {
+        val n: uint64 = self.len
+        if n < 2 { return }
+        // Heapify: every node that has a child, deepest first.
+        var i: uint64 = n / 2
+        while i > 0 {
+            i = i - 1
+            self.sift_down(i, n)
+        }
+        // Repeatedly move the largest to the end and shrink the heap.
+        var end: uint64 = n
+        while end > 1 {
+            end = end - 1
+            self.swap(0, end)
+            self.sift_down(0, end)
+        }
+    }
+
+    /// O(n).
+    pub fun is_sorted(): bool {
+        var i: uint64 = 1
+        while i < self.len {
+            if self.at(i - 1).compare(self.at(i)) > 0 { return false }
+            i = i + 1
+        }
+        return true
+    }
+
+    // Sifts `root` down within the heap over `[0, end)`.
+    mutating fun sift_down(root: uint64, end: uint64): void {
+        var at: uint64 = root
+        var going = true
+        while going {
+            val left: uint64 = at * 2 + 1
+            if left >= end {
+                going = false
+            } else {
+                var big: uint64 = left
+                val right: uint64 = left + 1
+                if right < end && self.at(left).compare(self.at(right)) < 0 {
+                    big = right
+                }
+                if self.at(at).compare(self.at(big)) >= 0 {
+                    going = false
+                } else {
+                    self.swap(at, big)
+                    at = big
+                }
+            }
+        }
+    }
+}

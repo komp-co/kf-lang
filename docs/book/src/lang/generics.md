@@ -1,0 +1,219 @@
+# Generics
+
+Generic functions, structs, enums, and impl blocks let you write code that
+works over any type satisfying a set of bounds. Each concrete instantiation is
+monomorphized: the compiler emits one copy per set of type arguments, so there
+is no runtime type erasure or indirection.
+
+## Generic functions
+
+```kflat
+fun identity<T>(x: T): T {
+    return x
+}
+```
+
+Type parameters go between `<...>` after the function name. They are written
+at the call site only when they cannot be inferred:
+
+```kflat
+val a = identity(42)           // T = int32, inferred
+val b = identity<String>(42)   // wrong: int32 literal can't become String
+```
+
+## Generic structs and enums
+
+```kflat
+struct Pair<A, B> {
+    var first: A
+    var second: B
+}
+```
+
+Write the type arguments **on the literal**, not only on the binding:
+
+```kflat
+val p = Pair<int32, bool> { first: 1, second: true }
+```
+
+`val p: Pair<int32, bool> = Pair { ... }` — arguments on the annotation, bare
+name on the literal — is rejected: the literal is checked against the
+template, so a field reads as `A` rather than `int32` ([#3]). Until that is
+fixed, put the arguments on the literal every time.
+
+Enum variants work the same way:
+
+```kflat
+enum Maybe<T> {
+    Just(T)
+    Nothing
+}
+```
+
+## Generic impl blocks
+
+An `impl` block names the type parameters in the same position the type
+declares them. They are then available in every method in the block:
+
+```kflat
+struct Cell<T> {
+    var v: T
+}
+
+impl Cell<T: Copy> {
+    fun get(): T {
+        return self.v
+    }
+}
+```
+
+`get` hands out a copy of `v`, so the block says `T` can be copied: the bound
+is what lets it compile, and what stops a `Cell<String>` from using it. See
+[In generic code](memory.md#in-generic-code).
+
+(`Box` is reserved for the builtin owning heap pointer, so a type of your own
+cannot use that name.)
+
+`self` is implicit, as in any impl block — it is never written as a
+parameter.
+
+A method that returns its own type with the parameters *transposed*
+(`Pair<A, B>` returning a `Pair<B, A>`) is wrongly rejected: the literal's
+fields are checked against the unswapped parameters ([#2]). Keep the parameter
+order stable.
+
+## Bounds
+
+A bound restricts a type parameter to types that implement a given trait:
+
+```kflat
+fun min<T: Compare>(a: T, b: T): T {
+    if a < b { return a }
+    return b
+}
+```
+
+`T: Compare` means the compiler knows that `T` has a `compare` method and
+therefore the `<` and `>` operators work. Without the bound, the function
+body cannot call any method on `T` except those implied by the bound.
+
+Bounds can appear on an `impl` block too, restricting which types the methods
+apply to. They go **inside the type argument list**, in the parameter's own
+position — there is no `impl<T: Bound>` prefix form:
+
+```kflat
+trait Tag {
+    fun tag(): int32
+}
+
+struct Holder<T> {
+    var it: T
+}
+
+impl Holder<T: Tag> {
+    fun read(): int32 {
+        return self.it.tag()
+    }
+}
+```
+
+A bound on the impl block is what a lazy iterator adapter needs, since the
+source iterator and the callable are the *struct's* parameters rather than any
+one method's.
+
+`.equals()` under a `T: Equal` bound works whether `T` is a primitive or a
+struct, as does `==` on the same bound. Primitives satisfy `Equal`, `Compare`
+and `Display` intrinsically, with no `impl` to find.
+
+## Monomorphization
+
+KFlat does not erase type parameters at runtime. When the compiler sees
+`identity(42)`, it produces a function named `identity__int32` (or similar)
+that takes an `int32` and returns an `int32`. A call to `identity<String>`
+produces a separate function. There is one copy of the code per concrete
+type-argument tuple.
+
+This has two effects:
+
+1. **No runtime cost**: a generic call is as cheap as a non-generic one. No
+   boxing, no indirect dispatch, no dynamic check.
+
+2. **Code size grows**: N distinct instantiations produce N copies of the
+   function body. This is the same trade-off C++ templates make.
+
+## When type arguments are inferred
+
+Three sources are consulted, all flowing forwards:
+
+- **The argument types.** `identity(42)` gives `T = int32`.
+- **The impl a bound names.** A parameter that appears only inside another
+  parameter's bound is read off that parameter's impl, once the arguments have
+  fixed it.
+- **The expected type at the binding or the return slot.** A function that
+  returns `Option.Some(x)` where `Option<int32>` is expected instantiates
+  `T = int32` with nothing written.
+
+`T` below takes no value, but `C` does, and `List<int32>` implements
+`Iterable<int32>`, so `T = int32`:
+
+```kflat
+import alloc.list.*
+
+fun count_all<C: Iterable<T>, T>(c: &C): int32 {
+    var n = 0
+    while _x in c { n = n + 1 }
+    return n
+}
+
+fun main(): int32 {
+    var xs = List.new<int32>()
+    xs.push(4)
+    return count_all(&xs)    // 1
+}
+```
+
+```kflat
+val opt: Option<bool> = Option.Some(true)   // T = bool, from the annotation
+val none: Option<int32> = Option.None       // no payload — the annotation carries it
+```
+
+`Option.None<int32>` is not the way to write a typed `None`; annotate the
+binding instead.
+
+A static call with no value argument has nothing of its own to go on, so the
+slot is what types it. All four of these work:
+
+```kflat
+val a: List<int32> = List.new()                    // an annotation
+fun empty(): List<int32> { return List.new() }     // a return type
+count(List.new())                                  // a parameter
+fun empty_of<T>(): List<T> { return List.new() }   // a generic function's own
+```
+
+Inference does **not** run backwards from a later use:
+
+```kflat
+fun main(): int32 {
+    var xs = List.new()      // no argument, no annotation, and no slot
+    xs.push(1)               // the later push is not consulted
+    return 0
+}
+```
+
+That is reported, naming both repairs:
+
+```console
+$ komp check .
+./src/main.kf:4:14: error: cannot tell what `List.new()` is over — write the type argument (`List.new<...>()`), or annotate the binding
+    var xs = List.new()
+             ^~~~~~~~~~
+check: found errors
+```
+
+It used to be accepted, and the C compiler was the first to object — to
+`List__T`, an instance that was never made concrete. Backward inference is
+tracked as [#6].
+
+[#2]: https://github.com/komp-co/komp/issues/2
+[#3]: https://github.com/komp-co/komp/issues/3
+[#6]: https://github.com/komp-co/komp/issues/6

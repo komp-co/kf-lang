@@ -1,0 +1,204 @@
+// Every name in the crate and what it refers to, walked once for both
+// find-references and semantic tokens. The declaration is what Resolve
+// stamped; a poisoned one is a parameter, local or field, kept for its role.
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+
+/// Poison `decl` when it is not a top-level declaration.
+@derive(Copy)
+pub struct NameSpan {
+    pub val span: Span
+    pub val decl: DeclId?
+    pub val role: Sym
+    /// A declaration's own name rather than a use. Both are indexed, so a
+    /// cursor on either finds it; they differ because a declaration is not a
+    /// reference to itself.
+    pub val is_decl: bool
+}
+
+/// In source order per declaration.
+pub fun Module.all_name_spans(): List<NameSpan> {
+    var found = List.new<NameSpan>()
+    name_decl_list(&self.decls, &var found)
+    return found
+}
+
+pub fun spans_for_decl(names: &List<NameSpan>, decl: DeclId): List<Span> {
+    var out = List.new<Span>()
+    while n in &names {
+        // A local, parameter or method matches nothing.
+        when (n.decl) {
+            Some(nd) => { if nd.raw == decl.raw && !n.is_decl { out.push(n.span) } }
+            None => { }
+        }
+    }
+    return out
+}
+
+fun name_decl_list(decls: &List<TopDecl>, found: &var List<NameSpan>): void {
+    while decl in &decls {
+        decl.name_decl(found)
+    }
+}
+
+fun TopDecl.name_decl(found: &var List<NameSpan>): void {
+    self.name_decl_own(found)
+    when (self.kind) {
+        Function(_p, _r, body, _pub, _u, _mut, _st) => name_stmt_list(body, found)
+        ImplBlock(methods) => name_decl_list(&methods, found)
+        TraitDecl(methods, _pub, _supers) => name_decl_list(&methods, found)
+        TraitImpl(_trait_ref, methods) => name_decl_list(&methods, found)
+        _ => {}
+    }
+}
+
+/// Nothing for a synthesized declaration or one Resolve never stamped.
+fun TopDecl.name_decl_own(found: &var List<NameSpan>): void {
+    if self.name_span.is_none() { return }
+    if self.decl.is_none() { return }
+    found.push(NameSpan { span: self.name_span, decl: self.decl, role: self.decl_role(), is_decl: true })
+}
+
+fun TopDecl.decl_role(): Sym {
+    var role = intern("function")
+    when (self.kind) {
+        Struct(_f, _p) => role = intern("type")
+        EnumDecl(_v, _p) => role = intern("type")
+        TraitDecl(_m, _p, _s) => role = intern("type")
+        _ => {}
+    }
+    return role
+}
+
+fun name_stmt_list(stmts: &List<Stmt>, found: &var List<NameSpan>): void {
+    while stmt in &stmts {
+        (stmt).name_stmt(found)
+    }
+}
+
+fun Stmt.name_stmt(found: &var List<NameSpan>): void {
+    when (self.kind) {
+        LetVal(_n, _ann, init) => name_expr_ptr(init, found)
+        LetVar(_n, _ann, init) => name_expr_ptr(init, found)
+        Assign(_n, value) => name_expr_ptr(value, found)
+        AssignTo(place, value) => {
+            name_expr_ptr(place, found)
+            name_expr_ptr(value, found)
+        }
+        Return(value) => {
+            val vp = value ?: return
+            name_expr_ptr(vp, found)
+        }
+        If(cond, then_body, else_body) => {
+            name_expr_ptr(cond, found)
+            name_stmt_list(then_body, found)
+            name_stmt_list(else_body, found)
+        }
+        While(cond, body) => {
+            name_expr_ptr(cond, found)
+            name_stmt_list(body, found)
+        }
+        ForEach(_binder, subject, body) => {
+            name_expr_ptr(subject, found)
+            name_stmt_list(body, found)
+        }
+        When(subject, arms) => {
+            name_expr_ptr(subject, found)
+            name_arm_list(&arms, found)
+        }
+        Switch(subject, arms) => {
+            name_expr_ptr(subject, found)
+            while arm in &arms {
+                name_stmt_list(&arm.body, found)
+            }
+        }
+        Expression(e) => name_expr_ptr(e, found)
+        _ => {}
+    }
+}
+
+fun name_arm_list(arms: &List<Arm>, found: &var List<NameSpan>): void {
+    while arm in &arms {
+        name_stmt_list(&arm.body, found)
+    }
+}
+
+fun name_expr_ptr(p_opt: Ptr<Expr>?, found: &var List<NameSpan>): void {
+    val p = p_opt ?: return
+    name_expr(unsafe { &*p }, found)
+}
+
+fun Expr.name_expr(found: &var List<NameSpan>): void {
+    self.record_name(found)
+    when (self.kind) {
+        Call(_name, args) => name_expr_list(&args, found)
+        MethodCall(recv, _m, args) => {
+            name_expr_ptr(recv, found)
+            name_expr_list(&args, found)
+        }
+        FieldAccess(obj, _f) => name_expr_ptr(obj, found)
+        Binary(l, _op, r) => {
+            name_expr_ptr(l, found)
+            name_expr_ptr(r, found)
+        }
+        Unary(_op, inner) => name_expr_ptr(inner, found)
+        Deref(inner) => name_expr_ptr(inner, found)
+        IfExpr(c, t, el) => {
+            name_expr_ptr(c, found)
+            name_expr_ptr(t, found)
+            name_expr_ptr(el, found)
+        }
+        WhenExpr(subject, arms) => {
+            name_expr_ptr(subject, found)
+            name_arm_list(&arms, found)
+        }
+        StructLit(_name, fields) => {
+            while field in &fields {
+                name_expr_ptr(field.value, found)
+            }
+        }
+        Cast(inner, _target) => name_expr_ptr(inner, found)
+        DynCoerce(inner, _vtable) => name_expr_ptr(inner, found)
+        Lambda(_params, body) => name_stmt_list(&body, found)
+        Block(stmts) => {
+            while stmt in &stmts {
+                (stmt).name_stmt(found)
+            }
+        }
+        Retain(inner) => name_expr_ptr(inner, found)
+        _ => {}
+    }
+}
+
+fun name_expr_list(args: &List<Expr>, found: &var List<NameSpan>): void {
+    while arg in &args {
+        arg.name_expr(found)
+    }
+}
+
+/// The name an expression writes, or the whole span when none was recorded.
+/// A call's span covers its arguments and a method call's opens at the
+/// receiver; neither is the name.
+fun Expr.written_name_span(): Span {
+    if self.name_span.is_none() { return self.span }
+    return self.name_span
+}
+
+/// Literals, operators and casts have no name.
+fun Expr.record_name(found: &var List<NameSpan>): void {
+    val role = when (self.kind) {
+        Variable(_n) => "variable"
+        Call(_n, _args) => "function"
+        MethodCall(_r, _m, _args) => "method"
+        FieldAccess(_o, _f) => "field"
+        StructLit(_n, _f) => "type"
+        _ => ""
+    }
+    if role.byte_len() == 0 { return }
+    val whole = role.equals("variable") || role.equals("type")
+    val span = if whole { self.span } else { self.written_name_span() }
+    found.push(NameSpan { span: span, decl: self.decl, role: intern(role), is_decl: false })
+}

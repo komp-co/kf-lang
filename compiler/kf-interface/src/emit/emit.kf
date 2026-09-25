@@ -1,0 +1,170 @@
+// Writes a crate's `.kfi`: a JSON document whose type spellings are KFlat
+// surface syntax. Runs after TypeCheck, before Mono. Non-generic public
+// declarations are written bodyless with their archive link names; generic
+// templates carry their source text; hidden support declarations are marked
+// hidden.
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+import json.writer.*
+import kf_interface.*
+
+/// CONSTRAINT: deterministic — document order follows declaration order.
+/// Templates need the SourceMap, so production callers use
+/// `emit_interface_full`.
+pub fun Module.emit_interface(crate_name: String, deps: &List<String>): String {
+    return self.emit_interface_hashed(crate_name, deps, &List.new<String>())
+}
+
+pub fun Module.emit_interface_hashed(crate_name: String, deps: &List<String>, hashes: &List<String>): String {
+    val empty: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
+    unsafe { *empty = new_source_map() }
+    return self.emit_interface_full(crate_name, deps, hashes, empty)
+}
+
+pub fun Module.emit_interface_full(crate_name: String, deps: &List<String>, hashes: &List<String>, smap: Ptr<SourceMap>): String {
+    val crate = new_crate_id(crate_name.as_str())
+    val doc = new_json_writer()
+    doc.field_int64("kfi", interface_format_version())
+    doc.field_string("crate", crate_name.as_str())
+    doc.field_string("compiler_abi", interface_compiler_abi())
+    doc.field_string("runtime_abi", interface_runtime_abi())
+    doc.field_string("target", interface_target())
+    doc.field_raw("deps", emit_deps(deps, hashes).as_str())
+    doc.field_raw("glue", self.emit_ownership_glue(crate).as_str())
+    doc.field_raw("dyn_traits", self.emit_interface_dyn_traits(crate).as_str())
+    doc.field_raw("dyn_vtables", self.emit_interface_dyn_vtables(crate).as_str())
+    doc.field_raw("modules", self.emit_modules(crate, smap).as_str())
+    return doc.finish()
+}
+
+fun emit_deps(deps: &List<String>, hashes: &List<String>): String {
+    val arr = new_json_array_writer()
+    while i in 0..deps.size() {
+        val d = new_json_writer()
+        d.field_string("name", deps.at(i).as_str())
+        if i < hashes.size() {
+            d.field_string("hash", hashes.at(i).as_str())
+        } else {
+            d.field_string("hash", "")
+        }
+        arr.item_raw(d.finish().as_str())
+    }
+    return arr.finish()
+}
+
+fun Module.emit_ownership_glue(crate: CrateId): String {
+    val glue = self.collect_public_glue(crate)
+    val arr = new_json_array_writer()
+    while item in &glue {
+        val object = new_json_writer()
+        object.field_string("type", item.type_name.as_str())
+        object.field_string("retain", item.retain.as_str())
+        object.field_string("drop", item.drop.as_str())
+        object.field_string("clone", item.clone.as_str())
+        arr.item_raw(object.finish().as_str())
+    }
+    return arr.finish()
+}
+
+// First-declaration order; each module keeps its dotted path so imports
+// resolve on the consumer side.
+fun Module.emit_modules(crate: CrateId, smap: Ptr<SourceMap>): String {
+    val hidden = self.collect_hidden_support(crate)
+    var paths = List.new<String>()
+    while td in &self.decls {
+        if td.crate.raw == crate.raw {
+            if module_decl_crosses(td, self, crate, &hidden) {
+                add_unique_path(&var paths, td.module_path.as_str())
+            }
+        }
+    }
+    val arr = new_json_array_writer()
+    while item in &paths {
+        val mod_obj = new_json_writer()
+        mod_obj.field_string("path", item.as_str())
+        mod_obj.field_raw("files", self.emit_module_files(crate, item.as_str(), smap).as_str())
+        mod_obj.field_raw("decls", self.emit_module_decls(crate, item.as_str(), &hidden, smap).as_str())
+        arr.item_raw(mod_obj.finish().as_str())
+    }
+    return arr.finish()
+}
+
+fun module_decl_crosses(td: TopDecl, m: &Module, crate: CrateId, hidden: &List<String>): bool {
+    if decl_crosses_interface(td, m, crate) { return true }
+    return hidden_name_in(hidden, td.name.as_str())
+}
+
+/// Stems of the files the module was built from, so a consumer can resolve
+/// `import core.hash.*` to a file without the sources. Every declaration is
+/// walked: a file with only private declarations is still importable.
+fun Module.emit_module_files(crate: CrateId, path: str, smap: Ptr<SourceMap>): String {
+    var stems = List.new<String>()
+    while td in &self.decls {
+        if td.crate.raw == crate.raw {
+            if td.module_path.as_str() == path {
+                val stem = unsafe { smap.file_stem_of(td.span.file_id) }
+                if !stem.as_str().is_empty() {
+                    if !stems_contain(&stems, stem.as_str()) { stems.push(stem.clone()) }
+                }
+            }
+        }
+    }
+    val arr = new_json_array_writer()
+    while item in &stems {
+        arr.item_string(item.as_str())
+    }
+    return arr.finish()
+}
+
+fun stems_contain(stems: &List<String>, name: str): bool {
+    while stem in &stems {
+        if stem.as_str() == name { return true }
+    }
+    return false
+}
+
+fun Module.emit_module_decls(crate: CrateId, path: str, hidden: &List<String>, smap: Ptr<SourceMap>): String {
+    var arr = new_json_array_writer()
+    while td in &self.decls {
+        if td.crate.raw == crate.raw {
+            if td.module_path.as_str() == path {
+                arr.append_decl_entry(td, self, crate, hidden, smap)
+            }
+        }
+    }
+    return arr.finish()
+}
+
+// A hidden template that cannot be sliced (synthesized) is skipped; the
+// consumer re-synthesizes it from its annotation.
+mutating fun JsonArrayWriter.append_decl_entry(td: TopDecl, m: &Module, crate: CrateId, hidden: &List<String>, smap: Ptr<SourceMap>): void {
+    if decl_is_exported(td) {
+        if impl_target_is_exported(td, m, crate) {
+            self.item_raw(emit_decl(td, false, m.type_is_no_mangle(td.name.as_str()), m).as_str())
+            return
+        }
+    }
+    if decl_is_exported_template(td) {
+        if impl_target_is_exported(td, m, crate) {
+            self.item_raw(td.emit_template_entry(false, smap).as_str())
+            return
+        }
+    }
+    if !hidden_name_in(hidden, td.name.as_str()) { return }
+    if td.generics.size() > 0 {
+        if td.decl_end == 0 as uint32 { return }
+        self.item_raw(td.emit_template_entry(true, smap).as_str())
+        return
+    }
+    self.item_raw(emit_decl(td, true, m.type_is_no_mangle(td.name.as_str()), m).as_str())
+}
+
+fun add_unique_path(paths: &var List<String>, path: str): void {
+    while item in &paths {
+        if item.as_str() == path { return }
+    }
+    paths.push(String.from(path))
+}

@@ -1,0 +1,10 @@
+[project]
+name = "kf_resolve"
+version = "0.1.0"
+kind = "lib"
+
+[dependencies]
+kf_core = { path = "../kf-core" }
+kf_assemble = { path = "../kf-assemble" }
+core = { path = "../../libs/core" }
+alloc = { path = "../../libs/alloc" }

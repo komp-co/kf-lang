@@ -1,0 +1,224 @@
+import alloc.list.*
+
+import kf_core.span.*
+
+// CONSTRAINT: TopDecl and its supporting structs share this file because
+// cross-file struct typedef order follows file names; one file keeps them in
+// source order.
+
+/// A declared type parameter, e.g. the `T` in `struct Box<T>`, with its trait
+/// bounds.
+@derive(Clone)
+pub struct TypeParam {
+    pub val span:   Span
+    pub val name:   Sym
+    pub val bounds: List<TypeRef>
+}
+
+pub fun new_type_param(span: Span, name: String): TypeParam {
+    return TypeParam { span: span, name: intern(name.as_str()), bounds: List.new<TypeRef>() }
+}
+
+@derive(Clone)
+pub struct Param {
+    pub val span:    Span
+    pub val name:    Sym
+    pub val ty:      Box<TypeRef>
+}
+
+pub fun new_param(span: Span, name: String, ty: Ptr<TypeRef>): Param {
+    return Param { span: span, name: intern(name.as_str()), ty: ty }
+}
+
+pub struct Field {
+    pub val span:   Span
+    pub val name:   Sym
+    pub val ty:     Box<TypeRef>
+    pub val is_var: bool
+    pub val is_pub: bool
+}
+
+pub fun new_field(span: Span, name: String, ty: Ptr<TypeRef>, is_var: bool, is_pub: bool): Field {
+    return Field { span: span, name: intern(name.as_str()), ty: ty, is_var: is_var, is_pub: is_pub }
+}
+
+pub struct Variant {
+    pub val span:     Span
+    pub val name:     Sym
+    pub var payloads: List<TypeRef>
+}
+
+pub fun new_variant(span: Span, name: String, payloads: List<TypeRef>): Variant {
+    return Variant { span: span, name: intern(name.as_str()), payloads: payloads }
+}
+
+/// CONSTRAINT: the name lives on this outer struct, not in the kind's
+/// payload: destructuring a Drop-typed payload out of a variant double-frees
+/// it. Read `.name` rather than destructuring.
+@derive(Clone)
+pub struct TopDecl {
+    pub val span: Span
+    pub var name: Sym
+    pub val kind: TopDeclKind
+    pub var crate: CrateId
+    pub var module_path: Sym
+    pub var decl: DeclId?
+    pub var generics: List<TypeParam>
+    /// Every `@name(...)` written above the declaration, verbatim and in
+    /// source order: `"test"`, `"derive(Clone,Equal)"`.
+    pub var annotations: List<String>
+    /// Set on methods from a `TraitImpl`, which Mono turns into an ImplBlock.
+    /// Codegen puts them in the crate header even without `pub`.
+    pub var from_trait_impl: bool
+    /// Source unless loaded from an interface, which also fills link_name
+    /// with the archive symbol.
+    pub var linkage: Linkage
+    pub var link_name: Sym
+    /// Dynamic layouts this declaration requests and vtables it supplies,
+    /// kept here so copies of the declaration carry them.
+    pub var dyn_layouts: List<DynTraitLayout>
+    pub var dyn_vtables: List<DynVTableInstance>
+    /// Byte offset just past the last token, in the file of `span`; 0 for a
+    /// synthesized declaration. Interfaces slice template source with it.
+    pub var decl_end: uint32
+    /// Where the declaration's own name is written; `no_span()` when
+    /// synthesized.
+    pub var name_span: Span
+    /// An extension function's name as written (`area` in
+    /// `fun List<Point>.area()`), empty otherwise. `name` is then a hidden
+    /// name distinguishing extensions, and the first parameter is `self`.
+    pub var ext_name: Sym
+}
+
+pub enum TopDeclKind {
+    /// `fun NAME(params): ret { body }`.
+    Function(List<Param>, Box<TypeRef>, List<Stmt>, bool, bool, bool, bool)
+    // ^ params, return-type, body, is_pub, is_unsafe, is_mutating, is_static
+    /// `struct NAME { fields }`.
+    Struct(List<Field>, bool)
+    // ^ fields, is_pub
+    /// `enum NAME { variants }`.
+    EnumDecl(List<Variant>, bool)
+    // ^ variants, is_pub
+    /// `extern "C" fun NAME(params): ret`.
+    Extern(List<Param>, Box<TypeRef>, bool, bool)
+    // ^ params, return-type, is_pub, is_unsafe
+    /// `impl NAME { ... }`. The outer `name` is the target type; each method
+    /// is a Function TopDecl.
+    ImplBlock(List<TopDecl>)
+    /// `trait NAME: SUPER + SUPER { ... }`. Methods with an empty body are
+    /// required, others are defaults. Payload: members, is_pub, supertraits.
+    /// Associated types ride in the member list; supertraits are written on
+    /// the header, so they have their own list.
+    TraitDecl(List<TopDecl>, bool, List<TypeRef>)
+    /// `impl TRAIT for TYPE { ... }`. The box is the trait ref; the target is
+    /// the outer `name`. Boxed to keep a Drop payload off the enum.
+    TraitImpl(Box<TypeRef>, List<TopDecl>)
+    /// `type Item` / `type Item: Bound` inside a trait; the payload is its
+    /// bounds. Rides in the trait's member list.
+    AssocType(List<TypeRef>)
+    /// `type Item = int32` inside a trait impl — the impl's choice for one
+    /// associated type. The outer `name` is the associated type's name.
+    AssocTypeBinding(Box<TypeRef>)
+    /// Parse error.
+    Poison
+}
+
+impl TopDecl {
+    /// `@name` or `@name(...)` is written above this declaration.
+    pub fun has_annotation(name: str): bool {
+        while a in &self.annotations {
+            if a.as_str().equals(name) { return true }
+            val n = name.byte_len()
+            if a.as_str().byte_len() > n {
+                if a.as_str().byte_at(n) == 40 {
+                    var j = 0
+                    var same = true
+                    while j < n {
+                        if a.as_str().byte_at(j) != name.byte_at(j) { same = false }
+                        j = j + 1
+                    }
+                    if same { return true }
+                }
+            }
+        }
+        return false
+    }
+
+    /// Verbatim, or "": `derive` on `@derive(Clone,Equal)` gives
+    /// `"derive(Clone,Equal)"`.
+    pub fun annotation_text(name: str): String {
+        while a in &self.annotations {
+            if a.as_str().equals(name) { return a.clone() }
+            val n = name.byte_len()
+            if a.as_str().byte_len() > n {
+                if a.as_str().byte_at(n) == 40 {
+                    var j = 0
+                    var same = true
+                    while j < n {
+                        if a.as_str().byte_at(j) != name.byte_at(j) { same = false }
+                        j = j + 1
+                    }
+                    if same { return a.clone() }
+                }
+            }
+        }
+        return ""
+    }
+
+    /// Where a diagnostic about this declaration points: its name, falling
+    /// back to the whole span for synthesized and poison declarations.
+    pub fun decl_name_span(): Span {
+        if self.name_span.is_none() { return self.span }
+        return self.name_span
+    }
+}
+
+pub fun new_top_decl(span: Span, name: String, kind: TopDeclKind): TopDecl {
+    return TopDecl { span: span, name: intern(name.as_str()), kind: kind, crate: crate_id_poison(), module_path: intern(""), decl: null, generics: List.new<TypeParam>(), annotations: List.new<String>(), from_trait_impl: false, linkage: linkage_source(), link_name: intern(""), dyn_layouts: List.new<DynTraitLayout>(), dyn_vtables: List.new<DynVTableInstance>(), decl_end: 0, name_span: no_span(), ext_name: intern("") }
+}
+
+/// Stamps the owner onto nested methods too, which are checked as
+/// declarations in their own right.
+pub mutating fun TopDecl.stamp_decl_owner(crate: CrateId, module_path: Sym): void {
+    self.module_path = module_path
+    self.crate = crate
+    when (self.kind) {
+        ImplBlock(methods) => {
+            stamp_nested_decl_owners(&var methods, crate, module_path)
+            self.kind = TopDeclKind.ImplBlock(methods)
+        }
+        TraitDecl(methods, is_pub, supers) => {
+            stamp_nested_decl_owners(&var methods, crate, module_path)
+            self.kind = TopDeclKind.TraitDecl(methods, is_pub, supers)
+        }
+        TraitImpl(trait_ref, methods) => {
+            stamp_nested_decl_owners(&var methods, crate, module_path)
+            self.kind = TopDeclKind.TraitImpl(trait_ref, methods)
+        }
+        _ => {}
+    }
+}
+
+pub fun stamp_nested_decl_owners(methods: &var List<TopDecl>, crate: CrateId, module_path: Sym): void {
+    while i in 0..methods.size() {
+        stamp_decl_owner(methods.at_mut(i), crate, module_path)
+    }
+}
+
+impl Module {
+    /// `@no_mangle`: its C name and every symbol derived from it carry no
+    /// crate prefix.
+    pub fun type_is_no_mangle(name: str): bool {
+        while td in &self.decls {
+            if td.name.as_str() == name && td.has_annotation("no_mangle") {
+                when (td.kind) {
+                    Struct(_fields, _is_pub) => return true
+                    EnumDecl(_variants, _is_pub) => return true
+                    _ => {}
+                }
+            }
+        }
+        return false
+    }
+}

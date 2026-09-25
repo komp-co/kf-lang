@@ -1,0 +1,105 @@
+import alloc.list.*
+
+import kf_core.span.*
+
+@derive(Clone)
+pub struct Pattern {
+    pub val span: Span
+    pub val kind: PatternKind
+}
+
+pub enum PatternKind {
+    /// `_` — matches anything, binds nothing.
+    Wildcard
+    /// 5, "abc", true.
+    LitInt(int64)
+    LitStr(String)
+    LitBool(bool)
+    /// A code point. There is no float pattern: float equality is a trap.
+    LitChar(uint32)
+    /// `name`: binds the scrutinee.
+    Identifier(Sym)
+    /// `Foo`, `Some(x)`, `Result.Ok(0)`.
+    Variant(Sym, List<Pattern>)
+    /// `Point { x, y: 5 }`: field names and patterns matched by index.
+    StructPat(Sym, List<Sym>, List<Pattern>)
+    /// `1 | 2 | 3`. Every alternative binds the same names.
+    Or(List<Pattern>)
+    /// An error.
+    Poison
+}
+
+pub fun new_pattern(span: Span, kind: PatternKind): Pattern {
+    return Pattern { span: span, kind: kind }
+}
+
+pub fun pattern_poison(span: Span): Pattern {
+    return new_pattern(span, PatternKind.Poison)
+}
+
+/// A `when` arm: pattern, optional guard, body.
+pub struct Arm {
+    pub val span:    Span
+    pub val pattern: Box<Pattern>
+    pub val guard:   Ptr<Expr>?
+    pub var body:    List<Stmt>
+}
+
+pub fun new_arm(span: Span, pattern: Box<Pattern>, guard: Ptr<Expr>?, body: List<Stmt>): Arm {
+    return Arm { span: span, pattern: pattern, guard: guard, body: body }
+}
+
+/// The value a `when`-expression arm yields: its body's last statement, if
+/// that is an expression. Earlier statements are the arm's steps. Null for an
+/// empty body or one ending in a non-expression.
+pub fun Arm.arm_value_expr(): Ptr<Expr> {
+    val n: uint64 = self.body.size()
+    if n == 0 { return unsafe { 0 as Ptr<Expr> } }
+    // CONSTRAINT: `at` keeps the body in receiver position, where it stays self
+    // borrow. Passing it to self function makes the arm own it and free it.
+    val s = self.body.at(n - 1)
+    return when (s.kind) {
+        Expression(e_ptr) => e_ptr
+        _ => unsafe { 0 as Ptr<Expr> }
+    }
+}
+
+/// The value a statement yields, or null.
+///
+/// CONSTRAINT: takes the statement, not the list. Passing a `when` binder's
+/// list to a function makes the arm own and free it; `get` on it stays a
+/// borrow.
+pub fun Stmt.stmt_value_expr(): Ptr<Expr> {
+    return when (self.kind) {
+        Expression(e_ptr) => e_ptr
+        _ => unsafe { 0 as Ptr<Expr> }
+    }
+}
+
+/// Every path through `s` produces a value; an `if` or `when` answers
+/// through every branch. The parser and checker both ask.
+pub fun Stmt.tail_yields_value(): bool {
+    when (self.kind) {
+        Expression(_ep) => return true
+        If(_c, then_body, else_body) => {
+            if !list_yields_value(&then_body) { return false }
+            return list_yields_value(&else_body)
+        }
+        When(_subj, arms) => {
+            // Missing cases are left to the exhaustiveness check, which names
+            // them.
+            if arms.size() == 0 { return false }
+            while arm in &arms {
+                if !list_yields_value(&arm.body) { return false }
+            }
+            return true
+        }
+        _ => return false
+    }
+    return false
+}
+
+pub fun list_yields_value(stmts: &List<Stmt>): bool {
+    if stmts.size() == 0 { return false }
+    return tail_yields_value(stmts.at(stmts.size() - 1))
+}

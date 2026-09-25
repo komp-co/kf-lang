@@ -1,0 +1,115 @@
+// An extension function as an editor sees it: under its called name, as a
+// method of what it extends.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_interface.emit.tyref_to_source
+
+pub fun TopDecl.is_extension(): bool {
+    return !self.ext_name.as_str().equals("")
+}
+
+/// `Point.area`.
+pub fun TopDecl.extension_display_name(): String {
+    return (&self.extension_receiver()).tyref_to_source() + String.from(".") + self.ext_name.as_string()
+}
+
+/// Everything after `self`.
+pub fun extension_written_params(params: &List<Param>): List<Param> {
+    var out = List.new<Param>()
+    var i: uint64 = 1
+    while i < params.size() {
+        out.push(*params.at(i))
+        i = i + 1
+    }
+    return out
+}
+
+/// For `area(&ps, x)`: the receiver first, as `self`.
+pub fun extension_call_params(params: &List<Param>, td: &TopDecl): List<Param> {
+    var out = List.new<Param>()
+    if params.size() == 0 { return out }
+    val first = *params.at(0)
+    var shown = td.extension_receiver()
+    when (unsafe { (*first.ty).kind }) {
+        Reference(mutable, _inner) => {
+            val inner: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
+            unsafe { *inner = shown }
+            shown = new_type_ref(first.span, TypeRefKind.Reference(mutable, inner))
+        }
+        _ => { }
+    }
+    val slot: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
+    unsafe { *slot = shown }
+    out.push(new_param(first.span, String.from("self"), slot))
+    while p in &extension_written_params(params) {
+        out.push(p.clone())
+    }
+    return out
+}
+
+/// `area(` rather than `ps.area(`, whose span starts at the receiver.
+pub fun written_as_function(src: str, start: uint32, name: str): bool {
+    val from = start as uint64
+    val len = name.byte_len()
+    if from + len >= src.byte_len() { return false }
+    var i: uint64 = 0
+    while i < len {
+        if src.byte_at(from + i) != name.byte_at(i) { return false }
+        i = i + 1
+    }
+    val next = src.byte_at(from + len)
+    return next == 40 || next == 60
+}
+
+/// A bare type-parameter or trait receiver applies to every type.
+pub fun TopDecl.extension_applies_to(owner: str): bool {
+    if !self.is_extension() { return false }
+    if self.has_annotation("receiver_trait") { return true }
+    when (self.extension_receiver().kind) {
+        Named(head, _args) => {
+            if head.as_str().equals(owner) { return true }
+            return self.receiver_head_is_param(head.as_str())
+        }
+        _ => return false
+    }
+}
+
+/// A parameter the receiver introduced (`@receiver_params`) or a list before
+/// it declares.
+fun TopDecl.receiver_head_is_param(name: str): bool {
+    while tp in &self.generics {
+        if tp.name.as_str().equals(name) { return true }
+    }
+    return self.has_annotation("receiver_params") && self.receiver_param_named(name)
+}
+
+fun TopDecl.receiver_param_named(name: str): bool {
+    val recorded = self.annotation_text("receiver_params")
+    return recorded.as_str().equals("receiver_params(${name})") ||
+        recorded.as_str().starts_with("receiver_params(${name},")
+}
+
+/// Without `self`'s reference; a trait receiver is shown as the trait.
+fun TopDecl.extension_receiver(): TypeRef {
+    val trait_param = self.annotation_text("receiver_trait")
+    if trait_param.byte_len() > 0 {
+        while tp in &self.generics {
+            if "receiver_trait(${tp.name.as_str()})".equals(trait_param) && tp.bounds.size() > 0 {
+                return *tp.bounds.at(0)
+            }
+        }
+    }
+    when (self.kind) {
+        Function(params, _ret, _body, _is_pub, _is_unsafe, _is_mutating, _is_static) => {
+            if params.size() == 0 { return type_ref_poison(self.span) }
+            val written: TypeRef = unsafe { *params.at(0).ty }
+            when (written.kind) {
+                Reference(_mutable, inner) => return unsafe { *inner }
+                _ => return written
+            }
+        }
+        _ => return type_ref_poison(self.span)
+    }
+}

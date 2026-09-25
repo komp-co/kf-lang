@@ -1,0 +1,99 @@
+// Find references: every name in the crate carrying the declaration the
+// cursor's name carries. Only top-level declarations answer; locals and
+// parameters resolve in typecheck's scope, which this does not build.
+
+import kf_core.span.*
+import kf_core.ast.*
+import json.writer.*
+import kf_driver.cli.render_json_error
+
+/// `{"schema_version":1,"file":..,"offset":N,"declaration":..,"references":[..]}`
+///
+/// Every entry names its own file.
+pub fun render_references_json(path: str, offset: uint32, crate: &QueryCrate): String {
+    val out = new_json_writer()
+    out.field_uint32("schema_version", 1)
+    out.field_string("file", path)
+    out.field_uint32("offset", offset)
+
+    val target = crate.module.decl_at_offset(crate.file_id, offset) ?: {
+        out.field_null("declaration")
+        out.field_raw("references", "[]")
+        return out.finish()
+    }
+    val declared = crate.module.declaration_span(target)
+    if declared.end > declared.start {
+        out.field_raw("declaration", declared.span_object(crate.smap).as_str())
+    } else {
+        out.field_null("declaration")
+    }
+    val names = crate.module.all_name_spans()
+    val spans = spans_for_decl(&names, target)
+    val arr = new_json_array_writer()
+    while s in &spans {
+        arr.item_raw(s.span_object(crate.smap).as_str())
+    }
+    out.field_raw("references", arr.finish().as_str())
+    return out.finish()
+}
+
+pub fun run_references_query(path: str, offset: uint32, overlay_path: str): int32 {
+    val crate = crate_for_query(path, overlay_path)
+    if !crate.ok {
+        val json = render_json_error("no crate above this file, or it is not one the crate compiles")
+        runtime_println(json.as_str())
+        return 1
+    }
+    val json = render_references_json(path, offset, &crate)
+    runtime_println(json.as_str())
+    return 0
+}
+
+pub fun Span.span_object(smap: Ptr<SourceMap>): String {
+    val o = new_json_writer()
+    o.field_string("file", path_for_file_id(smap, self.file_id).as_str())
+    o.field_uint32("byte_start", self.start)
+    o.field_uint32("byte_end", self.end)
+    return o.finish()
+}
+
+/// Poison off a name that resolves to one. Narrowest first: in
+/// `outer(inner())` the cursor on `inner` must not answer `outer`.
+pub fun Module.decl_at_offset(file_id: uint32, offset: uint32): DeclId? {
+    val names = self.all_name_spans()
+    var best: DeclId? = null
+    var best_width = 0
+    while n in &names {
+        if n.span.name_covers(file_id, offset) && n.decl.is_some() {
+            val width = n.span.end - n.span.start
+            if best.is_none() || width <= best_width {
+                best = n.decl
+                best_width = width
+            }
+        }
+    }
+    return best
+}
+
+fun Span.name_covers(file_id: uint32, offset: uint32): bool {
+    if self.file_id != file_id { return false }
+    if self.end <= self.start { return false }
+    return self.start <= offset && offset < self.end
+}
+
+/// The declaration's name when recorded, else its full span.
+pub fun Module.declaration_span(decl: DeclId): Span {
+    var found = no_span()
+    while i in 0..self.decls.size() {
+        val td = self.decls.at(i)
+        val td_decl = td.decl ?: {
+            continue
+        }
+        if td_decl.raw == decl.raw {
+            found = td.span
+            if !td.name_span.is_none() { found = td.name_span }
+            return found
+        }
+    }
+    return found
+}

@@ -1,0 +1,133 @@
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+import kf_parse.lexer.*
+
+/// A module writing `..` gets `core.range` imported, since `..` calls its
+/// `range`. A duplicate import is harmless.
+fun core_range_path(): List<String> {
+    var p = List.new<String>()
+    p.push(String.from("core"))
+    p.push(String.from("range"))
+    return p
+}
+
+fun path_is_core_range(path: &List<String>): bool {
+    if path.size() != 2 { return false }
+    if !path.at(0).as_str().equals("core") { return false }
+    return path.at(1).as_str().equals("range")
+}
+
+impl Parser {
+    /// Imports come before the first other top-level item.
+    pub mutating fun parse_module(path: List<String>): Module {
+        // Every lexer error once, including in code the parser never reaches.
+        self.report_lex_errors()
+        var imports = List.new<Import>()
+        var decls = List.new<TopDecl>()
+        var phase_imports: bool = true
+
+        while true {
+            self.skip_newlines()
+            if self.at_eof() { break }
+            if phase_imports && is_keyword(self.peek(), Keyword.Import) {
+                imports.push(self.parse_import())
+            } else {
+                phase_imports = false
+                decls.push(self.parse_top_decl())
+            }
+        }
+
+        if self.used_range && !path_is_core_range(&path) {
+            imports.push(new_import(self.module_file_span(), core_range_path(), true))
+        }
+        return Module { crate: crate_id_poison(), path: path, decls: decls, imports: imports }
+    }
+
+    /// A synthesized import must carry its file id, or import validation
+    /// drops it silently.
+    mutating fun module_file_span(): Span {
+        if self.toks.size() == 0 { return no_span() }
+        val fid = self.toks.at(0).span.file_id
+        return Span { file_id: fid, start: 0, end: 0 }
+    }
+
+    mutating fun report_lex_errors(): void {
+        while t in &self.toks {
+            when (t.kind) {
+                LexError(m) => {
+                    self.parse_err(t.span, m.clone())
+                }
+                _ => { }
+            }
+        }
+    }
+
+    /// `import a.b.c` or `import a.b.*`, consuming `import`.
+    pub mutating fun parse_import(): Import {
+        val start_span = self.peek().span
+        unsafe { self.advance() }              // consume `import`
+
+        var path = List.new<String>()
+        var wildcard: bool = false
+
+        if !is_identifier(self.peek()) {
+            self.parse_err(self.peek().span, "expected a module path after `import`, found ${tok_str(self.peek())}")
+            self.sync_to_newline()
+        }
+        val first = self.peek()
+        when (first.kind) {
+            Identifier(s) => {
+                path.push(s.as_string())
+                unsafe { self.advance() }
+            }
+            KeywordTok(_) => {}
+            Op(_) => {}
+            IntLiteral(_) => {}
+            StringLiteral(_) => {}
+            FloatLiteral(_) => {}
+            CharLiteral(_) => {}
+            Newline => {}
+            Eof => {}
+            LexError(_) => {}
+        }
+
+        while true {
+            if is_op(self.peek(), Operator.Dot) {
+                unsafe { self.advance() }
+                if is_op(self.peek(), Operator.Star) {
+                    unsafe { self.advance() }
+                    wildcard = true
+                    break
+                }
+                val next = self.peek()
+                when (next.kind) {
+                    Identifier(s) => {
+                        path.push(s.as_string())
+                        unsafe { self.advance() }
+                    }
+                    KeywordTok(_) => break
+                    Op(_) => break
+                    IntLiteral(_) => break
+                    StringLiteral(_) => break
+                    FloatLiteral(_) => break
+                    CharLiteral(_) => break
+                    Newline => break
+                    Eof => break
+                    LexError(_) => break
+                }
+            } else {
+                break
+            }
+        }
+
+        val end_pos: uint32 = self.peek().span.start
+        val span = Span {
+            file_id: start_span.file_id,
+            start:   start_span.start,
+            end:     end_pos
+        }
+        return new_import(span, path, wildcard)
+    }
+}

@@ -1,0 +1,12 @@
+[project]
+name = "kf_lower"
+version = "0.1.0"
+kind = "lib"
+
+[dependencies]
+kf_core = { path = "../kf-core" }
+kf_resolve = { path = "../kf-resolve" }
+kf_typecheck = { path = "../kf-typecheck" }
+kf_mono = { path = "../kf-mono" }
+core = { path = "../../libs/core" }
+alloc = { path = "../../libs/alloc" }

@@ -1,0 +1,304 @@
+// A line-by-line kf.toml parser; unknown keys are ignored.
+//
+//   [project] or [package]
+//   name = "komp"
+//   kind = "bin"           # "bin" (default) or "lib"
+//
+//   [dependencies]
+//   kf_core = { path = "../kf-core" }
+
+import alloc.list.*
+
+pub struct Dependency {
+    pub val name: String
+    pub val path: String
+}
+
+pub fun new_dependency(name: String, path: String): Dependency {
+    return Dependency { name: name, path: path }
+}
+
+pub struct Manifest {
+    pub val name: String
+    /// "0" when absent.
+    pub val version: String
+    /// "bin" (default, gets a C `main`) or "lib".
+    pub val kind: String
+    pub val deps: List<Dependency>
+    /// `[lint]` rows verbatim, in file order; validated against the registry
+    /// elsewhere.
+    pub val lint_names:  List<String>
+    pub val lint_levels: List<String>
+    /// Leaves out every crate's `hosted_c_sources`. Read from the root
+    /// manifest only.
+    pub val freestanding: bool
+    pub val error: String
+}
+
+pub fun new_manifest_with_lints(name: String, version: String, kind: String, deps: List<Dependency>, lint_names: List<String>, lint_levels: List<String>, freestanding: bool): Manifest {
+    var error = ""
+    if name.as_str() == "" {
+        error = String.from("manifest has no crate name (expected name in [project] or [package])")
+    }
+    return Manifest { name: name, version: version, kind: kind, deps: deps, lint_names: lint_names, lint_levels: lint_levels, freestanding: freestanding, error: error }
+}
+
+/// Malformed lines are skipped; a missing name sets `Manifest.error`.
+pub fun parse_manifest(src: str): Manifest {
+    var name = ""
+    var version = String.from("0")
+    var kind = String.from("bin")
+    var deps = List.new<Dependency>()
+    var lint_names = List.new<String>()
+    var lint_levels = List.new<String>()
+    var freestanding = false
+    var section = ""
+
+    val lines = split_lines(src)
+    while raw in &lines {
+        val line = trim_string(raw)
+        val line_s = line.as_str()
+        val is_blank = line_s == ""
+        val is_comment = string_starts_with_byte(line, 35) // '#'
+        if !is_blank {
+            if !is_comment {
+                val is_section = string_starts_with_byte(line, 91) // '['
+                if is_section {
+                    section = read_section_name(line)
+                } else {
+                    val sect_str = section.as_str()
+                    val in_project = sect_str == "project" || sect_str == "package"
+                    val in_deps = sect_str == "dependencies"
+                    if in_project {
+                        val key = read_key(line)
+                        val k_str = key.as_str()
+                        val is_name = k_str == "name"
+                        if is_name {
+                            name = read_string_value(line)
+                        }
+                        val is_version = k_str == "version"
+                        if is_version {
+                            version = read_string_value(line)
+                        }
+                        val is_kind = k_str == "kind"
+                        if is_kind {
+                            kind = read_string_value(line)
+                        }
+                        val is_freestanding = k_str == "freestanding"
+                        if is_freestanding {
+                            freestanding = read_bool_value(line)
+                        }
+                    }
+                    // One `name = "level"` per row.
+                    if sect_str == "lint" {
+                        val key = read_key(line)
+                        val value = read_string_value(line)
+                        if key.as_str() != "" && value.as_str() != "" {
+                            lint_names.push(key.clone())
+                            lint_levels.push(value.clone())
+                        }
+                    }
+                    if in_deps {
+                        val key = read_key(line)
+                        val path = read_inline_table_path(line)
+                        val p_str = path.as_str()
+                        val have_path = p_str != ""
+                        if have_path {
+                            deps.push(new_dependency(key, path))
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return new_manifest_with_lints(name, version, kind, deps, lint_names, lint_levels, freestanding)
+}
+
+/// `[native] c_sources`: C files, relative to the crate root, compiled and
+/// linked into every build. A lib bakes them into its archive.
+pub fun manifest_c_sources(src: str): List<String> {
+    return native_source_array(src, "c_sources")
+}
+
+/// `[native] hosted_c_sources`: C needing a hosted library. A freestanding
+/// root drops them, so a symbol defined only here fails at link, naming
+/// itself.
+pub fun manifest_hosted_c_sources(src: str): List<String> {
+    return native_source_array(src, "hosted_c_sources")
+}
+
+/// The whole key is compared: `c_sources` is a prefix of `hosted_c_sources`.
+fun native_source_array(src: str, key: str): List<String> {
+    var sources = List.new<String>()
+    var in_native = false
+    var collecting = false
+    val lines = split_lines(src)
+    while item in &lines {
+        val line = trim_string(item)
+        if string_starts_with_byte(line, 91) { // '['
+            in_native = line.as_str() == "[native]"
+            collecting = false
+        } else {
+            if in_native && !collecting && read_key(line).as_str() == key {
+                collecting = true
+            }
+            if collecting {
+                append_quoted_values(line.as_str(), &var sources)
+                if string_contains_byte(line.as_str(), 93) { collecting = false } // ']'
+            }
+        }
+    }
+    return sources
+}
+
+pub fun split_lines(src: str): List<String> {
+    var out = List.new<String>()
+    val n = src.byte_len()
+    var i = 0
+    var start: uint64 = 0
+    while i < n {
+        val b = src.byte_at(i)
+        if b == 10 { // '\n'
+            val line = src.substring(start, i)
+            out.push(line)
+            start = i + 1
+        }
+        i = i + 1
+    }
+    if start < n {
+        val line = src.substring(start, n)
+        out.push(line)
+    }
+    return out
+}
+
+pub fun trim_string(s: String): String {
+    val ss = s.as_str()
+    val n = ss.byte_len()
+    var i = 0
+    while i < n {
+        val b = ss.byte_at(i)
+        val ws = b == 32 || b == 9 || b == 13
+        if !ws {
+            return ss.substring(i, n)
+        }
+        i = i + 1
+    }
+    return ""
+}
+
+pub fun string_starts_with_byte(s: String, byte: uint8): bool {
+    val ss = s.as_str()
+    val n = ss.byte_len()
+    if n == 0 { return false }
+    val b = ss.byte_at(0)
+    return b == byte
+}
+
+fun string_contains_byte(s: str, byte: uint8): bool {
+    val n = s.byte_len()
+    var i = 0
+    while i < n {
+        if s.byte_at(i) == byte { return true }
+        i = i + 1
+    }
+    return false
+}
+
+fun append_quoted_values(line: str, out: &var List<String>): void {
+    val n = line.byte_len()
+    var i = 0
+    while i < n {
+        if line.byte_at(i) == 34 {
+            val start = i + 1
+            i = start
+            while i < n && line.byte_at(i) != 34 { i = i + 1 }
+            if i < n { out.push(line.substring(start, i)) }
+        }
+        i = i + 1
+    }
+}
+
+// '[section]' -> 'section'
+pub fun read_section_name(s: String): String {
+    val line = s.as_str()
+    val n = line.byte_len()
+    var end = n
+    if n > 0 {
+        val last = line.byte_at(n - 1)
+        if last == 93 { end = n - 1 } // ']'
+    }
+    return line.substring(1, end)
+}
+
+// 'key = ...' -> 'key'
+pub fun read_key(s: String): String {
+    val line = s.as_str()
+    val n = line.byte_len()
+    var i = 0
+    while i < n {
+        val b = line.byte_at(i)
+        val sep = b == 32 || b == 9 || b == 61 // ws or '='
+        if sep { return line.substring(0, i) }
+        i = i + 1
+    }
+    return ""
+}
+
+// 'name = "value"' -> 'value'
+pub fun read_string_value(s: String): String {
+    val line = s.as_str()
+    val n = line.byte_len()
+    var i = 0
+    while i < n {
+        val b = line.byte_at(i)
+        if b == 34 { // '"'
+            val first = i + 1
+            i = first
+            while i < n {
+                val c = line.byte_at(i)
+                if c == 34 {
+                    return line.substring(first, i)
+                }
+                i = i + 1
+            }
+        }
+        i = i + 1
+    }
+    return ""
+}
+
+// 'key = true' -> true. Anything else is false, a quoted "true" included.
+pub fun read_bool_value(s: String): bool {
+    val line = s.as_str()
+    val n = line.byte_len()
+    var i = 0
+    while i < n {
+        if line.byte_at(i) == 61 { // '='
+            val tail = line.substring(i + 1, n)
+            return trim_string(tail).as_str() == "true"
+        }
+        i = i + 1
+    }
+    return false
+}
+
+// 'name = { path = "value" }' -> 'value'
+fun read_inline_table_path(s: String): String {
+    val line = s.as_str()
+    val n = line.byte_len()
+    var i: uint64 = 0
+    while i + 4 <= n {
+        val b0 = line.byte_at(i)
+        val b1 = line.byte_at(i + 1)
+        val b2 = line.byte_at(i + 2)
+        val b3 = line.byte_at(i + 3)
+        val is_path = b0 == 112 && b1 == 97 && b2 == 116 && b3 == 104
+        if is_path {
+            val tail = line.substring(i + 4, n)
+            return read_string_value(tail)
+        }
+        i = i + 1
+    }
+    return ""
+}

@@ -1,0 +1,64 @@
+// Modules gathered from several crates into one, with the parse and
+// configuration diagnostics met along the way.
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+import kf_core.diagnostic.*
+import kf_codegen.emit.glue.deep_clone_top_decl
+import kf_codegen.emit.glue.deep_clone_import
+
+import kf_driver.print_diag
+import kf_driver.cli.print_json_diag
+
+/// A heap sink for parse diagnostics.
+pub fun fresh_diag_list(): Ptr<List<Diagnostic>> {
+    val p: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
+    unsafe { *p = List.new<Diagnostic>() }
+    return p
+}
+
+/// Returns the count, so callers can gate on it.
+fun report_parse_errors(pdiags: Ptr<List<Diagnostic>>, smap: Ptr<SourceMap>, json: bool): int32 {
+    var n = 0
+    var i = 0
+    while i < unsafe { pdiags.size() } {
+        val d = unsafe { pdiags.at(i) }
+        if json {
+            d.print_json_diag(smap)
+        } else {
+            val text = render(d, smap)
+            runtime_println(text.as_str())
+        }
+        n = n + 1
+        i = i + 1
+    }
+    return n
+}
+
+/// Configuration problems count as errors: the project asked for something
+/// that does not exist.
+fun report_config_diags(diags: &List<Diagnostic>, smap: Ptr<SourceMap>, as_json: bool): int32 {
+    var n = 0
+    while d in &diags {
+        if as_json { d.print_json_diag(smap) } else { d.print_diag(smap) }
+        n = n + 1
+    }
+    return n
+}
+
+pub fun merge_module_list(modules: List<Module>): Module {
+    val path = if modules.size() > 0 { modules.at(0).path.clone() } else { List.new<String>() }
+    var all_decls = List.new<TopDecl>()
+    var all_imports = List.new<Import>()
+    while m in &modules {
+        while j in 0..m.decls.size() {
+            all_decls.push(deep_clone_top_decl(m.decls.at(j)))
+        }
+        while k in 0..m.imports.size() {
+            all_imports.push((m.imports.at(k)).deep_clone_import())
+        }
+    }
+    return Module { crate: crate_id_poison(), path: path, decls: all_decls, imports: all_imports }
+}

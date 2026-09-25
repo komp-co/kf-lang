@@ -1,0 +1,30 @@
+target/
+.build/
+__pycache__/
+*.pyc
+bin/
+.worktrees/
+
+# The VS Code extension's grammar test pulls in the tokenizer VS Code
+# itself uses; the extension has no runtime dependencies.
+node_modules
+*.vsix
+
+.idea/
+.idea/
+
+# `kflat.kompPath` has to be an absolute path — the extension hands the
+# setting straight to execFile and expands no variables, so `${workspaceFolder}`
+# would arrive literally. That makes every useful .vscode/settings.json here
+# machine-specific, and the binary it points at lives under the already-ignored
+# bin/, which a fresh clone does not have.
+.vscode/
+
+# Claude Code's per-checkout state: local tool permissions, and the scratch
+# worktrees it creates for parallel work. Machine-specific, and the worktrees
+# are checkouts of this same repo.
+.claude/
+
+# `komp build` used to write its whole-program C here; it now writes beside
+# the other artifacts, and a stale copy should not be committed again.
+/komp_out.c

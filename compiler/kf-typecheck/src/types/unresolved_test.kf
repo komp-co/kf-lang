@@ -1,0 +1,140 @@
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.span.no_span
+import kf_core.ast.*
+import kf_core.diagnostic.*
+
+mutating fun Expr.unresolved_check(ctx: &var TypeCtx): uint64 {
+    check_expr(self, ctx)
+    return unsafe { (*ctx.diags).size() }
+}
+
+fun var_expr(name: str): Expr {
+    return new_expr(no_span(), ExprKind.Variable(intern(name)))
+}
+
+fun call_expr(name: str): Expr {
+    return new_expr(no_span(), ExprKind.Call(intern(name), List.new<Expr>()))
+}
+
+fun unresolved_register_fn(name: str, ctx: &var TypeCtx): void {
+    val signature = FnSignature { name: String.from(name), params: List.new<Type>(), ret: int32_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false }
+    val signatures = ctx.sigs
+    unsafe { signatures.insert(signature) }
+}
+
+mutating fun TypeCtx.first_message(): String {
+    val d = unsafe { *(*self.diags).at(0) }
+    return d.primary.message
+}
+
+@test fun undeclared_variable_is_reported(): void {
+    var ctx = mk_ctx()
+    var e = var_expr("nosuchname")
+    assert_eq(e.unresolved_check(&var ctx), 1, "an undeclared name is an error, not silence")
+}
+
+@test fun undeclared_variable_is_named(): void {
+    var ctx = mk_ctx()
+    var e = var_expr("nosuchname")
+    check_expr(&var e, &var ctx)
+    val expected = "cannot find value `nosuchname` in this scope"
+    assert_eq(ctx.first_message().as_str(), expected, "the diagnostic names the identifier")
+}
+
+@test fun unknown_callee_is_reported(): void {
+    var ctx = mk_ctx()
+    var e = call_expr("nosuchfunction")
+    assert_eq(e.unresolved_check(&var ctx), 1, "an unresolved callee is an error")
+}
+
+@test fun unknown_callee_is_named(): void {
+    var ctx = mk_ctx()
+    var e = call_expr("nosuchfunction")
+    check_expr(&var e, &var ctx)
+    val expected = "cannot find function `nosuchfunction` in this scope"
+    assert_eq(ctx.first_message().as_str(), expected, "a missing function reads differently from a missing value")
+}
+
+@test fun declared_variable_is_silent(): void {
+    var ctx = mk_ctx()
+    ctx.declare_val(String.from("x"), int32_ty(no_span()))
+    var e = var_expr("x")
+    assert_eq(e.unresolved_check(&var ctx), 0, "a declared binding resolves")
+}
+
+@test fun declared_callee_is_silent(): void {
+    var ctx = mk_ctx()
+    unresolved_register_fn("helper", &var ctx)
+    var e = call_expr("helper")
+    assert_eq(e.unresolved_check(&var ctx), 0, "a registered signature resolves")
+}
+
+// A binding whose initializer failed is still declared.
+@test fun poison_typed_binding_does_not_cascade(): void {
+    var ctx = mk_ctx()
+    ctx.declare_val(String.from("x"), poison_ty())
+    var e = var_expr("x")
+    assert_eq(e.unresolved_check(&var ctx), 0, "declared-but-untyped is not undeclared")
+}
+
+// `null` means `Option.None` in an Option slot.
+@test fun null_literal_is_not_a_name(): void {
+    var ctx = mk_ctx()
+    var e = var_expr("null")
+    assert_eq(e.unresolved_check(&var ctx), 0, "`null` is a literal, not an identifier")
+}
+
+// Declared by the C prelude; see runtime_prelude_declares.
+@test fun runtime_prelude_callee_is_silent(): void {
+    var ctx = mk_ctx()
+    var e = call_expr("kf_fs_dir_close")
+    assert_eq(e.unresolved_check(&var ctx), 0, "the runtime header declares this one")
+}
+
+@test fun libc_exit_is_silent(): void {
+    var ctx = mk_ctx()
+    var e = call_expr("exit")
+    assert_eq(e.unresolved_check(&var ctx), 0, "declared directly by the runtime header")
+}
+
+// A `Some(x) =>` binder scopes even without the enum's layout.
+@test fun variant_binder_scopes_without_a_registered_enum(): void {
+    var ctx = mk_ctx()
+    var payloads = List.new<Pattern>()
+    payloads.push(new_pattern(no_span(), PatternKind.Identifier(intern("x"))))
+    val pat = new_pattern(no_span(), PatternKind.Variant(intern("Some"), payloads))
+    val subject = Type { kind: TypeKind.Struct(intern("Option__int32")), provenance: Provenance.Inferred(no_span()) }
+    pat.check_pattern(subject, &var ctx)
+    assert_eq(ctx.is_declared("x"), true, "an unregistered enum still binds its payload")
+}
+
+@test fun variant_binder_scopes_under_a_poison_subject(): void {
+    var ctx = mk_ctx()
+    var payloads = List.new<Pattern>()
+    payloads.push(new_pattern(no_span(), PatternKind.Identifier(intern("y"))))
+    val pat = new_pattern(no_span(), PatternKind.Variant(intern("Some"), payloads))
+    pat.check_pattern(poison_ty(), &var ctx)
+    assert_eq(ctx.is_declared("y"), true, "an already-poisoned subject still binds")
+}
+
+// A `null` no slot claimed is reported when the body ends.
+@test fun untyped_null_is_reported_when_the_body_ends(): void {
+    var ctx = mk_ctx()
+    var e = var_expr("null")
+    check_expr(&var e, &var ctx)
+    assert_eq(unsafe { (*ctx.diags).size() }, 0, "silent while an expected type may still arrive")
+    ctx.report_untyped_nulls()
+    assert_eq(unsafe { (*ctx.diags).size() }, 1, "reported once nothing gave it a type")
+}
+
+// One an Option slot claimed is not.
+@test fun a_null_an_option_slot_claimed_is_not_reported(): void {
+    var ctx = mk_ctx()
+    var e = var_expr("null")
+    check_expr(&var e, &var ctx)
+    note_null_typed(e.span, &var ctx)
+    ctx.report_untyped_nulls()
+    assert_eq(unsafe { (*ctx.diags).size() }, 0, "an expected Option type gave it meaning")
+}

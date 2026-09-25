@@ -1,0 +1,49 @@
+// Which written types are borrows, and where a returned one comes from.
+// CONSTRAINT: one rule for TypeCheck, which enforces it, and the interface
+// writer, which publishes it.
+
+import alloc.list.*
+
+
+/// `str`, `&T` and `&var T`: types whose validity is bounded by another frame.
+pub fun TypeRef.type_ref_is_borrow(): bool {
+    when (self.kind) {
+        Reference(_, _) => return true
+        Named(name, args) => return args.size() == 0 && name.as_str() == "str"
+        _ => return false
+    }
+}
+
+/// The parameter index a returned borrow comes from, or -1 when it borrows
+/// nothing the caller owns. An instance method borrows from `self`;
+/// otherwise the single borrow parameter is the origin. With none, the borrow
+/// can only be a literal. With several, the origin cannot be named and the
+/// signature is rejected where it is checked.
+pub fun type_ref_borrow_origin(param_types: &List<TypeRef>, ret: &TypeRef, has_self: bool): int32 {
+    if !ret.type_ref_is_borrow() { return 0 - 1 }
+    if has_self { return 0 }
+    var found: int32 = 0 - 1
+    while i in 0..param_types.size() {
+        val p = *param_types.at(i)
+        if p.type_ref_is_borrow() {
+            if found != 0 - 1 { return 0 - 1 }
+            found = i as int32
+        }
+    }
+    return found
+}
+
+/// The binding a borrow ultimately reads from, or "" when it bottoms out in a
+/// literal or a call. Field reads, derefs, method calls and coercions keep
+/// pointing into the same storage.
+pub fun Expr.expr_borrow_root(): String {
+    when (self.kind) {
+        Variable(name) => return name.as_string()
+        FieldAccess(base, _) => return expr_borrow_root(unsafe { &*base })
+        Deref(inner) => return expr_borrow_root(unsafe { &*inner })
+        MethodCall(receiver, _, _) => return expr_borrow_root(unsafe { &*receiver })
+        DynCoerce(inner, _) => return expr_borrow_root(unsafe { &*inner })
+        Cast(inner, _) => return expr_borrow_root(unsafe { &*inner })
+        _ => return ""
+    }
+}

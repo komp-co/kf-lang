@@ -1,0 +1,55 @@
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.span.no_span
+import kf_core.ast.*
+
+fun display_test_named_ref(name: str): TypeRef {
+    return new_type_ref(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
+}
+
+fun display_test_generic_ref(name: str, arg: TypeRef): TypeRef {
+    var args = List.new<TypeRef>()
+    args.push(arg)
+    return new_type_ref(no_span(), TypeRefKind.Named(intern(name), args))
+}
+
+fun display_test_register_inst(mangled: str, base: str, arg: TypeRef, ctx: &var TypeCtx): void {
+    var args = List.new<TypeRef>()
+    args.push(arg)
+    val sigs = ctx.sigs
+    unsafe { sigs.insert_inst(GenericInst { mangled: String.from(mangled), base: String.from(base), args: args }) }
+}
+
+fun display_test_ref_type(mutable: bool): Type {
+    val inner: Ptr<Type> = unsafe { alloc<Type>() }
+    unsafe { *inner = int32_ty(no_span()) }
+    return Type { kind: TypeKind.RefTo(mutable, inner), provenance: Provenance.Inferred(no_span()) }
+}
+
+@test fun test_display_type_shows_generic_arguments(): void {
+    var ctx = mk_ctx()
+    display_test_register_inst("Option__int32", "Option", display_test_named_ref("int32"), &var ctx)
+    val ty = Type { kind: TypeKind.Struct(intern("Option__int32")), provenance: Provenance.Inferred(no_span()) }
+    assert_eq(ty.display_type(&ctx).as_str(), "Option<int32>", "generic arguments use source syntax")
+}
+
+@test fun test_display_type_shows_nested_generic_arguments(): void {
+    var ctx = mk_ctx()
+    val list_int = display_test_generic_ref("List", display_test_named_ref("int32"))
+    display_test_register_inst("Option__List__int32", "Option", list_int, &var ctx)
+    val ty = Type { kind: TypeKind.Struct(intern("Option__List__int32")), provenance: Provenance.Inferred(no_span()) }
+    assert_eq(ty.display_type(&ctx).as_str(), "Option<List<int32>>", "nested generic arguments remain nested")
+}
+
+@test fun test_display_type_shows_box_syntax(): void {
+    val ctx = mk_ctx()
+    val ty = box_ty(int32_ty(no_span()), no_span())
+    assert_eq(ty.display_type(&ctx).as_str(), "Box<int32>", "boxes use source syntax")
+}
+
+@test fun test_display_type_shows_mutable_borrow_syntax(): void {
+    val ctx = mk_ctx()
+    val ty = display_test_ref_type(true)
+    assert_eq(ty.display_type(&ctx).as_str(), "&var int32", "mutable borrows use source syntax")
+}

@@ -1,0 +1,10 @@
+//! build: fail
+//! deps: core
+
+fun main(): int32 {
+    return int32()
+}
+
+fun int32(): int32 {
+    return 0
+}

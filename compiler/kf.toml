@@ -1,0 +1,19 @@
+[workspace]
+members = [
+    "komp",
+    "kflatc",
+    "kf-core",
+    "kf-parse",
+    "kf-assemble",
+    "kf-resolve",
+    "kf-typecheck",
+    "kf-mono",
+    "kf-lower",
+    "kf-codegen",
+    "kf-interface",
+    "kf-driver",
+    "../libs/core",
+    "../libs/alloc",
+    "../libs/std"
+]
+default-member = "komp"

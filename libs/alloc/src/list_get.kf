@@ -1,0 +1,6 @@
+impl List<T: Copy> {
+    // A copy of element `i`. An element that owns memory is borrowed with `at`.
+    pub fun get(i: uint64): T {
+        return unsafe { *(self.data + i) }
+    }
+}

@@ -1,0 +1,38 @@
+import core.assert.assert_eq
+import core.assert.assert
+
+
+@test
+fun absolute_path_passes_through(): void {
+    assert_eq(absolutize("/a/b").as_str(), "/a/b", "absolute input is unchanged")
+}
+
+@test
+fun relative_path_is_anchored_at_root(): void {
+    val out = absolutize("some-crate")
+    val s = out.as_str()
+    assert(s.byte_at(0) == 47, "result is absolute")
+    assert(ends_with(s, "/some-crate"), "result ends with the relative path")
+}
+
+@test
+fun anchored_diamond_routes_canonicalize_equal(): void {
+    // Relative routes stop matching once `..` underflows; absolute ones match.
+    val direct = canonicalize_path("/w/komp/compiler/kf-driver/../../libs/core")
+    val via_sibling = canonicalize_path("/w/komp/compiler/kf-driver/../../../json/../komp/libs/core")
+    assert_eq(direct.as_str(), via_sibling.as_str(), "both routes reach the same crate")
+}
+
+fun ends_with(s: str, suffix: str): bool {
+    val sn = s.byte_len()
+    val xn = suffix.byte_len()
+    if xn > sn { return false }
+    var i: uint64 = 0
+    while i < xn {
+        if s.byte_at(sn - xn + i) != suffix.byte_at(i) {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}

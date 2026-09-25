@@ -1,0 +1,173 @@
+import core.assert.assert_eq
+import std.fs.scratch_path
+
+
+extern "C" fun system(command: str): int32
+
+fun write_native_fixture_crate(root: str, manifest: str, source_path: str, source: str): void {
+    val command = "mkdir -p ${root}/src ${root}/native"
+    val _created = unsafe { system(command.as_str()) }
+    var manifest_path = String.from(root)
+    manifest_path.append("/kf.toml")
+    write_file(manifest_path.as_str(), manifest)
+    var kf_path = String.from(root)
+    kf_path.append("/src/lib.kf")
+    write_file(kf_path.as_str(), "pub fun touch(): int32 { return 0 }\n")
+    if source_path != "" {
+        var native_path = String.from(root)
+        native_path.append("/")
+        native_path.append(source_path)
+        write_file(native_path.as_str(), source)
+    }
+}
+
+fun write_native_graph_fixture(): void {
+    write_native_fixture_crate(scratch_path("kf_native_dep"), """[project]
+name = "core"
+kind = "lib"
+
+[native]
+c_sources = ["native/dep.c", "native/dep.c"]
+""", "native/dep.c", "/* dep */\n")
+    write_native_fixture_crate(scratch_path("kf_native_app"), """[project]
+name = "native_app"
+kind = "bin"
+
+[dependencies]
+core = { path = "../kf_native_dep" }
+
+[native]
+c_sources = ["native/app.c"]
+""", "native/app.c", "/* app */\n")
+}
+
+fun write_missing_native_fixture(): void {
+    write_native_fixture_crate(scratch_path("kf_native_missing"), """[project]
+name = "core"
+kind = "lib"
+
+[native]
+c_sources = ["native/missing.c"]
+""", "", "")
+}
+
+fun write_nameless_unity_fixture(): void {
+    write_native_fixture_crate(scratch_path("kf_native_nameless"), "[package]\nkind = \"bin\"\n", "", "")
+}
+
+fun native_test_contains(haystack: str, needle: str): bool {
+    val hn = haystack.byte_len()
+    val nn = needle.byte_len()
+    if nn == 0 { return true }
+    if hn < nn { return false }
+    var i: uint64 = 0
+    while i + nn <= hn {
+        var matches = true
+        var j: uint64 = 0
+        while j < nn {
+            if haystack.byte_at(i + j) != needle.byte_at(j) {
+                matches = false
+            }
+            j = j + 1
+        }
+        if matches { return true }
+        i = i + 1
+    }
+    return false
+}
+
+@test
+fun native_sources_are_dependency_ordered_and_deduplicated(): void {
+    write_native_graph_fixture()
+    val graph = build_crate_graph(scratch_path("kf_native_app"))
+    val sources = graph.collect_native_sources()
+    assert_eq(sources.error.as_str() == "" && sources.text.as_str() == "/* dep */\n/* app */\n", true, "unity native sources are deterministic and unique")
+}
+
+@test
+fun missing_native_source_names_its_crate_and_path(): void {
+    write_missing_native_fixture()
+    val graph = build_crate_graph(scratch_path("kf_native_missing"))
+    val sources = graph.collect_native_sources()
+    val names_crate = native_test_contains(sources.error.as_str(), "core")
+    val names_path = native_test_contains(sources.error.as_str(), "native/missing.c")
+    assert_eq(names_crate && names_path, true, "missing native source is actionable")
+}
+
+@test
+fun unity_source_places_native_code_after_generated_code(): void {
+    write_native_graph_fixture()
+    val unity = compose_unity_source(scratch_path("kf_native_app"), String.from("/* generated */\n"))
+    assert_eq(unity.text.as_str() == """/* generated */
+
+#define KF_NATIVE_UNITY 1
+/* dep */
+/* app */
+""", true, "unity source composes checked-in native code")
+}
+
+@test
+fun test_unity_source_rejects_manifest_graph_error(): void {
+    write_nameless_unity_fixture()
+    val unity = compose_unity_source(scratch_path("kf_native_nameless"), String.from("/* generated */\n"))
+    assert_eq(unity.text.as_str() == "" && native_test_contains(unity.error.as_str(), "invalid manifest"), true, "unity composition refuses an invalid graph")
+}
+
+fun write_tiered_native_fixture(root_manifest: str): void {
+    write_native_fixture_crate(scratch_path("kf_native_tier_dep"), """[project]
+name = "core"
+kind = "lib"
+
+[native]
+c_sources = ["native/free.c"]
+hosted_c_sources = ["native/hosted.c"]
+""", "native/free.c", "/* free */\n")
+    write_file(scratch_path("kf_native_tier_dep/native/hosted.c"), "/* hosted */\n")
+    write_native_fixture_crate(scratch_path("kf_native_tier_app"), root_manifest, "", "")
+}
+
+fun tiered_app_manifest(freestanding: str): String {
+    var out = String.from("[project]\nname = \"tier_app\"\nkind = \"bin\"\n")
+    if freestanding != "" {
+        out.append("freestanding = ")
+        out.append(freestanding)
+        out.append("\n")
+    }
+    out.append("\n[dependencies]\ncore = { path = \"../kf_native_tier_dep\" }\n")
+    return out
+}
+
+@test
+fun a_hosted_root_gets_both_native_tiers(): void {
+    write_tiered_native_fixture(tiered_app_manifest("").as_str())
+    val graph = build_crate_graph(scratch_path("kf_native_tier_app"))
+    val sources = graph.collect_native_sources()
+    assert_eq(sources.text.as_str(), "/* free */\n/* hosted */\n", "a hosted build takes a crate's C whole")
+}
+
+@test
+fun a_freestanding_root_leaves_the_hosted_tier_out(): void {
+    write_tiered_native_fixture(tiered_app_manifest("true").as_str())
+    val graph = build_crate_graph(scratch_path("kf_native_tier_app"))
+    val sources = graph.collect_native_sources()
+    assert_eq(sources.text.as_str(), "/* free */\n", "freestanding drops hosted_c_sources across the graph")
+}
+
+@test
+fun a_dependency_cannot_declare_the_program_freestanding(): void {
+    // Only the root program's flag counts.
+    write_native_fixture_crate(scratch_path("kf_native_tier_dep"), """[project]
+name = "core"
+kind = "lib"
+freestanding = true
+
+[native]
+c_sources = ["native/free.c"]
+hosted_c_sources = ["native/hosted.c"]
+""", "native/free.c", "/* free */\n")
+    write_file(scratch_path("kf_native_tier_dep/native/hosted.c"), "/* hosted */\n")
+    write_native_fixture_crate(scratch_path("kf_native_tier_app"), tiered_app_manifest("").as_str(), "", "")
+    val graph = build_crate_graph(scratch_path("kf_native_tier_app"))
+    val sources = graph.collect_native_sources()
+    assert_eq(sources.text.as_str(), "/* free */\n/* hosted */\n", "only the root manifest is asked")
+}

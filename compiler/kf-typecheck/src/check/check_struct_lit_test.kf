@@ -1,0 +1,10 @@
+import core.assert.assert_eq
+
+import kf_core.ast.*
+import kf_core.span.no_span
+
+@test
+fun resolved_struct_name_is_owned_str(): void {
+    val name: String = struct_name_of(Type { kind: TypeKind.Struct(intern("Pair__int32")), provenance: Provenance.Inferred(no_span()) })
+    assert_eq(name.as_str(), "Pair__int32", "resolved struct names are owned String values")
+}

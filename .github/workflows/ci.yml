@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # The full run on main is the safety net for two PRs that pass separately
+  # and break together.
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+# `classify` decides what runs. A job skipped by its `if` still reports a
+# status, so the required checks resolve either way:
+#
+#   docs       nothing
+#   comments   fixpoint (which also runs the size ratchets)
+#   code       everything
+#
+# `fixpoint` builds komp from the seed once and uploads it; the other jobs
+# download that build instead of repeating it. ccache persists across runs
+# through actions/cache.
+jobs:
+  classify:
+    runs-on: ubuntu-latest
+    outputs:
+      kind: ${{ steps.kind.outputs.kind }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 200
+      - name: Classify the change
+        id: kind
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          kind=code
+          if [ "$EVENT" = "pull_request" ]; then
+            git fetch -q --no-tags --depth=200 origin "$BASE_REF:refs/remotes/origin/base"
+            base=$(git merge-base origin/base HEAD 2>/dev/null || true)
+            if [ -n "$base" ]; then kind=$(sh scripts/ci-classify.sh "$base" HEAD); fi
+          fi
+          echo "change kind: $kind"
+          echo "kind=$kind" >> "$GITHUB_OUTPUT"
+
+  fixpoint:
+    needs: classify
+    if: needs.classify.outputs.kind != 'docs'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Verify the self-hosting fixpoint
+        run: KOMP_PUBLISH="$RUNNER_TEMP/komp-bin/komp" sh scripts/check.sh --fixpoint
+      - uses: actions/upload-artifact@v4
+        with:
+          name: komp-bin
+          path: ${{ runner.temp }}/komp-bin
+          retention-days: 1
+      - name: ccache statistics
+        if: always()
+        run: ccache --show-stats || true
+
+  cli:
+    needs: [classify, fixpoint]
+    if: needs.classify.outputs.kind == 'code'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          prebuilt: true
+      # An empty CRATES is the CLI gates alone.
+      - name: Run the CLI regression checks
+        run: CRATES=" " sh scripts/check.sh --sweep
+
+  sweep-driver:
+    needs: [classify, fixpoint]
+    if: needs.classify.outputs.kind == 'code'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          prebuilt: true
+      - name: Test kf-driver
+        run: CHECK_CLI=0 CRATES="compiler/kf-driver" sh scripts/check.sh --sweep
+
+  sweep-rest:
+    needs: [classify, fixpoint]
+    if: needs.classify.outputs.kind == 'code'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          prebuilt: true
+      - name: Test every other crate
+        run: |
+          CHECK_CLI=0 \
+          CRATES="compiler/kf-core compiler/kf-parse compiler/kf-assemble
+                  compiler/kf-resolve compiler/kf-typecheck compiler/kf-mono
+                  compiler/kf-lower compiler/kf-codegen compiler/kf-interface
+                  libs/core libs/alloc libs/std ../json" sh scripts/check.sh --sweep

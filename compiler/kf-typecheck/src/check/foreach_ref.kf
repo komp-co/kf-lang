@@ -1,0 +1,131 @@
+// `while x in &xs`: the borrowing loop. `next()` yields `Option<T>`, a deep
+// clone and drop per element for move-only elements; `next_ptr()` yields the
+// element's address, or null when exhausted, and the binder `*p` is a view.
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+import kf_core.diagnostic.new_label
+import kf_core.diagnostic.new_diagnostic
+
+extern "C" fun __kf_v2_int32_to_str(v: int32): String
+
+/// From the loop's span, so nested loops do not collide.
+pub fun foreach_tag(span: Span): String {
+    val fid_str = unsafe { __kf_v2_int32_to_str(span.file_id as int32) }
+    val start_str = unsafe { __kf_v2_int32_to_str(span.start as int32) }
+    val tag = "${fid_str.as_str()}_${start_str.as_str()}"
+    return tag
+}
+
+/// `while name in &subject { body }` becomes:
+///
+///     if true {
+///         var __forit_N = (subject).iter()
+///         while true {
+///             val __forptr_N = __forit_N.next_ptr()
+///             if ptr_is_null(__forptr_N) { break }
+///             val name = *__forptr_N
+///             body
+///         }
+///     }
+fun expand_foreach_ref(binder: Sym, subj_ptr: Ptr<Expr>, body: List<Stmt>, span: Span): StmtKind {
+    val tag = foreach_tag(span)
+    val itname = "__forit_${tag}"
+    val ptrname = "__forptr_${tag}"
+
+    val iter_call_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *iter_call_ptr = new_expr(span, ExprKind.MethodCall(subj_ptr, intern("iter"), List.new<Expr>())) }
+    val let_it = new_stmt(span, StmtKind.LetVar(intern(itname.as_str()), null, iter_call_ptr))
+
+    val it_var_box: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *it_var_box = new_expr(span, ExprKind.Variable(intern(itname.as_str()))) }
+    val next_ptr_call: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *next_ptr_call = new_expr(span, ExprKind.MethodCall(it_var_box, intern("next_ptr"), List.new<Expr>())) }
+    val let_ptr = new_stmt(span, StmtKind.LetVal(intern(ptrname.as_str()), null, next_ptr_call))
+
+    // if ptr_is_null(__forptr_N) { break }
+    var null_args = List.new<Expr>()
+    null_args.push(new_expr(span, ExprKind.Variable(intern(ptrname.as_str()))))
+    val null_test: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *null_test = new_expr(span, ExprKind.Call(intern("ptr_is_null"), null_args)) }
+    var brk_body = List.new<Stmt>()
+    brk_body.push(new_stmt(span, StmtKind.Break))
+    val if_stmt = new_stmt(span, StmtKind.If(null_test, brk_body, List.new<Stmt>()))
+
+    // val name = *__forptr_N
+    val ptr_var_box: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *ptr_var_box = new_expr(span, ExprKind.Variable(intern(ptrname.as_str()))) }
+    val deref: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *deref = new_expr(span, ExprKind.Deref(ptr_var_box)) }
+    val let_binder = new_stmt(span, StmtKind.LetVal(binder, null, deref))
+
+    var while_body = List.new<Stmt>()
+    while_body.push(let_ptr)
+    while_body.push(if_stmt)
+    while_body.push(let_binder)
+    while item in &body {
+        while_body.push(item)
+    }
+    val while_cond: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *while_cond = new_expr(span, ExprKind.LitBool(true)) }
+    val while_stmt = new_stmt(span, StmtKind.While(while_cond, while_body))
+
+    var outer = List.new<Stmt>()
+    outer.push(let_it)
+    outer.push(while_stmt)
+    val outer_cond: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *outer_cond = new_expr(span, ExprKind.LitBool(true)) }
+    return StmtKind.If(outer_cond, outer, List.new<Stmt>())
+}
+
+/// Asked before expansion, so the diagnostic names the written loop.
+pub fun Type.borrowing_iterator_exists(ctx: &var TypeCtx): bool {
+    // `next_ptr()` is in no trait, so a bound cannot promise it.
+    if self.iterable_subject_ty().kind.kind_tag() == TAG_GENERIC() { return false }
+    val iter_name = self.subject_iterator_name(ctx)
+    if iter_name.as_str().equals("") { return true }
+    val sp = ctx.sigs
+    var probe = iter_name.clone()
+    probe.append("_next_ptr")
+    return unsafe { sp.find_signature(probe.as_str()) }.is_some()
+}
+
+/// "" when the table cannot say, and nothing is claimed.
+fun Type.subject_iterator_name(ctx: &var TypeCtx): String {
+    val base = ty_base_name(&self.iterable_subject_ty())
+    if base.as_str().equals("") { return String.from("") }
+    val sp = ctx.sigs
+    val bound = unsafe { sp.lookup_assoc_binding(base.as_str(), "Iter") }
+    if bound.is_poison() { return String.from("") }
+    return mangle_base_name(bound.ty_base_name())
+}
+
+pub fun Type.report_no_borrowing_iterator(binder: Sym, span: Span, ctx: &var TypeCtx): void {
+    val subject = self.iterable_subject_ty()
+    if subject.kind.kind_tag() == TAG_GENERIC() {
+        val why = "`while ${binder.as_str()} in &...` needs a borrowing iterator, which a trait bound"
+        val message = "${why} cannot promise; drop the `&` to iterate by value"
+        ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
+        return
+    }
+    val iter_name = self.subject_iterator_name(ctx)
+    var msg = String.from("`while ")
+    msg.append(binder.as_string().as_str())
+    msg.append(" in &...` needs a borrowing iterator, and `")
+    msg.append(iter_name.as_str())
+    msg.append("` has no `next_ptr()`. Give it `mutating fun next_ptr(): Ptr<T>` answering the element's address and null when exhausted, or drop the `&` to iterate by value")
+    ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+}
+
+/// Iterated through the bound.
+pub fun Type.bounded_by_iterable(ctx: &var TypeCtx): bool {
+    return when (self.kind) {
+        Generic(name) => {
+            val iterable = ctx.lang_trait_name(lang_iterable_key()).as_string()
+            owner_has_bound(ctx.fn_owner.clone(), name.as_string(), iterable, ctx)
+        }
+        _ => false
+    }
+}

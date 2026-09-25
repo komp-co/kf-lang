@@ -1,0 +1,111 @@
+import kf_core.ast.*
+import kf_core.diagnostic.new_label
+import kf_core.diagnostic.new_diagnostic
+
+fun is_integer_literal(e: Expr): bool {
+    when (e.kind) {
+        LitInt(_) => return true
+        Unary(op, inner) => {
+            when (op) {
+                Neg => {
+                    val value = unsafe { *inner }
+                    when (value.kind) {
+                        LitInt(_) => return true
+                        _ => return false
+                    }
+                }
+                _ => return false
+            }
+        }
+        _ => return false
+    }
+}
+
+fun negative_integer_literal_magnitude(e: Expr): int64 {
+    when (e.kind) {
+        Unary(op, inner) => {
+            when (op) {
+                Neg => {
+                    val value = unsafe { *inner }
+                    when (value.kind) {
+                        LitInt(magnitude) => return magnitude
+                        _ => return -1
+                    }
+                }
+                _ => return -1
+            }
+        }
+        _ => return -1
+    }
+}
+
+fun positive_integer_literal_fits(value: int64, expected: Type): bool {
+    return when (expected.kind) {
+        Int8 => value <= 127
+        Int16 => value <= 32767
+        Int32 => value <= 2147483647
+        Int64 => true
+        UInt8 => value <= 255
+        UInt16 => value <= 65535
+        UInt32 => value <= 4294967295
+        UInt64 => true
+        Float32 => true
+        Float64 => true
+        _ => false
+    }
+}
+
+fun negative_integer_literal_fits(magnitude: int64, expected: Type): bool {
+    return when (expected.kind) {
+        Int8 => magnitude <= 128
+        Int16 => magnitude <= 32768
+        Int32 => magnitude <= 2147483648
+        Int64 => true
+        Float32 => true
+        Float64 => true
+        _ => false
+    }
+}
+
+mutating fun Expr.reject_integer_literal(expected: Type, ctx: &var TypeCtx): void {
+    val target = expected.ty_base_name()
+    val message = "integer literal is out of range for `${target}`"
+    ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+    self.ty = poison_ty()
+}
+
+/// Its first use may choose its width.
+fun is_numeric_literal(e: Expr): bool {
+    if is_integer_literal(e) { return true }
+    return when (e.kind) {
+        LitFloat(_) => true
+        _ => false
+    }
+}
+
+/// Takes the other operand's type.
+fun Expr.operand_takes_other_type(ctx: &var TypeCtx): bool {
+    if is_integer_literal(*self) { return true }
+    when (self.kind) {
+        Variable(name) => {
+            val init = ctx.flexible_init_at(name.as_str(), self.span)
+            return unsafe { init as uint64 } != 0
+        }
+        _ => return false
+    }
+}
+
+/// Hands the slot's type back to the literal initializer; true when it did.
+mutating fun Expr.pin_at_first_use(expected: Type, ctx: &var TypeCtx): bool {
+    when (self.kind) {
+        Variable(name) => {
+            val init = ctx.flexible_init_at(name.as_str(), self.span)
+            if unsafe { init as uint64 } == 0 || !is_numeric(expected) { return false }
+            if !apply_expected(unsafe { &var *init }, expected.clone(), ctx) { return false }
+            ctx.pin_binding(name.as_str(), expected.clone())
+            self.ty = expected
+            return true
+        }
+        _ => return false
+    }
+}

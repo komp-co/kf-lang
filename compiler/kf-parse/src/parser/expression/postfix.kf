@@ -1,0 +1,412 @@
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+import kf_parse.parser.*
+
+/// The memory intrinsics, which fold an explicit `<T>` into the callee name
+/// (`alloc<Expr>` is `alloc__Expr`). None is ever compared, so a following
+/// `<` is always a type-argument list.
+fun is_generic_call_name(s: str): bool {
+    if s == "alloc"         { return true }
+    if s == "alloc_array"   { return true }
+    if s == "realloc_array" { return true }
+    if s == "dealloc"       { return true }
+    if s == "sizeof"        { return true }
+    if s == "take"          { return true }
+    if s == "drop_in_place" { return true }
+    if s == "clone_place"   { return true }
+    if s == "ptr_read"      { return true }
+    return false
+}
+
+fun tyref_is_poison(tr: TypeRef): bool {
+    return when (tr.kind) {
+        Named(_n, _a) => false
+        DynTrait(_n, _a) => false
+        Reference(_m, _i) => false
+        Function(_p, _r) => false
+        Array(_e, _n) => false
+        // `List.new<F.Out>()` is a type-argument list; the owner is the
+        // checker's concern.
+        Projection(_owner, _member) => false
+        Poison => true
+    }
+}
+
+/// Matches kf-codegen's tyref_mangle and Mono's ty_to_mangle:
+/// `List<int32>` is `List__int32`.
+fun TypeRef.tyref_mangle_frag(): String {
+    when (self.kind) {
+        Named(n, a) => {
+            if a.size() == 0 { return n.as_string() }
+            var r = n.as_string()
+            while item in &a {
+                r = r + String.from("__") + (item).tyref_mangle_frag()
+            }
+            return r
+        }
+        DynTrait(n, a) => {
+            var r = "Dyn__${n.as_string()}"
+            while item in &a {
+                r = r + String.from("__") + (item).tyref_mangle_frag()
+            }
+            return r
+        }
+        Reference(is_mut, inner_ptr) => {
+            return borrow_frag(is_mut, (unsafe { &*inner_ptr }).tyref_mangle_frag().as_str())
+        }
+        Function(_p, _r) => return String.from("fn")
+        Array(_e, _n) => return String.from("array")
+        Projection(owner, member) => {
+            val inner = (unsafe { &*owner }).tyref_mangle_frag()
+            return projection_mangle_frag(inner.as_str(), member.as_str())
+        }
+        Poison => return String.from("poison")
+    }
+}
+
+impl Parser {
+    mutating fun parse_after_identifier(name: Sym, span: Span): Expr {
+        val head: Expr = self.parse_identifier_head(name, span)
+        return self.parse_postfix(head)
+    }
+
+    /// Postfix operators are handled by parse_postfix.
+    mutating fun parse_identifier_head(name: Sym, span: Span): Expr {
+        // A memory intrinsic: the type args fold into the callee name.
+        if is_op(self.peek(), Operator.Lt) {
+            if is_generic_call_name(name.as_str()) {
+                return self.parse_generic_ctor_call(name, span)
+            }
+            // `Foo<...>(...)` or `Foo<...>{...}`: committed only if `(` or `{`
+            // follows, otherwise rewound so `<` is a comparison.
+            val save_pos: uint64 = self.pos
+            var targs = List.new<TypeRef>()
+            val ok: bool = self.try_parse_type_args(&var targs)
+            if ok {
+                val lp: bool = is_op(self.peek(), Operator.LParen)
+                val lb: bool = is_op(self.peek(), Operator.LBrace)
+                val struct_ok: bool = !(self.no_struct_lit)
+                if lp {
+                    var ec = self.parse_call_args(name, span)
+                    ec.type_args = targs
+                    // The only moment written and inferred type args differ.
+                    ec.type_args_written = true
+                    return ec
+                } else if lb && struct_ok {
+                    var es = self.parse_struct_lit(name, span)
+                    es.type_args = targs
+                    es.type_args_written = true
+                    return es
+                }
+            }
+            self.pos = save_pos                        // not a generic use-site
+        }
+        if is_op(self.peek(), Operator.LParen) {
+            return self.parse_call_args(name, span)
+        }
+        // A struct literal, except in if/while conditions (see no_struct_lit).
+        val brace_next: bool = is_op(self.peek(), Operator.LBrace)
+        val struct_allowed: bool = !(self.no_struct_lit)
+        if brace_next && struct_allowed {
+            return self.parse_struct_lit(name, span)
+        }
+        return new_expr(span, ExprKind.Variable(name))
+    }
+
+    /// `alloc<T1, ...>(args)`: type args folded into `alloc__T1__...`.
+    mutating fun parse_generic_ctor_call(name: Sym, span: Span): Expr {
+        unsafe { self.advance() }                     // consume `<`
+        var mangled = name.as_string()
+        var type_args = List.new<TypeRef>()
+        while true {
+            if is_op(self.peek(), Operator.Gt) {
+                unsafe { self.advance() }              // consume `>`
+                break
+            }
+            val arg_ptr = self.parse_type_ref_ptr()
+            val type_arg = unsafe { *arg_ptr }
+            val frag = type_arg.tyref_mangle_frag()
+            type_args.push(type_arg)
+            mangled = mangled + String.from("__") + frag
+            unsafe { dealloc<TypeRef>(arg_ptr) }
+            if is_op(self.peek(), Operator.Comma) {
+                unsafe { self.advance() }
+            }
+        }
+        val arg_vec = if is_op(self.peek(), Operator.LParen) { self.parse_arg_list() } else { List.new<Expr>() }
+        var call = new_expr(self.span_through_last(span), ExprKind.Call(intern(mangled.as_str()), arg_vec))
+        call.name_span = span
+        call.type_args = type_args
+        // Only the parser knows a call is an intrinsic; see Expr.is_intrinsic.
+        call.is_intrinsic = true
+        return call
+    }
+
+    /// A speculative `<T, ...>` list. False (and the caller rewinds) unless it
+    /// is well-formed and closed by `>`.
+    pub mutating fun try_parse_type_args(out: &var List<TypeRef>): bool {
+        unsafe { self.advance() }                      // consume `<`
+        // Errors are suppressed: on failure `<` is re-read as a comparison.
+        val was_speculative: bool = self.speculative
+        self.speculative = true
+        var ok: bool = true
+        while true {
+            // Newlines are whitespace inside the brackets, but the `<` itself
+            // must follow the callee: a `<` opening a line is a comparison.
+            self.skip_newlines()
+            if is_op(self.peek(), Operator.Gt) {
+                unsafe { self.advance() }              // consume `>` (empty/trailing)
+                break
+            }
+            val arg_ptr = self.parse_type_ref_ptr()
+            val type_arg = unsafe { *arg_ptr }
+            val tr = unsafe { *arg_ptr }
+            unsafe { dealloc<TypeRef>(arg_ptr) }
+            val is_poison: bool = tyref_is_poison(tr)
+            if is_poison {
+                ok = false
+                break
+            }
+            out.push(tr)
+            self.skip_newlines()
+            if is_op(self.peek(), Operator.Comma) {
+                unsafe { self.advance() }
+            } else if is_op(self.peek(), Operator.Gt) {
+                unsafe { self.advance() }      // consume `>`
+                break
+            } else {
+                ok = false                     // not a type-arg list
+                break
+            }
+        }
+        self.speculative = was_speculative
+        return ok
+    }
+
+    /// `Name(args)`; `(` is next.
+    mutating fun parse_call_args(name: Sym, span: Span): Expr {
+        val arg_vec = self.parse_arg_list()
+        // Taken before the span widens over the arguments.
+        var call = new_expr(self.span_through_last(span), ExprKind.Call(name, arg_vec))
+        call.name_span = span
+        return call
+    }
+
+    /// Widened to where the parser stopped, so the node covers its arguments.
+    mutating fun span_through_last(span: Span): Span {
+        val end = self.last_consumed_end()
+        if end <= span.end { return span }
+        return Span { file_id: span.file_id, start: span.start, end: end }
+    }
+
+    /// `(a, b, ...)` for calls and method calls. Newlines inside are
+    /// whitespace.
+    mutating fun parse_arg_list(): List<Expr> {
+        unsafe { self.advance() }                     // consume `(`
+        // Inside `)`, a `{` opens a struct literal.
+        val saved = self.no_struct_lit
+        self.no_struct_lit = false
+        var arg_vec = List.new<Expr>()
+        self.skip_newlines()
+        if is_op(self.peek(), Operator.RParen) {
+            unsafe { self.advance() }
+            self.no_struct_lit = saved
+            return arg_vec
+        }
+        while true {
+            self.skip_newlines()
+            arg_vec.push(self.parse_expr())
+            self.skip_newlines()
+            if is_op(self.peek(), Operator.Comma) {
+                unsafe { self.advance() }
+            } else {
+                break
+            }
+        }
+        self.skip_newlines()
+        val _rp = self.expect_op(Operator.RParen, "to close the argument list")
+        self.no_struct_lit = saved
+        return arg_vec
+    }
+
+    /// `Name { field: value, field }`; `{` is next. A field with no `:` is
+    /// shorthand for `field: field`.
+    mutating fun parse_struct_lit(name: Sym, span: Span): Expr {
+        unsafe { self.advance() }                     // consume `{`
+        var fields = List.new<FieldInit>()
+        while true {
+            self.skip_newlines()
+            if is_op(self.peek(), Operator.RBrace) {
+                break
+            }
+            val name_span = self.peek().span
+            val fname: String = self.expect_name("field")
+            unsafe { self.advance() }                // field name
+            val value_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
+            if is_op(self.peek(), Operator.Colon) {
+                unsafe { self.advance() }            // consume `:`
+                unsafe { *value_ptr = self.parse_expr() }
+            } else {
+                // `Point { x, y }` is `Point { x: x, y: y }`.
+                unsafe { *value_ptr = new_expr(name_span, ExprKind.Variable(intern(fname.as_str()))) }
+            }
+            fields.push(new_field_init(name_span, fname, value_ptr))
+            if is_op(self.peek(), Operator.Comma) {
+                unsafe { self.advance() }
+            } else if is_op(self.peek(), Operator.RBrace) {
+                break
+            } else if self.at_newline() {
+                // Newlines separate fields, as commas do.
+                self.skip_newlines()
+            } else {
+                // Report and stop, so the loop cannot spin.
+                self.parse_err(self.peek().span, "expected `,` or `}` in this struct literal, found ${tok_str(self.peek())}")
+                break
+            }
+        }
+        if is_op(self.peek(), Operator.RBrace) {
+            unsafe { self.advance() }
+        }
+        return new_expr(span, ExprKind.StructLit(name, fields))
+    }
+
+    /// A `.` opening the next line continues the chain; `.` cannot start a
+    /// statement.
+    mutating fun peek_is_chain_continuation(): bool {
+        var off = 0
+        while tok_is_newline(self.peek_at(off)) {
+            off = off + 1
+        }
+        if off == 0 { return false }
+        return is_op(self.peek_at(off), Operator.Dot)
+    }
+
+    pub mutating fun parse_postfix(head: Expr): Expr {
+        var current: Expr = head
+        while true {
+            if self.peek_is_chain_continuation() { self.skip_newlines() }
+            if is_op(self.peek(), Operator.Dot) {
+                unsafe { self.advance() }    // consume `.`
+                current = self.parse_member_access(take<Expr>(current))
+            } else if is_op(self.peek(), Operator.SafeCall) {
+                // `a?.b`: the member, or `None`. `a?.b?.c` nests, and Lower
+                // hoists the innermost first.
+                unsafe { self.advance() }    // consume `?.`
+                current = self.build_safe_call(take<Expr>(current))
+            } else if is_op(self.peek(), Operator.Question) {
+                // Postfix `?`: the payload, or return the residual. The `when`
+                // needs the return type and the rest of the block, so the
+                // subject is parked and a binder handed back; `g(a()?, b()?)`
+                // parks two, in order.
+                val q_span = self.peek().span
+                unsafe { self.advance() }    // consume `?`
+                val cur_span = current.span
+                val binder = "__try_${self.try_ctr}"
+                self.try_ctr = self.try_ctr + 1
+                self.pending_try.push(PendingTry { name: binder.clone(), subject: take<Expr>(current), span: cur_span.merge(q_span) })
+                current = new_expr(cur_span.merge(q_span), ExprKind.Variable(intern(binder.as_str())))
+            } else if is_op(self.peek(), Operator.BangBang) {
+                // `a!!` is `a.unwrap()`; typecheck checks the method exists.
+                val bang_span = self.peek().span
+                unsafe { self.advance() }    // consume `!!`
+                val cur_span = current.span
+                val cur_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
+                unsafe { *cur_ptr = take<Expr>(current) }
+                current = new_expr(cur_span.merge(bang_span), ExprKind.MethodCall(cur_ptr, intern("unwrap"), List.new<Expr>()))
+            } else if is_op(self.peek(), Operator.LBracket) {
+                current = self.parse_index(take<Expr>(current))
+            } else if is_keyword(self.peek(), Keyword.As) {
+                val as_span = self.peek().span
+                unsafe { self.advance() }    // consume `as`
+                val ty_ptr: Ptr<TypeRef> = self.parse_type_ref_ptr()
+                val cur_span = current.span
+                val full_span: Span = cur_span.merge(as_span)
+                val cur_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
+                unsafe { *cur_ptr = take<Expr>(current) }
+                current = new_expr(full_span, ExprKind.Cast(cur_ptr, ty_ptr))
+            } else {
+                break
+            }
+        }
+        return current
+    }
+
+    /// The member after `.` or `?.`: `name`, `name(args)` or
+    /// `name<Targs>(args)`. A `<` not followed by a type-arg list and `(`
+    /// rewinds, so `a.b < c` stays a comparison.
+    mutating fun parse_member_access(recv: Expr): Expr {
+        val name_span = self.peek().span
+        val fname: String = self.expect_name("member")
+        unsafe { self.advance() }
+        val recv_span = recv.span
+        val full_span: Span = recv_span.merge(name_span)
+        val recv_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
+        unsafe { *recv_ptr = take<Expr>(recv) }
+        var m_targs = List.new<TypeRef>()
+        if is_op(self.peek(), Operator.Lt) {
+            val save: uint64 = self.pos
+            val ok: bool = self.try_parse_type_args(&var m_targs)
+            if !ok {
+                self.pos = save
+                m_targs = List.new<TypeRef>()
+            } else if !is_op(self.peek(), Operator.LParen) {
+                self.pos = save
+                m_targs = List.new<TypeRef>()
+            }
+        }
+        if is_op(self.peek(), Operator.LParen) {
+            val margs = self.parse_arg_list()
+            var mc = new_expr(self.span_through_last(full_span), ExprKind.MethodCall(recv_ptr, intern(fname.as_str()), margs))
+            mc.type_args = m_targs
+            mc.name_span = name_span
+            return mc
+        }
+        var fa = new_expr(full_span, ExprKind.FieldAccess(recv_ptr, intern(fname.as_str())))
+        fa.name_span = name_span
+        return fa
+    }
+
+    /// `a?.b` becomes
+    ///
+    ///     when (a) { Some(__sc_N) => __sc_N.b   None => null }
+    ///
+    /// Arguments sit inside the `Some` arm, so they are evaluated only when
+    /// the receiver is present. The checker types the `null` arm and decides
+    /// whether to wrap in `Some` (see `is_safe_call_value`).
+    mutating fun build_safe_call(recv: Expr): Expr {
+        val recv_span = recv.span
+        val binder = "__sc_${self.sc_ctr}"
+        self.sc_ctr = self.sc_ctr + 1
+        val bsym = intern(binder.as_str())
+
+        var some_payloads = List.new<Pattern>()
+        some_payloads.push(new_pattern(recv_span, PatternKind.Identifier(bsym)))
+        val some_pat: Ptr<Pattern> = unsafe { alloc<Pattern>() }
+        unsafe { *some_pat = new_pattern(recv_span, PatternKind.Variant(intern("Some"), some_payloads)) }
+
+        var member = self.parse_member_access(new_expr(recv_span, ExprKind.Variable(bsym)))
+        member.is_safe_call_value = true
+        val full: Span = recv_span.merge(member.span)
+        val mptr: Ptr<Expr> = unsafe { alloc<Expr>() }
+        unsafe { *mptr = take<Expr>(member) }
+        var some_body = List.new<Stmt>()
+        some_body.push(new_stmt(full, StmtKind.Expression(mptr)))
+
+        val none_pat: Ptr<Pattern> = unsafe { alloc<Pattern>() }
+        unsafe { *none_pat = new_pattern(full, PatternKind.Variant(intern("None"), List.new<Pattern>())) }
+        val nullp: Ptr<Expr> = unsafe { alloc<Expr>() }
+        unsafe { *nullp = new_expr(full, ExprKind.Variable(intern("null"))) }
+        var none_body = List.new<Stmt>()
+        none_body.push(new_stmt(full, StmtKind.Expression(nullp)))
+
+        var arms = List.new<Arm>()
+        arms.push(new_arm(full, some_pat, null, some_body))
+        arms.push(new_arm(full, none_pat, null, none_body))
+
+        val subj: Ptr<Expr> = unsafe { alloc<Expr>() }
+        unsafe { *subj = recv }
+        return new_expr(full, ExprKind.WhenExpr(subj, arms))
+    }
+}

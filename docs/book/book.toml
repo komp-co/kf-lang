@@ -1,0 +1,9 @@
+# Present so `mdbook serve docs/book` works the day someone wants HTML.
+# Nothing in the build depends on mdBook; the sources are readable as-is.
+[book]
+title = "The KFlat Book"
+src = "src"
+language = "en"
+
+[output.html]
+default-theme = "rust"

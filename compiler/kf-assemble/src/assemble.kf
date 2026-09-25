@@ -1,0 +1,285 @@
+// Module discovery: walks `<crate_root>/src/**/*.kf` and parses each file into
+// a `Module`. Import resolution is a later pass.
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+import kf_core.diagnostic.*
+import kf_parse.lexer.tokenize
+import kf_parse.parser.*
+
+// Signatures for runtime functions defined in the prelude, so call arguments
+// coerce correctly. komp emits no prototype for an extern, so these do not
+// clash with the prelude's definitions.
+extern "C" fun runtime_println(s: str): void
+extern "C" fun join(a: str, b: str): String
+extern "C" fun read_file(path: str): String
+extern "C" fun is_dir(p: str): bool
+extern "C" fun write_file(path: str, content: str): void
+
+/// Absolute paths of the non-test `.kf` files under `dir`, sorted.
+pub fun walk_kf_files(dir: str, out: &var List<String>): void {
+    walk_kf_files_inc(dir, out, false)
+}
+
+/// CONSTRAINT: sorted, because directory enumeration order differs between
+/// filesystems and module order — and so all output — follows from it.
+pub fun walk_kf_files_inc(dir: str, out: &var List<String>, include_tests: bool): void {
+    var found = List.new<String>()
+    walk_kf_files_raw(dir, &var found, include_tests)
+    push_sorted(&found, out)
+}
+
+/// Selection sort into `out`, byte order. Copying out avoids swapping
+/// move-only elements in place.
+fun push_sorted(paths: &List<String>, out: &var List<String>): void {
+    val n = paths.size()
+    var used = List.new<bool>()
+    var f = 0
+    while f < n {
+        used.push(false)
+        f = f + 1
+    }
+    var taken = 0
+    while taken < n {
+        var best = n
+        var i = 0
+        while i < n {
+            if !used.get(i) {
+                if best == n {
+                    best = i
+                } else if path_byte_less(paths.at(i).as_str(), paths.at(best).as_str()) {
+                    best = i
+                }
+            }
+            i = i + 1
+        }
+        used.set(best, true)
+        unsafe { out.push(paths.at(best).clone()) }
+        taken = taken + 1
+    }
+}
+
+fun path_byte_less(a: str, b: str): bool {
+    val an = a.byte_len()
+    val bn = b.byte_len()
+    var i = 0
+    while i < an && i < bn {
+        val ca = a.byte_at(i)
+        val cb = b.byte_at(i)
+        if ca != cb { return ca < cb }
+        i = i + 1
+    }
+    return an < bn
+}
+
+fun walk_kf_files_raw(dir: str, out: &var List<String>, include_tests: bool): void {
+    val h: uint64 = unsafe { kf_fs_dir_open(dir) }
+    if h == 0 {
+        return
+    }
+    while true {
+        val name: str = unsafe { kf_fs_dir_next(h) }
+        // A null pointer ends the directory; compared raw because str
+        // equality would dereference it.
+        val name_ptr: Ptr<uint8> = unsafe { name as Ptr<uint8> }
+        val end_ptr:  Ptr<uint8> = unsafe { 0 as Ptr<uint8> }
+        if name_ptr == end_ptr {
+            break
+        }
+        val full: String = join(dir, name)
+        if is_dir(full.as_str()) {
+            walk_kf_files_raw(full.as_str(), out, include_tests)
+        } else if walk_take(name, include_tests) {
+            unsafe { out.push(full) }
+        }
+    }
+    unsafe { kf_fs_dir_close(h) }
+}
+
+mutating fun Parser.drain_parse_diags(pdiags: Ptr<List<Diagnostic>>): void {
+    while diag in &self.diags {
+        unsafe { pdiags.push(diag) }
+    }
+}
+
+/// Nested impl, trait and trait-impl methods are declarations too, so
+/// ownership is stamped through the tree.
+pub fun stamp_module_owner(module: &var Module, crate: CrateId): void {
+    module.crate = crate
+    val module_path = module_path_sym(&module.path)
+    stamp_decl_list(&var module.decls, crate, module_path)
+}
+
+fun module_path_sym(path: &List<String>): Sym {
+    var joined = ""
+    var i = 0
+    val component_count = path.size()
+    val directory_count = if component_count > 0 { component_count - 1 } else { 0 }
+    while i < directory_count {
+        if i > 0 { joined = joined + String.from(".") }
+        joined = joined + *path.at(i)
+        i = i + 1
+    }
+    return intern(joined.as_str())
+}
+
+fun stamp_decl_list(decls: &var List<TopDecl>, crate: CrateId, module_path: Sym): void {
+    while i in 0..decls.size() {
+        stamp_decl_owner(decls.at_mut(i), crate, module_path)
+    }
+}
+
+pub fun Module.module_has_valid_ownership(): bool {
+    if (self.crate.is_poison()) { return false }
+    return decl_list_has_valid_ownership(&self.decls)
+}
+
+fun decl_list_has_valid_ownership(decls: &List<TopDecl>): bool {
+    while decl in &decls {
+        if !decl.decl_has_valid_ownership() { return false }
+    }
+    return true
+}
+
+// CONSTRAINT: borrowed. A by-value TopDecl is a shallow copy sharing the
+// module's buffers, and dropping it would free a list the module still uses.
+fun TopDecl.decl_has_valid_ownership(): bool {
+    if self.crate.is_poison() { return false }
+    return when (self.kind) {
+        ImplBlock(methods) => decl_list_has_valid_ownership(&methods)
+        TraitDecl(methods, _, _) => decl_list_has_valid_ownership(&methods)
+        TraitImpl(_, methods) => decl_list_has_valid_ownership(&methods)
+        _ => true
+    }
+}
+
+fun walk_take(name: str, include_tests: bool): bool {
+    if include_tests {
+        return is_kf_file_any(name)
+    }
+    return is_kf_source_file(name)
+}
+
+/// Ends in `.kf` and is not a `_test.kf` file.
+pub fun is_kf_source_file(name: str): bool {
+    val n: uint64 = name.byte_len()
+    if n < 3 {
+        return false
+    }
+    if name.byte_at(n - 3) != 46 {  // '.'
+        return false
+    }
+    if name.byte_at(n - 2) != 107 { // 'k'
+        return false
+    }
+    if name.byte_at(n - 1) != 102 { // 'f'
+        return false
+    }
+    if n >= 8 {
+        val b0: uint8 = name.byte_at(n - 8)
+        val b1: uint8 = name.byte_at(n - 7)
+        val b2: uint8 = name.byte_at(n - 6)
+        val b3: uint8 = name.byte_at(n - 5)
+        val b4: uint8 = name.byte_at(n - 4)
+        val is_test: bool = b0 == 95 && b1 == 116 && b2 == 101 && b3 == 115 && b4 == 116
+        if is_test {
+            return false
+        }
+    }
+    return true
+}
+
+/// Ends in `.kf`, test files included.
+pub fun is_kf_file_any(name: str): bool {
+    val n: uint64 = name.byte_len()
+    if n < 3 {
+        return false
+    }
+    if name.byte_at(n - 3) != 46 {  // '.'
+        return false
+    }
+    if name.byte_at(n - 2) != 107 { // 'k'
+        return false
+    }
+    if name.byte_at(n - 1) != 102 { // 'f'
+        return false
+    }
+    return true
+}
+
+/// `src_root/span/source_file.kf` in crate `kf_core` is
+/// `["kf_core", "span", "source_file"]`.
+pub fun module_path_for(file_path: str, src_root: str, crate_name: String): List<String> {
+    var out = List.new<String>()
+    out.push(String.from(crate_name.as_str()))
+
+    val total: uint64 = file_path.byte_len()
+    val root_len: uint64 = src_root.byte_len()
+    if total <= root_len {
+        return out
+    }
+    var i: uint64 = root_len + 1
+    val end: uint64 = total - 3
+    var seg_start: uint64 = i
+    while i <= end {
+        val at_end: bool = i == end
+        val is_sep: bool = !at_end && file_path.byte_at(i) == 47  // '/'
+        if at_end || is_sep {
+            val seg_len: uint64 = i - seg_start
+            if seg_len > 0 {
+                val seg: String = file_path.substring(seg_start, i)
+                out.push(seg)
+            }
+            seg_start = i + 1
+        }
+        i = i + 1
+    }
+    return out
+}
+
+/// One `Module` per non-test `.kf` file; zero modules on error.
+pub fun assemble_crate(crate_root: str, crate_name: String, smap: Ptr<SourceMap>, pdiags: Ptr<List<Diagnostic>>): Crate {
+    val none = no_overlay()
+    return assemble_crate_inc(crate_root, crate_name, smap, pdiags, false, &none)
+}
+
+/// Includes `_test.kf` files: for the test driver, `check` and `query`,
+/// which answer for the whole crate.
+pub fun assemble_crate_tests(crate_root: str, crate_name: String, smap: Ptr<SourceMap>, pdiags: Ptr<List<Diagnostic>>): Crate {
+    val none = no_overlay()
+    return assemble_crate_inc(crate_root, crate_name, smap, pdiags, true, &none)
+}
+
+/// `overlay` supplies one file's text in place of disk (an editor buffer);
+/// `no_overlay()` for a build.
+///
+/// CONSTRAINT: once per crate per SourceMap. A second assembly registers
+/// every file twice, and path lookups then answer with FileIds the modules'
+/// spans do not carry.
+pub fun assemble_crate_inc(crate_root: str, crate_name: String, smap: Ptr<SourceMap>, pdiags: Ptr<List<Diagnostic>>, include_tests: bool, overlay: &Overlay): Crate {
+    var c = new_crate(String.from(crate_name.as_str()))
+    val src_root: String = join(crate_root, "src")
+    if !is_dir(src_root.as_str()) {
+        // A crate with no src/ must be an error: otherwise the build emits a
+        // program with none of the project's code and exits 0.
+        unsafe { pdiags.push(error_at(no_span(), "crate `${crate_name}` has no src/ directory (expected ${src_root}); sources beside kf.toml are not read")) }
+        return c
+    }
+    var paths = List.new<String>()
+    walk_kf_files_inc(src_root.as_str(), &var paths, include_tests)
+    while path in &paths {
+        val p: String = path
+        val src: String = overlay.overlay_read(p.as_str())
+        val fid = unsafe { smap.add_file(new_source_file(p.clone(), src.clone())) }
+        val toks = tokenize(src.as_str(), fid)
+        var parser = new_parser(toks)
+        val mod_path: List<String> = module_path_for(p.as_str(), src_root.as_str(), crate_name.clone())
+        var m: Module = parser.parse_module(mod_path)
+        stamp_module_owner(&var m, new_crate_id(crate_name.as_str()))
+        parser.drain_parse_diags(pdiags)
+        c.modules.push(m)
+    }
+    return c
+}

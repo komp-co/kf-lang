@@ -1,0 +1,138 @@
+// Lifts every `when` value out of a statement:
+//
+//     var __whenN: T
+//     when (SUBJ) { p => __whenN = e  ... }
+//
+// goes ahead of it, and the node becomes a read of `__whenN`. Innermost
+// first, so `a?.b?.c` works. A binding initializer or return operand keeps
+// `expand_let`'s path.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_typecheck.types.type_to_type_ref
+
+/// The node at `ep` is rewritten in place to read the temporary.
+pub fun hoist_when_values(ep: Ptr<Expr>, temps: &var WhenTemps, out: &var List<Stmt>): void {
+    if unsafe { ep as uint64 } == 0 { return }
+    hoist_in_children(ep, temps, out)
+    hoist_self(ep, temps, out)
+}
+
+/// Children first.
+fun hoist_in_children(ep: Ptr<Expr>, temps: &var WhenTemps, out: &var List<Stmt>): void {
+    when (unsafe { ep.kind }) {
+        Binary(l, _op, r) => {
+            hoist_when_values(l, temps, out)
+            hoist_when_values(r, temps, out)
+        }
+        Unary(_op, i) => hoist_when_values(i, temps, out)
+        Deref(i) => hoist_when_values(i, temps, out)
+        Cast(i, _t) => hoist_when_values(i, temps, out)
+        DynCoerce(i, _v) => hoist_when_values(i, temps, out)
+        Retain(i) => hoist_when_values(i, temps, out)
+        FieldAccess(o, _f) => hoist_when_values(o, temps, out)
+        Call(_n, args) => hoist_in_arg_list(ep, temps, out)
+        MethodCall(recv, _m, _args) => {
+            hoist_when_values(recv, temps, out)
+            hoist_in_arg_list(ep, temps, out)
+        }
+        StructLit(_n, finits) => {
+            while finit in &finits {
+                hoist_when_values(finit.value, temps, out)
+            }
+        }
+        IfExpr(c, t, el) => {
+            hoist_when_values(c, temps, out)
+            hoist_when_values(t, temps, out)
+            hoist_when_values(el, temps, out)
+        }
+        // Arm bodies are statements, rewritten by the statement pass.
+        WhenExpr(subj, _arms) => {
+            hoist_when_values(subj, temps, out)
+            rewrite_arm_bodies_in_place(ep, temps)
+        }
+        Block(_stmts) => rewrite_block_stmts_in_place(ep, temps)
+        _ => { }
+    }
+}
+
+/// CONSTRAINT: through `at_mut`; passing the list to a helper would own and
+/// free the AST's copy.
+fun hoist_in_arg_list(ep: Ptr<Expr>, temps: &var WhenTemps, out: &var List<Stmt>): void {
+    when (unsafe { ep.kind }) {
+        Call(n, args) => {
+            var a = args
+            while i in 0..a.size() {
+                hoist_in_place(a.at_mut(i), temps, out)
+            }
+            unsafe { ep.kind = ExprKind.Call(n, a) }
+        }
+        MethodCall(recv, m, args) => {
+            var a = args
+            while i in 0..a.size() {
+                hoist_in_place(a.at_mut(i), temps, out)
+            }
+            unsafe { ep.kind = ExprKind.MethodCall(recv, m, a) }
+        }
+        _ => { }
+    }
+}
+
+/// Copies out, rewrites, writes back.
+fun hoist_in_place(e: &var Expr, temps: &var WhenTemps, out: &var List<Stmt>): void {
+    val tmp: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *tmp = *e }
+    hoist_when_values(tmp, temps, out)
+    unsafe { *e = *tmp }
+}
+
+fun rewrite_arm_bodies_in_place(ep: Ptr<Expr>, temps: &var WhenTemps): void {
+    when (unsafe { ep.kind }) {
+        WhenExpr(subj, arms) => {
+            var new_arms = List.new<Arm>()
+            while a in &arms {
+                new_arms.push(new_arm(a.span, a.pattern, a.guard, when_expr_stmt_list(&a.body, temps)))
+            }
+            unsafe { ep.kind = ExprKind.WhenExpr(subj, new_arms) }
+        }
+        _ => { }
+    }
+}
+
+fun rewrite_block_stmts_in_place(ep: Ptr<Expr>, temps: &var WhenTemps): void {
+    when (unsafe { ep.kind }) {
+        Block(stmts) => {
+            unsafe { ep.kind = ExprKind.Block(when_expr_stmt_list(&stmts, temps)) }
+        }
+        _ => { }
+    }
+}
+
+fun hoist_self(ep: Ptr<Expr>, temps: &var WhenTemps, out: &var List<Stmt>): void {
+    var is_when = false
+    when (unsafe { ep.kind }) {
+        WhenExpr(_s, _a) => { is_when = true }
+        _ => { }
+    }
+    if !is_when { return }
+
+    val span = unsafe { ep.span }
+    val value_ty = unsafe { ep.ty }
+    val temp = temps.fresh_when_temp()
+
+    val ann: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
+    unsafe { *ann = type_to_type_ref(&value_ty, span) }
+    out.push(new_stmt(span, StmtKind.LetVar(temp, ann, null)))
+
+    when (unsafe { ep.kind }) {
+        WhenExpr(subj, arms) => {
+            out.push(new_stmt(span, StmtKind.When(subj, arms_assigning(&arms, temp, temps))))
+        }
+        _ => { }
+    }
+
+    var v = new_expr(span, ExprKind.Variable(temp))
+    v.ty = value_ty
+    unsafe { *ep = v }
+}

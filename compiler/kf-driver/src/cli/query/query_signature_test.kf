@@ -1,0 +1,96 @@
+// A dependency-free fixture crate, so no stdlib is staged.
+
+import kf_driver.build.typed_crate_for
+import kf_driver.build.typed_crate_for_overlay
+import core.assert.assert_eq
+
+import kf_core.span.*
+import kf_driver.integration.json_contains
+import std.fs.scratch_path
+
+fun signature_fixture_path(): str {
+    return scratch_path("kf_query_sig/src/main.kf")
+}
+
+/// ```
+/// fun add(a: int32, b: int32): int32 {
+///     return a + b
+/// }
+///
+/// fun run(): int32 {
+///     return add(1, 2)
+/// }
+/// ```
+/// The call sits at 87; its first argument at 91, its second at 94.
+fun prepare_signature_fixture(): void {
+    unsafe { system("rm -rf ${scratch_path("kf_query_sig")} && mkdir -p ${scratch_path("kf_query_sig/src")}") }
+    write_file(scratch_path("kf_query_sig/kf.toml"), "[project]\nname = \"query_sig\"\nkind = \"lib\"\n")
+    var src = """fun add(a: int32, b: int32): int32 {
+    return a + b
+}
+
+fun run(): int32 {
+    return add(1, 2)
+}
+"""
+    write_file(signature_fixture_path(), src.as_str())
+}
+
+fun signature_at(offset: uint32): String {
+    prepare_signature_fixture()
+    val crate = typed_crate_for(signature_fixture_path())
+    return render_signature_json("main.kf", offset, &crate)
+}
+
+@test
+fun signature_help_names_the_parameters(): void {
+    val json = signature_at(91)
+    assert_eq(json_contains(json.as_str(), "\"label\":\"add(a: int32, b: int32): int32\""), true, "the label carries names, not just types")
+}
+
+@test
+fun signature_help_lists_each_parameter_on_its_own(): void {
+    val json = signature_at(91)
+    assert_eq(json_contains(json.as_str(), "\"parameters\":[{\"label\":\"a: int32\"},{\"label\":\"b: int32\"}]"), true, "a client can highlight one parameter")
+}
+
+@test
+fun signature_help_starts_at_the_first_parameter(): void {
+    val json = signature_at(91)
+    assert_eq(json_contains(json.as_str(), "\"active_parameter\":0"), true, "the cursor before any comma is in the first argument")
+}
+
+@test
+fun signature_help_advances_past_a_comma(): void {
+    val json = signature_at(94)
+    assert_eq(json_contains(json.as_str(), "\"active_parameter\":1"), true, "the cursor after the comma is in the second argument")
+}
+
+@test
+fun signature_help_is_silent_outside_a_call(): void {
+    val json = signature_at(2)
+    assert_eq(json_contains(json.as_str(), "\"label\":null"), true, "the `fun` keyword is not inside a call")
+}
+
+/// `f(a, g(b, c), d)`: the commas inside `g` are `g`'s.
+fun nested_call_span(): Span {
+    return Span { file_id: 1, start: 0, end: 16 }
+}
+
+@test
+fun the_active_index_ignores_a_nested_call(): void {
+    val at = active_parameter("f(a, g(b, c), d)", &nested_call_span(), 14)
+    assert_eq(at, 2 as uint32, "the third argument, not the fifth")
+}
+
+@test
+fun the_active_index_ignores_a_comma_in_a_string(): void {
+    val at = active_parameter("f(\"a, b\", c)", &Span { file_id: 1, start: 0, end: 12 }, 10)
+    assert_eq(at, 1 as uint32, "a comma inside a string separates nothing")
+}
+
+@test
+fun the_active_index_ignores_an_escaped_quote(): void {
+    val at = active_parameter("f(\"a\\\", b\", c)", &Span { file_id: 1, start: 0, end: 14 }, 12)
+    assert_eq(at, 1 as uint32, "an escaped quote does not end the string")
+}

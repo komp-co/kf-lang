@@ -1,0 +1,48 @@
+import alloc.path.*
+
+extern "C" fun kf_create_dir_all(path: str): int32
+extern "C" fun kf_temp_dir(prefix: str): String
+extern "C" fun kf_remove_dir_all(path: str): int32
+extern "C" fun kf_scratch_root(): str
+extern "C" fun kf_scratch_path(name: str): str
+
+pub struct TempDir {
+    val root: Path
+}
+
+impl TempDir {
+    pub static fun new(prefix: str): TempDir {
+        val raw = kf_temp_dir(prefix)
+        return TempDir { root: Path.new(raw.as_str()) }
+    }
+
+    pub fun path(): Path {
+        return Path.new(self.root.as_str())
+    }
+}
+
+impl Drop for TempDir {
+    fun drop(): void {
+        val _removed = kf_remove_dir_all(self.root.as_str())
+    }
+}
+
+pub fun create_dir_all(path: Path): bool {
+    return kf_create_dir_all(path.as_str()) == 0
+}
+
+/// A directory the asking process owns, created on first use.
+///
+/// CONSTRAINT: inherited by descendants only, through `KOMP_SCRATCH_ROOT`; an
+/// unrelated process, or a harness forking per test, gets its own.
+pub fun scratch_root(): str {
+    return kf_scratch_root()
+}
+
+/// `name` under [scratch_root], private to the caller rather than a shared
+/// fixed `/tmp` name.
+///
+/// CONSTRAINT: interned, so it is a `str`.
+pub fun scratch_path(name: str): str {
+    return kf_scratch_path(name)
+}

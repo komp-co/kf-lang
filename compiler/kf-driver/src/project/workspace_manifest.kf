@@ -1,0 +1,63 @@
+// The `[workspace]` section of a kf.toml.
+
+import alloc.list.*
+
+/// A workspace has no `[project]`; it resolves to a member first.
+pub fun is_workspace_manifest(src: str): bool {
+    val lines = split_lines(src)
+    while item in &lines {
+        val line = trim_string(item)
+        if line.as_str() == "[workspace]" { return true }
+    }
+    return false
+}
+
+/// The member a command at the root runs on by default.
+pub fun workspace_default_member(src: str): String {
+    return workspace_string(src, "default-member")
+}
+
+/// Relative to the workspace root; "" means `target`.
+pub fun workspace_target_dir(src: str): String {
+    return workspace_string(src, "target-dir")
+}
+
+fun workspace_string(src: str, key: str): String {
+    var in_workspace = false
+    val lines = split_lines(src)
+    while item in &lines {
+        val line = trim_string(item)
+        if string_starts_with_byte(line, 91) {
+            in_workspace = line.as_str() == "[workspace]"
+        } else {
+            if in_workspace && read_key(line).as_str() == key {
+                return read_string_value(line)
+            }
+        }
+    }
+    return ""
+}
+
+/// `members = [...]`.
+pub fun workspace_members(src: str): List<String> {
+    var members = List.new<String>()
+    var in_workspace = false
+    var collecting = false
+    val lines = split_lines(src)
+    while item in &lines {
+        val line = trim_string(item)
+        if string_starts_with_byte(line, 91) {
+            in_workspace = line.as_str() == "[workspace]"
+            collecting = false
+        } else {
+            if in_workspace && !collecting && read_key(line).as_str() == "members" {
+                collecting = true
+            }
+            if collecting {
+                append_quoted_values(line.as_str(), &var members)
+                if string_contains_byte(line.as_str(), 93) { collecting = false }
+            }
+        }
+    }
+    return members
+}

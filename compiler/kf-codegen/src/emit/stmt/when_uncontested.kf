@@ -1,0 +1,41 @@
+// A `when` of only catch-alls discriminates nothing, so it emits no dispatch.
+// Switching on it would switch on an enum struct, and the type name cannot
+// tell an enum from a struct here.
+
+import alloc.list.*
+
+import kf_core.ast.*
+
+/// Every arm is the catch-all. An empty arm list is not this case.
+fun arms_are_all_wildcards(arms: List<SwitchArm>): bool {
+    if arms.size() == 0 { return false }
+    while arm in &arms {
+        val tag = arm.tag
+        when (tag) {
+            Wildcard => { }
+            Variant(_) => return false
+            IntLit(_) => return false
+        }
+    }
+    return true
+}
+
+/// The subject is still evaluated and may be bound by a whole-subject binder,
+/// via `__auto_type`. Only the first arm is emitted; later ones are
+/// unreachable.
+fun emit_uncontested_arm(subj: Expr, arms: List<SwitchArm>, indent: uint64, env: &var LocalEnv): String {
+    val a = *arms.at(0)
+    var parts = List.new<String>()
+    parts.push(emit_indent(indent))
+    parts.push(String.from("{\n"))
+    parts.push(emit_indent(indent + 1))
+    parts.push("__auto_type __when_subj = ${subj.emit_expr()};\n")
+    // Cast to void to silence an unused-variable warning.
+    parts.push(emit_indent(indent + 1))
+    parts.push(String.from("(void)__when_subj;\n"))
+    parts.push(emit_subject_binders(a.binders, indent + 1))
+    parts.push(emit_block(a.body, indent + 1, env))
+    parts.push(emit_indent(indent))
+    parts.push(String.from("}\n"))
+    return concat_all(parts)
+}

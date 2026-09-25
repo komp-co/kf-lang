@@ -1,0 +1,129 @@
+// The `kflatc` command line: the compiler on its own, one crate at a time or,
+// with `unity`, a list of them. komp works out every argument; see the kflatc
+// section of the book's CLI chapter for what each means.
+//
+//   kflatc compile --name N --root DIR --out DIR [--project DIR] [--bin | --tests]
+//                  [--dep NAME=HASH]... [--load NAME]...
+//   kflatc check   --name N --root DIR --out DIR [--project DIR] [--json]
+//                  [--dep NAME=HASH]... [--load NAME]...
+//   kflatc unity   --crate NAME=ROOT... --out FILE [--project DIR] [--bin | --tests]
+//   kflatc query <what> --file PATH [...]
+//   kflatc version
+//
+// Exit 0 on success, 1 when the crate has errors, 2 on a malformed line.
+
+import alloc.list.*
+import core.args.arg_at
+import core.args.arg_count
+
+import kf_driver.*
+import kf_driver.build.*
+import kf_driver.cli.query.dispatch_query
+import kf_interface.interface_compiler_abi
+import kf_interface.interface_runtime_abi
+import kf_interface.interface_target
+
+extern "C" fun kf_mute_warnings(on: int32): void
+
+pub fun kflatc_cli(): int32 {
+    if arg_count() == 0 { return kflatc_usage() }
+    val command = arg_at(0)
+    if command == "query" { return dispatch_query(cli_arg_count()) }
+    if command == "version" { return kflatc_version() }
+    if command != "compile" && command != "check" && command != "unity" { return kflatc_usage() }
+    var name: str = ""
+    var root: str = ""
+    var out: str = ""
+    var is_bin = false
+    var as_json = false
+    var with_tests = false
+    var deps = List.new<String>()
+    var hashes = List.new<String>()
+    var loads = List.new<String>()
+    var crates = List.new<CrateSource>()
+    var i = 1
+    while i < arg_count() {
+        val flag = arg_at(i)
+        if flag == "--bin" || flag == "--json" || flag == "--tests" {
+            if flag == "--bin" { is_bin = true } else if flag == "--json" { as_json = true } else { with_tests = true }
+            i = i + 1
+            continue
+        }
+        // Read off the command line by the lint config and the reporter.
+        if flag == "-q" || flag == "--quiet" || flag == "--deny-warnings" {
+            i = i + 1
+            continue
+        }
+        if flag == "-A" || flag == "-W" || flag == "-D" || flag == "--lint" {
+            i = i + 2
+            continue
+        }
+        if i + 1 >= arg_count() { return kflatc_usage() }
+        val value = arg_at(i + 1)
+        if flag == "--name" {
+            name = value
+        } else if flag == "--root" {
+            root = value
+        } else if flag == "--out" {
+            out = value
+        } else if flag == "--project" {
+            note_crate_being_built(value)
+        } else if flag == "--crate" {
+            val eq = value.index_of("=") ?: return kflatc_usage()
+            crates.push(CrateSource { name: value.substring(0, eq), root: value.substring(eq + 1, value.byte_len()) })
+        } else if flag == "--load" {
+            loads.push(String.from(value))
+        } else if flag == "--dep" {
+            val eq = value.index_of("=") ?: return kflatc_usage()
+            deps.push(value.substring(0, eq))
+            hashes.push(value.substring(eq + 1, value.byte_len()))
+        } else {
+            return kflatc_usage()
+        }
+        i = i + 2
+    }
+    if command == "unity" {
+        if crates.size() == 0 || out.byte_len() == 0 { return kflatc_usage() }
+        if with_tests { unsafe { kf_mute_warnings(1) } }
+        return if compile_unity_crates(&crates, is_bin, with_tests, out) == 0 { 0 } else { 1 }
+    }
+    if name.byte_len() == 0 || root.byte_len() == 0 || out.byte_len() == 0 { return kflatc_usage() }
+    val crate = CompileUnit {
+        name: String.from(name), root: String.from(root), deps: deps, dep_hashes: hashes, loads: loads
+    }
+    if command == "check" {
+        return if crate.check_against_interfaces(out, as_json) == 0 { 0 } else { 1 }
+    }
+    val errp: Ptr<ErrCount> = unsafe { alloc<ErrCount>() }
+    unsafe { *errp = ErrCount { n: 0 } }
+    if with_tests {
+        unsafe { kf_mute_warnings(1) }
+        if !crate.write_test_sources(out, errp) { return 1 }
+        return 0
+    }
+    if !crate.write_crate_sources(out, is_bin, errp) {
+        println("kflatc: errors found; ${name} not written")
+        return 1
+    }
+    return 0
+}
+
+/// One `key value` line each, which komp reads to know what it is running.
+fun kflatc_version(): int32 {
+    println("kflatc 0.1.0")
+    println("abi ${interface_compiler_abi()}")
+    println("runtime ${interface_runtime_abi()}")
+    println("target ${interface_target()}")
+    return 0
+}
+
+fun kflatc_usage(): int32 {
+    println("usage: kflatc compile --name N --root DIR --out DIR [--project DIR] [--bin | --tests]")
+    println("                      [--dep NAME=HASH]... [--load NAME]...")
+    println("       kflatc check   --name N --root DIR --out DIR [--project DIR] [--json]")
+    println("                      [--dep NAME=HASH]... [--load NAME]...")
+    println("       kflatc unity   --crate NAME=ROOT... --out FILE [--project DIR] [--bin | --tests]")
+    println("       kflatc version")
+    println("       kflatc query <what> --file PATH [--offset N] [--overlay PATH] [--name NEW]")
+    return 2
+}

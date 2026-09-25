@@ -1,0 +1,50 @@
+import alloc.list.*
+import alloc.path.*
+
+/// Hosted child-process builder. Arguments never pass through a shell.
+pub struct Command {
+    val program: String
+    var args: List<String>
+    var working_dir: String
+    var environment: List<String>
+    var stdout_path: String
+}
+
+pub struct ExitStatus {
+    val code: int32
+}
+
+impl ExitStatus {
+    pub fun success(): bool { return self.code == 0 }
+    pub fun exit_code(): int32 { return self.code }
+}
+
+extern "C" fun kf_process_status(program: str, args: &List<String>, working_dir: str, environment: &List<String>, stdout_path: str): int32
+
+impl Command {
+    pub static fun new(program: str): Command {
+        return Command { program: String.from(program), args: List.new<String>(), working_dir: "", environment: List.new<String>(), stdout_path: "" }
+    }
+
+    pub mutating fun arg(value: str): void {
+        self.args.push(String.from(value))
+    }
+
+    pub mutating fun current_dir(path: Path): void {
+        self.working_dir = String.from(path.as_str())
+    }
+
+    /// Add or replace an environment variable for the child process.
+    pub mutating fun env(key: str, value: str): void {
+        self.environment.push(String.from(key) + String.from("=") + String.from(value))
+    }
+
+    /// Redirect the child's standard output to a file, replacing it first.
+    pub mutating fun stdout_to(path: Path): void {
+        self.stdout_path = String.from(path.as_str())
+    }
+
+    pub fun status(): ExitStatus {
+        return ExitStatus { code: kf_process_status(self.program.as_str(), &self.args, self.working_dir.as_str(), &self.environment, self.stdout_path.as_str()) }
+    }
+}

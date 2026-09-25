@@ -1,0 +1,67 @@
+import core.assert.*
+import core.display.*
+
+@test fun digits_render_in_base_ten(): void {
+    assert_eq(renders_as(&(0), "0"), true, "zero is a digit, not nothing")
+    assert_eq(renders_as(&(7), "7"), true, "one digit")
+    assert_eq(renders_as(&(123456789), "123456789"), true, "many")
+    assert_eq(renders_as(&(-7), "-7"), true, "negative")
+}
+
+// The most negative int64 overflows a renderer that negates first.
+@test fun the_extremes_of_each_width_render(): void {
+    assert_eq(renders_as(&(9223372036854775807 as int64), "9223372036854775807"), true, "int64 max")
+    assert_eq(renders_as(&((-9223372036854775807 as int64) - 1), "-9223372036854775808"), true, "int64 min")
+    assert_eq(renders_as(&(18446744073709551615 as uint64), "18446744073709551615"), true, "uint64 max")
+    assert_eq(renders_as(&(-128 as int8), "-128"), true, "int8 min")
+    assert_eq(renders_as(&(255 as uint8), "255"), true, "uint8 max")
+    assert_eq(renders_as(&(-32768 as int16), "-32768"), true, "int16 min")
+}
+
+struct Counter { pub var writes: uint64, pub var bytes: uint64 }
+
+impl Write for Counter {
+    mutating fun write_str(s: str): void {
+        self.writes = self.writes + 1
+        self.bytes = self.bytes + s.byte_len()
+    }
+}
+
+// One write per digit; nothing is built first.
+@test fun a_number_reaches_the_sink_one_digit_at_a_time(): void {
+    var c = Counter { writes: 0, bytes: 0 }
+    (405 as int64).display(&var c)
+    assert_eq(c.writes, 3 as uint64, "three digits, three writes")
+    assert_eq(c.bytes, 3 as uint64, "and three bytes")
+
+    var neg = Counter { writes: 0, bytes: 0 }
+    (-405 as int64).display(&var neg)
+    assert_eq(neg.writes, 4 as uint64, "the sign is its own write")
+}
+
+// Short when short reads back as the same value, exact when it does not.
+@test fun floats_render_at_the_precision_that_round_trips(): void {
+    assert_eq(renders_as(&(0.1), "0.1"), true, "short is honest here")
+    assert_eq(renders_as(&(0.1 + 0.2), "0.30000000000000004"), true, "and here it is not")
+    assert_eq(renders_as(&(-2.5), "-2.5"), true, "negative")
+    assert_eq(renders_as(&(0.5 as float32), "0.5"), true, "float32")
+}
+
+struct Nested { pub var outer: RenderDigest, pub var inner_ok: bool }
+
+// Float digits are borrowed from the runtime, so a sink rendering another
+// float inside `write_str` would read them back rewritten.
+impl Write for Nested {
+    mutating fun write_str(s: str): void {
+        val inner_ok = renders_as(&(2.5), "2.5")
+        self.outer.write_str(s)
+        self.inner_ok = self.inner_ok && inner_ok
+    }
+}
+
+@test fun rendering_a_float_from_inside_a_sink_keeps_both(): void {
+    var n = Nested { outer: new_render_digest(), inner_ok: true }
+    (1.25).display(&var n)
+    assert_eq(digest_matches(&n.outer, "1.25"), true, "the outer float survives the inner one")
+    assert_eq(n.inner_ok, true, "the inner float renders")
+}

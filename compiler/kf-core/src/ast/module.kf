@@ -1,0 +1,50 @@
+import alloc.list.*
+
+import kf_core.span.*
+
+/// `import foo.bar.*` or `import foo.bar.Baz`.
+pub struct Import {
+    pub val span:     Span
+    pub val path:     List<String>   // ["foo", "bar"] for both forms
+    pub val wildcard: bool         // true for `.*`, false otherwise
+}
+
+pub fun new_import(span: Span, path: List<String>, wildcard: bool): Import {
+    return Import { span: span, path: path, wildcard: wildcard }
+}
+
+/// False for an import the parser added itself (the `core.range.*` a `..`
+/// needs), which has a file but no extent. Anything reporting on source text
+/// asks this first.
+pub fun Import.import_is_written(): bool {
+    if self.span.is_none() { return false }
+    return self.span.end > self.span.start
+}
+
+/// One source file's AST. Sibling files in a directory share scope.
+@derive(Clone)
+pub struct Module {
+    pub var crate:   CrateId
+    pub val path:    List<String>     // module path, ["kf_core", "ast"]
+    pub var decls:   List<TopDecl>
+    pub var imports: List<Import>
+}
+
+pub fun new_module(path: List<String>): Module {
+    return Module {
+        crate:   crate_id_poison(),
+        path:    path,
+        decls:   List.new<TopDecl>(),
+        imports: List.new<Import>()
+    }
+}
+
+/// A crate: the input to every pass.
+pub struct Crate {
+    pub val name:    String        // from kf.toml [project] name
+    pub var modules: List<Module>
+}
+
+pub fun new_crate(name: String): Crate {
+    return Crate { name: name, modules: List.new<Module>() }
+}

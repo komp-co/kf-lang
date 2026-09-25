@@ -1,0 +1,13 @@
+// Separate renders per-crate artifacts and is the default; Unity is the
+// whole-program differential and debugging oracle.
+
+pub enum BuildMode {
+    Unity
+    Separate
+}
+
+/// `--unity` selects Unity; anything else keeps the default.
+pub fun build_mode_from_flag(flag: str): BuildMode {
+    if flag == "--unity" { return BuildMode.Unity }
+    return BuildMode.Separate
+}

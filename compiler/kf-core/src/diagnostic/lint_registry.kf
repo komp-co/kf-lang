@@ -1,0 +1,113 @@
+// Every lint komp can emit. Each lint's name is what `@allow(...)`, kf.toml
+// and the JSON output use, so renaming one is a breaking change.
+
+import alloc.list.*
+
+/// Whether a lint is reported at all; `Severity` is how it renders.
+pub enum LintLevel {
+    Allow
+    Warn
+    Deny
+}
+
+/// `Warn` for anything unrecognized; callers validate the spelling first.
+pub fun lint_level_named(s: str): LintLevel {
+    if s.equals("allow") { return LintLevel.Allow }
+    if s.equals("deny")  { return LintLevel.Deny }
+    return LintLevel.Warn
+}
+
+pub fun is_lint_level_name(s: str): bool {
+    return s.equals("allow") || s.equals("warn") || s.equals("deny")
+}
+
+pub struct LintInfo {
+    /// snake_case, naming what is wrong.
+    pub val name:        String
+    pub val category:    String
+    /// The level with no configuration.
+    pub val level:       Severity
+    /// One line, in the diagnostic's own voice.
+    pub val description: String
+}
+
+pub fun lint_registry(): List<LintInfo> {
+    var out = List.new<LintInfo>()
+    out.push(LintInfo {
+        name:        String.from("unused_import"),
+        category:    String.from("unused"),
+        level:       Severity.Warning,
+        description: String.from("an import whose module contributes no name this file writes")
+    })
+    out.push(LintInfo {
+        name:        String.from("wildcard_import"),
+        category:    String.from("imports"),
+        level:       Severity.Warning,
+        description: String.from("a `.*` import supplying few enough names to write out")
+    })
+    out.push(LintInfo {
+        name:        String.from("implicit_copy"),
+        category:    String.from("implicit"),
+        level:       Severity.Warning,
+        description: String.from("a value read through a borrow is copied to fill a by-value slot")
+    })
+    out.push(LintInfo {
+        name:        String.from("copy_after_move"),
+        category:    String.from("implicit"),
+        level:       Severity.Warning,
+        description: String.from("an earlier move is copied instead, to keep the original readable")
+    })
+    out.push(LintInfo {
+        name:        String.from("unauthorized_copy"),
+        category:    String.from("implicit"),
+        level:       Severity.Error,
+        description: String.from("a copy is inserted into a type that does not implement `Clone`")
+    })
+    out.push(LintInfo {
+        name:        String.from("deref_through_temporary"),
+        category:    String.from("memory"),
+        level:       Severity.Warning,
+        description: String.from("`*` through a `Box` owned by a call's result, freed at the end of the statement")
+    })
+    return out
+}
+
+/// A poison entry (empty name) when nothing answers to `name`.
+pub fun lookup_lint(name: str): LintInfo {
+    val all = lint_registry()
+    while l in &all {
+        // Cloned: `all` is dropped on return.
+        if l.name.as_str().equals(name) { return l.clone() }
+    }
+    return LintInfo {
+        name:        "",
+        category:    "",
+        level:       Severity.Warning,
+        description: ""
+    }
+}
+
+/// Backs the error for an `@allow(...)` naming no lint.
+pub fun lint_exists(name: str): bool {
+    return (lookup_lint(name).name.as_str()).byte_len() > 0
+}
+
+/// Warning for an unregistered name, so it still reports.
+pub fun lint_default_level(name: str): Severity {
+    return lookup_lint(name).level
+}
+
+/// `Allow` never reaches here; it maps to Warning inertly.
+pub fun lint_level_severity(l: LintLevel): Severity {
+    return when (l) {
+        Deny => Severity.Error
+        _ => Severity.Warning
+    }
+}
+
+pub fun lint_level_allows(l: LintLevel): bool {
+    return when (l) {
+        Allow => true
+        _ => false
+    }
+}

@@ -1,0 +1,155 @@
+// `when` becomes a Switch. Iteration is expanded during typecheck, since the
+// `iter()`/`next()` calls it synthesizes must be resolved and typed.
+
+import alloc.list.*
+
+import kf_core.ast.*
+
+pub mutating fun Module.desugar_module(): void {
+    while i in 0..self.decls.size() {
+        desugar_top_decl(self.decls.at_mut(i))
+    }
+}
+
+mutating fun TopDecl.desugar_top_decl(): void {
+    when (self.kind) {
+        Function(params, ret, body, p, u, m, s) => {
+            val new_body = desugar_stmt_list(body)
+            self.kind = TopDeclKind.Function(params, ret, new_body, p, u, m, s)
+        }
+        ImplBlock(methods) => {
+            while i in 0..methods.size() {
+                desugar_top_decl(methods.at_mut(i))
+            }
+            self.kind = TopDeclKind.ImplBlock(methods)
+        }
+        Struct(_, _) => return
+        EnumDecl(_, _) => return
+        Extern(_, _, _, _) => return
+        AssocType(_bounds) => return
+        AssocTypeBinding(_chosen) => return
+        TraitDecl(_, _, _) => return
+        TraitImpl(_, _) => return
+        Poison => return
+    }
+}
+
+pub fun desugar_stmt_list(stmts: &List<Stmt>): List<Stmt> {
+    var out = List.new<Stmt>()
+    while s in &stmts {
+        val rewritten = desugar_stmt(s)
+        out.push(rewritten)
+    }
+    return out
+}
+
+pub fun desugar_stmt(s: Stmt): Stmt {
+    when (s.kind) {
+        When(subj_ptr, arms) => {
+            val switch_arms = desugar_when_arms(arms)
+            return new_stmt(s.span, StmtKind.Switch(subj_ptr, switch_arms))
+        }
+        If(cond_ptr, then_body, else_body) => {
+            val new_then = desugar_stmt_list(then_body)
+            val new_else = desugar_stmt_list(else_body)
+            return new_stmt(s.span, StmtKind.If(cond_ptr, new_then, new_else))
+        }
+        While(cond_ptr, body) => {
+            val new_body = desugar_stmt_list(body)
+            return new_stmt(s.span, StmtKind.While(cond_ptr, new_body))
+        }
+        // Typecheck expands it; reaching here means that pass was skipped.
+        ForEach(_b, _s, _bd) => return s
+        LetVal(_, _, _) => return s
+        LetVar(_, _, _) => return s
+        Assign(_, _) => return s
+        AssignTo(_, _) => return s
+        Return(_) => return s
+        Expression(_) => return s
+        Switch(_, _) => return s
+        Drop(_) => return s
+        // Produced later, by rc_insert.
+        Release(_) => return s
+        Break => return s
+        Continue => return s
+        Poison => return s
+    }
+}
+
+fun desugar_when_arms(arms: List<Arm>): List<SwitchArm> {
+    var out = List.new<SwitchArm>()
+    while arm in &arms {
+        val sa = arm.arm_to_switch()
+        out.push(sa)
+    }
+    return out
+}
+
+fun Arm.arm_to_switch(): SwitchArm {
+    val pp = self.pattern
+    val pat = unsafe { *pp }
+    val tag = pat.pattern_to_tag()
+    val binders = pat.pattern_binders()
+    val new_body = desugar_stmt_list(self.body)
+    return new_switch_arm(self.span, tag, binders, self.guard, new_body)
+}
+
+fun bool_case_value(b: bool): int64 {
+    if b { return 1 }
+    return 0
+}
+
+fun Pattern.pattern_to_tag(): SwitchTag {
+    return when (self.kind) {
+        Variant(name, _) => SwitchTag.Variant(name.as_string())
+        StructPat(name, _, _) => SwitchTag.Variant(name.as_string())
+        Wildcard => SwitchTag.Wildcard
+        // A bare binder matches anything.
+        Identifier(_) => SwitchTag.Wildcard
+        LitInt(n) => SwitchTag.IntLit(n)
+        // `case 1:` / `case 0:`.
+        LitBool(b) => SwitchTag.IntLit(bool_case_value(b))
+        // A code point compares as an integer.
+        LitChar(c) => SwitchTag.IntLit(c as int64)
+        // Strings and or-patterns have no C `case` label; check_pattern has
+        // already rejected them.
+        LitStr(_) => SwitchTag.Wildcard
+        Or(_) => SwitchTag.Wildcard
+        Poison => SwitchTag.Wildcard
+    }
+}
+
+fun Pattern.pattern_binders(): List<Sym> {
+    var out = List.new<Sym>()
+    self.pattern_binders_into(&var out)
+    return out
+}
+
+fun Pattern.pattern_binders_into(out: &var List<Sym>): void {
+    when (self.kind) {
+        Identifier(name) => {
+            out.push(name)
+        }
+        Variant(_, payloads) => {
+            while sub in &payloads {
+                sub.pattern_binders_into(out)
+            }
+        }
+        StructPat(_, names, _) => {
+            while item in &names {
+                out.push(item)
+            }
+        }
+        Or(alts) => {
+            if alts.size() > 0 {
+                (*alts.at(0)).pattern_binders_into(out)
+            }
+        }
+        Wildcard => return
+        LitInt(_) => return
+        LitStr(_) => return
+        LitBool(_) => return
+        LitChar(_) => return
+        Poison => return
+    }
+}

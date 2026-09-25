@@ -1,0 +1,63 @@
+import core.assert.assert_eq
+
+@test
+fun command_reports_success(): void {
+    val command = Command.new("/bin/true")
+    assert_eq(command.status().success(), true, "true exits successfully")
+}
+
+@test
+fun command_reports_exit_code(): void {
+    val command = Command.new("/bin/false")
+    assert_eq(command.status().exit_code(), 1, "false exits with one")
+}
+
+// The exit code, not a wait status shifted left by 8. 42, so a boolean
+// cannot pass.
+@test
+fun command_reports_an_exact_nonzero_exit_code(): void {
+    var command = Command.new("/bin/sh")
+    command.arg("-c")
+    command.arg("exit 42")
+    assert_eq(command.status().exit_code(), 42, "exit code is the code, not a wait status")
+    assert_eq(command.status().success(), false, "a non-zero code is not success")
+}
+
+@test
+fun command_passes_arguments_without_a_shell(): void {
+    var command = Command.new("/usr/bin/test")
+    command.arg("hello world")
+    command.arg("=")
+    command.arg("hello world")
+    assert_eq(command.status().success(), true, "argument boundaries are preserved")
+}
+
+@test
+fun command_uses_working_directory(): void {
+    val temp = TempDir.new("komp-process-test")
+    var command = Command.new("/usr/bin/test")
+    command.arg("-d")
+    command.arg(".")
+    command.current_dir(temp.path())
+    assert_eq(command.status().success(), true, "working directory is applied")
+}
+
+@test
+fun command_sets_child_environment(): void {
+    var command = Command.new("/bin/sh")
+    command.arg("-c")
+    command.arg("test \"$KF_STD_PROCESS\" = ready")
+    command.env("KF_STD_PROCESS", "ready")
+    assert_eq(command.status().success(), true, "environment reaches child")
+}
+
+@test
+fun command_redirects_standard_output(): void {
+    val temp = TempDir.new("komp-process-test")
+    val output = temp.path().join("output.txt")
+    var command = Command.new("/bin/echo")
+    command.arg("captured")
+    command.stdout_to(output)
+    val _status = command.status()
+    assert_eq(read_file(output.as_str()).as_str(), "captured\n", "standard output is redirected")
+}

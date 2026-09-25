@@ -1,0 +1,73 @@
+import core.assert.assert_eq
+
+fun sample_workspace(): str {
+    return "[workspace]\nmembers = [\n  \"app\",\n  \"libs/core\"\n]\ndefault-member = \"app\"\n"
+}
+
+@test
+fun test_package_section_supplies_project_fields(): void {
+    val manifest = parse_manifest("[package]\nname = \"probe\"\nversion = \"1.2.3\"\nkind = \"lib\"\n")
+    val fields_match = manifest.name.as_str() == "probe" && manifest.version.as_str() == "1.2.3" && manifest.kind.as_str() == "lib"
+    assert_eq(fields_match, true, "package is an alias for the project section")
+}
+
+@test
+fun test_manifest_without_name_reports_error(): void {
+    val manifest = parse_manifest("[project]\nkind = \"bin\"\n")
+    assert_eq(manifest.error.as_str(), "manifest has no crate name (expected name in [project] or [package])", "a nameless manifest is invalid")
+}
+
+@test
+fun workspace_members_reads_multiline_array(): void {
+    val members = workspace_members(sample_workspace())
+    assert_eq(members.size(), 2, "workspace member count")
+}
+
+@test
+fun workspace_members_preserves_nested_path(): void {
+    val members = workspace_members(sample_workspace())
+    assert_eq(members.at(1).as_str(), "libs/core", "nested workspace member")
+}
+
+@test
+fun workspace_default_member_is_read(): void {
+    assert_eq(workspace_default_member(sample_workspace()).as_str(), "app", "default member")
+}
+
+// `c_sources` is every build's; `hosted_c_sources` needs an OS. Only the root
+// program says which world it is in.
+
+@test
+fun hosted_c_sources_is_read_separately_from_c_sources(): void {
+    val src = "[native]\nc_sources = [\"native/core.c\"]\nhosted_c_sources = [\"native/core_hosted.c\"]\n"
+    val plain = manifest_c_sources(src)
+    val hosted = manifest_hosted_c_sources(src)
+    val plain_ok = plain.size() == 1 && plain.at(0).as_str() == "native/core.c"
+    val hosted_ok = hosted.size() == 1 && hosted.at(0).as_str() == "native/core_hosted.c"
+    val split_cleanly = plain_ok && hosted_ok
+    assert_eq(split_cleanly, true, "the two native arrays do not bleed into each other")
+}
+
+@test
+fun a_manifest_without_the_hosted_key_has_no_hosted_sources(): void {
+    val hosted = manifest_hosted_c_sources("[native]\nc_sources = [\"native/core.c\"]\n")
+    assert_eq(hosted.size(), 0, "hosted_c_sources is optional")
+}
+
+@test
+fun freestanding_is_off_unless_the_project_asks_for_it(): void {
+    val manifest = parse_manifest("[project]\nname = \"probe\"\n")
+    assert_eq(manifest.freestanding, false, "a project is hosted by default")
+}
+
+@test
+fun a_project_can_declare_itself_freestanding(): void {
+    val manifest = parse_manifest("[project]\nname = \"probe\"\nfreestanding = true\n")
+    assert_eq(manifest.freestanding, true, "freestanding = true is read")
+}
+
+@test
+fun freestanding_false_is_read_as_written(): void {
+    val manifest = parse_manifest("[project]\nname = \"probe\"\nfreestanding = false\n")
+    assert_eq(manifest.freestanding, false, "freestanding = false stays hosted")
+}

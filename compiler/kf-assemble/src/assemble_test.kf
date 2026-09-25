@@ -1,0 +1,161 @@
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_core.span.*
+import kf_core.diagnostic.*
+import std.fs.scratch_path
+
+@test fun source_file_accepts_plain_kf(): void {
+    val ok: bool = is_kf_source_file("foo.kf")
+    assert_eq(ok, true, "foo.kf is source")
+}
+
+@test fun is_kf_file_any_includes_test_files(): void {
+    assert_eq(is_kf_file_any("foo_test.kf"), true, "any-.kf includes _test.kf")
+    assert_eq(is_kf_file_any("foo.kf"), true, "any-.kf includes plain .kf")
+    assert_eq(is_kf_file_any("foo.txt"), false, "any-.kf excludes non-.kf")
+    assert_eq(is_kf_source_file("foo_test.kf"), false, "production predicate excludes _test.kf")
+}
+
+@test fun source_file_rejects_test_kf(): void {
+    val ok: bool = is_kf_source_file("foo_test.kf")
+    assert_eq(ok, false, "_test.kf excluded")
+}
+
+@test fun source_file_rejects_non_kf(): void {
+    assert_eq(is_kf_source_file("foo.txt"), false, ".txt is not source")
+    assert_eq(is_kf_source_file("README.md"), false, ".md is not source")
+}
+
+@test fun source_file_accepts_test_prefix(): void {
+    val ok: bool = is_kf_source_file("test_foo.kf")
+    assert_eq(ok, true, "prefix _test is fine")
+}
+
+@test fun module_path_root_file(): void {
+    val mp: List<String> = module_path_for("/Komp/compiler/komp/src/main.kf", "/Komp/compiler/komp/src", String.from("komp"))
+    assert_eq(mp.size(), 2, "two segments")
+    assert_eq(mp.at(0).as_str(), "komp", "crate name first")
+    assert_eq(mp.at(1).as_str(), "main", "file stem second")
+}
+
+@test fun module_path_nested_file(): void {
+    val mp: List<String> = module_path_for("/Komp/compiler/kf-core/src/span/source_file.kf", "/Komp/compiler/kf-core/src", String.from("kf_core"))
+    assert_eq(mp.size(), 3, "three segments")
+    assert_eq(mp.at(0).as_str(), "kf_core", "crate")
+    assert_eq(mp.at(1).as_str(), "span", "dir")
+    assert_eq(mp.at(2).as_str(), "source_file", "stem")
+}
+
+@test fun module_path_deeply_nested(): void {
+    val mp: List<String> = module_path_for("/r/src/a/b/c/foo.kf", "/r/src", String.from("r"))
+    assert_eq(mp.size(), 5, "crate + 3 dirs + stem")
+    assert_eq(mp.at(0).as_str(), "r", "crate")
+    assert_eq(mp.at(1).as_str(), "a", "first dir")
+    assert_eq(mp.at(4).as_str(), "foo", "stem last")
+}
+
+// These pin the sort comparator; testing the walk would need a fixture tree.
+@test fun path_order_is_byte_order(): void {
+    assert_eq(path_byte_less("a.kf", "b.kf"), true, "a before b")
+    assert_eq(path_byte_less("b.kf", "a.kf"), false, "b not before a")
+    assert_eq(path_byte_less("a.kf", "a.kf"), false, "equal is not less")
+}
+
+@test fun path_order_breaks_ties_on_length(): void {
+    assert_eq(path_byte_less("src/a", "src/ab"), true, "prefix sorts first")
+    assert_eq(path_byte_less("src/ab", "src/a"), false, "longer does not sort first")
+}
+
+@test fun path_order_is_a_total_order_over_a_directory(): void {
+    var paths = List.new<String>()
+    paths.push(String.from("src/zeta.kf"))
+    paths.push(String.from("src/alpha.kf"))
+    paths.push(String.from("src/mid.kf"))
+    var out = List.new<String>()
+    push_sorted(&paths, &var out)
+    assert_eq(out.size(), 3, "every element survives the sort")
+    assert_eq(out.at(0).as_str().equals("src/alpha.kf"), true, "alpha first")
+    assert_eq(out.at(1).as_str().equals("src/mid.kf"), true, "mid second")
+    assert_eq(out.at(2).as_str().equals("src/zeta.kf"), true, "zeta last")
+}
+
+extern "C" fun kf_create_dir_all(p: str): int32
+
+@test fun assembling_a_crate_registers_each_file_once(): void {
+    val root = String.from(scratch_path("kf_assemble_once"))
+    val _mk = unsafe { kf_create_dir_all(scratch_path("kf_assemble_once/src")) }
+    write_file(scratch_path("kf_assemble_once/src/lib.kf"), "pub fun answer(): int32 { return 42 }\n")
+    write_file(scratch_path("kf_assemble_once/src/lib_test.kf"), "@test fun t(): void {}\n")
+
+    val smap: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
+    unsafe { *smap = new_source_map() }
+    val pdiags: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
+    unsafe { *pdiags = List.new<Diagnostic>() }
+
+    val none = no_overlay()
+    val c = assemble_crate_inc(root.as_str(), String.from("once"), smap, pdiags, true, &none)
+    assert_eq(c.modules.size(), 2, "the test file is assembled alongside the source")
+    assert_eq(unsafe { smap.files.size() }, 2, "each file is registered exactly once")
+}
+
+fun Crate.crate_declares(name: str): bool {
+    while m in &self.modules {
+        while j in 0..m.decls.size() {
+            if m.decls.at(j).name.as_str() == name { return true }
+        }
+    }
+    return false
+}
+
+fun prepare_overlay_crate(): void {
+    val _mk = unsafe { kf_create_dir_all(scratch_path("kf_assemble_overlay/src")) }
+    write_file(scratch_path("kf_assemble_overlay/src/lib.kf"), "pub fun on_disk(): int32 { return 42 }\n")
+    write_file(scratch_path("kf_assemble_overlay/src/other.kf"), "pub fun untouched(): int32 { return 7 }\n")
+}
+
+fun staged_lib(): Overlay {
+    return overlay_for(scratch_path("kf_assemble_overlay/src/lib.kf"), "pub fun in_buffer(): int32 { return 42 }\n")
+}
+
+fun Overlay.assemble_overlay_crate(): Crate {
+    prepare_overlay_crate()
+    val smap: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
+    unsafe { *smap = new_source_map() }
+    val pdiags: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
+    unsafe { *pdiags = List.new<Diagnostic>() }
+    return assemble_crate_inc(scratch_path("kf_assemble_overlay"), String.from("staged"), smap, pdiags, true, self)
+}
+
+@test fun an_overlay_is_parsed_in_place_of_the_file_it_names(): void {
+    val ov = staged_lib()
+    val c = ov.assemble_overlay_crate()
+    assert_eq(c.crate_declares("in_buffer"), true, "the buffer's declaration is the one assembled")
+}
+
+@test fun the_text_an_overlay_replaces_is_not_assembled(): void {
+    val ov = staged_lib()
+    val c = ov.assemble_overlay_crate()
+    assert_eq(c.crate_declares("on_disk"), false, "and what disk still holds is gone, not merged")
+}
+
+@test fun a_file_the_overlay_does_not_name_is_assembled_from_disk(): void {
+    val ov = staged_lib()
+    val c = ov.assemble_overlay_crate()
+    assert_eq(c.crate_declares("untouched"), true, "one buffer is staged; the crate around it is not")
+}
+
+@test fun a_crate_without_a_src_directory_is_reported(): void {
+    val _mk = unsafe { kf_create_dir_all(scratch_path("kf_no_src")) }
+    write_file(scratch_path("kf_no_src/main.kf"), "fun main(): int32 { return 0 }\n")
+
+    val smap: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
+    unsafe { *smap = new_source_map() }
+    val pdiags: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
+    unsafe { *pdiags = List.new<Diagnostic>() }
+
+    val c = assemble_crate(scratch_path("kf_no_src"), String.from("nosrc"), smap, pdiags)
+    assert_eq(c.modules.size(), 0, "no src/ means no modules")
+    assert_eq(unsafe { pdiags.size() } > 0, true, "and the emptiness is reported, not silent")
+}

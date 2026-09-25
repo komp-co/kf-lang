@@ -1,0 +1,45 @@
+// A borrow may not be stored in a struct field or enum payload, where it
+// would outlive what it borrows. A container argument counts: `List<str>`
+// keeps the borrow as surely as `str`. Passing a borrow into a function is
+// fine.
+
+import kf_core.ast.*
+import kf_core.diagnostic.new_label
+import kf_core.diagnostic.new_diagnostic
+
+/// A borrow anywhere inside counts (`Box<&T>`, `List<str>`, `Option<&T>`).
+/// `Ptr<T>` is the unsafe exception.
+pub fun TypeRef.validate_borrow_storage(position: str, ctx: &var TypeCtx): void {
+    self.check_stored_type(self, position, ctx)
+}
+
+/// `outer` is the declared type, `tr` the part under test, so the message
+/// names both.
+fun TypeRef.check_stored_type(outer: &TypeRef, position: str, ctx: &var TypeCtx): void {
+    if type_ref_is_borrow(self) {
+        val message = self.stored_borrow_message(outer, position)
+        ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+        return
+    }
+    when (self.kind) {
+        Named(name, args) => {
+            if name.as_str() == "Ptr" { return }
+            while arg in &args {
+                (arg).check_stored_type(outer, position, ctx)
+            }
+        }
+        Array(elem, _n) => {
+            (unsafe { &*elem }).check_stored_type(outer, position, ctx)
+        }
+        _ => { }
+    }
+}
+
+fun TypeRef.stored_borrow_message(outer: &TypeRef, position: str): String {
+    val rendered = self.display_type_ref()
+    if type_ref_is_borrow(outer) {
+        return "`${rendered.as_str()}` cannot be stored in ${position}: a borrow is only valid for the call that made it"
+    }
+    val whole = outer.display_type_ref()
+    return "`${whole.as_str()}` cannot be stored in ${position}: `${rendered.as_str()}` is a borrow, and a borrow is only valid for the call that made it"
+}

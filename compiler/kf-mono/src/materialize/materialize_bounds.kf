@@ -1,0 +1,108 @@
+// An impl is emitted only for instances that satisfy its bounds:
+// `impl Equal for Option<T: Equal>` must not be cloned for `Option<Never>`,
+// whose `equals` would call a function nothing defines. Struct and enum
+// layouts are not gated; typecheck already rejected unsatisfying instances.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_typecheck.*
+import kf_typecheck.types.trait_args_key
+import kf_typecheck.traits.type_param_key
+import kf_core.ast.subst.clone_type_ref
+import kf_core.ast.subst.subst_tref_list
+
+/// Register every `impl Trait for Type` so `type_implements` can answer.
+/// CONSTRAINT: runs before `normalize_trait_impls`, while the `TraitImpl`
+/// shape still exists.
+pub fun Module.trait_impl_registry(sigs: Ptr<SigTable>): void {
+    while td in &self.decls {
+        when (td.kind) {
+            TraitImpl(tref, _methods) => {
+                val tr = unsafe { *tref }
+                when (tr.kind) {
+                    Named(trait_sym, trait_args) => {
+                        unsafe { sigs.insert_trait_impl(TraitImplInfo {
+                            type_name: td.name.as_string(),
+                            receiver_identity: td.name,
+                            trait_name: trait_sym.as_string(),
+                            trait_args: trait_args_key(&trait_args),
+                            generics: type_param_key(&td.generics),
+                            arg_count: trait_args.size()
+                        }) }
+                    }
+                    _ => { }
+                }
+            }
+            _ => { }
+        }
+    }
+}
+
+/// True for anything that is not an impl, and for an impl whose target
+/// parameters carry no bounds.
+pub fun TopDecl.template_accepts_args(args: &List<TypeRef>, sigs: Ptr<SigTable>): bool {
+    var is_impl = false
+    when (self.kind) {
+        ImplBlock(_ms) => { is_impl = true }
+        TraitImpl(_t, _ms) => { is_impl = true }
+        _ => { }
+    }
+    if !is_impl { return true }
+    // Bounds are read at the instance's types:
+    // `impl Iterable<T> for Wrap<I: Sink<T>, T>` at `<Counter, uint64>` asks
+    // whether `Counter` implements `Sink<uint64>`, not `Sink<T>`.
+    var names = List.new<String>()
+    var repls = List.new<TypeRef>()
+    while g in 0..self.generics.size() {
+        if g < args.size() {
+            names.push(self.generics.at(g).name.as_string())
+            repls.push(clone_type_ref(args.at(g)))
+        }
+    }
+    while i in 0..self.generics.size() {
+        val tp = self.generics.at(i)
+        if i < args.size() {
+            if !(args.at(i)).arg_meets_bounds(tp, sigs, &var names, &var repls) { return false }
+        }
+    }
+    return true
+}
+
+fun TypeRef.arg_meets_bounds(tp: &TypeParam, sigs: Ptr<SigTable>, names: &var List<String>, repls: &var List<TypeRef>): bool {
+    if tp.bounds.size() == 0 { return true }
+
+    // No `impl Trait for` a borrow, function type or array can be written, so
+    // the answer is a decided no.
+    when (self.kind) {
+        Reference(_mut, _pointee) => { return false }
+        Function(_params, _ret) => { return false }
+        Array(_elem, _n) => { return false }
+        _ => { }
+    }
+
+    val base = self.tyref_base_name()
+    // A projection or poison is undecidable here; typecheck judges it.
+    if base.as_str().equals("") { return true }
+    while b in &tp.bounds {
+        when (b.kind) {
+            Named(trait_sym, targs) => {
+                // Substitute the bound's own arguments first: for
+                // `Rev<I: Iterator<T>, T>` the registry holds `Iterator<int32>`,
+                // never `Iterator<T>`.
+                val bound_args = subst_tref_list(&targs, names, repls)
+                val ok = unsafe { sigs.type_implements(base.as_str(), trait_sym.as_str(), trait_args_key(&bound_args).as_str()) }
+                if !ok { return false }
+            }
+            _ => { }
+        }
+    }
+    return true
+}
+
+fun TypeRef.tyref_base_name(): String {
+    return when (self.kind) {
+        Named(n, _args) => n.as_string()
+        _ => ""
+    }
+}

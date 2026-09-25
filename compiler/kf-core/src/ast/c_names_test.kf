@@ -1,0 +1,53 @@
+// Both directions are pinned: an ordinary name keeps its spelling, a
+// colliding one is escaped.
+
+import core.assert.assert_eq
+
+@test fun an_ordinary_local_keeps_the_plain_prefix(): void {
+    assert_eq(c_local_name("x").as_str(), "__x", "an ordinary name takes `__`")
+    assert_eq(c_local_name("count").as_str(), "__count", "so does a longer one")
+    // Near-misses that must not be escaped.
+    assert_eq(c_local_name("signature").as_str(), "__signature", "a name the table only prefixes is untouched")
+    assert_eq(c_local_name("inliner").as_str(), "__inliner", "and so is a longer form of one")
+    assert_eq(c_local_name("Signed").as_str(), "__Signed", "the table is case-sensitive, as C is")
+}
+
+@test fun a_local_spelling_a_gnu_keyword_is_escaped(): void {
+    assert_eq(c_local_name("signed").as_str(), "__kf__signed", "`signed` escapes")
+    assert_eq(c_local_name("const").as_str(), "__kf__const", "so does `const`")
+    assert_eq(c_local_name("inline").as_str(), "__kf__inline", "and `inline`")
+    assert_eq(c_local_name("restrict").as_str(), "__kf__restrict", "and `restrict`")
+    assert_eq(c_local_name("volatile").as_str(), "__kf__volatile", "and `volatile`")
+    assert_eq(c_local_name("asm").as_str(), "__kf__asm", "and `asm`")
+    assert_eq(c_local_name("typeof").as_str(), "__kf__typeof", "and `typeof`")
+}
+
+@test fun both_spellings_of_one_keyword_are_escaped(): void {
+    assert_eq(c_local_name("signed__").as_str(), "__kf__signed__", "the `__x__` spelling escapes too")
+    assert_eq(c_local_name("inline__").as_str(), "__kf__inline__", "as does `__inline__`")
+    // A trailing `__` on a name that is not a keyword is still ordinary.
+    assert_eq(c_local_name("count__").as_str(), "__count__", "stripping `__` does not invent a collision")
+}
+
+@test fun the_builtin_family_is_escaped_without_a_table(): void {
+    // `__builtin_*` is open-ended, so it is matched as a prefix.
+    assert_eq(c_local_name("builtin_expect").as_str(), "__kf__builtin_expect", "a builtin escapes")
+    assert_eq(c_local_name("builtin_unreachable").as_str(), "__kf__builtin_unreachable", "any builtin does")
+    assert_eq(c_local_name("builtins").as_str(), "__builtins", "a name that merely starts alike does not")
+}
+
+@test fun a_predefined_macro_name_is_escaped(): void {
+    assert_eq(c_local_name("LINE").as_str(), "__kf__LINE", "`__LINE__`'s stem escapes")
+    assert_eq(c_local_name("func").as_str(), "__kf__func", "and `__func__`'s")
+}
+
+@test fun a_tag_type_and_its_constants_share_one_prefix(): void {
+    assert_eq(enum_tag_type("Holder").as_str(), "kf__tag__Holder", "the tag typedef is reserved-prefixed")
+    assert_eq(enum_tag_const("Holder", "Full").as_str(), "kf__tag__Holder__Full", "so is each variant constant")
+    assert_eq(enum_tag_const("Option__int32", "Some").as_str(), "kf__tag__Option__int32__Some", "a monomorphized enum is spelled the same way")
+}
+
+@test fun retain_glue_is_out_of_the_method_namespace(): void {
+    assert_eq(type_retain_fn("Point").as_str(), "kf__retain__Point", "retain glue is reserved-prefixed")
+    assert_eq(type_retain_fn("sample__Point").as_str(), "kf__retain__sample__Point", "a crate-qualified type keeps its qualification")
+}

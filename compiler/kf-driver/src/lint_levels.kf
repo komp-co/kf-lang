@@ -1,0 +1,220 @@
+// What a lint does, resolved outside the pass that found it. Innermost wins:
+//
+//   1. the lint's registered default
+//   2. a [lint] table in kf.toml, which komp passes as `--lint NAME=LEVEL`
+//   3. CLI flags, -A/-W/-D by name
+//   4. `@allow(<lint>)` on the enclosing declaration
+//
+// `--deny-warnings` promotes everything that survives.
+
+import core.args.arg_count
+import core.args.arg_at
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+import kf_core.diagnostic.*
+
+// Read straight off the command line.
+
+/// kf.toml first, then CLI flags; later entries override.
+pub struct LintConfig {
+    pub var names:  List<String>
+    pub var levels: List<LintLevel>
+    pub var deny_warnings: bool
+}
+
+pub fun new_lint_config(): LintConfig {
+    return LintConfig { names: List.new<String>(), levels: List.new<LintLevel>(), deny_warnings: false }
+}
+
+/// Later callers win, so a CLI flag overrides kf.toml.
+pub mutating fun LintConfig.set_lint_level(name: str, level: LintLevel): void {
+    var i = 0
+    while i < self.names.size() {
+        if self.names.at(i).as_str().equals(name) {
+            self.levels.set(i, level)
+            return
+        }
+        i = i + 1
+    }
+    self.names.push(String.from(name))
+    self.levels.push(level)
+}
+
+/// The configured level for `name`, or its registered default.
+pub fun LintConfig.configured_level(name: str): LintLevel {
+    var i = 0
+    while i < self.names.size() {
+        if self.names.at(i).as_str().equals(name) { return *self.levels.at(i) }
+        i = i + 1
+    }
+    return default_level_of(name)
+}
+
+fun default_level_of(name: str): LintLevel {
+    return when (lint_default_level(name)) {
+        Error => LintLevel.Deny
+        _ => LintLevel.Warn
+    }
+}
+
+/// Diagnostics without a code pass through, but `deny_warnings` reaches them
+/// too.
+pub fun apply_lint_levels(diags: List<Diagnostic>, m: &Module, cfg: &LintConfig): List<Diagnostic> {
+    var out = List.new<Diagnostic>()
+    while i in 0..diags.size() {
+        val d = *diags.at(i)
+        if !diag_is_lint(&d) {
+            out.push(promote_if_denying(d, cfg))
+            continue
+        }
+        val name = d.code.as_str()
+        var level = cfg.configured_level(name)
+        // The source has the last word.
+        if m.declaration_allows(name, d.primary.span) { level = LintLevel.Allow }
+        if lint_level_allows(level) {
+            continue
+        }
+        var lowered = d
+        lowered.severity = lint_level_severity(level)
+        out.push(promote_if_denying(lowered, cfg))
+    }
+    return out
+}
+
+fun promote_if_denying(d: Diagnostic, cfg: &LintConfig): Diagnostic {
+    if !cfg.deny_warnings { return d }
+    var out = d
+    when (out.severity) {
+        Warning => out.severity = Severity.Error
+        _ => { }
+    }
+    return out
+}
+
+/// By span: the diagnostic knows where its evidence was. Evidence outside
+/// every declaration, such as an unused import, cannot be suppressed this
+/// way.
+fun Module.declaration_allows(name: str, span: Span): bool {
+    if span.is_none() { return false }
+    while td in &self.decls {
+        if td.decl_covers(span) {
+            if td.allows_lint(name) { return true }
+        }
+    }
+    return false
+}
+
+/// Between `span.start` (its `@`, `pub` or keyword) and `decl_end`.
+fun TopDecl.decl_covers(span: Span): bool {
+    if self.span.file_id != span.file_id { return false }
+    if self.decl_end == 0 { return false }
+    return span.start >= self.span.start && span.start < self.decl_end
+}
+
+/// The argument list is captured verbatim, so `allow(a,b)` is split here.
+fun TopDecl.allows_lint(name: str): bool {
+    val text = self.annotation_text("allow")
+    if text.as_str() == "" { return false }
+    return allow_names_include(text.as_str(), name)
+}
+
+/// Segment by segment, so `unused` does not match `unused_import`.
+pub fun allow_names_include(annotation: str, name: str): bool {
+    val n = annotation.byte_len()
+    var i: uint64 = 6            // past `allow(`
+    var start = 6
+    while i <= n {
+        val at_end = i == n
+        var is_sep = false
+        if !at_end {
+            val b = annotation.byte_at(i)
+            is_sep = b == 44 || b == 41      // `,` or `)`
+        }
+        if at_end || is_sep {
+            if i > start {
+                val seg = annotation.substring(start, i)
+                if seg.as_str().trim().as_str() == name { return true }
+            }
+            start = i + 1
+        }
+        i = i + 1
+    }
+    return false
+}
+
+/// `--lint NAME=LEVEL`: the `[lint]` table, which komp reads and passes
+/// row by row. Reported as the table's own rows.
+pub mutating fun LintConfig.apply_table_lint_flags(diags: &var List<Diagnostic>): void {
+    while i in 0..arg_count() {
+        if arg_at(i) == "--lint" && i + 1 < arg_count() {
+            val row = arg_at(i + 1)
+            when (row.index_of("=")) {
+                Some(eq) => {
+                    val name = row.substring(0, eq)
+                    val level = row.substring(eq + 1, row.byte_len())
+                    self.apply_table_lint(name.as_str(), level.as_str(), diags)
+                }
+                None => diags.push(error_at(no_span(), "`--lint ${row}`: expected NAME=LEVEL"))
+            }
+        }
+    }
+}
+
+pub mutating fun LintConfig.apply_table_lint(name: str, level: str, diags: &var List<Diagnostic>): void {
+    if !lint_exists(name) {
+        diags.push(error_at(no_span(), "kf.toml [lint]: no lint named `${name}`"))
+    } else if !is_lint_level_name(level) {
+        val expected = "expected `allow`, `warn` or `deny`"
+        diags.push(error_at(no_span(), "kf.toml [lint]: `${name}` is set to `${level}`; ${expected}"))
+    } else {
+        self.set_lint_level(name, lint_level_named(level))
+    }
+}
+
+/// `-A/-W/-D <lint>` and `--deny-warnings`, over kf.toml. An unknown lint is
+/// reported.
+pub mutating fun LintConfig.apply_cli_lint_flags(diags: &var List<Diagnostic>): void {
+    val n = arg_count()
+    var i = 0
+    while i < n {
+        val a = arg_at(i)
+        if a.equals("--deny-warnings") {
+            self.deny_warnings = true
+        }
+        var level = LintLevel.Warn
+        var is_flag = false
+        if a.equals("-A") { level = LintLevel.Allow; is_flag = true }
+        if a.equals("-W") { level = LintLevel.Warn;  is_flag = true }
+        if a.equals("-D") { level = LintLevel.Deny;  is_flag = true }
+        if is_flag {
+            if i + 1 >= n {
+                diags.push(error_at(no_span(), "`${a}` expects a lint name"))
+            } else {
+                val name = arg_at(i + 1)
+                if !lint_exists(name) {
+                    diags.push(error_at(no_span(), "`${a} ${name}`: no lint by that name"))
+                } else {
+                    self.set_lint_level(name, level)
+                }
+                i = i + 1
+            }
+        }
+        i = i + 1
+    }
+}
+
+/// For a build: the `[lint]` rows komp passed as `--lint`, then `-A/-W/-D`.
+pub fun build_lint_config(): LintConfig {
+    var cfg_diags = List.new<Diagnostic>()
+    return project_lint_config(&var cfg_diags)
+}
+
+/// `build_lint_config`, keeping the problems the configuration itself has.
+pub fun project_lint_config(diags: &var List<Diagnostic>): LintConfig {
+    var cfg = new_lint_config()
+    cfg.apply_table_lint_flags(diags)
+    cfg.apply_cli_lint_flags(diags)
+    return cfg
+}

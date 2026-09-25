@@ -1,0 +1,25 @@
+// One file's text supplied by the caller — an editor's unsaved buffer —
+// instead of read from disk. Only the bytes change: the file keeps its
+// module path, FileId and place in the crate.
+
+/// Absence is marked by an empty `path`, not empty content: an emptied
+/// buffer is a real, empty document.
+pub struct Overlay {
+    pub var path:    String
+    pub var content: String
+}
+
+pub fun no_overlay(): Overlay {
+    return Overlay { path: "", content: "" }
+}
+
+pub fun overlay_for(path: str, content: str): Overlay {
+    return Overlay { path: String.from(path), content: String.from(content) }
+}
+
+/// CONSTRAINT: `path` is compared by exact spelling, as SourceMap path
+/// lookups are; looser matching would stage a file no FileId lookup finds.
+pub fun Overlay.overlay_read(path: str): String {
+    if self.path.as_str() == path { return self.content.clone() }
+    return read_file(path)
+}

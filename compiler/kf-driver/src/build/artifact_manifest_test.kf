@@ -1,0 +1,155 @@
+// artifact.toml round-trip, determinism and strictness.
+
+import core.assert.assert_eq
+import alloc.list.*
+import std.fs.scratch_path
+
+
+extern "C" fun system(cmd: str): int32
+extern "C" fun access(path: str, mode: int32): int32
+
+fun sample_artifact_manifest(): ArtifactManifest {
+    var dep_names = List.new<String>()
+    dep_names.push(String.from("core"))
+    dep_names.push(String.from("alloc"))
+    var dep_hashes = List.new<String>()
+    dep_hashes.push(String.from("11111"))
+    dep_hashes.push(String.from("22222"))
+    return ArtifactManifest {
+        format: String.from("1"),
+        compiler_abi: String.from("komp-1"),
+        runtime_abi: String.from("kflat-runtime-1"),
+        name: String.from("gen_dep"),
+        version: String.from("0.1.0"),
+        target: String.from("x86_64-linux-gnu"),
+        profile: String.from("default"),
+        source_fingerprint: String.from("33333"),
+        interface_hash: String.from("44444"),
+        implementation_hash: String.from("33333"),
+        interface_file: String.from("gen_dep.kfi"),
+        header_file: String.from("gen_dep.h"),
+        archive_file: String.from("libgen_dep.a"),
+        dep_names: dep_names,
+        dep_hashes: dep_hashes
+    }
+}
+
+@test
+fun artifact_render_is_deterministic(): void {
+    val m = sample_artifact_manifest()
+    val first = m.render_artifact_manifest()
+    val second = m.render_artifact_manifest()
+    assert_eq(first.as_str() == second.as_str(), true, "repeated render is byte-identical")
+}
+
+@test
+fun artifact_round_trip_restores_identity(): void {
+    val m = sample_artifact_manifest()
+    val parsed = parse_artifact_manifest(m.render_artifact_manifest().as_str())
+    var same = parsed.ok
+    same = same && parsed.manifest.format.as_str() == "1"
+    same = same && parsed.manifest.compiler_abi.as_str() == "komp-1"
+    same = same && parsed.manifest.runtime_abi.as_str() == "kflat-runtime-1"
+    same = same && parsed.manifest.name.as_str() == "gen_dep"
+    same = same && parsed.manifest.version.as_str() == "0.1.0"
+    same = same && parsed.manifest.target.as_str() == "x86_64-linux-gnu"
+    same = same && parsed.manifest.profile.as_str() == "default"
+    assert_eq(same, true, "identity fields survive a render/parse round trip")
+}
+
+@test
+fun artifact_round_trip_restores_content_hashes(): void {
+    val m = sample_artifact_manifest()
+    val parsed = parse_artifact_manifest(m.render_artifact_manifest().as_str())
+    var same = parsed.ok
+    same = same && parsed.manifest.source_fingerprint.as_str() == "33333"
+    same = same && parsed.manifest.interface_hash.as_str() == "44444"
+    same = same && parsed.manifest.implementation_hash.as_str() == "33333"
+    same = same && parsed.manifest.interface_file.as_str() == "gen_dep.kfi"
+    same = same && parsed.manifest.header_file.as_str() == "gen_dep.h"
+    same = same && parsed.manifest.archive_file.as_str() == "libgen_dep.a"
+    assert_eq(same, true, "hashes and artifact paths survive a round trip")
+}
+
+@test
+fun artifact_round_trip_restores_dependencies(): void {
+    val m = sample_artifact_manifest()
+    val parsed = parse_artifact_manifest(m.render_artifact_manifest().as_str())
+    var same = parsed.ok
+    same = same && parsed.manifest.dep_names.size() == 2
+    same = same && parsed.manifest.dep_names.at(0).as_str() == "core"
+    same = same && parsed.manifest.dep_hashes.at(0).as_str() == "11111"
+    same = same && parsed.manifest.dep_names.at(1).as_str() == "alloc"
+    same = same && parsed.manifest.dep_hashes.at(1).as_str() == "22222"
+    assert_eq(same, true, "dependency hashes survive a round trip in build order")
+}
+
+@test
+fun artifact_parse_rejects_missing_key(): void {
+    val src = "[artifact]\nformat = \"1\"\nname = \"x\"\n\n[dep_interfaces]\n"
+    val parsed = parse_artifact_manifest(src)
+    assert_eq(parsed.ok, false, "a manifest missing required keys is rejected")
+}
+
+@test
+fun artifact_parse_rejects_duplicate_key(): void {
+    val m = sample_artifact_manifest()
+    val src = m.render_artifact_manifest()
+    val dup = String.from(src.as_str()) + String.from("\n[artifact]\nname = \"again\"\n")
+    val parsed = parse_artifact_manifest(dup.as_str())
+    assert_eq(parsed.ok, false, "a duplicated key is rejected")
+}
+
+@test
+fun artifact_parse_rejects_unknown_section(): void {
+    val m = sample_artifact_manifest()
+    val src = String.from(m.render_artifact_manifest().as_str()) + String.from("\n[package]\nname = \"y\"\n")
+    val parsed = parse_artifact_manifest(src.as_str())
+    assert_eq(parsed.ok, false, "an unknown section is a diagnostic, not a silent skip")
+}
+
+@test
+fun artifact_parse_rejects_unknown_key(): void {
+    val m = sample_artifact_manifest()
+    val src = String.from(m.render_artifact_manifest().as_str()) + String.from("\n[artifact]\nflavor = \"vanilla\"\n")
+    val parsed = parse_artifact_manifest(src.as_str())
+    assert_eq(parsed.ok, false, "an unknown key is rejected")
+}
+
+@test
+fun artifact_parse_rejects_unsupported_format(): void {
+    val src = """[artifact]
+format = "99"
+compiler_abi = "komp-1"
+runtime_abi = "kflat-runtime-1"
+name = "x"
+version = "0"
+target = "t"
+profile = "default"
+source_fingerprint = "1"
+interface_hash = "2"
+implementation_hash = "3"
+interface = "x.kfi"
+header = "x.h"
+archive = "libx.a"
+"""
+    val parsed = parse_artifact_manifest(src)
+    assert_eq(parsed.ok, false, "a future metadata format is rejected before use")
+}
+
+@test
+fun artifact_parse_rejects_key_outside_section(): void {
+    val src = "format = \"1\"\n[artifact]\n"
+    val parsed = parse_artifact_manifest(src)
+    assert_eq(parsed.ok, false, "keys before any section header are rejected")
+}
+
+@test
+fun artifact_write_is_atomic(): void {
+    val _prep = unsafe { system("rm -rf ${scratch_path("kf_sc7_manifest")} && mkdir -p ${scratch_path("kf_sc7_manifest")}") }
+    val m = sample_artifact_manifest()
+    val wrote = write_artifact_manifest(scratch_path("kf_sc7_manifest/artifact.toml"), &m)
+    val parsed = parse_artifact_manifest(read_file(scratch_path("kf_sc7_manifest/artifact.toml")).as_str())
+    val no_temp = unsafe { access(scratch_path("kf_sc7_manifest/artifact.toml.tmp"), 0) } != 0
+    assert_eq(wrote && parsed.ok && no_temp, true, "write lands via rename and leaves no temp file")
+}

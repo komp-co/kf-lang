@@ -1,0 +1,38 @@
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_core.diagnostic.*
+
+fun TopDecl.is_source_function(): bool {
+    if self.linkage.is_imported() { return false }
+    return when (self.kind) {
+        Function(_p, _r, _b, _pub, _u, _m, _s) => true
+        _ => false
+    }
+}
+
+/// One free function name defined twice in a module, which would be one C
+/// symbol twice. Reported at the second definition.
+/// CONSTRAINT: externs are not definitions; files redeclare them freely.
+fun Module.reject_duplicate_functions(diags: Ptr<List<Diagnostic>>): void {
+    var seen = HashMap.new<String, uint64>()
+    while i in 0..self.decls.size() {
+        val td = self.decls.at(i)
+        if td.is_source_function() {
+            val key = "${td.crate.raw}:${td.module_path.id}:${td.name.id}"
+            if seen.contains(&key) {
+                val message = td.duplicate_function_message()
+                val lab = new_label(td.decl_name_span(), message)
+                unsafe { diags.push(new_diagnostic(Severity.Error, lab)) }
+            } else {
+                seen.insert(key, i)
+            }
+        }
+    }
+}
+
+/// Named by what an extension is called and extends, not its hidden name.
+fun TopDecl.duplicate_function_message(): String {
+    if self.ext_name.as_str().equals("") { return "`${self.name.as_str()}` is already defined in this module" }
+    return "an extension `${self.ext_name.as_str()}` for this receiver is already defined in this module"
+}

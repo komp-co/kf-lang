@@ -1,0 +1,12 @@
+//! build: fail
+// A repeated integer pattern is a typecheck error.
+
+fun inspect(value: int32): void {
+    when (value) {
+        0 => {}
+        0 => {}
+        _ => {}
+    }
+}
+
+fun main(): void {}

@@ -1,0 +1,56 @@
+// A project's crates as kflatc takes them (`--crate NAME=ROOT`): its build
+// graph, dependencies first and the root last.
+
+import alloc.list.*
+
+import kf_driver.project.absolutize
+import kf_driver.project.join_path
+
+extern "C" fun access(path: str, mode: int32): int32
+
+/// None when the graph is broken.
+pub fun project_crates(root_dir: str): List<BuildCrate> {
+    var graph = build_crate_graph(root_dir)
+    if graph.error.byte_len() > 0 || graph.cycle.byte_len() > 0 { return List.new<BuildCrate>() }
+    return graph.crates
+}
+
+/// The crates of the project around `file_path`; none when no kf.toml sits
+/// above it.
+pub fun project_crates_around(file_path: str): List<BuildCrate> {
+    val root = crate_root_for_file(absolutize(file_path).as_str())
+    if root.as_str() == "" { return List.new<BuildCrate>() }
+    return project_crates(root.as_str())
+}
+
+/// The nearest directory at or above `file_path` holding a kf.toml, or "";
+/// the rule both editor plugins use.
+pub fun crate_root_for_file(file_path: str): String {
+    var dir = parent_dir(file_path)
+    while dir.as_str() != "" {
+        val manifest = join_path(dir.as_str(), "kf.toml")
+        if unsafe { access(manifest.as_str(), 0) } == 0 { return dir }
+        val up = parent_dir(dir.as_str())
+        if up.as_str() == dir.as_str() { return "" }
+        dir = up
+    }
+    return ""
+}
+
+/// "" without a separator; the root answers "/", so the walk stops.
+fun parent_dir(path: str): String {
+    val n = path.byte_len()
+    var last: uint64 = 0
+    var seen = false
+    var i = 0
+    while i < n {
+        if path.byte_at(i) == 47 {
+            last = i
+            seen = true
+        }
+        i = i + 1
+    }
+    if !seen { return "" }
+    if last == 0 { return String.from("/") }
+    return path.substring(0, last)
+}

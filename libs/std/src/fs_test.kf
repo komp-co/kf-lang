@@ -1,0 +1,44 @@
+import core.assert.assert_eq
+import std.fs.scratch_root
+import std.fs.system
+import std.fs.scratch_path
+
+extern "C" fun system(cmd: str): int32
+extern "C" fun kf_str_byte_len(s: str): uint64
+
+@test
+fun the_scratch_root_is_a_directory_this_process_owns(): void {
+    val root = scratch_root()
+    assert_eq(unsafe { kf_str_byte_len(root) } > 0, true, "the root has a name")
+    assert_eq(unsafe { system("test -d ${root}") }, 0, "the root exists as a directory")
+}
+
+@test
+fun a_scratch_path_hangs_below_the_root(): void {
+    val root = scratch_root()
+    val path = scratch_path("fixture/kf.toml")
+    assert_eq(path == "${root}/fixture/kf.toml".as_str(), true, "the subpath is the root plus the name")
+}
+
+@test
+fun the_same_name_answers_the_same_path(): void {
+    // Interned, which is what lets the answer be a `str`.
+    assert_eq(scratch_path("repeated") == scratch_path("repeated"), true, "one name, one answer")
+    assert_eq(scratch_path("repeated") == scratch_path("other"), false, "two names, two answers")
+}
+
+@test
+fun a_child_process_agrees_about_the_root(): void {
+    // Published, not re-derived.
+    val root = scratch_root()
+    assert_eq(unsafe { system("test \"$KOMP_SCRATCH_ROOT\" = ${root}") }, 0,
+        "the root reaches a child through the environment")
+}
+
+@test
+fun a_scratch_path_is_writable(): void {
+    val dir = scratch_path("fs_test_dir")
+    assert_eq(unsafe { system("mkdir -p ${dir} && echo hello > ${dir}/file.txt") }, 0,
+        "a fixture can be written there")
+    assert_eq(read_file("${dir}/file.txt".as_str()).as_str(), "hello\n", "and read back")
+}

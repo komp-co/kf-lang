@@ -1,0 +1,277 @@
+// Rewrites a block used as a value into ordinary statements:
+//
+//   val x = if c { val t = f()      ->   var __blkN: T
+//                  t + 1 }               if c { val t = f()
+//           else { 2 }                          __blkN = t + 1 }
+//                                        else { __blkN = 2 }
+//                                        val x = __blkN
+//
+//   return if c { ... a } else { b }  ->  if c { ...  return a } else { return b }
+//
+// C expressions cannot introduce a statement, so this cannot wait for codegen.
+//
+// CONSTRAINT: runs first in lower_module, before the when-expression desugar
+// and alpha_rename, so the temporary is renamed and refcounted like any local.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_typecheck.types.type_to_type_ref
+
+/// Per-function counter, so two block values get distinct temporaries.
+pub struct BlockTemps {
+    pub var n: uint64
+}
+
+pub mutating fun Module.desugar_block_expr_module(): void {
+    while i in 0..self.decls.size() {
+        block_expr_top_decl(self.decls.at_mut(i))
+    }
+}
+
+mutating fun TopDecl.block_expr_top_decl(): void {
+    when (self.kind) {
+        Function(params, ret, body, p, u, mu, st) => {
+            var temps = BlockTemps { n: 0 }
+            val new_body = block_expr_stmt_list(&body, &var temps)
+            self.kind = TopDeclKind.Function(params, ret, new_body, p, u, mu, st)
+        }
+        ImplBlock(methods) => {
+            while i in 0..methods.size() {
+                block_expr_top_decl(methods.at_mut(i))
+            }
+            self.kind = TopDeclKind.ImplBlock(methods)
+        }
+        Struct(_, _) => return
+        EnumDecl(_, _) => return
+        Extern(_, _, _, _) => return
+        AssocType(_bounds) => return
+        AssocTypeBinding(_chosen) => return
+        TraitDecl(_, _, _) => return
+        TraitImpl(_, _) => return
+        Poison => return
+    }
+}
+
+fun block_expr_stmt_list(stmts: &List<Stmt>, temps: &var BlockTemps): List<Stmt> {
+    var out = List.new<Stmt>()
+    while stmt in &stmts {
+        block_expr_stmt(stmt, temps, &var out)
+    }
+    return out
+}
+
+/// Appends, because a block value expands into several statements.
+fun block_expr_stmt(s: Stmt, temps: &var BlockTemps, out: &var List<Stmt>): void {
+    when (s.kind) {
+        Return(opt_ptr) => {
+            if opt_ptr.is_none() {
+                out.push(s)
+                return
+            }
+            val rp = opt_ptr ?: return
+            if !carries_a_block(unsafe { &*rp }) {
+                out.push(s)
+                return
+            }
+            val expanded = value_stmts(rp, true, intern(""), temps)
+            while item in &expanded {
+                out.push(item)
+            }
+        }
+        LetVal(name, ty_ptr, init_ptr) => expand_block_let(s, name, ty_ptr, init_ptr, true, temps, out)
+        LetVar(name, ty_ptr, init_ptr) => expand_block_let(s, name, ty_ptr, init_ptr, false, temps, out)
+        If(cond_ptr, then_body, else_body) => {
+            val nt = block_expr_stmt_list(&then_body, temps)
+            val ne = block_expr_stmt_list(&else_body, temps)
+            out.push(new_stmt(s.span, StmtKind.If(cond_ptr, nt, ne)))
+        }
+        While(cond_ptr, body) => {
+            out.push(new_stmt(s.span, StmtKind.While(cond_ptr, block_expr_stmt_list(&body, temps))))
+        }
+        ForEach(binder, subj_ptr, body) => {
+            out.push(new_stmt(s.span, StmtKind.ForEach(binder, subj_ptr, block_expr_stmt_list(&body, temps))))
+        }
+        When(subj_ptr, arms) => {
+            var new_arms = List.new<Arm>()
+            while a in &arms {
+                new_arms.push(new_arm(a.span, a.pattern, a.guard, block_expr_stmt_list(&a.body, temps)))
+            }
+            out.push(new_stmt(s.span, StmtKind.When(subj_ptr, new_arms)))
+        }
+        Assign(_, _) => out.push(s)
+        AssignTo(_, _) => out.push(s)
+        Expression(_) => out.push(s)
+        Switch(_, _) => out.push(s)
+        Drop(_) => out.push(s)
+        Release(_) => out.push(s)
+        Break => out.push(s)
+        Continue => out.push(s)
+        Poison => out.push(s)
+    }
+}
+
+/// A binding with no block in it passes through untouched.
+fun expand_block_let(s: Stmt, name: Sym, ty_ptr: Ptr<TypeRef>?, init_ptr: Ptr<Expr>?, is_val: bool, temps: &var BlockTemps, out: &var List<Stmt>): void {
+    // `var __blkN: T`, emitted by this pass, has nothing to look inside.
+    val ip = init_ptr ?: {
+        out.push(s)
+        return
+    }
+    if !carries_a_block(unsafe { &*ip }) {
+        out.push(s)
+        return
+    }
+    val span = s.span
+    val value_ty = unsafe { ip.ty }
+    val temp = temps.fresh_block_temp()
+
+    // Declared without a value; the annotation is required.
+    val ann: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
+    unsafe { *ann = type_to_type_ref(&value_ty, span) }
+    out.push(new_stmt(span, StmtKind.LetVar(temp, ann, null)))
+
+    val expanded = value_stmts(ip, false, temp, temps)
+    while item in &expanded {
+        out.push(item)
+    }
+
+    val vp: Ptr<Expr> = unsafe { alloc<Expr>() }
+    var v = new_expr(span, ExprKind.Variable(temp))
+    v.ty = value_ty
+    unsafe { *vp = v }
+    if is_val {
+        out.push(new_stmt(span, StmtKind.LetVal(name, ty_ptr, vp)))
+    } else {
+        out.push(new_stmt(span, StmtKind.LetVar(name, ty_ptr, vp)))
+    }
+}
+
+/// A block anywhere the value can come from, through if-expression branches.
+/// `if c { 1 } else { 2 }` does not count and stays a C ternary.
+fun Expr.carries_a_block(): bool {
+    when (self.kind) {
+        Block(_) => return true
+        IfExpr(_c, t, el) => {
+            if carries_a_block(unsafe { &*t }) { return true }
+            return carries_a_block(unsafe { &*el })
+        }
+        // A `when` value belongs to the when-expression desugar, except an arm
+        // whose tail is itself an `if` or `when`, which has no single value
+        // pointer to read.
+        WhenExpr(_s, arms) => return some_arm_tail_branches(&arms)
+        _ => return false
+    }
+    return false
+}
+
+fun some_arm_tail_branches(arms: &List<Arm>): bool {
+    while a in &arms {
+        val n = a.body.size()
+        if n > 0 {
+            if unsafe { stmt_value_expr(a.body.at(n - 1)) as uint64 } == 0 {
+                if list_yields_value(&a.body) { return true }
+            }
+        }
+    }
+    return false
+}
+
+/// The statements `e` becomes when its value goes to a `return` or to
+/// `temp`. A block contributes its statements then sinks its tail; an
+/// if-expression becomes an `if` statement whose branches do the same.
+fun value_stmts(ep: Ptr<Expr>, to_return: bool, temp: Sym, temps: &var BlockTemps): List<Stmt> {
+    var out = List.new<Stmt>()
+    // CONSTRAINT: read through the pointer. By value, the call would own and
+    // drop a node the AST still holds.
+    when (unsafe { ep.kind }) {
+        Block(stmts) => {
+            return sink_into_list(&stmts, to_return, temp, temps)
+        }
+        IfExpr(c_ptr, t_ptr, e_ptr) => {
+            val then_body = value_stmts(t_ptr, to_return, temp, temps)
+            val else_body = value_stmts(e_ptr, to_return, temp, temps)
+            out.push(new_stmt(unsafe { ep.span }, StmtKind.If(c_ptr, then_body, else_body)))
+            return out
+        }
+        WhenExpr(subj_ptr, arms) => {
+            // Only the branching-tail arm reaches here; each arm sinks its tail.
+            var new_arms = List.new<Arm>()
+            while a in &arms {
+                new_arms.push(new_arm(a.span, a.pattern, a.guard, sink_into_list(&a.body, to_return, temp, temps)))
+            }
+            out.push(new_stmt(unsafe { ep.span }, StmtKind.When(subj_ptr, new_arms)))
+            return out
+        }
+        _ => {
+            out.push(sink_stmt(ep, to_return, temp))
+            return out
+        }
+    }
+    return out
+}
+
+/// Everything before the tail runs as written; the tail sinks.
+fun sink_into_list(stmts: &List<Stmt>, to_return: bool, temp: Sym, temps: &var BlockTemps): List<Stmt> {
+    var out = List.new<Stmt>()
+    val n = stmts.size()
+    if n == 0 { return out }
+    var head = List.new<Stmt>()
+    var i: uint64 = 0
+    while i + 1 < n {
+        head.push(*stmts.at(i))
+        i = i + 1
+    }
+    val lowered = block_expr_stmt_list(&head, temps)
+    while item in &lowered {
+        out.push(item)
+    }
+    val tail = (stmts.at(n - 1)).sink_tail_stmt(to_return, temp, temps)
+    while item in &tail {
+        out.push(item)
+    }
+    return out
+}
+
+/// An `if` or `when` sinks through every branch. Anything else yields
+/// nothing; typecheck has already rejected a block whose paths do not all
+/// yield.
+fun Stmt.sink_tail_stmt(to_return: bool, temp: Sym, temps: &var BlockTemps): List<Stmt> {
+    var out = List.new<Stmt>()
+    when (self.kind) {
+        Expression(ep) => {
+            out.push(sink_stmt(ep, to_return, temp))
+        }
+        If(cond_ptr, then_body, else_body) => {
+            if else_body.size() == 0 { return out }
+            val nt = sink_into_list(&then_body, to_return, temp, temps)
+            val ne = sink_into_list(&else_body, to_return, temp, temps)
+            out.push(new_stmt(self.span, StmtKind.If(cond_ptr, nt, ne)))
+        }
+        When(subj_ptr, arms) => {
+            var new_arms = List.new<Arm>()
+            while a in &arms {
+                new_arms.push(new_arm(a.span, a.pattern, a.guard, sink_into_list(&a.body, to_return, temp, temps)))
+            }
+            out.push(new_stmt(self.span, StmtKind.When(subj_ptr, new_arms)))
+        }
+        _ => { }
+    }
+    return out
+}
+
+fun sink_stmt(vp: Ptr<Expr>, to_return: bool, temp: Sym): Stmt {
+    val span = unsafe { vp.span }
+    if to_return {
+        return new_stmt(span, StmtKind.Return(Option.Some(vp)))
+    }
+    return new_stmt(span, StmtKind.Assign(temp, vp))
+}
+
+mutating fun BlockTemps.fresh_block_temp(): Sym {
+    var name = String.from("__blk")
+    val n: int64 = self.n as int64
+    name.append(String.of(&(n)).as_str())
+    self.n = self.n + 1
+    return intern(name.as_str())
+}

@@ -1,0 +1,445 @@
+// Types each ExprKind, writing `expr.ty` in place. Mismatches are reported
+// and the node typed poison, so callers continue without cascading.
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+import kf_core.diagnostic.new_label
+import kf_core.diagnostic.new_diagnostic
+import kf_typecheck.types.*
+import kf_typecheck.check.borrow.check_deref
+import kf_typecheck.check.borrow.lint_deref_through_temporary
+import kf_typecheck.check.control.*
+
+pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
+    // The parser's written-`&` tag is cleared here: Lower reads
+    // `coerce == none` before inserting an auto-clone.
+    val written = e.coerce
+    if e.coerce == coerce_written_amp() { e.coerce = coerce_none() }
+    if e.coerce == coerce_written_amp_var() { e.coerce = coerce_none() }
+    when (e.kind) {
+        LitInt(_) => {
+            e.ty = int32_ty(e.span)
+        }
+        LitStr(_) => {
+            e.ty = str_ty(e.span)
+        }
+        LitFloat(_) => {
+            e.ty = float64_ty(e.span)
+        }
+        LitChar(_) => {
+            e.ty = char_ty(e.span)
+        }
+        LitBool(_) => {
+            e.ty = bool_ty(e.span)
+        }
+        Binary(lhs_ptr, op, rhs_ptr) => {
+            check_expr(unsafe { &var *lhs_ptr }, ctx)
+            check_expr(unsafe { &var *rhs_ptr }, ctx)
+    // Before literal coercion, which would give `7` in `n == 7` the borrow's
+    // type.
+            deref_borrowed_operands(lhs_ptr, rhs_ptr, ctx)
+            val checked_lhs = unsafe { *lhs_ptr }
+            val checked_rhs = unsafe { *rhs_ptr }
+            if op.binary_uses_same_type_rhs() && !op.is_pointer_offset(checked_lhs.ty, checked_rhs.ty) {
+                if checked_lhs.operand_takes_other_type(ctx) && !checked_rhs.operand_takes_other_type(ctx) {
+                    apply_expected(unsafe { &var *lhs_ptr }, checked_rhs.ty.clone(), ctx)
+                } else {
+                    apply_expected(unsafe { &var *rhs_ptr }, checked_lhs.ty.clone(), ctx)
+                }
+            }
+            e.ty = op.check_binary_operands(lhs_ptr, rhs_ptr, e.span, ctx)
+        }
+        Unary(op, inner_ptr) => {
+            check_expr(unsafe { &var *inner_ptr }, ctx)
+            val inner = unsafe { *inner_ptr }
+            e.ty = check_unary(op, inner, e.span, ctx)
+        }
+        Deref(inner_ptr) => {
+            check_expr(unsafe { &var *inner_ptr }, ctx)
+            val inner = unsafe { *inner_ptr }
+            e.ty = check_deref(inner, e.span, ctx)
+            lint_deref_through_temporary(&inner, e.span, ctx)
+            e.borrow_written_deref(written, ctx)
+        }
+        Variable(name) => {
+            ctx.note_use(name.as_str(), e.span)
+            val ty = ctx.lookup(name.as_str())
+            if !ctx.is_declared(name.as_str()) {
+                report_undeclared_variable(name.as_str(), e.span, ctx)
+            }
+            e.ty = ty
+        }
+        Call(callee_name, args) => {
+            if callee_name.local_is_callable(args.size(), ctx) {
+                val receiver: Ptr<Expr> = unsafe { alloc<Expr>() }
+                unsafe { *receiver = new_expr(e.span, ExprKind.Variable(callee_name)) }
+                e.kind = ExprKind.MethodCall(receiver, intern("call"), args)
+                check_expr(e, ctx)
+            } else if !e.extension_function_call(callee_name, &var args, ctx) {
+                e.ty = check_call(callee_name.as_string(), args, e.type_args, e.is_intrinsic, e.span, ctx)
+                if ctx.qualified_callee.byte_len() > 0 {
+                    val kept = args.clone()
+                    e.kind = ExprKind.Call(intern(ctx.qualified_callee.as_str()), kept)
+                    ctx.qualified_callee = String.from("")
+                }
+            }
+        }
+        MethodCall(recv_ptr, method_name_sym, args) => {
+            check_method_expr(e, recv_ptr, method_name_sym, &var args, ctx)
+        }
+        FieldAccess(obj_ptr, field_name_sym) => {
+            val field_name = field_name_sym.as_string()
+            // `EnumName.Variant` parses as a FieldAccess; checked before the
+            // receiver is walked as a value.
+            val obj_raw = unsafe { *obj_ptr }
+            val enum_nm = try_get_enum_recv_name(obj_raw.kind, ctx)
+            val not_enum = enum_nm.as_str().equals("")
+            if !not_enum {
+                var no_args = List.new<Expr>()
+                e.ty = check_variant_construction(enum_nm, &var e.type_args, field_name, no_args, e.span, ctx)
+                e.is_variant_ctor = true
+            } else {
+                check_expr(unsafe { &var *obj_ptr }, ctx)
+                val obj = unsafe { *obj_ptr }
+                e.ty = check_field_access(obj.ty, field_name, e.span, ctx)
+            }
+        }
+        IfExpr(cond_ptr, then_ptr, else_ptr) => {
+            e.ty = check_if_expr(cond_ptr, then_ptr, else_ptr, e.span, ctx)
+        }
+        WhenExpr(subj_ptr, arms) => {
+            check_expr(unsafe { &var *subj_ptr }, ctx)
+            val subj = unsafe { *subj_ptr }
+            // Arms are checked as for the statement form; only the value is
+            // extra.
+            check_when_arms(subj.ty, &var arms, e.span, ctx)
+            // Decided before the arms are reconciled: it settles the type the
+            // absent arm's `null` is expected against.
+            wrap_safe_call_value(subj.ty, &var arms, e.span, ctx)
+            e.ty = check_when_expr_value(&arms, ctx)
+        }
+        StructLit(struct_name_sym, fields) => {
+            val struct_name = struct_name_sym.as_string()
+            val n_targs: uint64 = e.type_args.size()
+            if n_targs > 0 || struct_name.as_str().equals("Self") {
+                e.ty = e.check_generic_struct_lit(struct_name, &var fields, ctx)
+            } else {
+                e.ty = check_struct_lit(struct_name.as_str(), &var fields, e.span, ctx)
+            }
+            // Written back: the checkers reorder initialisers into declaration
+            // order, and `when` bound the payload by value.
+            e.kind = ExprKind.StructLit(struct_name_sym, fields)
+        }
+        Cast(inner_ptr, ty_ptr) => {
+            // The operand is typed so a nested receiver can be mangled.
+            check_expr(unsafe { &var *inner_ptr }, ctx)
+            val tr = unsafe { *ty_ptr }
+            e.ty = tr.resolve_type_ref(ctx)
+            reject_enum_to_number_cast(unsafe { (*inner_ptr).ty }, e.ty.clone(), e.span, ctx)
+        }
+        DynCoerce(inner_ptr, _) => {
+            check_expr(unsafe { &var *inner_ptr }, ctx)
+        }
+        Lambda(_, _) => {
+            e.ty = e.check_lambda(ctx)
+        }
+        Block(stmts) => {
+            // Checked through the shared buffer, so nothing is written back.
+            // CONSTRAINT: not through a local, which would hand the payload out
+            // of the arm and free the statements.
+            while i in 0..stmts.size() {
+                (stmts.at_mut(i)).check_stmt(ctx)
+            }
+            // Walked: a trailing `if` or `when` yields through its branches.
+            if !list_yields_value(&stmts) {
+                // Reported here, where the block is, rather than at whatever
+                // reads its `void` later.
+                ctx.emit(new_diagnostic(Severity.Error, new_label(e.span, tail_no_value_msg(&stmts))))
+                e.ty = poison_ty()
+            } else {
+                val joined = list_tail_ty(&stmts, ctx.string_name())
+                apply_list_tail_ty(&stmts, &joined, true, ctx)
+                e.ty = joined
+            }
+        }
+        Retain(_) => return
+        Release(_) => return
+        Poison => return
+    }
+}
+
+/// Borrowed operands of a binary operator are peeled with an explicit `Deref`,
+/// as a field, receiver or `*` already is; otherwise `n == 7` on `&int32` fails
+/// and `a == b` on two borrows compares addresses. `str` is its own kind and
+/// keeps its content comparison.
+fun deref_borrowed_operands(lhs_ptr: Ptr<Expr>, rhs_ptr: Ptr<Expr>, ctx: &var TypeCtx): void {
+    deref_if_borrow(lhs_ptr, ctx)
+    deref_if_borrow(rhs_ptr, ctx)
+}
+
+fun deref_if_borrow(p: Ptr<Expr>, ctx: &var TypeCtx): void {
+    // Decided from the type: reading `*p` into a local would copy an owning Expr.
+    val ty = unsafe { (*p).ty }
+    if ty.is_poison() { return }
+    if ty.kind.kind_tag() != TAG_REF() { return }
+    val span = unsafe { (*p).span }
+    val inner: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *inner = *p }
+    var wrapped = new_expr(span, ExprKind.Deref(inner))
+    wrapped.ty = check_deref(unsafe { *inner }, span, ctx)
+    unsafe { *p = wrapped }
+}
+
+fun BinOp.binary_uses_same_type_rhs(): bool {
+    return when (self) {
+        Add => true
+        Sub => true
+        Mul => true
+        Div => true
+        Mod => true
+        Eq => true
+        NotEq => true
+        Lt => true
+        Gt => true
+        LtEq => true
+        GtEq => true
+        Shl => true
+        Shr => true
+        BitAnd => true
+        BitOr => true
+        BitXor => true
+        _ => false
+    }
+}
+
+fun BinOp.check_binary(lhs: Expr, rhs: Expr, span: Span, ctx: &var TypeCtx): Type {
+    if lhs.ty.is_poison() || rhs.ty.is_poison() {
+        return poison_ty()
+    }
+    return when (self) {
+        Add => self.arith_op(lhs, rhs, span, ctx)
+        Sub => self.arith_op(lhs, rhs, span, ctx)
+        Mul => self.arith_op(lhs, rhs, span, ctx)
+        Div => self.arith_op(lhs, rhs, span, ctx)
+        Mod => self.arith_op(lhs, rhs, span, ctx)
+        Eq => comparison_op(lhs, rhs, span, ctx)
+        NotEq => comparison_op(lhs, rhs, span, ctx)
+        Lt => relational_op(lhs, rhs, span, ctx)
+        Gt => relational_op(lhs, rhs, span, ctx)
+        LtEq => relational_op(lhs, rhs, span, ctx)
+        GtEq => relational_op(lhs, rhs, span, ctx)
+        AndAnd => logical_op(lhs, rhs, span, ctx)
+        OrOr => logical_op(lhs, rhs, span, ctx)
+        Shl => self.bitwise_op(lhs, rhs, span, ctx)
+        Shr => self.bitwise_op(lhs, rhs, span, ctx)
+        BitAnd => self.bitwise_op(lhs, rhs, span, ctx)
+        BitOr => self.bitwise_op(lhs, rhs, span, ctx)
+        BitXor => self.bitwise_op(lhs, rhs, span, ctx)
+    }
+}
+
+fun BinOp.bitwise_op(lhs: Expr, rhs: Expr, span: Span, ctx: &var TypeCtx): Type {
+    if !lhs.ty.type_eq(rhs.ty) {
+        emit_operator_type_mismatch(lhs.ty, rhs.ty, span, ctx)
+        return poison_ty()
+    }
+    if !operator_type_implements(lhs.ty, self.bitwise_trait_name(), ctx) {
+        emit_missing_operator_impl(lhs.ty, self.bitwise_trait_name(), span, ctx)
+        return poison_ty()
+    }
+    return lhs.ty
+}
+
+fun BinOp.bitwise_trait_name(): str {
+    return when (self) {
+        Shl => "Shl"
+        Shr => "Shr"
+        BitAnd => "BitAnd"
+        BitOr => "BitOr"
+        BitXor => "BitXor"
+        _ => ""
+    }
+}
+
+// `+` is Add, `-` Sub, and so on.
+fun BinOp.arith_trait_name(ctx: &var TypeCtx): Sym {
+    return when (self) {
+        Add => ctx.lang_trait_name(lang_add_key())
+        Sub => ctx.lang_trait_name(lang_sub_key())
+        Mul => ctx.lang_trait_name(lang_mul_key())
+        Div => ctx.lang_trait_name(lang_div_key())
+        Mod => intern("Mod")
+        _ => intern("")
+    }
+}
+
+// Dispatches to the matching core.arith impl and returns `Self`.
+fun BinOp.arith_op(lhs: Expr, rhs: Expr, span: Span, ctx: &var TypeCtx): Type {
+    if self.is_pointer_offset(lhs.ty, rhs.ty) {
+        return lhs.ty
+    }
+    if !lhs.ty.type_eq(rhs.ty) {
+        emit_operator_type_mismatch(lhs.ty, rhs.ty, span, ctx)
+        return poison_ty()
+    }
+    val trait_name = self.arith_trait_name(ctx).as_str()
+    if !operator_type_implements(lhs.ty, trait_name, ctx) {
+        emit_missing_operator_impl(lhs.ty, trait_name, span, ctx)
+        return poison_ty()
+    }
+    return lhs.ty
+}
+
+fun BinOp.is_pointer_offset(left: Type, right: Type): bool {
+    var offset_operator = false
+    when (self) {
+        Add => { offset_operator = true }
+        Sub => { offset_operator = true }
+        _ => { }
+    }
+    if !offset_operator { return false }
+    return when (left.kind) {
+        PtrTo(_) => is_integer_type(right)
+        _ => false
+    }
+}
+
+fun is_integer_type(t: Type): bool {
+    return when (t.kind) {
+        Int8 => true
+        Int16 => true
+        Int32 => true
+        Int64 => true
+        UInt8 => true
+        UInt16 => true
+        UInt32 => true
+        UInt64 => true
+        _ => false
+    }
+}
+
+fun operator_type_implements(ty: Type, trait_name: str, ctx: &var TypeCtx): bool {
+    when (ty.kind) {
+        Struct(identity) => {
+            if unsafe { (*ctx.sigs).identity_implements(identity, trait_name, "") } { return true }
+            return unsafe { (*ctx.sigs).type_implements(identity.as_str(), trait_name, "") }
+        }
+        EnumTy(identity) => {
+            if unsafe { (*ctx.sigs).identity_implements(identity, trait_name, "") } { return true }
+            return unsafe { (*ctx.sigs).type_implements(identity.as_str(), trait_name, "") }
+        }
+        Generic(name) => return owner_has_bound(ctx.fn_owner.clone(), name.as_string(), String.from(trait_name), ctx)
+        _ => {}
+    }
+    val base = ty.ty_base_name()
+    if base.as_str().equals("") { return false }
+    return unsafe { (*ctx.sigs).type_implements(base.as_str(), trait_name, "") }
+}
+
+
+fun comparison_op(lhs: Expr, rhs: Expr, span: Span, ctx: &var TypeCtx): Type {
+    val equal = ctx.lang_trait_name(lang_equal_key()).as_str()
+    if !lhs.ty.type_eq(rhs.ty) {
+        emit_operator_type_mismatch(lhs.ty, rhs.ty, span, ctx)
+        return poison_ty()
+    }
+    if ctx.defining_trait_method(equal, "equals") {
+        if lhs.operands_reenter_method(&rhs, ctx) {
+            emit_self_recursive_operator("==", "equals", "compare the fields, or derive `Equal`", span, ctx)
+            return poison_ty()
+        }
+    }
+    if is_numeric(lhs.ty) {
+        if !operator_type_implements(lhs.ty, equal, ctx) {
+            emit_missing_operator_impl(lhs.ty, equal, span, ctx)
+            return poison_ty()
+        }
+        return bool_ty(span)
+    }
+    // `==` needs `Equal`; raw strings and pointers compare by representation.
+    when (lhs.ty.kind) {
+        StrTy => return bool_ty(span)
+        PtrTo(_) => return bool_ty(span)
+        BoxOf(_) => return bool_ty(span)
+        RefTo(_, _) => return bool_ty(span)
+        _ => {}
+    }
+    if !operator_type_implements(lhs.ty, equal, ctx) {
+        emit_missing_operator_impl(lhs.ty, equal, span, ctx)
+        return poison_ty()
+    }
+    return bool_ty(span)
+}
+
+fun relational_op(lhs: Expr, rhs: Expr, span: Span, ctx: &var TypeCtx): Type {
+    val compare = ctx.lang_trait_name(lang_compare_key()).as_str()
+    if !lhs.ty.type_eq(rhs.ty) {
+        emit_operator_type_mismatch(lhs.ty, rhs.ty, span, ctx)
+        return poison_ty()
+    }
+    if ctx.defining_trait_method(compare, "compare") {
+        if lhs.operands_reenter_method(&rhs, ctx) {
+            emit_self_recursive_operator("<", "compare", "compare the fields", span, ctx)
+            return poison_ty()
+        }
+    }
+    if is_numeric(lhs.ty) {
+        if !operator_type_implements(lhs.ty, compare, ctx) {
+            emit_missing_operator_impl(lhs.ty, compare, span, ctx)
+            return poison_ty()
+        }
+        return bool_ty(span)
+    }
+    // Ordered comparisons need `Compare`.
+    if !operator_type_implements(lhs.ty, compare, ctx) {
+        emit_missing_operator_impl(lhs.ty, compare, span, ctx)
+        return poison_ty()
+    }
+    return bool_ty(span)
+}
+
+
+fun logical_op(lhs: Expr, rhs: Expr, span: Span, ctx: &var TypeCtx): Type {
+    val bool_ty_val = bool_ty(no_span())
+    val is_bool_l = lhs.ty.type_eq(bool_ty_val)
+    val is_bool_r = rhs.ty.type_eq(bool_ty_val)
+    if !is_bool_l || !is_bool_r {
+        return poison_ty()
+    }
+    return bool_ty(span)
+}
+
+/// A field access or method call on `Ptr<T>`, `&T` or `&var T` resolves
+/// against the pointee, repeatedly.
+pub fun autoderef_ty(t: Type): Type {
+    return when (t.kind) {
+        PtrTo(p)    => autoderef_ty(unsafe { *p })
+        BoxOf(p)    => autoderef_ty(unsafe { *p })
+        RefTo(_, p) => autoderef_ty(unsafe { *p })
+        _ => t
+    }
+}
+
+/// `opt as uint64` is rejected: it reads an enum's representation, and is
+/// the shape a null-sentinel test takes after migration to an Option.
+fun reject_enum_to_number_cast(from: Type, to: Type, span: Span, ctx: &var TypeCtx): void {
+    if from.is_poison() { return }
+    if !is_numeric(to) { return }
+    if !from.type_is_enum_layout(ctx) { return }
+    val msg = "`${mangle_type(from).as_str()}` is an enum and cannot be cast to a number — test it with `.is_some()` / `.is_none()`, or match it"
+    ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+}
+
+/// Every user type resolves to `Struct(name)`, so the layout table tells an
+/// enum apart.
+fun Type.type_is_enum_layout(ctx: &var TypeCtx): bool {
+    val tag = self.kind.kind_tag()
+    if tag == TAG_ENUM() { return true }
+    if tag != TAG_STRUCT() { return false }
+    val sp = ctx.sigs
+    val name = self.kind.struct_name()
+    if unsafe { sp.find_struct(name.as_str(), ctx.owner_crate) }.is_some() { return false }
+    return unsafe { sp.find_enum(name.as_str(), ctx.owner_crate) }.is_some()
+}

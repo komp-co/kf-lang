@@ -1,0 +1,111 @@
+// The typed half of `komp query`: types come from the checker, which needs
+// the whole crate, so the crates komp names are assembled around the file and
+// the signature table kept.
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+import kf_assemble.no_overlay
+import kf_assemble.overlay_for
+import kf_resolve.*
+import kf_typecheck.*
+import kf_typecheck.types.display_type
+import kf_driver.fresh_source_map
+import kf_driver.build.fresh_diag_list
+import kf_driver.build.merge_module_list
+import kf_driver.build.CrateSource
+import kf_driver.build.assemble_crate_list
+import kf_driver.build.crate_sources_from_args
+import kf_driver.project.absolutize
+
+/// `ok` is false for a file with no crate above it.
+pub struct QueryCrate {
+    pub var ok:      bool
+    pub var file_id: uint32
+    pub var module:  Module
+    pub var sigs:    Ptr<SigTable>
+    pub var source:  String
+    /// The queried crate's source root; files under it are its own.
+    pub var root:    String
+    /// For answers spanning several files.
+    pub var smap:    Ptr<SourceMap>
+}
+
+/// `staged` marks absence: an emptied buffer is still a document. `crates`
+/// run dependencies first, the queried crate last.
+pub fun typed_crate_staged(file_path: str, buffer: str, staged: bool, crates: &List<CrateSource>): QueryCrate {
+    val abs_file = absolutize(file_path)
+    if crates.size() == 0 {
+        return QueryCrate {
+            ok: false, file_id: 0, module: new_module(List.new<String>()), sigs: empty_sig_table(), source: "",
+            smap: fresh_source_map(), root: ""
+        }
+    }
+    val smap = fresh_source_map()
+    val pdiags = fresh_diag_list()
+    // With the root's tests, since the buffer is often a `_test.kf`. Keyed to
+    // the path the assembly will spell.
+    var overlay = no_overlay()
+    if staged { overlay = overlay_for(abs_file.as_str(), buffer) }
+    var merged = merge_module_list(assemble_crate_list(crates, smap, pdiags, true, &overlay))
+
+    // Diagnostics are dropped: they would interleave with the answer on
+    // stdout, and the editor has them from `komp check`.
+    val callers = new_import_files()
+    val targets = new_import_syms()
+    val names = new_import_syms()
+    val _import_diags = validate_imports_per_module(&var merged, callers, targets, names, smap)
+    var table = new_decl_table()
+    resolve_module(&var merged, &var table)
+    val typed = typecheck_module_typed(&var merged, &var table, callers, targets, names)
+
+    val fid = file_id_for_path(smap, abs_file.as_str())
+    var text = ""
+    when (unsafe { smap.get_file(fid) }) {
+        Some(f) => text = f.content.clone()
+        None => {}
+    }
+    val root = crates.at(crates.size() - 1).root.clone()
+    return QueryCrate { ok: fid != 0, file_id: fid, module: merged, sigs: typed.sigs, source: text, smap: smap, root: root }
+}
+
+/// kflatc's query: the crates are the `--crate` rows komp passed.
+/// `overlay_path` is the staged buffer, or "" when none was staged.
+pub fun crate_for_query(file_path: str, overlay_path: str): QueryCrate {
+    val crates = crate_sources_from_args()
+    if overlay_path == "" { return typed_crate_staged(file_path, "", false, &crates) }
+    val buffer = read_file(overlay_path)
+    return typed_crate_staged(file_path, buffer.as_str(), true, &crates)
+}
+
+/// As its author wrote it.
+pub fun Type.query_display_type(sigs: Ptr<SigTable>): String {
+    val ctx = new_type_ctx(poison_ty(), fresh_diag_list(), null, sigs)
+    return display_type(self, &ctx)
+}
+
+fun empty_sig_table(): Ptr<SigTable> {
+    val p: Ptr<SigTable> = unsafe { alloc<SigTable>() }
+    unsafe { *p = new_sig_table() }
+    return p
+}
+
+/// "" when the map has no such file.
+pub fun path_for_file_id(smap: Ptr<SourceMap>, file_id: uint32): String {
+    when (unsafe { smap.get_file(file_id) }) {
+        Some(f) => return f.path.clone()
+        None => return ""
+    }
+}
+
+/// 0 when the walk never read it: outside `src/`, or a `_test.kf`.
+fun file_id_for_path(smap: Ptr<SourceMap>, path: str): uint32 {
+    var i = 0
+    while i < unsafe { smap.files.size() } {
+        val f = unsafe { *smap.files.at(i) }
+        if f.path.as_str() == path { return (i + 1) as uint32 }
+        i = i + 1
+    }
+    return 0
+}

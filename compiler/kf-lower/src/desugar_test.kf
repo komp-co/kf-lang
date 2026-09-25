@@ -1,0 +1,127 @@
+import core.assert.*
+import alloc.list.*
+
+import kf_core.span.no_span
+import kf_core.ast.*
+
+fun null_expr_p(): Ptr<Expr> {
+    return unsafe { 0 as Ptr<Expr> }
+}
+
+fun mk_some_x_arm(): Arm {
+    val inner = new_pattern(no_span(), PatternKind.Identifier(intern("x")))
+    var payloads = List.new<Pattern>()
+    payloads.push(inner)
+    val some_pat = new_pattern(no_span(), PatternKind.Variant(intern("Some"), payloads))
+    val sp: Ptr<Pattern> = unsafe { alloc<Pattern>() }
+    unsafe { *sp = some_pat }
+    var body = List.new<Stmt>()
+    body.push(new_stmt(no_span(), StmtKind.Return(bare_op())))
+    return new_arm(no_span(), sp, null_expr_p(), body)
+}
+
+fun mk_none_arm(): Arm {
+    val none_pat = new_pattern(no_span(), PatternKind.Variant(intern("None"), List.new<Pattern>()))
+    val np: Ptr<Pattern> = unsafe { alloc<Pattern>() }
+    unsafe { *np = none_pat }
+    var body = List.new<Stmt>()
+    body.push(new_stmt(no_span(), StmtKind.Return(bare_op())))
+    return new_arm(no_span(), np, null_expr_p(), body)
+}
+
+@test fun desugar_when_to_switch(): void {
+    var arms = List.new<Arm>()
+    arms.push(mk_some_x_arm())
+    arms.push(mk_none_arm())
+    val subj = new_expr(no_span(), ExprKind.Variable(intern("opt")))
+    val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *sp = subj }
+    val w = new_stmt(no_span(), StmtKind.When(sp, arms))
+    val rewritten = desugar_stmt(w)
+    when (rewritten.kind) {
+        Switch(_, switch_arms) => {
+            assert_eq(switch_arms.size() == 2, true, "two arms")
+            val a0 = *switch_arms.at(0)
+            when (a0.tag) {
+                Variant(name) => assert_eq(name.as_str(), "Some", "first arm tag is Some")
+                IntLit(_) => assert_eq(false, true, "expected Variant tag, got IntLit")
+                Wildcard => assert_eq(false, true, "expected Variant tag, got Wildcard")
+            }
+            assert_eq(a0.binders.size() == 1, true, "Some(x) has 1 binder")
+            assert_eq(a0.binders.get(0).as_str(), "x", "binder is x")
+        }
+        _ => assert_eq(false, true, "expected Switch")
+    }
+}
+
+@test fun desugar_when_wildcard_arm(): void {
+    val wild = new_pattern(no_span(), PatternKind.Wildcard)
+    val wp: Ptr<Pattern> = unsafe { alloc<Pattern>() }
+    unsafe { *wp = wild }
+    var body = List.new<Stmt>()
+    body.push(new_stmt(no_span(), StmtKind.Return(bare_op())))
+    val arm = new_arm(no_span(), wp, null_expr_p(), body)
+    var arms = List.new<Arm>()
+    arms.push(arm)
+
+    val subj = new_expr(no_span(), ExprKind.LitBool(true))
+    val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *sp = subj }
+    val w = new_stmt(no_span(), StmtKind.When(sp, arms))
+    val rewritten = desugar_stmt(w)
+    when (rewritten.kind) {
+        Switch(_, switch_arms) => {
+            val a = *switch_arms.at(0)
+            when (a.tag) {
+                Wildcard => assert_eq(true, true, "wildcard tag preserved")
+                Variant(_) => assert_eq(false, true, "expected Wildcard")
+                IntLit(_) => assert_eq(false, true, "expected Wildcard, got IntLit")
+            }
+            assert_eq(a.binders.size() == 0, true, "wildcard binds nothing")
+        }
+        _ => assert_eq(false, true, "expected Switch")
+    }
+}
+
+@test fun desugar_module_empty_clean(): void {
+    var m = Module {
+        crate: crate_id_poison(),
+        path: List.new<String>(),
+        decls: List.new<TopDecl>(),
+        imports: List.new<Import>()
+    }
+    m.desugar_module()
+    assert_eq(m.decls.size() == 0, true, "empty module survives desugar")
+}
+
+// A literal pattern is a scalar tag, not `default:`.
+@test fun an_integer_pattern_lowers_to_a_scalar_tag(): void {
+    val tag = (new_pattern(no_span(), PatternKind.LitInt(7))).pattern_to_tag()
+    when (tag) {
+        IntLit(n) => assert_eq(n, 7, "the literal carries through to the case constant")
+        Variant(_) => fail("expected IntLit, got Variant")
+        Wildcard => fail("expected IntLit, got Wildcard")
+    }
+}
+
+@test fun a_true_pattern_lowers_to_one(): void {
+    val tag = (new_pattern(no_span(), PatternKind.LitBool(true))).pattern_to_tag()
+    when (tag) {
+        IntLit(n) => assert_eq(n, 1, "C compares a bool as an integer")
+        Variant(_) => fail("expected IntLit, got Variant")
+        Wildcard => fail("expected IntLit, got Wildcard")
+    }
+}
+
+@test fun a_false_pattern_lowers_to_zero(): void {
+    val tag = (new_pattern(no_span(), PatternKind.LitBool(false))).pattern_to_tag()
+    when (tag) {
+        IntLit(n) => assert_eq(n, 0, "`false` is case 0")
+        Variant(_) => fail("expected IntLit, got Variant")
+        Wildcard => fail("expected IntLit, got Wildcard")
+    }
+}
+
+fun bare_op(): Ptr<Expr>? {
+    return null
+}

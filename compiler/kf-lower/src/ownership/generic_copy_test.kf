@@ -1,0 +1,54 @@
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.span.no_span
+import kf_core.ast.*
+
+fun param_bounded(name: str, bound: str): TypeParam {
+    var tp = new_type_param(no_span(), String.from(name))
+    tp.bounds.push(new_type_ref(no_span(), TypeRefKind.Named(intern(bound), List.new<TypeRef>())))
+    return tp
+}
+
+fun empty_fn(name: str): TopDecl {
+    return new_top_decl(no_span(), String.from(name),
+        TopDeclKind.Function(List.new<Param>(), void_ret(), List.new<Stmt>(), true, false, false, false))
+}
+
+@test
+fun a_written_bound_is_found(): void {
+    assert_eq(param_is_bounded_by(&param_bounded("T", "Clone"), intern("Clone")), true, "`T: Clone` names Clone")
+}
+
+@test
+fun another_bound_is_not_that_trait(): void {
+    assert_eq(param_is_bounded_by(&param_bounded("T", "Equal"), intern("Clone")), false, "`T: Equal` is not Clone")
+}
+
+@test
+fun an_unknown_trait_bounds_nothing(): void {
+    assert_eq(param_is_bounded_by(&param_bounded("T", "Clone"), intern("")), false,
+        "with no lang trait in scope, nothing counts as bounded")
+}
+
+@test
+fun a_generic_function_is_a_template(): void {
+    var f = empty_fn("pick")
+    f.generics.push(new_type_param(no_span(), String.from("T")))
+    assert_eq(decl_is_template(&f), true, "it has a type parameter")
+}
+
+@test
+fun a_plain_function_is_not_a_template(): void {
+    assert_eq(decl_is_template(&empty_fn("main")), false, "no type parameters")
+}
+
+@test
+fun an_impl_with_a_generic_method_is_a_template(): void {
+    var method = empty_fn("map")
+    method.generics.push(new_type_param(no_span(), String.from("F")))
+    var methods = List.new<TopDecl>()
+    methods.push(method)
+    val block = new_top_decl(no_span(), String.from("Bag"), TopDeclKind.ImplBlock(methods))
+    assert_eq(decl_is_template(&block), true, "one generic method is enough")
+}

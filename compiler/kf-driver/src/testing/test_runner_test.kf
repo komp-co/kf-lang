@@ -1,0 +1,120 @@
+import alloc.list.*
+import core.assert.assert_eq
+
+import kf_core.span.no_span
+import kf_core.ast.*
+import kf_driver.fresh_source_map
+
+// A null return-type pointer means `: void`.
+fun mk_void_fn(name: str, annotation: str): TopDecl {
+    val body = List.new<Stmt>()
+    val params = List.new<Param>()
+    val null_ret: Ptr<TypeRef> = unsafe { 0 as Ptr<TypeRef> }
+    var td = new_top_decl(no_span(), String.from(name), TopDeclKind.Function(params, null_ret, body, false, false, false, false))
+    td.annotations.push(String.from(annotation))
+    return td
+}
+
+fun contains_sub(hay: str, needle: str): bool {
+    val hn = hay.byte_len()
+    val nn = needle.byte_len()
+    if nn == 0 { return true }
+    if hn < nn { return false }
+    var i: uint64 = 0
+    while i + nn <= hn {
+        var matched = true
+        var j: uint64 = 0
+        while j < nn {
+            val hb = hay.byte_at(i + j)
+            val nb = needle.byte_at(j)
+            if hb != nb { matched = false }
+            j = j + 1
+        }
+        if matched { return true }
+        i = i + 1
+    }
+    return false
+}
+
+@test fun collect_test_names_picks_only_test_annotated(): void {
+    var decls = List.new<TopDecl>()
+    decls.push(mk_void_fn("a", "test"))
+    decls.push(mk_void_fn("helper", ""))
+    decls.push(mk_void_fn("b", "test"))
+    var mods = List.new<Module>()
+    mods.push(Module { crate: crate_id_poison(), path: List.new<String>(), decls: decls, imports: List.new<Import>() })
+    val names = collect_test_names(mods)
+    assert_eq(names.size(), 2, "two @test fns collected")
+    assert_eq(names.at(0).as_str(), "a", "first test name")
+    assert_eq(names.at(1).as_str(), "b", "second test name")
+}
+
+@test fun gen_test_main_src_calls_each_test(): void {
+    var names = List.new<String>()
+    names.push(String.from("alpha"))
+    names.push(String.from("beta"))
+    val src = gen_test_main_src(names)
+    assert_eq(contains_sub(src.as_str(), "running 2 tests"), true, "header counts tests")
+    assert_eq(contains_sub(src.as_str(), "alpha()"), true, "calls alpha")
+    assert_eq(contains_sub(src.as_str(), "beta()"), true, "calls beta")
+}
+
+@test fun gen_test_main_parses_back_to_a_module(): void {
+    var names = List.new<String>()
+    names.push(String.from("alpha"))
+    val src = gen_test_main_src(names)
+    val m = parse_test_main(src.as_str(), fresh_source_map())
+    val last = *m.decls.at(m.decls.size() - 1)
+    assert_eq(last.name.as_str(), "main", "generated module defines main")
+}
+
+@test fun gen_test_main_guards_each_test_with_the_filter(): void {
+    var names = List.new<String>()
+    names.push(String.from("alpha"))
+    val src = gen_test_main_src(names)
+    assert_eq(contains_sub(src.as_str(), "__test_matches(__f, \"alpha\")"), true, "each call sits behind the filter")
+    assert_eq(contains_sub(src.as_str(), "--filter"), true, "the filter is read from argv")
+}
+
+// Counted at run time from what the parent observed.
+@test fun gen_test_main_tallies_at_runtime(): void {
+    var names = List.new<String>()
+    names.push(String.from("alpha"))
+    val src = gen_test_main_src(names)
+    assert_eq(contains_sub(src.as_str(), "kf_test_report(__ran, __failed)"), true, "the summary reports observed counts")
+}
+
+@test fun gen_test_main_fails_on_a_filter_matching_nothing(): void {
+    var names = List.new<String>()
+    names.push(String.from("alpha"))
+    val src = gen_test_main_src(names)
+    assert_eq(contains_sub(src.as_str(), "the filter matched no test"), true, "an empty filter run fails")
+}
+
+@test fun gen_test_main_runs_each_test_in_a_child(): void {
+    var names = List.new<String>()
+    names.push(String.from("alpha"))
+    val src = gen_test_main_src(names)
+    assert_eq(contains_sub(src.as_str(), "kf_test_queue(\"alpha\")"), true, "the parent queues rather than calls")
+}
+
+@test fun gen_test_main_returns_nonzero_when_a_test_failed(): void {
+    var names = List.new<String>()
+    names.push(String.from("alpha"))
+    val src = gen_test_main_src(names)
+    assert_eq(contains_sub(src.as_str(), "if __failed > 0 { return 1 }"), true, "a failed child fails the run")
+}
+
+@test fun gen_test_main_child_runs_only_the_named_test(): void {
+    var names = List.new<String>()
+    names.push(String.from("alpha"))
+    val src = gen_test_main_src(names)
+    assert_eq(contains_sub(src.as_str(), "__test_is(__one, \"alpha\")"), true, "the child matches its name exactly")
+}
+
+@test fun gen_test_main_child_rejects_an_unknown_name(): void {
+    var names = List.new<String>()
+    names.push(String.from("alpha"))
+    val src = gen_test_main_src(names)
+    assert_eq(contains_sub(src.as_str(), "no such test"), true, "a stale name fails rather than passing silently")
+}

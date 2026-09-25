@@ -1,0 +1,265 @@
+// Instantiates generic declarations: finds every (template, type args) the
+// program uses, clones and substitutes each into a concrete declaration,
+// repeats until no new instance appears, then strips the templates.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_typecheck.*
+import kf_mono.collect.*
+import kf_mono.mono_dyn_metadata
+import kf_typecheck.types.subst_projections_in_decl
+import kf_typecheck.types.subst_projections_module
+import kf_typecheck.check.decl.assoc_projection_registry
+import kf_core.ast.subst.monomorphized_type_name
+
+/// A needed instantiation. `owner` is empty for a top-level template and
+/// names the receiver type for a generic method, which has no top-level name:
+/// `t.draw<DrawProbe>(..)` is `owner: "Terminal", base: "draw"`.
+///
+/// CONSTRAINT: `pub`, because `free_inst` and `collect_insts_in_decl` are and
+/// name it. A public signature naming a private type emits two incompatible
+/// C structs.
+pub struct Inst {
+    val base: String
+    val args: List<TypeRef>
+    val owner: String
+}
+
+pub fun free_inst(base: String, args: List<TypeRef>): Inst {
+    return Inst { base: base, args: args, owner: "" }
+}
+
+/// Owner-qualified, so `Terminal.draw` and a free `draw` stay distinct.
+fun Inst.inst_key(): String {
+    val mangled = monomorphized_type_name(String.from(self.base.as_str()), &self.args)
+    if self.owner.as_str().equals("") { return mangled }
+    var key = String.from(self.owner.as_str())
+    key.append("_")
+    key.append(mangled.as_str())
+    return key
+}
+
+pub mutating fun Module.materialize_generics(): void {
+    var work = List.new<Inst>()
+    // Every generic-parameter name in the module; an instantiation mentioning
+    // one is abstract. Built once: cloning never introduces new parameters.
+    val gps = self.collect_generic_param_names()
+    val marities = self.collect_method_arities()
+    // Each impl's associated-type bindings as written. Clones below resolve
+    // their projections on the spot, since the instance name depends on it;
+    // impls the loop mints are caught by the module pass at the end.
+    val proj_sigs = assoc_projection_registry(self)
+    self.trait_impl_registry(proj_sigs)
+    // Seeded from non-generic bodies only; templates are walked once cloned.
+    while td in &self.decls {
+        if td.generics.size() == 0 {
+            td.collect_insts_in_decl(&gps, &marities, &var work)
+        }
+    }
+
+    var done = List.new<String>()
+    var w = 0
+    while w < work.size() {
+        val inst = *work.at(w)
+        val mangled_name = monomorphized_type_name(String.from(inst.base.as_str()), &inst.args)
+        val key = inst.inst_key()
+        val seen = str_name_list_contains(&done, key.as_str())
+        if !seen {
+            done.push(key.clone())
+            // A generic method is materialized inside the impl block `owner`.
+            if !inst.owner.as_str().equals("") {
+                self.materialize_impl_method(&inst, mangled_name.clone(), &gps, &marities, &var work, proj_sigs)
+            } else {
+                // Every template named `base` is materialized: the struct and
+                // its impl blocks share it. The count is snapshotted so appended
+                // decls are not re-scanned as templates.
+                val n0 = self.decls.size()
+                var ti = 0
+                while ti < n0 {
+                    val tmpl = *self.decls.at(ti)
+                    if tmpl.generics.size() > 0 {
+                        if tmpl.answers_to(inst.base.as_str()) {
+                          if tmpl.template_accepts_args(&inst.args, proj_sigs) {
+                            var newdecl = clone_subst_decl(tmpl, inst.args, mangled_name.clone())
+                            if !is_poison_decl(newdecl) {
+                                // CONSTRAINT: in a separate build every TU that
+                                // uses an instance emits its own copy, so it is
+                                // stamped GenericTemplate to pass the header's
+                                // crate filter.
+                                if !self.crate.is_poison() {
+                                    newdecl.linkage = Linkage.GenericTemplate
+                                }
+                                // Scanned before the push consumes it, and its
+                                // projections resolved first, since an unresolved
+                                // one would be minted into an instance name.
+                                subst_projections_in_decl(&var newdecl, proj_sigs)
+                                newdecl.collect_insts_in_decl(&gps, &marities, &var work)
+                                self.decls.push(newdecl)
+                            }
+                          }
+                        }
+                    }
+                    ti = ti + 1
+                }
+            }
+        }
+        w = w + 1
+    }
+
+    self.strip_templates()
+    self.strip_impl_method_templates()
+    // CONSTRAINT: projections are resolved here, before normalize_trait_impls
+    // turns TraitImpls into ImplBlocks and the bindings are lost.
+    subst_projections_module(self, assoc_projection_registry(self))
+    // Also before normalization, for the same reason.
+    self.mono_dyn_metadata()
+    self.normalize_trait_impls()
+}
+
+/// Whether an instance of `base` is cloned from this template. A
+/// crate-qualified base names one crate's template only.
+fun TopDecl.answers_to(base: str): bool {
+    val crate = qualified_generic_crate(base)
+    if crate < 0 { return self.name.as_str().equals(base) }
+    return self.crate.raw as int64 == crate && self.name.as_str().equals(qualified_generic_name(base).as_str())
+}
+
+/// A generic method has no top-level name, so `strip_templates` would leave
+/// it and codegen would emit an unresolved type parameter. The clone is
+/// appended to the same impl block; templates stay until
+/// `strip_impl_method_templates` removes them.
+mutating fun Module.materialize_impl_method(inst: &Inst, mangled: String, gps: &List<String>, marities: &List<MethodArity>, work: &var List<Inst>, proj_sigs: Ptr<SigTable>): void {
+    var kept = List.new<TopDecl>()
+    while td in &self.decls {
+        var rebuilt_owner = false
+        if td.name.as_str().equals(inst.owner.as_str()) {
+            when (td.kind) {
+                ImplBlock(methods) => {
+                    // One pass, so each element is copied only once.
+                    var nm = List.new<TopDecl>()
+                    var tmpl_idx: uint64 = 0
+                    var found = false
+                    var already = false
+                    while mi in 0..methods.size() {
+                        val mth = *methods.at(mi)
+                        if mth.name.as_str().equals(mangled.as_str()) { already = true }
+                        if !found {
+                            if mth.generics.size() > 0 {
+                                if mth.name.as_str().equals(inst.base.as_str()) {
+                                    tmpl_idx = mi
+                                    found = true
+                                }
+                            }
+                        }
+                        nm.push(mth)
+                    }
+                    if found && !already {
+                        var spec = clone_subst_decl(*nm.at(tmpl_idx), inst.args, mangled.clone())
+                        if !is_poison_decl(spec) {
+                            if !self.crate.is_poison() {
+                                spec.linkage = Linkage.GenericTemplate
+                            }
+                            // Scanned before the push consumes it.
+                            subst_projections_in_decl(&var spec, proj_sigs)
+                            spec.collect_insts_in_decl(gps, marities, work)
+                            nm.push(spec)
+                        }
+                    }
+                    var rebuilt = new_top_decl(td.span, td.name.as_string(), TopDeclKind.ImplBlock(nm))
+                    rebuilt.crate = td.crate
+                    rebuilt.module_path = td.module_path
+                    rebuilt.decl = td.decl
+                    rebuilt.generics = td.generics
+                    rebuilt.annotations = td.annotations.clone()
+                    rebuilt.linkage = td.linkage
+                    rebuilt.link_name = td.link_name
+                    rebuilt.decl_end = td.decl_end
+                    kept.push(rebuilt)
+                    rebuilt_owner = true
+                }
+                _ => { }
+            }
+        }
+        if !rebuilt_owner { kept.push(td) }
+    }
+    self.decls = kept
+}
+
+/// The method-level mirror of `strip_templates`.
+mutating fun Module.strip_impl_method_templates(): void {
+    var kept = List.new<TopDecl>()
+    while td in &self.decls {
+        var rebuilt_owner = false
+        when (td.kind) {
+            ImplBlock(methods) => {
+                var has_template = false
+                var nm = List.new<TopDecl>()
+                while mth in &methods {
+                    if mth.generics.size() > 0 {
+                        has_template = true
+                    } else {
+                        nm.push(mth)
+                    }
+                }
+                if has_template {
+                    var rebuilt = new_top_decl(td.span, td.name.as_string(), TopDeclKind.ImplBlock(nm))
+                    rebuilt.crate = td.crate
+                    rebuilt.module_path = td.module_path
+                    rebuilt.decl = td.decl
+                    rebuilt.generics = td.generics
+                    rebuilt.annotations = td.annotations.clone()
+                    rebuilt.linkage = td.linkage
+                    rebuilt.link_name = td.link_name
+                    rebuilt.decl_end = td.decl_end
+                    kept.push(rebuilt)
+                    rebuilt_owner = true
+                }
+            }
+            _ => { }
+        }
+        if !rebuilt_owner { kept.push(td) }
+    }
+    self.decls = kept
+}
+
+fun str_list_contains(xs: List<String>, target: str): bool {
+    while item in &xs {
+        if item.as_str().equals(target) {
+            return true
+        }
+    }
+    return false
+}
+
+pub fun str_name_list_contains(xs: &List<String>, target: str): bool {
+    while item in &xs {
+        if item.as_str().equals(target) {
+            return true
+        }
+    }
+    return false
+}
+
+mutating fun Module.collect_generic_param_names(): List<String> {
+    var out = List.new<String>()
+    while td in &self.decls {
+        while item in &td.generics {
+            val nm = item.name.as_string()
+            if !str_list_contains(out.clone(), nm.as_str()) { out.push(nm) }
+        }
+        // A generic method declares its parameters on the nested Function.
+        when (td.kind) {
+            ImplBlock(methods) => {
+                while mth in &methods {
+                    while item in &mth.generics {
+                        val mn = item.name.as_string()
+                        if !str_list_contains(out.clone(), mn.as_str()) { out.push(mn) }
+                    }
+                }
+            }
+            _ => { }
+        }
+    }
+    return out
+}

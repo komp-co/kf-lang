@@ -1,0 +1,15 @@
+//! build: fail
+//! deps: core, alloc
+// A `[` opening a line does not subscript the line above: `parse_postfix`
+// skips newlines only to reach a `.`. Otherwise the two statements below
+// would join into `ys[0]` and compile.
+
+import alloc.list.*
+
+fun main(): int32 {
+    var ys = List.new<int32>()
+    ys.push(7)
+    var a = ys
+    [0]
+    return 0
+}

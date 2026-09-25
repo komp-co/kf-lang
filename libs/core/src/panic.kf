@@ -1,0 +1,6 @@
+// Stopping: the way out of a function with nothing to return.
+//
+// CONSTRAINT: declared `void` to match kf_runtime.h's prototype; calls are
+// still typed `Never`, so a panic satisfies all-paths-return.
+
+pub extern "C" fun panic(m: str): void

@@ -1,0 +1,24 @@
+//! asan: clean
+//! mode: unity
+//! broken: #10 — unity drop glue does not recurse into fields
+// Separate compilation is clean; this is the unity form bootstrap and the
+// fixpoint gate use.
+import alloc.string.*
+import alloc.list.*
+
+struct Holder { pub var items: List<String> }
+
+fun make(): String { return String.from("abc") }
+
+fun lit(): Holder {
+    var l = List.new<String>()
+    l.push(make())
+    return Holder { items: l }
+}
+
+// CONSTRAINT: no assertion; the sanitizer is the assertion. An extra read
+// changes what is dropped and masks the leak, so keep this minimal.
+fun main(): int32 {
+    var h = lit()
+    return 0
+}

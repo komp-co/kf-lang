@@ -1,0 +1,123 @@
+// `S { f: v, ... }` against a layout, with initializers put in declaration
+// order for codegen.
+
+import kf_core.span.*
+import kf_core.ast.*
+import kf_core.diagnostic.new_label
+import kf_core.diagnostic.new_diagnostic
+import kf_typecheck.types.resolve_type_ref
+import kf_typecheck.types.display_type
+
+extern "C" fun __kf_v2_int32_to_str(v: int32): String
+
+// `Pair<int32,int32> { ... }`: the concrete layout is instantiated, fields
+// checked against it, and the mangled name stored on mangled_callee.
+mutating fun Expr.check_generic_struct_lit(struct_name: String, fields: &var List<FieldInit>, ctx: &var TypeCtx): Type {
+    val ttr = new_type_ref(self.span, TypeRefKind.Named(intern(struct_name.as_str()), self.type_args.clone()))
+    val rty = ttr.resolve_type_ref(ctx)
+    val eff = struct_name_of(rty)
+    val eff_empty = eff.as_str().equals("")
+    if eff_empty {
+        return check_struct_lit(struct_name.as_str(), fields, self.span, ctx)
+    }
+    self.mangled_callee = intern(eff.as_str())
+    return check_struct_lit(eff.as_str(), fields, self.span, ctx)
+}
+
+fun struct_name_of(t: Type): String {
+    return when (t.kind) {
+        Struct(n) => type_identity_display(n)
+        _ => ""
+    }
+}
+
+fun check_struct_lit(struct_name: str, fields: &var List<FieldInit>, span: Span, ctx: &var TypeCtx): Type {
+    val sp = ctx.sigs
+    val layout = unsafe { sp.find_struct(struct_name, ctx.owner_crate) } ?: return poison_ty()
+    // Naming a type in a literal is a use of its module's import.
+    val lit_id = unsafe { sp.lookup_unique_type_identity(struct_name) }
+    if !lit_id.crate.is_poison() { note_import_use(ctx.sigs, ctx.owner_file, lit_id.module) }
+    var saw_error = false
+    while fi in &fields {
+        var j = 0
+        var found = false
+        while j < layout.fields.size() {
+            val lf = *layout.fields.at(j)
+            if lf.name.as_str().equals(fi.name.as_str()) {
+                // Through the pointer, so `.ty` lands on the real node.
+                val v_ptr: Ptr<Expr> = fi.value
+                check_expr(unsafe { &var *v_ptr }, ctx)
+                if reject_stored_lambda_transfer(unsafe { &*v_ptr }, "a struct field", ctx) {
+                    saw_error = true
+                }
+                // The field type is a slot: `Foo { o: 5 }` against `int32?`
+                // wraps in Some.
+                if !expect_or_reject(unsafe { &var *v_ptr }, lf.ty, ctx) {
+                    val actual = unsafe { (*v_ptr).ty }
+                    val msg = "wrong type for field `${fi.name.as_str()}` of `${struct_name}`: expected `${lf.ty.display_type(ctx)}`, found `${actual.display_type(ctx)}`"
+                    ctx.emit(new_diagnostic(Severity.Error, new_label(fi.span, msg)))
+                    saw_error = true
+                }
+                found = true
+                j = layout.fields.size()
+            } else {
+                j = j + 1
+            }
+        }
+        if !found {
+            val v_ptr: Ptr<Expr> = fi.value
+            check_expr(unsafe { &var *v_ptr }, ctx)
+            val msg = "struct `${struct_name}` has no field `${fi.name.as_str()}`"
+            ctx.emit(new_diagnostic(Severity.Error, new_label(fi.span, msg)))
+            saw_error = true
+        }
+    }
+    while lf in &layout.fields {
+        var initialized = false
+        var seen: uint64 = 0
+        while fi in 0..fields.size() {
+            if fields.at(fi).name.as_str().equals(lf.name.as_str()) {
+                initialized = true
+                seen = seen + 1
+            }
+        }
+        if !initialized {
+            val msg = "struct literal for `${struct_name}` is missing field `${lf.name.as_str()}`"
+            ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+            saw_error = true
+        }
+        // A field initialised twice is an error; it would also defeat the
+        // reorder below.
+        if seen > 1 {
+            val dmsg = "struct literal for `${struct_name}` initialises field `${lf.name.as_str()}` more than once"
+            ctx.emit(new_diagnostic(Severity.Error, new_label(span, dmsg)))
+            saw_error = true
+        }
+    }
+    if saw_error { return poison_ty() }
+    reorder_field_inits(fields, &layout)
+    return Type { kind: TypeKind.Struct(intern(struct_name)), provenance: Provenance.Inferred(span) }
+}
+
+/// Codegen lowers a literal positionally, so the order handed to it is the
+/// binding order: without this `Pair { second: 2, first: 1 }` puts 2 in
+/// `first`. Runs after every field matched, so a lookup cannot miss; a miss
+/// would leave the field in place.
+fun reorder_field_inits(fields: &var List<FieldInit>, layout: &StructLayout): void {
+    if fields.size() < 2 { return }
+    var out = List.new<FieldInit>()
+    while field in &layout.fields {
+        val want = field.name
+        var i = 0
+        while i < fields.size() {
+            val fi = *fields.at(i)
+            if fi.name.as_str().equals(want.as_str()) {
+                out.push(fi)
+                i = fields.size()
+            } else {
+                i = i + 1
+            }
+        }
+    }
+    if out.size() == fields.size() { *fields = out }
+}

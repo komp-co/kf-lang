@@ -1,0 +1,22 @@
+// What happens to a pass's diagnostics: printed, promoted or dropped by lint
+// level.
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+import kf_core.diagnostic.*
+import kf_driver.cli.compiler_warnings_quiet
+
+/// Adds the errors among them to `errp`.
+pub fun report_lower_diags(diags: List<Diagnostic>, m: &Module, errp: Ptr<ErrCount>, smap: Ptr<SourceMap>): void {
+    var nerr = 0
+    val leveled = apply_lint_levels(diags, m, &build_lint_config())
+    val quiet = compiler_warnings_quiet()
+    while d in &leveled {
+        if d.diag_is_error() { nerr = nerr + 1 }
+        // `-q` silences advice; a Deny lint or an error is not advice.
+        if !quiet || d.diag_is_error() { d.print_diag(smap) }
+    }
+    unsafe { errp.n = errp.n + nerr }
+}
