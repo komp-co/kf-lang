@@ -36,12 +36,24 @@ behind*, not about batching.
   - `type` ∈ `feat`, `fix`, `hardening`, `perf`, `docs`, `chore`
   - examples: `fix/5-unresolved-dep-error`, `hardening/1-token-peek-borrow`
 - Reference the issue in commits; close it from the PR with `Closes #<n>`.
-- **Never commit directly to `main`.** All changes land via PR.
+- **PRs target `development`**, the default branch. Nothing is committed to
+  `development` or `main` directly.
 
-## main protection
+## Releases: `development` into `main`
 
-`main` is protected **server-side**: GitHub refuses a direct push, so every
-change lands via PR whatever your local setup does.
+`main` holds only released states. A merge into it **is** a release:
+
+1. Open a PR from `development` into `main` that raises `kflat_version()`
+   (`compiler/kf-driver/src/cli/version.kf`). The `release-pr` check refuses
+   any other source branch, and a version that does not go up.
+2. Merge it. The release workflow builds the seed from the pinned one, checks
+   the fixpoint, and publishes `vX.Y.Z` with `kflat-seed-X.Y.Z.tar.gz`.
+3. To build from the new seed, pin it in `bootstrap/stage0.toml` in an
+   ordinary PR into `development`.
+
+Both branches are protected **server-side**: GitHub refuses a direct push, and
+a merge needs green CI, so every change lands via PR whatever your local setup
+does.
 
 A `pre-push` hook mirrors that rule locally, so the refusal arrives before the
 round trip rather than after it. Enable it once per clone:
@@ -57,7 +69,7 @@ still stands, which is the point of having both.
 
 `.github/workflows/ci.yml` runs on every pull request — whatever it targets, so
 a stacked PR is covered before its base merges — on every push to `main`, and
-once a night.
+once a night on `development`.
 
 A `classify` job first decides what the PR needs (`scripts/ci-classify.sh`):
 
@@ -81,8 +93,8 @@ The fixpoint job uploads the komp it verified, and the other three wait for
 it and reuse it rather than each building one from the seed. `cc` goes through
 ccache, kept across runs with `actions/cache`.
 
-All four are required checks on `main`; a job skipped by `classify` counts as
-passed. Each CI run costs about ten minutes, so group related changes into one
+All four are required checks on `development` and `main`; a job skipped by
+`classify` counts as passed. Each CI run costs about ten minutes, so group related changes into one
 PR rather than opening many small ones.
 
 Run both gates locally before pushing — same checks, no round trip. It takes
@@ -111,65 +123,35 @@ Two ways to get a wrong answer out of it:
 
 ## The bootstrap seed
 
-`bootstrap/komp.c` is the checked-in C seed: a whole compiler emitted as one
-file of several megabytes, growing with the compiler it was cut from. It is
-generated output, and it is the single biggest source of merge pain in this
-repo — two branches that both regenerate it always conflict, while their
-actual source changes merge fine.
+The seed is a released komp and kflatc as C. `bootstrap/stage0.toml` pins
+which release, and `bootstrap/build.sh` fetches and verifies it; nothing
+generated is checked in. [`bootstrap/README.md`](bootstrap/README.md) has the
+mechanics.
 
-**Do not refresh the seed on a feature branch.** A stale seed is not a failure:
-`bootstrap/build.sh` reports it as a `NOTE`, CI gates on the *fixpoint*, and the
-fixpoint holds regardless of how old the seed is. Leave the file alone and your
-branch will merge cleanly.
+A stale seed is not a failure: `bootstrap/build.sh` reports it as a `NOTE`,
+CI gates on the *fixpoint*, and the fixpoint holds regardless of how old the
+seed is.
 
-Refresh it on `main`, in its own commit, whenever it has drifted:
+### When a change needs a newer seed
 
-```sh
-sh bootstrap/build.sh --refresh   # verify, then install the seed it just proved
-```
+Sometimes the seed cannot build the tree: the change makes komp's own source
+use a construct the seed mis-compiles or does not parse. `bootstrap/build.sh`
+catches it and reports `FAIL: the seed cannot build this tree` (a C error in
+stage1) or `FAIL: the seed rejected the current source` (a KFlat error).
 
-The bytes it installs are `stage1.c` from that same run — the seed's own output,
-which stage 2 proved reproduces itself. Nothing needs rebuilding afterwards, so
-resist doing it by hand: regenerating the seed separately costs several more
-full compiles and proves nothing extra.
+Split the work so every commit on `main` bootstraps from the pinned seed:
 
-Keep that cadence *serial*: the problem is never an old seed, it is two new
-ones in flight at once. How often is a judgement call. A refresh is its own PR
-and its own CI round trip, and a seed that has drifted costs nothing but a
-`NOTE`, so batching several merges into one refresh is usually the better
-trade. What does force one is a change that needs the seed to understand a
-construct it predates — see below.
+1. **PR 1** — the compiler change, without using it in `compiler/`, into
+   `development`.
+2. **A release** — `development` into `main`, raising `kflat_version()`: the
+   release workflow publishes a seed that knows the change.
+3. **PR 2** — pin that release in `stage0.toml`, and the change that depends
+   on it.
 
-`.gitattributes` marks the file `-diff -merge`, so it stays out of diffs and
-never gets a textual 3-way merge. If you do hit a conflict on it, the resolution
-is to **regenerate**, never to pick a side — see below for why neither side is
-necessarily right.
+Before releasing, try the seed locally: `bootstrap/build.sh --seed-out DIR`
+writes it, and `KFLAT_SEED=DIR/kflat-seed-X.Y.Z.tar.gz` bootstraps from it.
 
-### When a change forces a seed refresh
-
-Sometimes the seed genuinely cannot build the tree: the change makes komp's own
-dependencies use a construct the seed mis-compiles. The failure surfaces inside
-the C compiler, several thousand lines into generated code; `bootstrap/build.sh`
-catches it and reports `FAIL: the checked-in seed cannot build this tree`, which
-is the signal for the recipe below.
-
-The recipe is to split the work so every commit bootstraps from its predecessor:
-
-1. **commit 1** — the compiler fix, plus a refreshed seed. Verify the *previous*
-   seed can still build this commit.
-2. **commit 2** — the change that depends on the fix. Verify **commit 1's seed**
-   builds it.
-
-Example: migrating `Iterable` to an associated type made `libs/alloc` bind one
-per element type, which tripped a codegen defect the seed still had. Landing
-both together would have left a branch whose seed could not build its own tree.
-
-The same bind shows up when merging two long-lived branches — each side's seed
-may be unable to build the other's source. Stage it the same way: build one
-side's compiler, use it on the merged tree with the dependent change held back,
-then use *that* compiler for the full tree.
-
-### A syntax feature reaches `compiler/` only after a reseed
+### A syntax feature reaches `compiler/` only after a release
 
 The case above is the seed mis-*compiling* something, and it fails inside `cc`.
 The other half fails earlier and reads worse: the seed cannot **parse** a
@@ -190,10 +172,10 @@ val opens_range: bool = is_op(p.peek(), Operator.DotDot)
                      || is_op(p.peek(), Operator.DotDotEq)
 ```
 
-So: **every syntax feature has a window between landing and the next reseed
-during which `libs/` and user code may use it and `compiler/` may not.** If the
-seed rejects source you believe is correct, check that first — the remedy is the
-two-commit recipe above, not a rewrite of the line it pointed at. The seed cannot
+So: **every syntax feature has a window between landing and the release that
+carries it, during which `libs/` and user code may use it and `compiler/` may
+not.** If the seed rejects source you believe is correct, check that first —
+the remedy is the two-PR recipe above, not a rewrite of the line it pointed at. The seed cannot
 detect its own age, which is why this is written down rather than checked.
 
 ## Local dev quickstart
@@ -201,5 +183,5 @@ detect its own age, which is why this is written down rather than checked.
 - The compiler needs the `json` crate cloned as a sibling (`../json`) and the
   checkout directory named lowercase `komp`: a path dependency reaches the
   stdlib through that name.
-- Self-host + fixpoint: `sh bootstrap/build.sh`.
+- Self-host + fixpoint: `sh bootstrap/build.sh` (fetches the seed once).
 - Test one crate: `komp test compiler/<crate>`.

@@ -248,13 +248,12 @@ cp "$KOMP_PREBUILT" "$WORK/komp"
 cp "$(dirname "$KOMP_PREBUILT")/kflatc" "$WORK/kflatc"
 else
 phase "building komp for the sweep"
-# Compile, then link: ccache caches a `-c` compile, never one that also links.
-"${CC:-cc}" ${CFLAGS:--O2} -c -o "$WORK/komp0.o" bootstrap/komp.c
-"${CC:-cc}" ${CFLAGS:--O2} -o "$WORK/komp0" "$WORK/komp0.o"
+. "$ROOT/bootstrap/seed.sh"
+seed_build "$WORK/s0" || { echo "FAIL: the seed did not build; see the lines above" >&2; exit 1; }
 # Keep the seed's diagnostics: a seed that cannot read this tree otherwise
 # fails later at `cc` on a stage1.c that was never written.
-if ! "$WORK/komp0" "$ROOT/compiler/komp" "$WORK/stage1.c" > "$WORK/seed-emit.log" 2>&1; then
-    echo "FAIL: the checked-in seed cannot read this tree." >&2
+if ! "$WORK/s0/komp0" "$ROOT/compiler/komp" "$WORK/stage1.c" > "$WORK/seed-emit.log" 2>&1; then
+    echo "FAIL: the seed cannot read this tree." >&2
     echo "      The errors below are from komp0 -- the SEED -- compiling" >&2
     echo "      compiler/komp, not from your compiler. A syntax feature the" >&2
     echo "      seed predates reads exactly like a broken source file; build" >&2
@@ -267,7 +266,7 @@ fi
 (cd "$WORK" && "${CC:-cc}" ${CFLAGS:--O2} -c -o stage1.o stage1.c)
 "${CC:-cc}" ${CFLAGS:--O2} -o "$WORK/komp" "$WORK/stage1.o"
 # komp runs the compiler as a process, found beside it, so the seed builds it.
-"$WORK/komp0" "$ROOT/compiler/kflatc" "$WORK/kflatc.c" > "$WORK/kflatc-emit.log" 2>&1 || {
+"$WORK/s0/komp0" "$ROOT/compiler/kflatc" "$WORK/kflatc.c" > "$WORK/kflatc-emit.log" 2>&1 || {
     cat "$WORK/kflatc-emit.log" >&2
     echo "FAIL: the seed could not build kflatc" >&2
     exit 1

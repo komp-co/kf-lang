@@ -11,13 +11,13 @@
 #
 # `version` the subcommand: `--version` is not what this checks.
 #
-# Stage1 is this tree compiled by the checked-in seed: it behaves as the
+# Stage1 is this tree compiled by the seed: it behaves as the
 # source says, but was built by the old compiler, so it contains the old
 # emission. `--stage2` builds once more with a compiler that has the change;
 # use it when testing codegen.
 #
-# This does not touch bootstrap/komp.c; refreshing the seed is
-# `bootstrap/build.sh --refresh`.
+# The seed is the release bootstrap/stage0.toml pins; a new one comes from a
+# release (see "The bootstrap seed" in CONTRIBUTING.md).
 set -eu
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -48,12 +48,13 @@ fi
 branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')"
 echo "==> refreshing .build/komp from $branch @ $rev"
 
-echo "[1/3] $CC bootstrap/komp.c -> seed compiler"
-"$CC" $CFLAGS -w -o "$WORK/k0" bootstrap/komp.c -lm
+echo "[1/3] $CC the seed -> seed compiler"
+. "$ROOT/bootstrap/seed.sh"
+seed_build "$WORK/s0" || exit 1
 
 echo "[2/3] seed compiles compiler/komp -> stage1.c"
-"$WORK/k0" "$ROOT/compiler/komp" "$WORK/stage1.c" > "$WORK/emit.log" 2>&1 || {
-    echo "FAIL: the checked-in seed cannot build this tree." >&2
+"$WORK/s0/komp0" "$ROOT/compiler/komp" "$WORK/stage1.c" > "$WORK/emit.log" 2>&1 || {
+    echo "FAIL: the seed cannot build this tree." >&2
     echo "      Errors below are from the seed compiling your source:" >&2
     grep -E 'error' "$WORK/emit.log" | head -20 >&2
     exit 1
@@ -64,8 +65,8 @@ echo "[3/3] $CC stage1.c -> komp"
 
 # komp compiles through the kflatc beside it.
 echo "[+] seed compiles compiler/kflatc -> kflatc"
-"$WORK/k0" "$ROOT/compiler/kflatc" "$WORK/kflatc.c" > "$WORK/emit-kflatc.log" 2>&1 || {
-    echo "FAIL: the checked-in seed cannot build kflatc." >&2
+"$WORK/s0/komp0" "$ROOT/compiler/kflatc" "$WORK/kflatc.c" > "$WORK/emit-kflatc.log" 2>&1 || {
+    echo "FAIL: the seed cannot build kflatc." >&2
     grep -E 'error' "$WORK/emit-kflatc.log" | head -20 >&2
     exit 1
 }

@@ -17,7 +17,7 @@ Komp is a self-hosted KFlat compiler. Its source workspace lives under
 `compiler/`; repository-level assets stay at the root:
 
 ```
-bootstrap/   — checked-in C seed and self-hosting script
+bootstrap/   — the pinned seed (`stage0.toml`) and the self-hosting script
 compiler/    — compiler workspace (`kf.toml`, `kf-*` passes, `komp/`, `kflatc/`)
 docs/book/   — the user-facing book
 libs/        — KFlat language libraries (core, alloc, std)
@@ -41,7 +41,7 @@ no single-file mode.
 
 | Command | Purpose |
 |---|---|
-| `bash bootstrap/build.sh` | Full build from checked-in C seed via `cc` + fixpoint self-compile |
+| `sh bootstrap/build.sh` | Full build from the released seed via `cc` + fixpoint self-compile |
 | `sh scripts/check.sh` | All CI gates: fixpoint, ratchets, CLI checks, crate test sweep |
 | `komp test compiler/<crate>` | Run one crate's `@test` functions |
 | `komp build <dir>` | Compile to C and link, artifacts under `target/kflat` |
@@ -186,6 +186,9 @@ The repository is `komp-co/komp` on GitHub, with `json`, `kf-lsp` and
 | Command | Purpose |
 |---|---|
 | `gh issue create --repo komp-co/komp ...` | Create an issue |
-| `gh pr create --repo komp-co/komp ...` | Open a pull request |
+| `gh pr create --repo komp-co/komp --base development ...` | Open a pull request |
 | `gh pr checks <n> --repo komp-co/komp` | Watch a PR's CI |
 | `gh pr merge <n> --repo komp-co/komp` | Merge once CI is green |
+
+Work merges into `development`. A PR from `development` into `main` is a
+release; CONTRIBUTING.md has the steps.

@@ -1,46 +1,42 @@
 # Installing komp
 
-You need a C compiler (gcc or clang) and nothing else. The komp source tree
-ships a checked-in C seed — a single file, `bootstrap/komp.c` — that can
-compile the current tree. From that seed you build two binaries: `komp`, the
-tool you run, and `kflatc`, the compiler it runs for each crate.
+You need a C compiler (gcc or clang), and a network connection the first
+time. komp is built from a **seed**: the C translation of a released komp and
+of `kflatc`, the compiler it runs for each crate. Each release publishes one,
+and `bootstrap/stage0.toml` pins the one this tree builds from.
 
 ## Building from the seed
 
 ```console
-$ cc -O2 -o komp0 bootstrap/komp.c
-$ ./komp0 compiler/komp out/komp.c
-$ cc -O2 -o out/komp out/komp.c
-$ ./komp0 compiler/kflatc out/kflatc.c
-$ cc -O2 -o out/kflatc out/kflatc.c
+$ KOMP_PUBLISH=out/komp sh bootstrap/build.sh
+[1/4] cc the seed, kflat 0.1.0 -> komp0, kflatc
+[2/4] komp0 compiler/komp -> stage1.c ; cc stage1.c -> komp1
+      komp0 compiler/kflatc -> kflatc1.c ; cc kflatc1.c -> kflatc
+[3/4] komp1 compiler/komp -> stage2.c ; compiler/kflatc -> kflatc2.c
+[4/4] fixpoint check
+OK: stage1.c == stage2.c and kflatc1.c == kflatc2.c (fixpoint holds)
+OK: published komp1 and kflatc to out
 ```
 
-The seed compiles the KFlat source under `compiler/komp` and `compiler/kflatc`
-to C, and then your C compiler turns that C into binaries. Keep the two
-together: komp looks for `kflatc` in its own directory, or wherever `KFLATC`
-points.
+`KOMP_PUBLISH` names where the verified `komp` goes, with `kflatc` beside it.
+Keep the two together: komp looks for `kflatc` in its own directory, or
+wherever `KFLATC` points.
 
-The full bootstrap chain that the automated script runs is one stage longer:
+The chain:
 
-1. `cc bootstrap/komp.c` → komp0 (the seed binary)
-2. komp0 builds `compiler/komp` → stage1.c; `cc stage1.c` → komp1
-3. komp1 builds `compiler/komp` → stage2.c
-4. Assert stage1.c == stage2.c byte-for-byte (the fixpoint)
+1. The seed is fetched once into `~/.cache/kflat/seeds`, checked against the
+   sha256 in `bootstrap/stage0.toml`, and compiled → komp0 and its kflatc
+2. komp0 builds `compiler/komp` and `compiler/kflatc` → stage1 C → komp1 and
+   the kflatc beside it
+3. komp1 builds both again → stage2 C
+4. Assert stage 1 == stage 2 byte-for-byte (the fixpoint)
 
 The fixpoint is the proof: a compiler that can reproduce its own C output
-exactly is self-hosting. The seed is a frozen snapshot of a past compiler's
-output — enough for a first build, but not proof by itself.
+exactly is self-hosting. The seed is a past compiler's output — enough for a
+first build, but not proof by itself.
 
-To run the full chain:
-
-```console
-$ bash bootstrap/build.sh
-[1/4] cc bootstrap/komp.c -> komp0
-[2/4] komp0 compiler/komp -> stage1.c ; cc stage1.c -> komp1
-[3/4] komp1 compiler/komp -> stage2.c
-[4/4] fixpoint check
-OK: stage1.c == stage2.c (fixpoint holds)
-```
+With no network, download the seed tarball from the release
+`bootstrap/stage0.toml` names and point `KFLAT_SEED` at it.
 
 ## Why C
 
@@ -51,8 +47,7 @@ temporary step toward a native backend — it is the strategy.
 
 ## Putting komp on PATH
 
-The bootstrap script leaves its binaries in a temp directory. To keep them,
-put both in the same directory on your `PATH`:
+Put both binaries in the same directory on your `PATH`:
 
 ```console
 $ cp out/komp out/kflatc ~/.local/bin/
