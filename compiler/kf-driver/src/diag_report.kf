@@ -6,7 +6,7 @@ import alloc.list.*
 import kf_core.span.*
 import kf_core.ast.*
 import kf_core.diagnostic.*
-import kf_driver.cli.compiler_warnings_quiet
+import kf_shared.compiler_warnings_quiet
 
 /// Adds the errors among them to `errp`.
 pub fun report_lower_diags(diags: List<Diagnostic>, m: &Module, errp: Ptr<ErrCount>, smap: Ptr<SourceMap>): void {

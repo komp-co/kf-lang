@@ -1,6 +1,6 @@
 import alloc.list.*
+import kf_shared.canonicalize_path
 
-import kf_driver.project.canonicalize_path
 
 extern "C" fun access(path: str, mode: int32): int32
 

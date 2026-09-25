@@ -5,6 +5,10 @@ import std.fs.*
 import std.process.*
 import alloc.list.*
 import kf_driver.build.*
+import kf_shared.crate_artifact_manifest_path
+import kf_shared.crate_archive_path
+import kf_shared.test_crate_dir
+import kf_shared.test_artifact_path
 
 pub fun test_project_separate(root_dir: str, case_filter: str, test_filter: str): int32 {
     val built = build_project_separate(root_dir, "")

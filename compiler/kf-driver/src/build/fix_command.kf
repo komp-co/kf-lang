@@ -6,9 +6,9 @@ import alloc.list.*
 import json.reader.*
 
 import kf_driver.cli.*
-import kf_driver.project.starts_with_path
-import kf_driver.project.absolutize
-import kf_driver.project.canonicalize_path
+import kf_shared.absolutize
+import kf_shared.canonicalize_path
+import kf_shared.starts_with_path
 
 /// A fix names its own file: an import lands at the top, not where the name
 /// was written.

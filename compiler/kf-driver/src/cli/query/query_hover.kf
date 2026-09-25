@@ -6,7 +6,7 @@ import alloc.list.*
 
 import kf_core.ast.*
 import json.writer.*
-import kf_driver.cli.render_json_error
+import kf_shared.render_json_error
 
 /// `{"schema_version":2,"file":..,"offset":N,"type":..,"signature":..,
 ///   "documentation":..,"byte_start":..,"byte_end":..}`

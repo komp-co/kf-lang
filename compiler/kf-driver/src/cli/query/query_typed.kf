@@ -17,7 +17,7 @@ import kf_driver.build.merge_module_list
 import kf_driver.build.CrateSource
 import kf_driver.build.assemble_crate_list
 import kf_driver.build.crate_sources_from_args
-import kf_driver.project.absolutize
+import kf_shared.absolutize
 
 /// `ok` is false for a file with no crate above it.
 pub struct QueryCrate {

@@ -9,6 +9,7 @@
 
 import alloc.list.*
 import kf_driver.project.*
+import kf_shared.publish_text
 
 extern "C" fun system(cmd: str): int32
 

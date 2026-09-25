@@ -10,6 +10,7 @@ import kf_assemble.walk_kf_files
 import kf_driver.project.manifest_c_sources
 import kf_driver.project.manifest_hosted_c_sources
 import kf_driver.project.parse_manifest
+import kf_shared.crate_artifact_manifest_path
 
 extern "C" fun access(path: str, mode: int32): int32
 // Declared by kf_runtime.h already, so no second prototype is emitted.

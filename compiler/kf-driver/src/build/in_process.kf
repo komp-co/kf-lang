@@ -19,6 +19,7 @@ import kf_interface.emit.emit_interface_full
 
 import kf_driver.*
 import kf_driver.project.*
+import kf_shared.join_path
 
 /// One source string to C, without assembly. Assumes well-typed input.
 pub fun compile_source(src: str): String {

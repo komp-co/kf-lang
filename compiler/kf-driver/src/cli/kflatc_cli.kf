@@ -22,6 +22,8 @@ import kf_driver.cli.query.dispatch_query
 import kf_interface.interface_compiler_abi
 import kf_interface.interface_runtime_abi
 import kf_interface.interface_target
+import kf_shared.cli_arg_count
+import kf_shared.kflat_version
 
 extern "C" fun kf_mute_warnings(on: int32): void
 

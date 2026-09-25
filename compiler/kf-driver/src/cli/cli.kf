@@ -25,6 +25,10 @@ import std.process.*
 import kf_driver.build.*
 import kf_driver.project.parent_path
 import std.fs.*
+import kf_shared.binary_path
+import kf_shared.cli_arg_count
+import kf_shared.cli_arg_get
+import kf_shared.kflat_version
 
 // Bodies in the runtime prelude, which captures argv in main().
 extern "C" fun kf_arg_count(): int32
