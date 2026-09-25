@@ -22,6 +22,10 @@ pub fun check_when_arms(subject_ty: Type, arms: &var List<Arm>, span: Span, ctx:
             Some(rewritten) => { unsafe { *pattern_ptr = rewritten } }
             None => { }
         }
+        when ((unsafe { &*pattern_ptr }).kind) {
+            LitStr(text) => arm.desugar_string_pattern(text.clone(), subject_ty, ctx)
+            _ => { }
+        }
         (unsafe { &*pattern_ptr }).report_shadowing_pattern(ctx)
         (unsafe { &*pattern_ptr }).check_pattern(subject_ty, ctx)
         // CONSTRAINT: after check_pattern, so the guard sees the arm's binders.
@@ -169,7 +173,7 @@ pub fun Pattern.check_pattern(subject_ty: Type, ctx: &var TypeCtx): void {
         LitInt(_) => self.check_literal_pattern(subject_ty, "an integer", ctx)
         LitBool(_) => self.check_literal_pattern(subject_ty, "a `bool`", ctx)
         LitChar(_) => self.check_literal_pattern(subject_ty, "a `char`", ctx)
-        // Strings are rejected by the parser; alternations are not built yet.
+        // Rewritten to a binder and a guard before this runs.
         LitStr(_) => return
         Or(_) => return
         Identifier(name) => ctx.declare(name.as_string(), subject_ty)

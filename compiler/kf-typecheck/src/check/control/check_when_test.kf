@@ -69,3 +69,19 @@ fun literal_diags(subject_name: str, kind: PatternKind): List<Diagnostic> {
 @test fun a_char_pattern_on_a_char_is_accepted(): void {
     assert_eq(literal_diags("char", PatternKind.LitChar(97)).size(), 0, "'a' is a char")
 }
+
+@test fun a_string_pattern_on_an_integer_is_rejected(): void {
+    val diags = literal_diags("int32", PatternKind.LitStr(String.from("three")))
+    val expected = "this pattern is a string, but the subject is `int32`"
+    assert_eq(diags.at(0).primary.message.as_str(), expected, "the mismatch is named")
+}
+
+@test fun a_string_pattern_on_a_str_is_accepted(): void {
+    assert_eq(literal_diags("str", PatternKind.LitStr(String.from("get"))).size(), 0, "\"get\" is a str")
+}
+
+@test fun a_string_arm_does_not_close_the_when(): void {
+    var arms = List.new<Arm>()
+    arms.push(coverage_arm(PatternKind.LitStr(String.from("get")), false))
+    assert_eq(coverage_diags("str", arms, false).size(), 1, "a string arm covers nothing")
+}

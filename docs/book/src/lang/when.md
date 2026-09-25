@@ -1,8 +1,9 @@
 # when
 
-`when` is the pattern-matching expression. It works on enums, integers,
-booleans, and any type that can be compared for equality. The compiler checks
-that every case is covered.
+`when` is the pattern-matching expression. It matches enums, integers,
+booleans, characters and strings by their literal spelling, and any other
+value through a [guard](#guards). The compiler checks that every case is
+covered.
 
 ## Matching scalars
 
@@ -80,6 +81,42 @@ src/main.kf:4:9: error: this pattern is an integer, but the subject is `String`
 
 There is deliberately no float literal pattern: matching on float equality is
 a trap, and no language worth copying allows it.
+
+## String patterns
+
+A string literal matches a `str`, a `String`, or a borrow of either, by
+content:
+
+```kflat
+fun code(verb: str): int32 {
+    return when verb {
+        "get" => 1
+        "put" => 2
+        _ => 0
+    }
+}
+```
+
+No set of strings is ever complete, so a string `when` always needs `_` or a
+binding. Like any other arm, a string arm may carry a guard (`"get" if loud`).
+An interpolated string is not a pattern.
+
+A string pattern on anything else is rejected:
+
+```kflat
+fun main(): int32 {
+    val n = 3
+    return when n {
+        "three" => 1
+        _ => 0
+    }
+}
+```
+
+```console
+$ komp check .
+src/main.kf:4:9: error: this pattern is a string, but the subject is `int32`
+```
 
 ## Guards
 
