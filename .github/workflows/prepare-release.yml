@@ -24,23 +24,29 @@ jobs:
   bump:
     runs-on: ubuntu-latest
     steps:
+      - name: Needs RELEASE_TOKEN
+        env:
+          HAS_TOKEN: ${{ secrets.RELEASE_TOKEN != '' }}
+        run: |
+          if [ "$HAS_TOKEN" != "true" ]; then
+            echo "the organization secret RELEASE_TOKEN is missing or not shared with this repository" >&2
+            exit 1
+          fi
+
+      # RELEASE_TOKEN pushes, so its PR runs CI; the workflow's token would not.
       - uses: actions/checkout@v4
         with:
           ref: development
-          persist-credentials: false
-
-      - uses: ./.github/actions/release-bot
-        id: bot
-        with:
-          app-id: ${{ vars.RELEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          token: ${{ secrets.RELEASE_TOKEN }}
 
       - name: Raise the version and open its PR
         env:
-          GH_TOKEN: ${{ steps.bot.outputs.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           GH_REPO: ${{ github.repository }}
           PART: ${{ inputs.part }}
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           old=$(sh scripts/release-version.sh)
           new=$(sh scripts/release-version.sh --next "$PART")
           branch="release/$new"

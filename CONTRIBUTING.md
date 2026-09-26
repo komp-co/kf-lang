@@ -55,10 +55,11 @@ only step a person takes:
    `kflat-seed-X.Y.Z.tar.gz`, and opens the PR pinning that seed in
    `bootstrap/stage0.toml`, which merges itself once CI bootstraps from it.
 
-The automated PRs are opened by the komp release GitHub App, because a PR
-opened with a workflow's own token runs no CI. The workflows read its ID from
-the organization variable `RELEASE_APP_ID` and its key from the secret
-`RELEASE_APP_PRIVATE_KEY`; auto-merge must be allowed on the repository.
+The automated PRs are pushed and opened with the organization secret
+`RELEASE_TOKEN`, a fine-grained token with Contents and Pull requests write on
+the komp-co repositories, because a PR opened with a workflow's own token runs
+no CI. When it expires, releases still publish, and the workflows say which
+step was left to do by hand. Auto-merge must be allowed on the repository.
 `scripts/release-version.sh` is how every workflow reads and raises the
 version. Each step can also be done by hand, as an ordinary PR.
 

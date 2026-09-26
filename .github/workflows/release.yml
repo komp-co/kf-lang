@@ -19,7 +19,11 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      # RELEASE_TOKEN pushes the pin, so its PR runs CI; without it the release
+      # still publishes, and the pin is left to a person.
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
       - uses: ./.github/actions/setup
 
       - name: Read the version
@@ -45,19 +49,19 @@ jobs:
           gh release create "v$VERSION" dist/* --target "$GITHUB_SHA" \
             --title "kflat $VERSION" --generate-notes
 
-      - uses: ./.github/actions/release-bot
-        id: bot
-        with:
-          app-id: ${{ vars.RELEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-
       - name: Pin the new seed on development
         env:
-          GH_TOKEN: ${{ steps.bot.outputs.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           GH_REPO: ${{ github.repository }}
           VERSION: ${{ steps.version.outputs.version }}
           URL: https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version }}/kflat-seed-${{ steps.version.outputs.version }}.tar.gz
         run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::RELEASE_TOKEN is missing; pin v$VERSION in bootstrap/stage0.toml by hand"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           sha256=$(cut -d' ' -f1 "dist/kflat-seed-$VERSION.tar.gz.sha256")
           branch="seed/$VERSION"
           git fetch -q origin development

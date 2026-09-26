@@ -21,7 +21,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false
 
       - name: Compare with main
         id: versions
@@ -34,20 +33,18 @@ jobs:
           fi
           echo "main has ${old:-none}, development has $new"
 
-      - uses: ./.github/actions/release-bot
-        if: steps.versions.outputs.release != ''
-        id: bot
-        with:
-          app-id: ${{ vars.RELEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-
+      # RELEASE_TOKEN opens it, so it runs CI; the workflow's token would not.
       - name: Open the release PR
         if: steps.versions.outputs.release != ''
         env:
-          GH_TOKEN: ${{ steps.bot.outputs.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           GH_REPO: ${{ github.repository }}
           VERSION: ${{ steps.versions.outputs.release }}
         run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::RELEASE_TOKEN is missing; open the release PR from development into main by hand"
+            exit 0
+          fi
           open=$(gh pr list --base main --head development --state open --json number --jq length)
           if [ "$open" != "0" ]; then
             echo "a release PR is already open"
