@@ -84,8 +84,9 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           prebuilt: true
-      - name: Test kf-driver
-        run: CHECK_CLI=0 CRATES="compiler/kf-driver" sh scripts/check.sh --sweep
+      # The slowest crate, alone. `sweep-driver` is a required check.
+      - name: Test kf-integration
+        run: CHECK_CLI=0 CRATES="compiler/kf-integration" sh scripts/check.sh --sweep
 
   sweep-rest:
     needs: [classify, fixpoint]
@@ -102,5 +103,5 @@ jobs:
           CRATES="compiler/kf-core compiler/kf-parse compiler/kf-assemble
                   compiler/kf-resolve compiler/kf-typecheck compiler/kf-mono
                   compiler/kf-lower compiler/kf-codegen compiler/kf-interface
-                  compiler/kf-shared
+                  compiler/kf-shared compiler/kf-driver compiler/kf-tool
                   libs/core libs/alloc libs/std ../json" sh scripts/check.sh --sweep

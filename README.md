@@ -62,8 +62,12 @@ suggests. Every command takes a project directory — one containing a
 The compiler crates run in pipeline order: `kf-parse` → `kf-assemble` →
 `kf-resolve` → `kf-typecheck` → `kf-mono` → `kf-lower` → `kf-codegen`, with
 `kf-core` holding the shared AST and diagnostics, `kf-interface` the compiled
-crate metadata that makes separate compilation work, and `kf-driver` the CLI
-and build orchestration.
+crate metadata that makes separate compilation work, and `kf-driver` the
+compiler's entry points: compiling one crate, `check`, `query` and test mains.
+`kf-tool` is the project tool: manifests, fetching, the build graph and `cc`.
+It links none of the compiler crates; komp runs kflatc as a process.
+`kf-shared` holds what both sides must agree on, and `kf-integration` the tests
+that drive whole projects through both.
 
 ## Contributing
 

@@ -1,0 +1,11 @@
+[project]
+name = "kf_tool"
+version = "0.1.0"
+kind = "lib"
+
+[dependencies]
+kf_shared = { path = "../kf-shared" }
+core = { path = "../../libs/core" }
+alloc = { path = "../../libs/alloc" }
+std = { path = "../../libs/std" }
+json = { path = "../../../json" }

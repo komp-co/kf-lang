@@ -99,7 +99,7 @@ reaches komp only through a PR that moves the pin:
 1. **fixpoint** — `sh scripts/check.sh --fixpoint`, the self-host fixpoint
    (stage1 == stage2),
 2. **cli** — the CLI checks from `scripts/check.sh --sweep`,
-3. **sweep-driver** — the `kf-driver` test suite, the slowest crate,
+3. **sweep-driver** — the `kf-integration` test suite, the slowest crate,
 4. **sweep-rest** — every other crate's test suite.
 
 The fixpoint job uploads the komp it verified, and the other three wait for

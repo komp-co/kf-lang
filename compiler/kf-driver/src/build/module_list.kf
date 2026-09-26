@@ -20,7 +20,7 @@ pub fun fresh_diag_list(): Ptr<List<Diagnostic>> {
 }
 
 /// Returns the count, so callers can gate on it.
-fun report_parse_errors(pdiags: Ptr<List<Diagnostic>>, smap: Ptr<SourceMap>, json: bool): int32 {
+pub fun report_parse_errors(pdiags: Ptr<List<Diagnostic>>, smap: Ptr<SourceMap>, json: bool): int32 {
     var n = 0
     var i = 0
     while i < unsafe { pdiags.size() } {
@@ -39,7 +39,7 @@ fun report_parse_errors(pdiags: Ptr<List<Diagnostic>>, smap: Ptr<SourceMap>, jso
 
 /// Configuration problems count as errors: the project asked for something
 /// that does not exist.
-fun report_config_diags(diags: &List<Diagnostic>, smap: Ptr<SourceMap>, as_json: bool): int32 {
+pub fun report_config_diags(diags: &List<Diagnostic>, smap: Ptr<SourceMap>, as_json: bool): int32 {
     var n = 0
     while d in &diags {
         if as_json { d.print_json_diag(smap) } else { d.print_diag(smap) }
