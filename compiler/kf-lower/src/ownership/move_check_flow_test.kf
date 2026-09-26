@@ -48,10 +48,6 @@ fun mk_if_stmt(then_body: List<Stmt>, else_body: List<Stmt>): Stmt {
     assert_eq(result.size() == 1, true, "exactly one BranchMoveDivergence emitted")
 }
 
-fun null_expr_ptr(): Ptr<Expr> {
-    return unsafe { 0 as Ptr<Expr> }
-}
-
 @test fun when_arm_bind_owns_payload(): void {
     // when (opt) { Some(x) => { val y = x } None => {} }  → 0 diags
     val dp = fresh_diag_ptr()
@@ -66,12 +62,12 @@ fun null_expr_ptr(): Ptr<Expr> {
 
     var arm_body = List.new<Stmt>()
     arm_body.push(mk_letval(String.from("y"), mk_str_var(String.from("x"))))
-    val arm = new_arm(no_span(), pp, null_expr_ptr(), arm_body)
+    val arm = new_arm(no_span(), pp, null, arm_body)
 
     val none_pat = new_pattern(no_span(), PatternKind.Variant(intern("None"), List.new<Pattern>()))
     val np: Ptr<Pattern> = unsafe { alloc<Pattern>() }
     unsafe { *np = none_pat }
-    val none_arm = new_arm(no_span(), np, null_expr_ptr(), List.new<Stmt>())
+    val none_arm = new_arm(no_span(), np, null, List.new<Stmt>())
 
     var arms = List.new<Arm>()
     arms.push(arm)

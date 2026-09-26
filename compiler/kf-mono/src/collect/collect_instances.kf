@@ -135,6 +135,10 @@ fun Stmt.collect_insts_in_stmt(gps: &List<String>, marities: &List<MethodArity>,
         When(subj_ptr, arms) => {
             collect_insts_in_expr(unsafe { &*subj_ptr }, gps, marities, work)
             while arm in &arms {
+                when (arm.guard) {
+                    Some(guard) => collect_insts_in_expr(unsafe { &*guard }, gps, marities, work)
+                    None => { }
+                }
                 collect_insts_in_stmt_list(arm.body, gps, marities, work)
             }
         }
@@ -142,6 +146,10 @@ fun Stmt.collect_insts_in_stmt(gps: &List<String>, marities: &List<MethodArity>,
         Switch(subj_ptr, sarms) => {
             collect_insts_in_expr(unsafe { &*subj_ptr }, gps, marities, work)
             while sa in &sarms {
+                when (sa.guard) {
+                    Some(guard) => collect_insts_in_expr(unsafe { &*guard }, gps, marities, work)
+                    None => { }
+                }
                 collect_insts_in_stmt_list(sa.body, gps, marities, work)
             }
         }
@@ -278,6 +286,10 @@ fun Expr.collect_insts_in_expr(gps: &List<String>, marities: &List<MethodArity>,
         WhenExpr(subj_ptr, arms) => {
             collect_insts_in_expr(unsafe { &*subj_ptr }, gps, marities, work)
             while arm in &arms {
+                when (arm.guard) {
+                    Some(guard) => collect_insts_in_expr(unsafe { &*guard }, gps, marities, work)
+                    None => { }
+                }
                 collect_insts_in_stmt_list(arm.body, gps, marities, work)
             }
         }

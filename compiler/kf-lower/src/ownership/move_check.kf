@@ -211,6 +211,10 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
                 ctx.restore_borrowed(borrowed_before)
                 declare_pattern_binds(arm.pattern, ctx)
                 if subj_mo { declare_pattern_binds_borrowed(arm.pattern, ctx) }
+                when (arm.guard) {
+                    Some(guard) => move_check_expr_borrow(unsafe { &var *guard }, ctx)
+                    None => { }
+                }
                 move_check_stmt_list(arm.body, ctx)
                 val arm_div = stmt_list_diverges(arm.body)
                 if !arm_div {

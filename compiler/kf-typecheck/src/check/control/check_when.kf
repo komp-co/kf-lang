@@ -22,18 +22,39 @@ pub fun check_when_arms(subject_ty: Type, arms: &var List<Arm>, span: Span, ctx:
             Some(rewritten) => { unsafe { *pattern_ptr = rewritten } }
             None => { }
         }
+        when ((unsafe { &*pattern_ptr }).kind) {
+            LitStr(text) => arm.desugar_string_pattern(text.clone(), subject_ty, ctx)
+            _ => { }
+        }
         (unsafe { &*pattern_ptr }).report_shadowing_pattern(ctx)
         (unsafe { &*pattern_ptr }).check_pattern(subject_ty, ctx)
-        var j = 0
-        while j < arm.body.size() {
+        // CONSTRAINT: after check_pattern, so the guard sees the arm's binders.
+        when (arm.guard) {
+            Some(guard) => check_when_guard(guard, ctx)
+            None => { }
+        }
+        while j in 0..arm.body.size() {
             (arm.body.at_mut(j)).check_stmt(ctx)
-            j = j + 1
         }
         ctx.truncate_locals(outer_locals)
     }
     // After reclassification.
     report_non_exhaustive_when(subject_ty, arms, span, ctx)
     report_covered_when_arms(arms, ctx)
+}
+
+fun check_when_guard(guard: Ptr<Expr>, ctx: &var TypeCtx): void {
+    check_expr(unsafe { &var *guard }, ctx)
+    val ty = unsafe { guard.ty }
+    val is_bool = when (ty.kind) {
+        Bool => true
+        Never => true
+        Poison => true
+        _ => false
+    }
+    if is_bool { return }
+    val message = "a `when` guard must be a `bool`, found `${ty.display_type(ctx)}`"
+    ctx.emit(new_diagnostic(Severity.Error, new_label(unsafe { guard.span }, message)))
 }
 
 /// The join of every arm's type, then every arm made to carry it. Two passes,
@@ -149,10 +170,10 @@ fun Pattern.report_shadowing_pattern(ctx: &var TypeCtx): void {
 pub fun Pattern.check_pattern(subject_ty: Type, ctx: &var TypeCtx): void {
     when (self.kind) {
         Wildcard => return
-        LitInt(_) => return
-        LitBool(_) => return
-        LitChar(_) => return
-        // Strings are rejected by the parser; alternations are not built yet.
+        LitInt(_) => self.check_literal_pattern(subject_ty, "an integer", ctx)
+        LitBool(_) => self.check_literal_pattern(subject_ty, "a `bool`", ctx)
+        LitChar(_) => self.check_literal_pattern(subject_ty, "a `char`", ctx)
+        // Rewritten to a binder and a guard before this runs.
         LitStr(_) => return
         Or(_) => return
         Identifier(name) => ctx.declare(name.as_string(), subject_ty)
@@ -161,6 +182,47 @@ pub fun Pattern.check_pattern(subject_ty: Type, ctx: &var TypeCtx): void {
         }
         StructPat(_, _, _) => return
         Poison => return
+    }
+}
+
+/// A literal pattern compares by value, so the subject must be of the
+/// literal's own kind. A borrow is matched through.
+fun Pattern.check_literal_pattern(subject_ty: Type, literal: str, ctx: &var TypeCtx): void {
+    val subject = when (subject_ty.kind) {
+        RefTo(_, pointee) => unsafe { *pointee }
+        _ => subject_ty
+    }
+    val fits = when (subject.kind) {
+        Poison => true
+        Generic(_) => true
+        Projection(_, _) => true
+        Bool => self.kind.is_bool_literal()
+        Char => self.kind.is_char_literal()
+        _ => is_integer_type(subject) && self.kind.is_int_literal()
+    }
+    if fits { return }
+    val message = "this pattern is ${literal}, but the subject is `${subject_ty.display_type(ctx)}`"
+    ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+}
+
+fun PatternKind.is_int_literal(): bool {
+    return when (self) {
+        LitInt(_) => true
+        _ => false
+    }
+}
+
+fun PatternKind.is_bool_literal(): bool {
+    return when (self) {
+        LitBool(_) => true
+        _ => false
+    }
+}
+
+fun PatternKind.is_char_literal(): bool {
+    return when (self) {
+        LitChar(_) => true
+        _ => false
     }
 }
 
