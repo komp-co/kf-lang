@@ -213,6 +213,7 @@ fun trait_method_ret(recv_ty: Type, method_name: String, args: &var List<Expr>, 
 pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var List<Expr>, _span: Span, ctx: &var TypeCtx, call: &var Expr): Type {
     // Arguments first, in place, so nested receivers are typed even when the
     // method does not resolve.
+    report_annotated_lambda_args(receiver_ty.clone(), method_name.clone(), args, _span, ctx)
     var arg_tys = List.new<Type>()
     var ai = 0
     while ai < args.size() {

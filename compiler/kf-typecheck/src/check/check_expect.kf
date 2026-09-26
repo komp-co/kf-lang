@@ -119,6 +119,9 @@ pub mutating fun Expr.apply_expected(expected: Type, ctx: &var TypeCtx): bool {
             // Wrapped in `Some` only when the value fits the payload, so a
             // `true` return can be trusted.
             if !type_names_equal(self.ty, expected) {
+                // Poison was reported where it arose: the slot is claimed so
+                // nothing cascades, and nothing is rewritten on a guess.
+                if self.ty.is_poison() { return true }
                 if ip.option_accepts_expr(self, ctx) {
                     self.wrap_in_some(&ip, ctx)
                     return true
@@ -229,10 +232,8 @@ pub fun wrap_safe_call_value(subject_ty: Type, arms: &var List<Arm>, span: Span,
     wrap_in_some(unsafe { &var *vp }, &inst, ctx)
 }
 
-/// The value fits this Option's payload slot. A poison `from` still wraps.
+/// The value fits this Option's payload slot.
 fun GenericInst.option_accepts_expr(expression: &var Expr, ctx: &var TypeCtx): bool {
-    val from = expression.ty.clone()
-    if from.is_poison() { return true }
     if self.args.size() != 1 { return false }
     val payload = (*self.args.at(0)).resolve_type_ref(ctx)
     // Nested expectations go on the payload, which lets a concrete value flow

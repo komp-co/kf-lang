@@ -43,9 +43,3 @@ impl SigTable {
         return out
     }
 }
-
-/// Whether a `+`-joined bound list names `trait_name`.
-pub fun bounds_name(bounds: str, trait_name: str): bool {
-    val padded = "+${bounds}+"
-    return padded.as_str().contains("+${trait_name}+".as_str())
-}

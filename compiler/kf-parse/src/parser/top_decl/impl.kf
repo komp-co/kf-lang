@@ -17,6 +17,9 @@ fun type_params_to_refs(tps: List<TypeParam>): List<TypeRef> {
 impl Parser {
     mutating fun parse_impl(span: Span): TopDecl {
         unsafe { self.advance() }                     // consume `impl`
+        // `impl<A, B: Show> ...` declares the parameters up front.
+        val declared = self.parse_type_params()
+        val has_list = declared.size() > 0
         val first = self.expect_name("impl target")
         // Where the target is written, so diagnostics point at the type.
         val first_at = unsafe { self.peek().span }
@@ -43,7 +46,7 @@ impl Parser {
             val methods = self.parse_brace_methods()
             var td = new_top_decl(span, target, TopDeclKind.TraitImpl(trait_ref_ptr, methods))
             td.name_span = target_at
-            td.generics = tps
+            td.generics = if has_list { self.merge_declared_params(&declared, &tps) } else { tps }
             return td
         }
         self.pos = after_first
@@ -62,14 +65,14 @@ impl Parser {
             val methods = self.parse_brace_methods()
             var td = new_top_decl(span, target, TopDeclKind.TraitImpl(trait_ref_ptr, methods))
             td.name_span = target_at
-            td.generics = tps
+            td.generics = if has_list { self.merge_declared_params(&declared, &tps) } else { tps }
             return td
         }
 
         val methods = self.parse_brace_methods()
         var td = new_top_decl(span, first, TopDeclKind.ImplBlock(methods))
         td.name_span = first_at
-        td.generics = first_tps
+        td.generics = if has_list { self.merge_declared_params(&declared, &first_tps) } else { first_tps }
         return td
     }
 

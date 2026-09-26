@@ -77,6 +77,7 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
     if is_intrinsic { return intrinsic_call_type(name, args, type_args, span, ctx) }
     // Arguments first, in place: a nested receiver needs its type even when
     // the callee does not resolve.
+    report_annotated_lambda_call_args(String.from(name.as_str()), args, span, ctx)
     var arg_tys = type_call_arguments(args, ctx)
     // Runtime intrinsics are not in the sig table.
     val rt = runtime_intrinsic_ret(name, span, ctx.string_name())
