@@ -6,7 +6,7 @@
 
 import alloc.list.*
 
-import kf_assemble.walk_kf_files
+import kf_shared.walk_kf_files
 import kf_driver.project.manifest_c_sources
 import kf_driver.project.manifest_hosted_c_sources
 import kf_driver.project.parse_manifest

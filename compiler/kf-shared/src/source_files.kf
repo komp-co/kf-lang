@@ -1,0 +1,51 @@
+// Which files make up a crate: every `.kf` under its `src/`, and whether the
+// `_test.kf` ones count. The compiler assembles exactly these, and komp
+// fingerprints exactly these.
+
+import alloc.list.*
+
+extern "C" fun is_dir(p: str): bool
+
+/// Absolute paths of the non-test `.kf` files under `dir`, sorted.
+pub fun walk_kf_files(dir: str, out: &var List<String>): void {
+    walk_kf_files_inc(dir, out, false)
+}
+
+/// CONSTRAINT: sorted, because directory enumeration order differs between
+/// filesystems and module order — and so all output — follows from it.
+pub fun walk_kf_files_inc(dir: str, out: &var List<String>, include_tests: bool): void {
+    var found = List.new<String>()
+    walk_kf_files_raw(dir, &var found, include_tests)
+    found.sort()
+    while path in &found { out.push(path.clone()) }
+}
+
+fun walk_kf_files_raw(dir: str, out: &var List<String>, include_tests: bool): void {
+    val handle: uint64 = unsafe { kf_fs_dir_open(dir) }
+    if handle == 0 { return }
+    while true {
+        val name: str = unsafe { kf_fs_dir_next(handle) }
+        // A null pointer ends the directory; compared raw because str
+        // equality would dereference it.
+        val name_ptr: Ptr<uint8> = unsafe { name as Ptr<uint8> }
+        val end_ptr: Ptr<uint8> = unsafe { 0 as Ptr<uint8> }
+        if name_ptr == end_ptr { break }
+        val full = join_path(dir, name)
+        if is_dir(full.as_str()) {
+            walk_kf_files_raw(full.as_str(), out, include_tests)
+        } else if is_kf_file_any(name) && (include_tests || is_kf_source_file(name)) {
+            out.push(full)
+        }
+    }
+    unsafe { kf_fs_dir_close(handle) }
+}
+
+/// Ends in `.kf` and is not a `_test.kf` file.
+pub fun is_kf_source_file(name: str): bool {
+    return is_kf_file_any(name) && !name.ends_with("_test.kf")
+}
+
+/// Ends in `.kf`, test files included.
+pub fun is_kf_file_any(name: str): bool {
+    return name.ends_with(".kf")
+}

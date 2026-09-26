@@ -6,7 +6,6 @@ import alloc.list.*
 import alloc.path.*
 import std.process.*
 
-import kf_core.ast.*
 
 import kf_driver.project.*
 import kf_shared.join_path
@@ -82,10 +81,3 @@ pub fun test_project(root_dir: str): int32 {
     child.env("KFLATC", kflatc_path().as_str())
     return child.status().exit_code()
 }
-
-/// The crate the user pointed at; lints apply to it only.
-pub fun BuildGraph.root_crate_id(): CrateId {
-    if self.crates.size() == 0 { return crate_id_poison() }
-    return new_crate_id(self.crates.at(self.crates.size() - 1).name.as_str())
-}
-

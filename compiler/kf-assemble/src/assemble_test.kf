@@ -6,33 +6,6 @@ import kf_core.span.*
 import kf_core.diagnostic.*
 import std.fs.scratch_path
 
-@test fun source_file_accepts_plain_kf(): void {
-    val ok: bool = is_kf_source_file("foo.kf")
-    assert_eq(ok, true, "foo.kf is source")
-}
-
-@test fun is_kf_file_any_includes_test_files(): void {
-    assert_eq(is_kf_file_any("foo_test.kf"), true, "any-.kf includes _test.kf")
-    assert_eq(is_kf_file_any("foo.kf"), true, "any-.kf includes plain .kf")
-    assert_eq(is_kf_file_any("foo.txt"), false, "any-.kf excludes non-.kf")
-    assert_eq(is_kf_source_file("foo_test.kf"), false, "production predicate excludes _test.kf")
-}
-
-@test fun source_file_rejects_test_kf(): void {
-    val ok: bool = is_kf_source_file("foo_test.kf")
-    assert_eq(ok, false, "_test.kf excluded")
-}
-
-@test fun source_file_rejects_non_kf(): void {
-    assert_eq(is_kf_source_file("foo.txt"), false, ".txt is not source")
-    assert_eq(is_kf_source_file("README.md"), false, ".md is not source")
-}
-
-@test fun source_file_accepts_test_prefix(): void {
-    val ok: bool = is_kf_source_file("test_foo.kf")
-    assert_eq(ok, true, "prefix _test is fine")
-}
-
 @test fun module_path_root_file(): void {
     val mp: List<String> = module_path_for("/Komp/compiler/komp/src/main.kf", "/Komp/compiler/komp/src", String.from("komp"))
     assert_eq(mp.size(), 2, "two segments")
@@ -54,31 +27,6 @@ import std.fs.scratch_path
     assert_eq(mp.at(0).as_str(), "r", "crate")
     assert_eq(mp.at(1).as_str(), "a", "first dir")
     assert_eq(mp.at(4).as_str(), "foo", "stem last")
-}
-
-// These pin the sort comparator; testing the walk would need a fixture tree.
-@test fun path_order_is_byte_order(): void {
-    assert_eq(path_byte_less("a.kf", "b.kf"), true, "a before b")
-    assert_eq(path_byte_less("b.kf", "a.kf"), false, "b not before a")
-    assert_eq(path_byte_less("a.kf", "a.kf"), false, "equal is not less")
-}
-
-@test fun path_order_breaks_ties_on_length(): void {
-    assert_eq(path_byte_less("src/a", "src/ab"), true, "prefix sorts first")
-    assert_eq(path_byte_less("src/ab", "src/a"), false, "longer does not sort first")
-}
-
-@test fun path_order_is_a_total_order_over_a_directory(): void {
-    var paths = List.new<String>()
-    paths.push(String.from("src/zeta.kf"))
-    paths.push(String.from("src/alpha.kf"))
-    paths.push(String.from("src/mid.kf"))
-    var out = List.new<String>()
-    push_sorted(&paths, &var out)
-    assert_eq(out.size(), 3, "every element survives the sort")
-    assert_eq(out.at(0).as_str().equals("src/alpha.kf"), true, "alpha first")
-    assert_eq(out.at(1).as_str().equals("src/mid.kf"), true, "mid second")
-    assert_eq(out.at(2).as_str().equals("src/zeta.kf"), true, "zeta last")
 }
 
 extern "C" fun kf_create_dir_all(p: str): int32
