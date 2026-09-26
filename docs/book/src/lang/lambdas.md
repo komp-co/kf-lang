@@ -232,3 +232,23 @@ $ komp check .
 src/main.kf:3:13: error: lambda parameter `x` needs a type annotation (its type is read from the `Call` bound on the parameter the lambda is passed to, and this position declares none)
 ```
 
+Where a bound does apply, a written annotation must agree with it. `any` on a
+`List<int32>` hands each element over as an `int32`, so a parameter written
+`&int32` is rejected at the parameter:
+
+```kflat
+import alloc.list.*
+
+fun main(): int32 {
+    var xs = List.new<int32>()
+    xs.push(7)
+    if xs.any(|n: &int32| *n == 7) { return 0 }
+    return 1
+}
+```
+
+```console
+$ komp check .
+src/main.kf:6:16: error: lambda parameter `n` is written `&int32`, but the `Call` bound it is passed to asks for `int32`
+```
+

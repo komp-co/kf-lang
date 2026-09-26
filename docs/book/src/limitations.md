@@ -83,11 +83,6 @@ $ komp check .
 src/main.kf:3:13: error: lambda parameter `x` needs a type annotation (its type is read from the `Call` bound on the parameter the lambda is passed to, and this position declares none)
 ```
 
-- **An annotation that disagrees with the bound reaches cc.** A lambda whose
-  written parameter type differs from what the `Call` bound asks for, such as
-  `|n: &int32|` passed where `Call1<int32>` is wanted, passes `check` and fails
-  in the C compiler ([#75]). Leave the annotation off where the bound supplies
-  it.
 
 ## Generics
 
@@ -203,5 +198,4 @@ not agree with it in every case.
 [#53]: https://github.com/komp-co/komp/issues/53
 [#58]: https://github.com/komp-co/komp/issues/58
 [#73]: https://github.com/komp-co/komp/issues/73
-[#75]: https://github.com/komp-co/komp/issues/75
 [#79]: https://github.com/komp-co/komp/issues/79
