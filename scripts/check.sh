@@ -208,6 +208,12 @@ if ! sh scripts/check_line_lengths.sh; then
     exit 1
 fi
 
+phase "unsafe blocks"
+if ! sh scripts/check_unsafe.sh; then
+    echo "FAIL: unsafe blocks" >&2
+    exit 1
+fi
+
 if [ "$run_sweep" -eq 0 ]; then
     echo "OK: fixpoint"
     exit 0
