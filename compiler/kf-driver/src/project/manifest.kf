@@ -49,6 +49,8 @@ pub fun parse_manifest(src: str): Manifest {
     var freestanding = false
     var section = ""
     var dep_error = ""
+    var index_names = List.new<String>()
+    var index_urls = List.new<String>()
 
     val lines = split_lines(src)
     while raw in &lines {
@@ -94,6 +96,11 @@ pub fun parse_manifest(src: str): Manifest {
                             lint_levels.push(value.clone())
                         }
                     }
+                    // One `name = "url"` per row.
+                    if sect_str == "indexes" {
+                        index_names.push(read_key(line.clone()))
+                        index_urls.push(read_string_value(line.clone()))
+                    }
                     if in_deps {
                         val dep = parse_dependency(read_key(line.clone()), line.as_str())
                         if dep_error.byte_len() == 0 { dep_error = dep.source_error() }
@@ -103,7 +110,19 @@ pub fun parse_manifest(src: str): Manifest {
             }
         }
     }
-    return new_manifest_with_lints(name, version, kind, deps, lint_names, lint_levels, freestanding, dep_error)
+    var looked_up = List.new<Dependency>()
+    while dep in &deps {
+        if dep.version.byte_len() == 0 {
+            looked_up.push(dep.clone())
+            continue
+        }
+        val url = index_url_for(dep.index.as_str(), &index_names, &index_urls)
+        if url.byte_len() == 0 && dep_error.byte_len() == 0 {
+            dep_error = "dependency `${dep.name}` names index `${dep.index}`, which `[indexes]` does not declare"
+        }
+        looked_up.push(dep.in_index(url.as_str()))
+    }
+    return new_manifest_with_lints(name, version, kind, looked_up, lint_names, lint_levels, freestanding, dep_error)
 }
 
 /// `[native] c_sources`: C files, relative to the crate root, compiled and

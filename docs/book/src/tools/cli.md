@@ -101,8 +101,9 @@ inside the crate, runs them, and reports failures. See
 
 ### komp update
 
-`komp update <project-dir>` resolves every `git` and `tarball` dependency
-again: a tag or branch moves to the commit it names now. It fetches what is
+`komp update <project-dir>` resolves every version, `git` and `tarball`
+dependency again: a version requirement moves to the highest version the index
+now has, and a tag or branch to the commit it names now. It fetches what is
 new and rewrites `kf.lock`. Every other command fetches only what the lock
 does not already pin. See
 [Fetched dependencies](../start/projects.md#fetched-dependencies).

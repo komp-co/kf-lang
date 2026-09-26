@@ -75,6 +75,7 @@ pub fun sync_sources(crate_root: str, policy: &FetchPolicy, cache: str): String 
     val old_text = if had_lock { read_file(lock_path.as_str()) } else { String.from("") }
     val old = parse_lockfile(old_text.as_str())
     var rows = List.new<LockEntry>()
+    var refreshed = List.new<String>()
     var queue = lock_scope_roots(crate_root, lock_dir.as_str())
     var seen = List.new<String>()
     var complete = true
@@ -98,7 +99,7 @@ pub fun sync_sources(crate_root: str, policy: &FetchPolicy, cache: str): String 
         }
         while dep in &manifest.deps {
             if dep.is_remote() {
-                val fetched = resolve_remote(dep, &old, &rows, policy, cache)
+                val fetched = resolve_remote(dep, &old, &rows, policy, cache, &var refreshed)
                 if fetched.error.byte_len() > 0 {
                     return "error: dependency `${dep.name}` of ${dir}: ${fetched.error}"
                 }
@@ -142,7 +143,7 @@ fun lock_scope_roots(crate_root: str, lock_dir: str): List<String> {
 
 /// A row chosen earlier in this run, then the lock's, else a fresh fetch.
 fun resolve_remote(dep: &Dependency, old: &List<LockEntry>, rows: &List<LockEntry>, policy: &FetchPolicy,
-                   cache: str): Fetched {
+                   cache: str, refreshed: &var List<String>): Fetched {
     var chosen = rows.find_satisfying(dep)
     if chosen.is_none() && !policy.update { chosen = old.find_satisfying(dep) }
     when (chosen) {
@@ -150,6 +151,7 @@ fun resolve_remote(dep: &Dependency, old: &List<LockEntry>, rows: &List<LockEntr
         None => {
             if policy.locked { return fetch_failed("kf.lock has no row for it; run `komp update`, or drop `--locked`") }
             if policy.offline { return fetch_failed("kf.lock has no row for it, and `--offline` forbids resolving it") }
+            if dep.version.byte_len() > 0 { return resolve_from_index(dep, cache, refreshed) }
             return fetch_pinned(dep, &empty_lock_entry(), cache)
         }
     }
@@ -165,6 +167,11 @@ fun use_pinned(dep: &Dependency, entry: &LockEntry, policy: &FetchPolicy, cache:
 }
 
 fun fetch_pinned(dep: &Dependency, pin: &LockEntry, cache: str): Fetched {
+    if dep.version.byte_len() > 0 {
+        val fetched = fetch_exact_source(dep.name.as_str(), &pin.git, &pin.rev, &pin.tarball, &pin.checksum, cache)
+        if fetched.error.byte_len() > 0 { return fetched }
+        return Fetched { entry: fetched.entry.in_index(&pin.index), error: "" }
+    }
     if dep.git.byte_len() > 0 { return fetch_git(dep, pin.rev.as_str(), cache) }
     return fetch_tarball(dep, pin.checksum.as_str(), cache)
 }
