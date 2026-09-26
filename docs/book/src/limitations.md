@@ -175,6 +175,10 @@ a process launch and a re-check. A KFlat-native server that links the compiler
 in-process is [kf-lsp#1](https://github.com/komp-co/kf-lsp/issues/1). There is
 no formatter ([#15]).
 
+There is no package index yet. A dependency names where it comes from, a path,
+a git repository or a tarball, and a bare version such as `json = "0.2"` is
+rejected. Versions, feature flags and publishing are [#79].
+
 ## Where the compiler itself stands
 
 The compiler self-hosts and the fixpoint holds: komp compiles its own source
@@ -202,3 +206,4 @@ not agree with it in every case.
 [#58]: https://github.com/komp-co/komp/issues/58
 [#73]: https://github.com/komp-co/komp/issues/73
 [#75]: https://github.com/komp-co/komp/issues/75
+[#79]: https://github.com/komp-co/komp/issues/79

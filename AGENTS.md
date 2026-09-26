@@ -151,6 +151,11 @@ place a crate's dependencies are worked out, for every command. kflatc is
 handed what it needs on its command line (`--crate`, `--dep`, `--lint`); do
 not give it a reason to open `kf.toml`.
 
+**Only `sync_sources` fetches.** It runs before a command builds, fetches git
+and tarball dependencies into the cache and writes `kf.lock`. The build graph
+reads the lock and the cache and nothing else, so it never touches the network.
+Tests fetch from `file://` sources in scratch space, never from a real host.
+
 ## Commit Guidelines
 
 - **Subject under 70 chars**, body wraps at 72; **name the *why*, not what**

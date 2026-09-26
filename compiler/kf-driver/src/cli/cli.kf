@@ -13,6 +13,7 @@
 //   komp query <what> --file <path> [--offset <N>] [--overlay <path>]
 //                                      answer an editor's question as JSON
 //   komp test <project-dir>            run @test functions from artifacts
+//   komp update [<project-dir>]        re-resolve fetched dependencies
 //   komp new <name>                    create a new project
 //   komp init                          create a new project in the current dir
 //   komp version                       print version
@@ -175,8 +176,8 @@ pub fun run_cli(): int32 {
                 ci = ci + 1                      // skip the lint name
             } else if arg == "--manifest-path" || is_selection_value_flag(arg) {
                 ci = ci + 1                      // read by manifest_root / package_flag
-            } else if arg == "--deny-warnings" || arg == "--workspace" {
-                // read by wants_workspace / apply_cli_lint_flags
+            } else if arg == "--deny-warnings" || arg == "--workspace" || is_fetch_flag(arg) {
+                // read by wants_workspace / apply_cli_lint_flags / fetched_for
             } else {
                 project = String.from(arg)
             }
@@ -208,6 +209,7 @@ pub fun run_cli(): int32 {
         if positionals_from(nargs, base) > 1 { return usage_error("run") }
         val root = single_selected_crate("run", project_for(nargs, base).as_str(), nargs)
         if root.as_str() == "" { return 1 }
+        if !fetched_for(root.as_str(), nargs) { return 1 }
         return run_project_mode(root.as_str(), mode)
     }
     if a0 == "build" {
@@ -234,8 +236,8 @@ pub fun run_cli(): int32 {
                 bi = bi + 1                      // read by manifest_root / package_flag
             } else if arg == "-A" || arg == "-W" || arg == "-D" {
                 bi = bi + 1                      // skip the lint name
-            } else if arg == "--workspace" || arg == "--deny-warnings" {
-                // read by wants_workspace / apply_cli_lint_flags
+            } else if arg == "--workspace" || arg == "--deny-warnings" || is_fetch_flag(arg) {
+                // read by wants_workspace / apply_cli_lint_flags / fetched_for
             } else if starts_with_dash(arg) {
                 return usage_error("build")
             } else if project.as_str() == "" {
@@ -257,6 +259,7 @@ pub fun run_cli(): int32 {
         // A whole program is one crate's.
         project = single_selected_crate("build", project.as_str(), nargs)
         if project.as_str() == "" { return 1 }
+        if !fetched_for(project.as_str(), nargs) { return 1 }
 
         // A single output file is the whole-program form: `komp build -o
         // out.c` means `komp <dir> out.c`.
@@ -279,6 +282,10 @@ pub fun run_cli(): int32 {
                 return run_on_selected("test", project_for(nargs, 1).as_str(), nargs, false)
             }
         }
+    }
+    if a0 == "update" {
+        if positionals_from(nargs, 1) > 1 { return usage_error("update") }
+        return update_project(project_for(nargs, 1).as_str(), nargs)
     }
     if a0 == "new" {
         if nargs < 2 { return usage_error("new") }
