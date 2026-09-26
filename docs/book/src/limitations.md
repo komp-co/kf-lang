@@ -89,11 +89,6 @@ src/main.kf:3:13: error: lambda parameter `x` needs a type annotation (its type 
   in the C compiler ([#75]). Leave the annotation off where the bound supplies
   it.
 
-## when guards
-
-- **A guard inside a lambda does not capture** ([#84]). An outer variable read
-  only from a guard, in a `when` inside a lambda body, is not captured.
-
 ## Generics
 
 - A generic struct literal typed only by its binding
@@ -210,4 +205,3 @@ not agree with it in every case.
 [#73]: https://github.com/komp-co/komp/issues/73
 [#75]: https://github.com/komp-co/komp/issues/75
 [#79]: https://github.com/komp-co/komp/issues/79
-[#84]: https://github.com/komp-co/komp/issues/84
