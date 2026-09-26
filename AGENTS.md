@@ -72,6 +72,11 @@ no single-file mode.
 - **Long lines ratchet too.** `scripts/check_line_lengths.sh` freezes the
   count of lines over 120 columns per file. Wrap instead: a trailing binary
   operator continues a line, and parameter and argument lists may span lines.
+- **Unsafe ratchets down.** `scripts/check_unsafe.sh` freezes the count of
+  `unsafe {` blocks per compiler source file. Own a node with
+  `Box<T>`, borrow with `&T` or `&var T`, and call the library rather than
+  declaring an `extern`; bless a block that must stay with `--update` and say
+  why in the commit.
 - **Output is deterministic.** The fixpoint is a byte comparison, so nothing
   whose order depends on hashing or addresses may reach emitted C or a `.kfi`.
 - **Replace, don't accrete.** No `parse_expr_v2` beside `parse_expr`, no
