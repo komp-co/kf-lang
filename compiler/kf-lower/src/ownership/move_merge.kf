@@ -157,7 +157,6 @@ fun union_moved_marking(a: List<MovedEntry>, b: List<MovedEntry>, ctx: &var Move
     return fresh
 }
 
-/// Or-patterns bind from the first alternative.
 fun declare_pattern_binds(pp: Ptr<Pattern>, ctx: &var MoveCtx): void {
     val p = unsafe { *pp }
     when (p.kind) {
@@ -176,14 +175,9 @@ fun declare_pattern_binds(pp: Ptr<Pattern>, ctx: &var MoveCtx): void {
                 ctx.declare_owned(item)
             }
         }
-        Or(alts) => {
-            if alts.size() > 0 {
-                val first = *alts.at(0)
-                val fp: Ptr<Pattern> = unsafe { alloc<Pattern>() }
-                unsafe { *fp = first }
-                declare_pattern_binds(fp, ctx)
-            }
-        }
+        // Alternatives bind nothing.
+        Or(_) => return
+        Range(_, _, _) => return
         Wildcard => return
         LitInt(_) => return
         LitStr(_) => return
@@ -213,14 +207,9 @@ fun declare_pattern_binds_borrowed(pp: Ptr<Pattern>, ctx: &var MoveCtx): void {
                 ctx.declare_borrowed(item)
             }
         }
-        Or(alts) => {
-            if alts.size() > 0 {
-                val first = *alts.at(0)
-                val fp: Ptr<Pattern> = unsafe { alloc<Pattern>() }
-                unsafe { *fp = first }
-                declare_pattern_binds_borrowed(fp, ctx)
-            }
-        }
+        // Alternatives bind nothing.
+        Or(_) => return
+        Range(_, _, _) => return
         Wildcard => return
         LitInt(_) => return
         LitStr(_) => return

@@ -34,6 +34,10 @@ pub enum SwitchTag {
     IntLit(int64)
     /// `_ =>`, a C `default:`.
     Wildcard
+    /// `0..32 =>`, both bounds inclusive.
+    Range(int64, int64)
+    /// `A | B =>`: one label per alternative, one body.
+    Alternatives(List<SwitchTag>)
 }
 
 pub fun new_switch_arm(span: Span, tag: SwitchTag, binders: List<Sym>, guard: Ptr<Expr>?, body: List<Stmt>): SwitchArm {

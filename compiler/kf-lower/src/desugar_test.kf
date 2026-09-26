@@ -46,6 +46,8 @@ fun mk_none_arm(): Arm {
                 Variant(name) => assert_eq(name.as_str(), "Some", "first arm tag is Some")
                 IntLit(_) => assert_eq(false, true, "expected Variant tag, got IntLit")
                 Wildcard => assert_eq(false, true, "expected Variant tag, got Wildcard")
+                Range(_, _) => assert_eq(false, true, "unexpected Range tag")
+                Alternatives(_) => assert_eq(false, true, "unexpected Alternatives tag")
             }
             assert_eq(a0.binders.size() == 1, true, "Some(x) has 1 binder")
             assert_eq(a0.binders.get(0).as_str(), "x", "binder is x")
@@ -76,6 +78,8 @@ fun mk_none_arm(): Arm {
                 Wildcard => assert_eq(true, true, "wildcard tag preserved")
                 Variant(_) => assert_eq(false, true, "expected Wildcard")
                 IntLit(_) => assert_eq(false, true, "expected Wildcard, got IntLit")
+                Range(_, _) => assert_eq(false, true, "unexpected Range tag")
+                Alternatives(_) => assert_eq(false, true, "unexpected Alternatives tag")
             }
             assert_eq(a.binders.size() == 0, true, "wildcard binds nothing")
         }
@@ -101,6 +105,8 @@ fun mk_none_arm(): Arm {
         IntLit(n) => assert_eq(n, 7, "the literal carries through to the case constant")
         Variant(_) => fail("expected IntLit, got Variant")
         Wildcard => fail("expected IntLit, got Wildcard")
+        Range(_, _) => fail("unexpected Range tag")
+        Alternatives(_) => fail("unexpected Alternatives tag")
     }
 }
 
@@ -110,6 +116,8 @@ fun mk_none_arm(): Arm {
         IntLit(n) => assert_eq(n, 1, "C compares a bool as an integer")
         Variant(_) => fail("expected IntLit, got Variant")
         Wildcard => fail("expected IntLit, got Wildcard")
+        Range(_, _) => fail("unexpected Range tag")
+        Alternatives(_) => fail("unexpected Alternatives tag")
     }
 }
 
@@ -119,9 +127,50 @@ fun mk_none_arm(): Arm {
         IntLit(n) => assert_eq(n, 0, "`false` is case 0")
         Variant(_) => fail("expected IntLit, got Variant")
         Wildcard => fail("expected IntLit, got Wildcard")
+        Range(_, _) => fail("unexpected Range tag")
+        Alternatives(_) => fail("unexpected Alternatives tag")
     }
 }
 
 fun bare_op(): Ptr<Expr>? {
     return null
+}
+
+@test fun a_range_pattern_lowers_to_a_range_tag(): void {
+    val tag = (new_pattern(no_span(), PatternKind.Range(0, 31, false))).pattern_to_tag()
+    when (tag) {
+        Range(low, high) => assert_eq(high - low, 31, "both bounds carry through, inclusive")
+        IntLit(_) => fail("expected Range, got IntLit")
+        Variant(_) => fail("expected Range, got Variant")
+        Alternatives(_) => fail("expected Range, got Alternatives")
+        Wildcard => fail("expected Range, got Wildcard")
+    }
+}
+
+@test fun a_catch_all_alternative_lowers_to_a_wildcard(): void {
+    var alternatives = List.new<Pattern>()
+    alternatives.push(new_pattern(no_span(), PatternKind.LitInt(1)))
+    alternatives.push(new_pattern(no_span(), PatternKind.Wildcard))
+    val tag = (new_pattern(no_span(), PatternKind.Or(alternatives))).pattern_to_tag()
+    when (tag) {
+        Wildcard => assert_eq(true, true, "`1 | _` matches anything")
+        IntLit(_) => fail("expected Wildcard, got IntLit")
+        Variant(_) => fail("expected Wildcard, got Variant")
+        Range(_, _) => fail("expected Wildcard, got Range")
+        Alternatives(_) => fail("expected Wildcard, got Alternatives")
+    }
+}
+
+@test fun alternatives_lower_to_one_label_each(): void {
+    var alternatives = List.new<Pattern>()
+    alternatives.push(new_pattern(no_span(), PatternKind.LitInt(1)))
+    alternatives.push(new_pattern(no_span(), PatternKind.LitInt(2)))
+    val tag = (new_pattern(no_span(), PatternKind.Or(alternatives))).pattern_to_tag()
+    when (tag) {
+        Alternatives(tags) => assert_eq(tags.size(), 2, "one tag per alternative")
+        IntLit(_) => fail("expected Alternatives, got IntLit")
+        Variant(_) => fail("expected Alternatives, got Variant")
+        Range(_, _) => fail("expected Alternatives, got Range")
+        Wildcard => fail("expected Alternatives, got Wildcard")
+    }
 }

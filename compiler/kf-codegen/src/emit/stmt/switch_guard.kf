@@ -48,21 +48,12 @@ fun emit_chain_arm(a: SwitchArm, ename: String, through_ref: bool, chained: bool
     } else {
         parts.push(String.from("if ("))
     }
-    parts.push(chain_pattern_test(a.tag, ename, through_ref))
+    parts.push(a.tag.chain_test(ename.as_str(), through_ref))
     parts.push(chain_guard_test(a, through_ref))
     parts.push(String.from(") {\n"))
     parts.push(join_decls(chain_binder_decls(a, through_ref), indent + 1))
     parts.push(emit_block(a.body, indent + 1, env))
     return concat_all(parts)
-}
-
-/// The pattern test before the guard; a wildcard tests `1`.
-fun chain_pattern_test(tag: SwitchTag, ename: String, through_ref: bool): String {
-    return when (tag) {
-        Variant(name) => "__when_subj${member_access(through_ref)}tag == ${enum_tag_const(ename.as_str(), name.as_str())}"
-        IntLit(n) => "__when_subj == ${emit_case_value(n)}"
-        Wildcard => String.from("1")
-    }
 }
 
 /// `&& ({ binders (guard); })` for a guarded arm, empty otherwise. Binders
@@ -100,6 +91,8 @@ fun chain_binder_rhs(tag: SwitchTag, through_ref: bool, idx: uint64): String {
     return when (tag) {
         Variant(name) => "__when_subj${member_access(through_ref)}u.V_${name}._${unsafe { __kf_v2_int32_to_str(idx as int32) }}"
         IntLit(_) => String.from("__when_subj")
+        Range(_, _) => String.from("__when_subj")
+        Alternatives(_) => String.from("__when_subj")
         Wildcard => String.from("__when_subj")
     }
 }

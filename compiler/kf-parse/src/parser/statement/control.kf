@@ -210,7 +210,7 @@ impl Parser {
     mutating fun parse_arm(): Arm {
         val arm_span = self.peek().span
         val pat_ptr: Ptr<Pattern> = unsafe { alloc<Pattern>() }
-        unsafe { *pat_ptr = self.parse_pattern() }
+        unsafe { *pat_ptr = self.parse_arm_pattern() }
 
         var guard_ptr: Ptr<Expr>? = null
 
@@ -252,7 +252,7 @@ impl Parser {
         if is_int_literal(self.peek()) {
             val n = int_literal_value(self.peek())
             unsafe { self.advance() }
-            return new_pattern(pat_span, PatternKind.LitInt(n))
+            return self.literal_or_range(pat_span, n, false)
         }
         // `-1` is two tokens; a pattern folds the sign into the value.
         if is_op(self.peek(), Operator.Minus) {
@@ -260,13 +260,13 @@ impl Parser {
                 unsafe { self.advance() }
                 val n = int_literal_value(self.peek())
                 unsafe { self.advance() }
-                return new_pattern(pat_span, PatternKind.LitInt(0 - n))
+                return self.literal_or_range(pat_span, 0 - n, false)
             }
         }
         if is_char_literal(self.peek()) {
             val c = char_literal_value(self.peek())
             unsafe { self.advance() }
-            return new_pattern(pat_span, PatternKind.LitChar(c))
+            return self.literal_or_range(pat_span, c as int64, true)
         }
         when (self.peek().string_literal_text()) {
             Some(text) => {
@@ -304,9 +304,75 @@ impl Parser {
         // Unsupported here: reported, then resynced on the arm's `=>` so it
         // costs one diagnostic.
         unsafe { self.advance() }
-        self.parse_err(pat_span, String.from("unsupported pattern — `when` matches enum variants, integer, char, bool and string literals, a binding, or `_`"))
+        self.parse_err(pat_span, String.from("unsupported pattern — `when` matches enum variants, integer, char, bool and string literals, ranges, a binding, or `_`"))
         self.skip_to_arm_arrow()
         return pattern_poison(pat_span)
+    }
+
+    /// `p | p | ...`. `|` binds looser than a range's `..`, so `1..5 | 9` is
+    /// two alternatives.
+    mutating fun parse_arm_pattern(): Pattern {
+        val first = self.parse_pattern()
+        if !is_op(self.peek(), Operator.Pipe) { return first }
+        val start = first.span
+        var end = first.span
+        var alternatives = List.new<Pattern>()
+        alternatives.push(first)
+        while is_op(self.peek(), Operator.Pipe) {
+            unsafe { self.advance() }
+            val next = self.parse_pattern()
+            end = next.span
+            alternatives.push(next)
+        }
+        val span = Span { file_id: start.file_id, start: start.start, end: end.end }
+        return new_pattern(span, PatternKind.Or(alternatives))
+    }
+
+    /// A literal already read, or the low bound of `low..high` / `low..=high`.
+    mutating fun literal_or_range(span: Span, low: int64, is_char: bool): Pattern {
+        val inclusive = is_op(self.peek(), Operator.DotDotEq)
+        if !inclusive && !is_op(self.peek(), Operator.DotDot) {
+            if is_char { return new_pattern(span, PatternKind.LitChar(low as uint32)) }
+            return new_pattern(span, PatternKind.LitInt(low))
+        }
+        unsafe { self.advance() }
+        val high_span = self.peek().span
+        val whole = Span { file_id: span.file_id, start: span.start, end: high_span.end }
+        val high = self.range_bound(is_char) ?: return self.bad_range_bound(high_span, whole, is_char)
+        val last = if inclusive { high } else { high - 1 }
+        if last < low {
+            self.parse_err(whole, String.from("this range matches nothing: its upper bound is not above its lower bound"))
+            return pattern_poison(whole)
+        }
+        return new_pattern(whole, PatternKind.Range(low, last, is_char))
+    }
+
+    mutating fun bad_range_bound(bound: Span, whole: Span, is_char: bool): Pattern {
+        val kind = if is_char { "a char" } else { "an integer" }
+        self.parse_err(bound, "a range pattern's upper bound must be ${kind} literal, like its lower bound")
+        return pattern_poison(whole)
+    }
+
+    /// The upper bound, of the same kind as the lower.
+    mutating fun range_bound(is_char: bool): int64? {
+        if is_char {
+            if !is_char_literal(self.peek()) { return null }
+            val c = char_literal_value(self.peek())
+            unsafe { self.advance() }
+            return c as int64
+        }
+        if is_int_literal(self.peek()) {
+            val n = int_literal_value(self.peek())
+            unsafe { self.advance() }
+            return n
+        }
+        if is_op(self.peek(), Operator.Minus) && is_int_literal(self.peek_at(1)) {
+            unsafe { self.advance() }
+            val n = int_literal_value(self.peek())
+            unsafe { self.advance() }
+            return 0 - n
+        }
+        return null
     }
 
     /// Up to the arm's `=>`, stopping at a newline, `}` or EOF so a `when`

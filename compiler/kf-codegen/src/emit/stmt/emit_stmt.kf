@@ -264,13 +264,12 @@ fun emit_enum_arm(a: SwitchArm, ename: String, through_ref: bool, indent: uint64
                 }
             }
         }
-        // Only a mixed `when`, which typecheck rejects, reaches here; an enum
-        // tag is an int, so a well-formed label is emitted.
-        IntLit(n) => {
-            parts.push(String.from("case "))
-            parts.push(emit_case_value(n))
-            parts.push(String.from(": {\n"))
-        }
+        // Only a mixed `when`, which typecheck rejects, reaches here with an
+        // integer tag; an enum tag is an int, so a well-formed label is emitted.
+        IntLit(_) => parts.push("${tag.case_labels(ename.as_str())}{\n")
+        Range(_, _) => parts.push("${tag.case_labels(ename.as_str())}{\n")
+        // Alternatives bind nothing.
+        Alternatives(_) => parts.push("${tag.case_labels(ename.as_str())}{\n")
         Wildcard => {
             parts.push(String.from("default: {\n"))
             parts.push(emit_subject_binders(a.binders, indent + 1))
@@ -337,8 +336,17 @@ fun arms_have_variant(arms: List<SwitchArm>): bool {
         val tag = item.tag
         when (tag) {
             Variant(_) => return true
+            Alternatives(tags) => {
+                while alternative in &tags {
+                    when (alternative) {
+                        Variant(_) => return true
+                        _ => {}
+                    }
+                }
+            }
             // A scalar arm never makes it an enum match.
             IntLit(_) => {}
+            Range(_, _) => {}
             Wildcard => {}
         }
     }
@@ -350,20 +358,11 @@ fun emit_arm(a: SwitchArm, indent: uint64, env: &var LocalEnv): String {
     parts.push(emit_indent(indent))
     val tag = a.tag
     when (tag) {
-        Variant(name) => {
-            parts.push(String.from("case "))
-            parts.push(name.clone())
-            parts.push(String.from(": {\n"))
-        }
-        IntLit(n) => {
-            parts.push(String.from("case "))
-            parts.push(emit_case_value(n))
-            parts.push(String.from(": {\n"))
-        }
         Wildcard => {
             parts.push(String.from("default: {\n"))
             parts.push(emit_subject_binders(a.binders, indent + 1))
         }
+        _ => parts.push("${tag.case_labels("")}{\n")
     }
     parts.push(emit_block(a.body, indent + 1, env))
     parts.push(emit_indent(indent + 1))
