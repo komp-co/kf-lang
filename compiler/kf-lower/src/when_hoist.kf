@@ -3,9 +3,10 @@
 //     var __whenN: T
 //     when (SUBJ) { p => __whenN = e  ... }
 //
-// goes ahead of it, and the node becomes a read of `__whenN`. Innermost
-// first, so `a?.b?.c` works. A binding initializer or return operand keeps
-// `expand_let`'s path.
+// goes ahead of it, and the node becomes a read of `__whenN`. A list
+// literal's block is lifted the same way, its tail assigned to the
+// temporary. Innermost first, so `a?.b?.c` and `[[1], [2]]` work. A binding
+// initializer or return operand keeps `expand_let`'s path.
 
 import alloc.list.*
 
@@ -110,22 +111,26 @@ fun rewrite_block_stmts_in_place(ep: Ptr<Expr>, temps: &var WhenTemps): void {
 }
 
 fun hoist_self(ep: Ptr<Expr>, temps: &var WhenTemps, out: &var List<Stmt>): void {
+    val node: &var Expr = unsafe { &var *ep }
+    if node.list_literal_binder().byte_len() > 0 {
+        node.hoist_list_literal(temps, out)
+        return
+    }
     var is_when = false
-    when (unsafe { ep.kind }) {
+    when (node.kind) {
         WhenExpr(_s, _a) => { is_when = true }
         _ => { }
     }
     if !is_when { return }
 
-    val span = unsafe { ep.span }
-    val value_ty = unsafe { ep.ty }
+    val span = node.span
+    val value_ty = node.ty.clone()
     val temp = temps.fresh_when_temp()
 
-    val ann: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ann = type_to_type_ref(&value_ty, span) }
+    val ann: Box<TypeRef>? = Box.new(type_to_type_ref(&value_ty, span))
     out.push(new_stmt(span, StmtKind.LetVar(temp, ann, null)))
 
-    when (unsafe { ep.kind }) {
+    when (node.kind) {
         WhenExpr(subj, arms) => {
             out.push(new_stmt(span, StmtKind.When(subj, arms_assigning(&arms, temp, temps))))
         }
@@ -134,5 +139,34 @@ fun hoist_self(ep: Ptr<Expr>, temps: &var WhenTemps, out: &var List<Stmt>): void
 
     var v = new_expr(span, ExprKind.Variable(temp))
     v.ty = value_ty
-    unsafe { *ep = v }
+    *node = v
+}
+
+/// Its statements ahead of the statement, the collection they build in a
+/// temporary. Its statements were already lowered with the children.
+mutating fun Expr.hoist_list_literal(temps: &var WhenTemps, out: &var List<Stmt>): void {
+    val span = self.span
+    val value_ty = self.ty.clone()
+    val temp = temps.fresh_when_temp()
+    val ann: Box<TypeRef>? = Box.new(type_to_type_ref(&value_ty, span))
+    out.push(new_stmt(span, StmtKind.LetVar(temp, ann, null)))
+    when (self.kind) {
+        Block(stmts) => {
+            while i in 0..stmts.size() {
+                val stmt = stmts.at(i)
+                if i + 1 < stmts.size() {
+                    out.push(stmt.clone())
+                } else {
+                    when (stmt.kind) {
+                        Expression(tail) => out.push(new_stmt(span, StmtKind.Assign(temp, Box.new(tail.clone()))))
+                        _ => { }
+                    }
+                }
+            }
+        }
+        _ => { }
+    }
+    var read = new_expr(span, ExprKind.Variable(temp))
+    read.ty = value_ty
+    *self = read
 }

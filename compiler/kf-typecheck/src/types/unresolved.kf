@@ -195,7 +195,11 @@ pub mutating fun TypeCtx.report_open_calls(): void {
     var i = 0
     while i < self.open_calls.size() {
         val open = self.open_calls.at(i)
-        if !span_list_contains(&self.open_typed, open.span) {
+        if !span_list_contains(&self.open_typed, open.span) && span_list_contains(&self.list_literals, open.span) {
+            val what = "cannot tell what `[]` holds"
+            val repair = "annotate the binding (`val xs: List<int32> = []`), or push to it first"
+            self.emit(error_at(open.span, "${what} — ${repair}"))
+        } else if !span_list_contains(&self.open_typed, open.span) {
             var msg = String.from("cannot tell what `")
             msg.append(open.base.as_str())
             msg.append(".")

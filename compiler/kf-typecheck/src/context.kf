@@ -65,6 +65,8 @@ pub struct TypeCtx {
     /// slot later completed.
     pub var open_calls:  List<OpenGenericCall>
     pub var open_typed:  List<Span>
+    /// Where each empty `[]` is, once named: its open call is the literal.
+    pub var list_literals: List<Span>
     /// Leading arguments of the next call already typed (an extension's
     /// receiver); checking twice is not harmless.
     pub var pretyped_args: uint64
@@ -98,6 +100,7 @@ pub fun new_type_ctx(return_ty: Type, diags: Ptr<List<Diagnostic>>, table: Ptr<D
         nulls_typed: List.new<Span>(),
         open_calls:  List.new<OpenGenericCall>(),
         open_typed:  List.new<Span>(),
+        list_literals: List.new<Span>(),
         pretyped_args: 0,
         qualified_callee: String.from("")
     }

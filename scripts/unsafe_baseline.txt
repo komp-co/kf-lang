@@ -100,7 +100,7 @@
 19 compiler/kf-lower/src/refcount/rc_when.kf
 5 compiler/kf-lower/src/trim_binders.kf
 15 compiler/kf-lower/src/when_expr.kf
-19 compiler/kf-lower/src/when_hoist.kf
+13 compiler/kf-lower/src/when_hoist.kf
 43 compiler/kf-mono/src/collect/collect_instances.kf
 15 compiler/kf-mono/src/collect/mono_expr.kf
 12 compiler/kf-mono/src/collect/mono_stmt.kf
