@@ -227,6 +227,7 @@ fun Stmt.collect_stmt(out: &var List<Sym>, dyn_used: &var bool): void {
             collect_expr_at(subject, out, dyn_used)
             while arm in &arms {
                 collect_expr_at(arm.guard, out, dyn_used)
+                collect_stmts(&arm.guard_prelude, out, dyn_used)
                 collect_stmts(arm.body, out, dyn_used)
             }
         }

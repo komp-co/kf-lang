@@ -1,0 +1,35 @@
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_parse.parser.parser_for
+
+@test fun a_declared_list_gives_the_target_its_bounds(): void {
+    val p = parser_for("impl<A: Show, B> Show for Pair<A, B> {}")
+    val m = p.parse_module(List.new<String>())
+    assert_eq(first_decl(m).generics.at(0).bounds.size(), 1, "A carries Show from the list")
+}
+
+@test fun a_declared_list_on_an_inherent_impl_parses_clean(): void {
+    val p = parser_for("impl<T: Copy> Cell<T> { fun get(): T { return self.it } }")
+    val _m = p.parse_module(List.new<String>())
+    assert_eq(p.diags.size(), 0, "the list form of an inherent impl")
+}
+
+@test fun a_target_param_missing_from_the_list_is_reported(): void {
+    val p = parser_for("impl<A> Show for Pair<A, B> {}")
+    val _m = p.parse_module(List.new<String>())
+    assert_eq(p.diags.size(), 1, "B is not declared")
+}
+
+@test fun a_declared_param_the_target_does_not_use_is_reported(): void {
+    val p = parser_for("impl<A, B> Show for Pair<A> {}")
+    val _m = p.parse_module(List.new<String>())
+    assert_eq(p.diags.size(), 1, "B is declared for nothing")
+}
+
+@test fun a_param_bounded_in_both_places_is_reported(): void {
+    val p = parser_for("impl<A: Show> Show for Pair<A: Show> {}")
+    val _m = p.parse_module(List.new<String>())
+    assert_eq(p.diags.size(), 1, "one place for a bound")
+}

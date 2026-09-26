@@ -1,0 +1,9 @@
+// The text `komp publish` adds to a package's file in the index.
+
+/// `existing` with one more `[[version]]`; a new file for "".
+pub fun entry_with_version(existing: str, name: str, version: str, git: str, rev: str): String {
+    var out = if existing == "" { "schema = 1\nname = \"${name}\"\n" } else { String.from(existing) }
+    if !out.as_str().ends_with("\n") { out.append("\n") }
+    out.append("\n[[version]]\nversion = \"${version}\"\nsource = { git = \"${git}\", rev = \"${rev}\" }\n")
+    return out
+}

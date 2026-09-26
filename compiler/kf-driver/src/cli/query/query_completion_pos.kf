@@ -191,17 +191,19 @@ fun push_primitive(out: &var List<ScopeItem>, name: str): void {
 /// where a type name is a constructor or static receiver.
 pub fun scope_kind_fits(kind: str, pos: CompletionPos): bool {
     if pos_is_expr(pos) { return true }
-    if kind == "struct" { return true }
-    if kind == "enum" { return true }
-    if kind == "trait" { return true }
-    return false
+    return when kind {
+        "struct" => true
+        "enum" => true
+        "trait" => true
+        _ => false
+    }
 }
 
 /// Keywords legal here, builtin types where a type belongs, and fitting names
 /// in scope. Keywords lead.
 pub fun QueryCrate.positional_items_json(offset: uint32, src: str): String {
     val pos = completion_pos_at(src, offset)
-    var arr = new_json_array_writer()
+    var arr = JsonWriter.array()
     arr.push_items(&keyword_items(pos))
     if pos_is_type(pos) { arr.push_items(&primitive_type_items()) }
     val scoped = self.scope_items_at(offset)
@@ -211,16 +213,16 @@ pub fun QueryCrate.positional_items_json(offset: uint32, src: str): String {
     return arr.finish()
 }
 
-mutating fun JsonArrayWriter.push_items(items: &List<ScopeItem>): void {
+mutating fun JsonWriter.push_items(items: &List<ScopeItem>): void {
     while item in &items {
         self.push_item_json(item)
     }
 }
 
-mutating fun JsonArrayWriter.push_item_json(it: &ScopeItem): void {
-    val o = new_json_writer()
+mutating fun JsonWriter.push_item_json(it: &ScopeItem): void {
+    val o = JsonWriter.object()
     o.field_string("label", it.label.as_str())
     o.field_string("kind", it.kind.as_str())
     o.field_string("detail", it.detail.as_str())
-    self.item_raw(o.finish().as_str())
+    self.write_raw(o.finish().as_str())
 }

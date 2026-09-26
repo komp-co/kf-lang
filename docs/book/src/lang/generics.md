@@ -98,28 +98,51 @@ therefore the `<` and `>` operators work. Without the bound, the function
 body cannot call any method on `T` except those implied by the bound.
 
 Bounds can appear on an `impl` block too, restricting which types the methods
-apply to. They go **inside the type argument list**, in the parameter's own
-position — there is no `impl<T: Bound>` prefix form:
+apply to. The impl declares its parameters in a list after `impl`, bounds
+included, and the target then uses them:
 
 ```kflat
-trait Tag {
-    fun tag(): int32
+trait Show { fun show(): int32 }
+
+struct Pair<A, B> {
+    pub val a: A
+    pub val b: B
 }
 
-struct Holder<T> {
-    var it: T
-}
-
-impl Holder<T: Tag> {
-    fun read(): int32 {
-        return self.it.tag()
-    }
+impl<A: Show, B> Show for Pair<A, B> {
+    fun show(): int32 { return self.a.show() + 1 }
 }
 ```
+
+Every parameter the target uses must be declared in the list, and every
+declared one used. The older spelling puts the bound in the target's own list,
+`impl Show for Pair<A: Show, B>`, and means the same; a parameter may be
+bounded in one of the two places, not both.
 
 A bound on the impl block is what a lazy iterator adapter needs, since the
 source iterator and the callable are the *struct's* parameters rather than any
 one method's.
+
+A bound on a trait impl's parameter is a condition on the impl. core writes
+`impl Clone for Option<T: Clone>`, so `Option<X>` is `Clone` only when `X` is,
+and a bound asking for `Clone` checks the argument too:
+
+```kflat
+struct Unique { pub var n: int32 }
+
+fun dup<T: Clone>(v: &T): T { return v.clone() }
+
+fun main(): int32 {
+    val o: Option<Unique> = Unique { n: 1 }
+    val p = dup<Option<Unique>>(&o)
+    return 0
+}
+```
+
+```console
+$ komp check .
+src/main.kf:7:13: error: type `Option<Unique>` does not implement trait `Clone` (required by bound `T: Clone` on `dup`)
+```
 
 `.equals()` under a `T: Equal` bound works whether `T` is a primitive or a
 struct, as does `==` on the same bound. Primitives satisfy `Equal`, `Compare`

@@ -13,6 +13,8 @@ members = [
     "kf-interface",
     "kf-shared",
     "kf-driver",
+    "kf-tool",
+    "kf-integration",
     "../libs/core",
     "../libs/alloc",
     "../libs/std"

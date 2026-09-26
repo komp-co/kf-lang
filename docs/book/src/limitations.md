@@ -83,20 +83,6 @@ $ komp check .
 src/main.kf:3:13: error: lambda parameter `x` needs a type annotation (its type is read from the `Call` bound on the parameter the lambda is passed to, and this position declares none)
 ```
 
-- **An annotation that disagrees with the bound reaches cc.** A lambda whose
-  written parameter type differs from what the `Call` bound asks for, such as
-  `|n: &int32|` passed where `Call1<int32>` is wanted, passes `check` and fails
-  in the C compiler ([#75]). Leave the annotation off where the bound supplies
-  it.
-
-## when guards
-
-- **A temporary built inside a guard is not dropped** ([#85]). In
-  `v if v == "get"` over a `String`, the literal is converted to a `String`
-  for the comparison and leaks. Compare `str`s instead (`v.as_str() == "get"`),
-  or write a string pattern, which does so for you.
-- **A guard inside a lambda does not capture** ([#84]). An outer variable read
-  only from a guard, in a `when` inside a lambda body, is not captured.
 
 ## Generics
 
@@ -184,8 +170,7 @@ a process launch and a re-check. A KFlat-native server that links the compiler
 in-process is [kf-lsp#1](https://github.com/komp-co/kf-lsp/issues/1). There is
 no formatter ([#15]).
 
-A package's feature flags are not read, and there is no `komp publish`: a
-version reaches the index by a pull request written by hand ([#79]).
+A package's feature flags are not read ([#79]).
 
 ## Where the compiler itself stands
 
@@ -213,7 +198,4 @@ not agree with it in every case.
 [#53]: https://github.com/komp-co/komp/issues/53
 [#58]: https://github.com/komp-co/komp/issues/58
 [#73]: https://github.com/komp-co/komp/issues/73
-[#75]: https://github.com/komp-co/komp/issues/75
 [#79]: https://github.com/komp-co/komp/issues/79
-[#84]: https://github.com/komp-co/komp/issues/84
-[#85]: https://github.com/komp-co/komp/issues/85

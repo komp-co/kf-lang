@@ -30,10 +30,13 @@ fun TopDecl.validate_one_annotation(annotation: str, diags: Ptr<List<Diagnostic>
         unsafe { diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message))) }
         return
     }
-    if kind.as_str().equals("lang") { self.validate_lang_annotation(diags) }
-    if kind.as_str().equals("prelude") { self.validate_prelude_annotation(diags) }
-    if kind.as_str().equals("derive") { self.validate_derive_options(annotation, diags) }
-    if kind.as_str().equals("allow") { self.validate_allow_names(annotation, diags) }
+    when kind.as_str() {
+        "lang" => self.validate_lang_annotation(diags)
+        "prelude" => self.validate_prelude_annotation(diags)
+        "derive" => self.validate_derive_options(annotation, diags)
+        "allow" => self.validate_allow_names(annotation, diags)
+        _ => { }
+    }
 }
 
 /// Options are checked against the derive registry.

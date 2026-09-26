@@ -92,23 +92,25 @@ fun crate_symbol_ident_byte(b: uint8): bool {
 /// Types whose C identity the runtime fixes: never crate-qualified or carried
 /// as hidden support. Containers are lang items; ask `is_container_type_name`.
 pub fun is_runtime_type_name(s: str): bool {
-    if s == "str"    { return true }
-    if s == "Box"    { return true }
-    if s == "Ptr"    { return true }
-    if s == "bool"   { return true }
-    if s == "char"   { return true }
-    if s == "void"   { return true }
-    if s == "int8"   { return true }
-    if s == "int16"  { return true }
-    if s == "int32"  { return true }
-    if s == "int64"  { return true }
-    if s == "uint8"  { return true }
-    if s == "uint16" { return true }
-    if s == "uint32" { return true }
-    if s == "uint64" { return true }
-    if s == "float32" { return true }
-    if s == "float64" { return true }
-    return false
+    return when s {
+        "str" => true
+        "Box" => true
+        "Ptr" => true
+        "bool" => true
+        "char" => true
+        "void" => true
+        "int8" => true
+        "int16" => true
+        "int32" => true
+        "int64" => true
+        "uint8" => true
+        "uint16" => true
+        "uint32" => true
+        "uint64" => true
+        "float32" => true
+        "float64" => true
+        _ => false
+    }
 }
 
 pub fun is_mangled_decl_name(s: str): bool {

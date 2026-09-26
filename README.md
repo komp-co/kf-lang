@@ -62,8 +62,12 @@ suggests. Every command takes a project directory — one containing a
 The compiler crates run in pipeline order: `kf-parse` → `kf-assemble` →
 `kf-resolve` → `kf-typecheck` → `kf-mono` → `kf-lower` → `kf-codegen`, with
 `kf-core` holding the shared AST and diagnostics, `kf-interface` the compiled
-crate metadata that makes separate compilation work, and `kf-driver` the CLI
-and build orchestration.
+crate metadata that makes separate compilation work, and `kf-driver` the
+compiler's entry points: compiling one crate, `check`, `query` and test mains.
+`kf-tool` is the project tool: manifests, fetching, the build graph and `cc`.
+It links none of the compiler crates; komp runs kflatc as a process.
+`kf-shared` holds what both sides must agree on, and `kf-integration` the tests
+that drive whole projects through both.
 
 ## Contributing
 
@@ -78,8 +82,14 @@ scripts/check.sh --sweep      # CLI checks and the crate sweep
 ```
 
 The full suite needs the [`json`](https://github.com/komp-co/json) package
-checked out as a sibling directory (`../json`), which the driver's integration tests build against as a real
-external dependency.
+checked out as a sibling directory (`../json`), at the commit
+`bootstrap/json.rev` names, which the driver's integration tests build against
+as a real external dependency:
+
+```sh
+git clone https://github.com/komp-co/json ../json
+git -C ../json checkout --detach "$(cat bootstrap/json.rev)"
+```
 
 Work is tracked in [issues](https://github.com/komp-co/komp/issues) and
 milestones. The editor tooling lives in its own repositories:

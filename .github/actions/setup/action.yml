@@ -7,9 +7,11 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Clone json beside komp
+    - name: Clone json beside komp, at the commit bootstrap/json.rev pins
       shell: sh
-      run: git clone -q --depth 1 https://github.com/komp-co/json ../json
+      run: |
+        git clone -q https://github.com/komp-co/json ../json
+        git -C ../json checkout -q --detach "$(cat bootstrap/json.rev)"
 
     - name: Install ccache
       shell: sh

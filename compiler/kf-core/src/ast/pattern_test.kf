@@ -25,6 +25,7 @@ import kf_core.span.*
         Variant(_, _) => fail("expected Poison")
         StructPat(_, _, _) => fail("expected Poison")
         Or(_) => fail("expected Poison")
+        Range(_, _, _) => fail("expected Poison")
     }
 }
 
@@ -41,6 +42,7 @@ import kf_core.span.*
         Variant(_, _) => fail("expected Wildcard")
         StructPat(_, _, _) => fail("expected Wildcard")
         Or(_) => fail("expected Wildcard")
+        Range(_, _, _) => fail("expected Wildcard")
     }
 }
 
@@ -57,6 +59,7 @@ import kf_core.span.*
         Variant(_, _) => fail("expected LitInt")
         StructPat(_, _, _) => fail("expected LitInt")
         Or(_) => fail("expected LitInt")
+        Range(_, _, _) => fail("expected LitInt")
     }
 }
 
@@ -73,6 +76,7 @@ import kf_core.span.*
         Variant(_, _) => fail("expected LitBool")
         StructPat(_, _, _) => fail("expected LitBool")
         Or(_) => fail("expected LitBool")
+        Range(_, _, _) => fail("expected LitBool")
     }
 }
 
@@ -89,6 +93,7 @@ import kf_core.span.*
         Variant(_, _) => fail("expected LitChar")
         StructPat(_, _, _) => fail("expected LitChar")
         Or(_) => fail("expected LitChar")
+        Range(_, _, _) => fail("expected LitChar")
     }
 }
 

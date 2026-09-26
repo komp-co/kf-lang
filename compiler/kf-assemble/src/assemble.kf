@@ -8,6 +8,7 @@ import kf_core.ast.*
 import kf_core.diagnostic.*
 import kf_parse.lexer.tokenize
 import kf_parse.parser.*
+import kf_shared.walk_kf_files_inc
 
 // Signatures for runtime functions defined in the prelude, so call arguments
 // coerce correctly. komp emits no prototype for an extern, so these do not
@@ -17,86 +18,6 @@ extern "C" fun join(a: str, b: str): String
 extern "C" fun read_file(path: str): String
 extern "C" fun is_dir(p: str): bool
 extern "C" fun write_file(path: str, content: str): void
-
-/// Absolute paths of the non-test `.kf` files under `dir`, sorted.
-pub fun walk_kf_files(dir: str, out: &var List<String>): void {
-    walk_kf_files_inc(dir, out, false)
-}
-
-/// CONSTRAINT: sorted, because directory enumeration order differs between
-/// filesystems and module order — and so all output — follows from it.
-pub fun walk_kf_files_inc(dir: str, out: &var List<String>, include_tests: bool): void {
-    var found = List.new<String>()
-    walk_kf_files_raw(dir, &var found, include_tests)
-    push_sorted(&found, out)
-}
-
-/// Selection sort into `out`, byte order. Copying out avoids swapping
-/// move-only elements in place.
-fun push_sorted(paths: &List<String>, out: &var List<String>): void {
-    val n = paths.size()
-    var used = List.new<bool>()
-    var f = 0
-    while f < n {
-        used.push(false)
-        f = f + 1
-    }
-    var taken = 0
-    while taken < n {
-        var best = n
-        var i = 0
-        while i < n {
-            if !used.get(i) {
-                if best == n {
-                    best = i
-                } else if path_byte_less(paths.at(i).as_str(), paths.at(best).as_str()) {
-                    best = i
-                }
-            }
-            i = i + 1
-        }
-        used.set(best, true)
-        unsafe { out.push(paths.at(best).clone()) }
-        taken = taken + 1
-    }
-}
-
-fun path_byte_less(a: str, b: str): bool {
-    val an = a.byte_len()
-    val bn = b.byte_len()
-    var i = 0
-    while i < an && i < bn {
-        val ca = a.byte_at(i)
-        val cb = b.byte_at(i)
-        if ca != cb { return ca < cb }
-        i = i + 1
-    }
-    return an < bn
-}
-
-fun walk_kf_files_raw(dir: str, out: &var List<String>, include_tests: bool): void {
-    val h: uint64 = unsafe { kf_fs_dir_open(dir) }
-    if h == 0 {
-        return
-    }
-    while true {
-        val name: str = unsafe { kf_fs_dir_next(h) }
-        // A null pointer ends the directory; compared raw because str
-        // equality would dereference it.
-        val name_ptr: Ptr<uint8> = unsafe { name as Ptr<uint8> }
-        val end_ptr:  Ptr<uint8> = unsafe { 0 as Ptr<uint8> }
-        if name_ptr == end_ptr {
-            break
-        }
-        val full: String = join(dir, name)
-        if is_dir(full.as_str()) {
-            walk_kf_files_raw(full.as_str(), out, include_tests)
-        } else if walk_take(name, include_tests) {
-            unsafe { out.push(full) }
-        }
-    }
-    unsafe { kf_fs_dir_close(h) }
-}
 
 mutating fun Parser.drain_parse_diags(pdiags: Ptr<List<Diagnostic>>): void {
     while diag in &self.diags {
@@ -153,60 +74,6 @@ fun TopDecl.decl_has_valid_ownership(): bool {
         TraitImpl(_, methods) => decl_list_has_valid_ownership(&methods)
         _ => true
     }
-}
-
-fun walk_take(name: str, include_tests: bool): bool {
-    if include_tests {
-        return is_kf_file_any(name)
-    }
-    return is_kf_source_file(name)
-}
-
-/// Ends in `.kf` and is not a `_test.kf` file.
-pub fun is_kf_source_file(name: str): bool {
-    val n: uint64 = name.byte_len()
-    if n < 3 {
-        return false
-    }
-    if name.byte_at(n - 3) != 46 {  // '.'
-        return false
-    }
-    if name.byte_at(n - 2) != 107 { // 'k'
-        return false
-    }
-    if name.byte_at(n - 1) != 102 { // 'f'
-        return false
-    }
-    if n >= 8 {
-        val b0: uint8 = name.byte_at(n - 8)
-        val b1: uint8 = name.byte_at(n - 7)
-        val b2: uint8 = name.byte_at(n - 6)
-        val b3: uint8 = name.byte_at(n - 5)
-        val b4: uint8 = name.byte_at(n - 4)
-        val is_test: bool = b0 == 95 && b1 == 116 && b2 == 101 && b3 == 115 && b4 == 116
-        if is_test {
-            return false
-        }
-    }
-    return true
-}
-
-/// Ends in `.kf`, test files included.
-pub fun is_kf_file_any(name: str): bool {
-    val n: uint64 = name.byte_len()
-    if n < 3 {
-        return false
-    }
-    if name.byte_at(n - 3) != 46 {  // '.'
-        return false
-    }
-    if name.byte_at(n - 2) != 107 { // 'k'
-        return false
-    }
-    if name.byte_at(n - 1) != 102 { // 'f'
-        return false
-    }
-    return true
 }
 
 /// `src_root/span/source_file.kf` in crate `kf_core` is

@@ -102,7 +102,8 @@ fun Stmt.subst_stmt_kinded(names: &var List<String>, repls: &var List<TypeRef>):
             while sa in &sarms {
                 val nbody = subst_stmt_list(sa.body, names, repls)
                 val nguard = clone_expr_ptr_opt(sa.guard, names, repls)
-                narms.push(new_switch_arm(sa.span, sa.tag, clone_sym_list(sa.binders), nguard, nbody))
+                val nprelude = subst_stmt_list(sa.guard_prelude, names, repls)
+                narms.push(new_guarded_switch_arm(sa.span, sa.tag, clone_sym_list(sa.binders), nguard, nprelude, nbody))
             }
             return new_stmt(self.span, StmtKind.Switch(ns, narms))
         }
@@ -193,20 +194,22 @@ fun TypeRef.tref_to_type_shallow(): Type {
     when (self.kind) {
         Named(n, args) => {
             val s = n.as_str()
-            if s.equals("int8")    { return Type { kind: TypeKind.Int8,   provenance: Provenance.Inferred(no_span()) } }
-            if s.equals("int16")   { return Type { kind: TypeKind.Int16,  provenance: Provenance.Inferred(no_span()) } }
-            if s.equals("int32")   { return Type { kind: TypeKind.Int32,  provenance: Provenance.Inferred(no_span()) } }
-            if s.equals("int64")   { return Type { kind: TypeKind.Int64,  provenance: Provenance.Inferred(no_span()) } }
-            if s.equals("uint8")   { return Type { kind: TypeKind.UInt8,  provenance: Provenance.Inferred(no_span()) } }
-            if s.equals("uint16")  { return Type { kind: TypeKind.UInt16, provenance: Provenance.Inferred(no_span()) } }
-            if s.equals("uint32")  { return Type { kind: TypeKind.UInt32, provenance: Provenance.Inferred(no_span()) } }
-            if s.equals("uint64")  { return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(no_span()) } }
-            if s.equals("float32") { return Type { kind: TypeKind.Float32, provenance: Provenance.Inferred(no_span()) } }
-            if s.equals("float64") { return Type { kind: TypeKind.Float64, provenance: Provenance.Inferred(no_span()) } }
-            if s.equals("bool")    { return Type { kind: TypeKind.Bool,   provenance: Provenance.Inferred(no_span()) } }
-            if s.equals("char")    { return Type { kind: TypeKind.Char,   provenance: Provenance.Inferred(no_span()) } }
-            if s.equals("str")     { return Type { kind: TypeKind.StrTy,  provenance: Provenance.Inferred(no_span()) } }
-            return Type { kind: TypeKind.Struct(intern(self.mangle_tyref().as_str())), provenance: Provenance.Inferred(no_span()) }
+            return when s {
+                "int8" => Type { kind: TypeKind.Int8, provenance: Provenance.Inferred(no_span()) }
+                "int16" => Type { kind: TypeKind.Int16, provenance: Provenance.Inferred(no_span()) }
+                "int32" => Type { kind: TypeKind.Int32, provenance: Provenance.Inferred(no_span()) }
+                "int64" => Type { kind: TypeKind.Int64, provenance: Provenance.Inferred(no_span()) }
+                "uint8" => Type { kind: TypeKind.UInt8, provenance: Provenance.Inferred(no_span()) }
+                "uint16" => Type { kind: TypeKind.UInt16, provenance: Provenance.Inferred(no_span()) }
+                "uint32" => Type { kind: TypeKind.UInt32, provenance: Provenance.Inferred(no_span()) }
+                "uint64" => Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(no_span()) }
+                "float32" => Type { kind: TypeKind.Float32, provenance: Provenance.Inferred(no_span()) }
+                "float64" => Type { kind: TypeKind.Float64, provenance: Provenance.Inferred(no_span()) }
+                "bool" => Type { kind: TypeKind.Bool, provenance: Provenance.Inferred(no_span()) }
+                "char" => Type { kind: TypeKind.Char, provenance: Provenance.Inferred(no_span()) }
+                "str" => Type { kind: TypeKind.StrTy, provenance: Provenance.Inferred(no_span()) }
+                _ => Type { kind: TypeKind.Struct(intern(self.mangle_tyref().as_str())), provenance: Provenance.Inferred(no_span()) }
+            }
         }
         Reference(is_mut, inner) => {
             val it = tref_to_type_shallow(unsafe { &*inner })

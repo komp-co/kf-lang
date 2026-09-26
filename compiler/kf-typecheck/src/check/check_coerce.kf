@@ -101,17 +101,20 @@ pub fun ty_from_frag_in_scope(frag: String, span: Span, ctx: &var TypeCtx): Type
 
 pub fun ty_from_mangle_frag(frag: String, span: Span, string_name: Sym): Type {
     val s = frag.as_str()
-    if s.equals("int8")   { return Type { kind: TypeKind.Int8,   provenance: Provenance.Inferred(span) } }
-    if s.equals("int16")  { return Type { kind: TypeKind.Int16,  provenance: Provenance.Inferred(span) } }
-    if s.equals("int32")  { return int32_ty(span) }
-    if s.equals("int64")  { return Type { kind: TypeKind.Int64,  provenance: Provenance.Inferred(span) } }
-    if s.equals("uint8")  { return Type { kind: TypeKind.UInt8,  provenance: Provenance.Inferred(span) } }
-    if s.equals("uint16") { return Type { kind: TypeKind.UInt16, provenance: Provenance.Inferred(span) } }
-    if s.equals("uint32") { return Type { kind: TypeKind.UInt32, provenance: Provenance.Inferred(span) } }
-    if s.equals("uint64") { return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) } }
-    if s.equals("float32") { return Type { kind: TypeKind.Float32, provenance: Provenance.Inferred(span) } }
-    if s.equals("float64") { return Type { kind: TypeKind.Float64, provenance: Provenance.Inferred(span) } }
-    if s.equals("bool")   { return bool_ty(span) }
+    when s {
+        "int8" => return Type { kind: TypeKind.Int8, provenance: Provenance.Inferred(span) }
+        "int16" => return Type { kind: TypeKind.Int16, provenance: Provenance.Inferred(span) }
+        "int32" => return int32_ty(span)
+        "int64" => return Type { kind: TypeKind.Int64, provenance: Provenance.Inferred(span) }
+        "uint8" => return Type { kind: TypeKind.UInt8, provenance: Provenance.Inferred(span) }
+        "uint16" => return Type { kind: TypeKind.UInt16, provenance: Provenance.Inferred(span) }
+        "uint32" => return Type { kind: TypeKind.UInt32, provenance: Provenance.Inferred(span) }
+        "uint64" => return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) }
+        "float32" => return Type { kind: TypeKind.Float32, provenance: Provenance.Inferred(span) }
+        "float64" => return Type { kind: TypeKind.Float64, provenance: Provenance.Inferred(span) }
+        "bool" => return bool_ty(span)
+        _ => { }
+    }
     // `List__String` elements dispatch through String; `List__str` elements
     // are `StrTy`.
     if is_lang_name(s, string_name) { return string_name.lang_struct_ty(span) }
@@ -193,36 +196,39 @@ pub fun deref_target(t: Type): Type {
 // Poison when `name` is not a runtime function.
 fun runtime_intrinsic_ret(name: String, span: Span, string_name: Sym): Type {
     val s = name.as_str()
-    if s.equals("kf_str_slice_to_string") { return string_name.lang_struct_ty(span) }
-    if s.equals("kf_str_byte_len")        { return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) } }
-    if s.equals("kf_file_hash")           { return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) } }
-    if s.equals("kf_str_byte_at")         { return Type { kind: TypeKind.UInt8,  provenance: Provenance.Inferred(span) } }
-    // Runtime free functions, which a crate cannot see in the sig table under
-    // separate compilation.
-    if s.equals("read_file")              { return string_name.lang_struct_ty(span) }
-    if s.equals("write_file")             { return void_ty(span) }
-    // Never: panic does not return.
-    if s.equals("panic")                  { return never_ty(span) }
-    if s.equals("kf_sym_intern")          { return Type { kind: TypeKind.UInt32, provenance: Provenance.Inferred(span) } }
-    if s.equals("kf_sym_resolve")         { return str_ty(span) }
-    if s.equals("kf_fs_dir_open")         { return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) } }
-    if s.equals("kf_fs_dir_next")         { return str_ty(span) }
-    if s.equals("kf_fs_dir_close")        { return void_ty(span) }
-    if s.equals("str_equals")             { return bool_ty(span) }
-    if s.equals("str_as_str")             { return str_ty(span) }
-    if s.equals("int64_display")          { return string_name.lang_struct_ty(span) }
-    if s.equals("uint64_display")         { return string_name.lang_struct_ty(span) }
-    if s.equals("is_dir")                 { return bool_ty(span) }
-    if s.equals("join")                   { return string_name.lang_struct_ty(span) }
-    if s.equals("kf_arg_init")            { return void_ty(span) }
-    if s.equals("kf_arg_count")           { return int32_ty(span) }
-    if s.equals("kf_arg_get")             { return str_ty(span) }
-    if s.equals("kf_current_dir")         { return string_name.lang_struct_ty(span) }
-    if s.equals("kf_self_dir")            { return string_name.lang_struct_ty(span) }
-    if s.equals("kf_create_dir_all")      { return int32_ty(span) }
-    if s.equals("kf_temp_dir")            { return string_name.lang_struct_ty(span) }
-    if s.equals("kf_remove_dir_all")      { return int32_ty(span) }
-    if s.equals("exit")                   { return void_ty(span) }
+    when s {
+        "kf_str_slice_to_string" => return string_name.lang_struct_ty(span)
+        "kf_str_byte_len" => return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) }
+        "kf_file_hash" => return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) }
+        "kf_str_byte_at" => return Type { kind: TypeKind.UInt8, provenance: Provenance.Inferred(span) }
+        // Runtime free functions, which a crate cannot see in the sig table under
+        // separate compilation.
+        "read_file" => return string_name.lang_struct_ty(span)
+        "write_file" => return void_ty(span)
+        // Never: panic does not return.
+        "panic" => return never_ty(span)
+        "kf_sym_intern" => return Type { kind: TypeKind.UInt32, provenance: Provenance.Inferred(span) }
+        "kf_sym_resolve" => return str_ty(span)
+        "kf_fs_dir_open" => return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) }
+        "kf_fs_dir_next" => return str_ty(span)
+        "kf_fs_dir_close" => return void_ty(span)
+        "str_equals" => return bool_ty(span)
+        "str_as_str" => return str_ty(span)
+        "int64_display" => return string_name.lang_struct_ty(span)
+        "uint64_display" => return string_name.lang_struct_ty(span)
+        "is_dir" => return bool_ty(span)
+        "join" => return string_name.lang_struct_ty(span)
+        "kf_arg_init" => return void_ty(span)
+        "kf_arg_count" => return int32_ty(span)
+        "kf_arg_get" => return str_ty(span)
+        "kf_current_dir" => return string_name.lang_struct_ty(span)
+        "kf_self_dir" => return string_name.lang_struct_ty(span)
+        "kf_create_dir_all" => return int32_ty(span)
+        "kf_temp_dir" => return string_name.lang_struct_ty(span)
+        "kf_remove_dir_all" => return int32_ty(span)
+        "exit" => return void_ty(span)
+        _ => { }
+    }
     // Test assertions are declared extern and resolve through the sig table,
     // which coerces literals to `str`.
     return poison_ty()

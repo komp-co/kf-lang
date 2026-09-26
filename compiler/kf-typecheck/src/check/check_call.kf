@@ -77,6 +77,7 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
     if is_intrinsic { return intrinsic_call_type(name, args, type_args, span, ctx) }
     // Arguments first, in place: a nested receiver needs its type even when
     // the callee does not resolve.
+    report_annotated_lambda_call_args(String.from(name.as_str()), args, span, ctx)
     var arg_tys = type_call_arguments(args, ctx)
     // Runtime intrinsics are not in the sig table.
     val rt = runtime_intrinsic_ret(name, span, ctx.string_name())
@@ -84,13 +85,16 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
     if !rt_poison {
     // `read_file(path: str)` is often given a String; coerced here since the
     // sig-table path is skipped.
-        if name.as_str().equals("read_file") { expect_arg(args, 0, str_ty(span), ctx) }
-        if name.as_str().equals("kf_file_hash") { expect_arg(args, 0, str_ty(span), ctx) }
-        if name.as_str().equals("write_file") {
-            expect_arg(args, 0, str_ty(span), ctx)
-            expect_arg(args, 1, str_ty(span), ctx)
+        when name.as_str() {
+            "read_file" => expect_arg(args, 0, str_ty(span), ctx)
+            "kf_file_hash" => expect_arg(args, 0, str_ty(span), ctx)
+            "write_file" => {
+                expect_arg(args, 0, str_ty(span), ctx)
+                expect_arg(args, 1, str_ty(span), ctx)
+            }
+            "panic" => expect_arg(args, 0, str_ty(span), ctx)
+            _ => { }
         }
-        if name.as_str().equals("panic") { expect_arg(args, 0, str_ty(span), ctx) }
         return rt
     }
     val found_sig = unsafe { (*ctx.sigs).find_imported_signature(name.as_str(), ctx.owner_file, ctx.owner_crate, ctx.owner_module) }

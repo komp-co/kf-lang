@@ -1,0 +1,302 @@
+// Directive-driven end-to-end cases: the spec and its parser. A case is one
+// .kf under `tests/cases/`; its leading `//!` lines say what should happen,
+// and the rest is the case's `main.kf`.
+//
+//     run: exit N    build and run it, requiring exit code N
+//     build: fail    the build must fail
+//     deps: a, b     libs/<a>, libs/<b> go in the manifest
+//     broken: WHY    not yet meeting its directive: reported, not failed, and
+//                    a failure once it passes
+//
+// An unknown key is recorded in `bad_directive` and fails the case. Cases
+// build under `target/case_tmp/<name>/`, the depth `../../../libs/<dep>` is
+// relative to.
+//
+// CONSTRAINT: a plain module because `CaseSpec` is declared here, and a test
+// file's structs get no C type. The walker is in case_runner_test.kf.
+
+extern "C" fun kf_arg_count(): int32
+extern "C" fun kf_arg_get(i: int32): str
+
+/// "" in an ordinary run. The walker re-execs the test binary with it, one
+/// process per case.
+pub fun case_build_arg(): str {
+    val n = unsafe { kf_arg_count() }
+    var i = 0
+    while i < n {
+        if unsafe { kf_arg_get(i) } == "--build-case" {
+            if i + 1 < n { return unsafe { kf_arg_get(i + 1) } }
+        }
+        i = i + 1
+    }
+    return ""
+}
+
+/// Read at run time, so narrowing needs no rebuild.
+pub fun case_filter_arg(): str {
+    val n = unsafe { kf_arg_count() }
+    var i = 0
+    while i < n {
+        if unsafe { kf_arg_get(i) } == "--case" {
+            if i + 1 < n { return unsafe { kf_arg_get(i + 1) } }
+        }
+        i = i + 1
+    }
+    return ""
+}
+
+/// Fields are assigned once from locals, so no String is move-assigned over.
+pub struct CaseSpec {
+    pub var name: String
+    pub var deps: String
+    pub var expect_build_fail: bool
+    pub var expect_exit: int32
+    pub var bad_directive: String
+    /// Non-empty for `broken: <reason>`.
+    pub var broken: String
+}
+
+// core.string has no prefix, trim or split.
+
+pub fun case_str_starts_with(s: str, prefix: str): bool {
+    val n: uint64 = s.byte_len()
+    val m: uint64 = prefix.byte_len()
+    if m > n {
+        return false
+    }
+    var i = 0
+    while i < m {
+        val a: uint8 = s.byte_at(i)
+        val b: uint8 = prefix.byte_at(i)
+        if a != b {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+pub fun case_str_trim(s: str): String {
+    val n: uint64 = s.byte_len()
+    val space: uint8 = 32 as uint8
+    val tab: uint8 = 9 as uint8
+    val cr: uint8 = 13 as uint8
+    var start = 0
+    while start < n {
+        val c: uint8 = s.byte_at(start)
+        if c != space && c != tab && c != cr {
+            break
+        }
+        start = start + 1
+    }
+    var end: uint64 = n
+    while end > start {
+        val c: uint8 = s.byte_at(end - 1)
+        if c != space && c != tab && c != cr {
+            break
+        }
+        end = end - 1
+    }
+    return s.substring(start, end)
+}
+
+/// Optionally signed; stops at the first non-digit.
+pub fun case_parse_int32(s: str): int32 {
+    val n: uint64 = s.byte_len()
+    val zero: uint8 = 48 as uint8
+    val nine: uint8 = 57 as uint8
+    val minus: uint8 = 45 as uint8
+    var i = 0
+    var negative = false
+    if n > 0 {
+        val c0: uint8 = s.byte_at(0)
+        if c0 == minus {
+            negative = true
+            i = 1
+        }
+    }
+    var acc = 0
+    while i < n {
+        val c: uint8 = s.byte_at(i)
+        if c < zero || c > nine {
+            break
+        }
+        val digit: int32 = (c - zero) as int32
+        acc = acc * 10 + digit
+        i = i + 1
+    }
+    if negative {
+        return 0 - acc
+    }
+    return acc
+}
+
+/// `tests/cases/when_scalar.kf` -> `when_scalar`.
+pub fun case_name_from_path(path: str): String {
+    val n: uint64 = path.byte_len()
+    val slash: uint8 = 47 as uint8
+    var start = 0
+    var i = 0
+    while i < n {
+        val c: uint8 = path.byte_at(i)
+        if c == slash {
+            start = i + 1
+        }
+        i = i + 1
+    }
+    var end: uint64 = n
+    if n >= 3 {
+        val suffix = path.substring(n - 3, n)
+        if suffix.equals(".kf") {
+            end = n - 3
+        }
+    }
+    return path.substring(start, end)
+}
+
+/// Stops at the first line that is not a directive, so the header leads the
+/// file.
+pub fun parse_case_spec(name: str, source: str): CaseSpec {
+    var deps = ""
+    var bad = ""
+    var broken = ""
+    var expect_build_fail = false
+    var expect_exit = 0
+
+    val n: uint64 = source.byte_len()
+    val newline: uint8 = 10 as uint8
+    val colon: uint8 = 58 as uint8
+    var pos = 0
+
+    while pos < n {
+        var eol: uint64 = pos
+        while eol < n {
+            val c: uint8 = source.byte_at(eol)
+            if c == newline {
+                break
+            }
+            eol = eol + 1
+        }
+        val line = source.substring(pos, eol)
+        if !case_str_starts_with(line.as_str(), "//!") {
+            break
+        }
+
+        val line_len: uint64 = line.as_str().byte_len()
+        val body_raw = line.as_str().substring(3, line_len)
+        val body = case_str_trim(body_raw.as_str())
+        val body_len: uint64 = body.as_str().byte_len()
+        var ci = 0
+        var has_colon = false
+        while ci < body_len {
+            val c: uint8 = body.as_str().byte_at(ci)
+            if c == colon {
+                has_colon = true
+                break
+            }
+            ci = ci + 1
+        }
+
+        if has_colon {
+            val key_raw = body.as_str().substring(0, ci)
+            val value_raw = body.as_str().substring(ci + 1, body_len)
+            val key = case_str_trim(key_raw.as_str())
+            val value = case_str_trim(value_raw.as_str())
+
+            when key {
+                "deps" => deps = value.clone()
+                "broken" => broken = value.clone()
+                "build" => {
+                    if value.equals("fail") {
+                        expect_build_fail = true
+                    } else {
+                        bad = String.from("build")
+                    }
+                }
+                "run" => {
+                    if case_str_starts_with(value.as_str(), "exit") {
+                        val vlen: uint64 = value.as_str().byte_len()
+                        val num_raw = value.as_str().substring(4, vlen)
+                        val num = case_str_trim(num_raw.as_str())
+                        expect_exit = case_parse_int32(num.as_str())
+                    } else {
+                        bad = String.from("run")
+                    }
+                }
+                _ => bad = key.clone()
+            }
+        }
+
+        pos = eol + 1
+    }
+
+    return CaseSpec {
+        name: String.from(name),
+        deps: deps,
+        expect_build_fail: expect_build_fail,
+        expect_exit: expect_exit,
+        bad_directive: bad,
+        broken: broken
+    }
+}
+
+/// `deps` is the raw directive value; each becomes a path dependency on
+/// libs/<name>.
+pub fun case_manifest(name: str, deps: str): String {
+    var out = "[project]\nname = \"${name}\"\nversion = \"0.1.0\"\n"
+
+    val n: uint64 = deps.byte_len()
+    if n == 0 {
+        return out
+    }
+
+    out.append("\n[dependencies]\n")
+    val comma: uint8 = 44 as uint8
+    var start = 0
+    var i = 0
+    while i <= n {
+        val at_end = i == n
+        var is_sep = false
+        if !at_end {
+            val c: uint8 = deps.byte_at(i)
+            if c == comma {
+                is_sep = true
+            }
+        }
+        if at_end || is_sep {
+            val seg_raw = deps.substring(start, i)
+            val seg = case_str_trim(seg_raw.as_str())
+            val seg_len: uint64 = seg.as_str().byte_len()
+            if seg_len > 0 {
+                out.append(seg.as_str())
+                out.append(" = { path = \"../../../libs/")
+                out.append(seg.as_str())
+                out.append("\" }\n")
+            }
+            start = i + 1
+        }
+        i = i + 1
+    }
+    return out
+}
+
+/// Under target/, so gitignored; repo-relative, since the suite runs at the
+/// root.
+pub fun case_project_dir(name: str): String {
+    var out = String.from("target/case_tmp/")
+    out.append(name)
+    return out
+}
+
+/// One artifact directory for every case, so `core` is built once and not
+/// per case. Artifacts are named per crate.
+pub fun case_target_dir(): String {
+    return String.from("target/case_shared/kflat")
+}
+
+pub fun case_binary_path(name: str): String {
+    var out = case_target_dir()
+    out.append("/")
+    out.append(name)
+    return out
+}

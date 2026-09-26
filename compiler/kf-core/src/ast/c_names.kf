@@ -21,34 +21,36 @@ fun c_reserves_local(name: str): bool {
     if name.starts_with("builtin_") { return true }
     val s = without_trailing_score2(name)
     val n = s.as_str()
-    if n == "alignof" { return true }
-    if n == "asm" { return true }
-    if n == "attribute" { return true }
-    if n == "auto_type" { return true }
-    if n == "complex" { return true }
-    if n == "const" { return true }
-    if n == "extension" { return true }
-    if n == "float128" { return true }
-    if n == "imag" { return true }
-    if n == "inline" { return true }
-    if n == "int128" { return true }
-    if n == "label" { return true }
-    if n == "real" { return true }
-    if n == "restrict" { return true }
-    if n == "signed" { return true }
-    if n == "thread" { return true }
-    if n == "typeof" { return true }
-    if n == "volatile" { return true }
-    if n == "DATE" { return true }
-    if n == "FILE" { return true }
-    if n == "FUNCTION" { return true }
-    if n == "LINE" { return true }
-    if n == "PRETTY_FUNCTION" { return true }
-    if n == "STDC" { return true }
-    if n == "TIME" { return true }
-    if n == "VA_ARGS" { return true }
-    if n == "func" { return true }
-    return false
+    return when n {
+        "alignof" => true
+        "asm" => true
+        "attribute" => true
+        "auto_type" => true
+        "complex" => true
+        "const" => true
+        "extension" => true
+        "float128" => true
+        "imag" => true
+        "inline" => true
+        "int128" => true
+        "label" => true
+        "real" => true
+        "restrict" => true
+        "signed" => true
+        "thread" => true
+        "typeof" => true
+        "volatile" => true
+        "DATE" => true
+        "FILE" => true
+        "FUNCTION" => true
+        "LINE" => true
+        "PRETTY_FUNCTION" => true
+        "STDC" => true
+        "TIME" => true
+        "VA_ARGS" => true
+        "func" => true
+        _ => false
+    }
 }
 
 /// A field keeps its KFlat name unless it is a C keyword, in which case it is
@@ -65,51 +67,53 @@ pub fun c_field_name(name: str): String {
 /// The C23 keywords a KFlat identifier can spell, listed explicitly: a missed
 /// keyword is a cc error, an extra one a needless rename.
 fun c_reserves_field(name: str): bool {
-    if name == "auto" { return true }
-    if name == "char" { return true }
-    if name == "const" { return true }
-    if name == "double" { return true }
-    if name == "extern" { return true }
-    if name == "float" { return true }
-    if name == "inline" { return true }
-    if name == "int" { return true }
-    if name == "long" { return true }
-    if name == "register" { return true }
-    if name == "restrict" { return true }
-    if name == "short" { return true }
-    if name == "signed" { return true }
-    if name == "static" { return true }
-    if name == "typedef" { return true }
-    if name == "union" { return true }
-    if name == "unsigned" { return true }
-    if name == "void" { return true }
-    if name == "volatile" { return true }
-    if name == "break" { return true }
-    if name == "case" { return true }
-    if name == "continue" { return true }
-    if name == "default" { return true }
-    if name == "do" { return true }
-    if name == "else" { return true }
-    if name == "enum" { return true }
-    if name == "for" { return true }
-    if name == "goto" { return true }
-    if name == "if" { return true }
-    if name == "return" { return true }
-    if name == "sizeof" { return true }
-    if name == "struct" { return true }
-    if name == "switch" { return true }
-    if name == "while" { return true }
-    if name == "alignas" { return true }
-    if name == "alignof" { return true }
-    if name == "bool" { return true }
-    if name == "constexpr" { return true }
-    if name == "false" { return true }
-    if name == "nullptr" { return true }
-    if name == "static_assert" { return true }
-    if name == "thread_local" { return true }
-    if name == "true" { return true }
-    if name == "typeof" { return true }
-    return false
+    return when name {
+        "auto" => true
+        "char" => true
+        "const" => true
+        "double" => true
+        "extern" => true
+        "float" => true
+        "inline" => true
+        "int" => true
+        "long" => true
+        "register" => true
+        "restrict" => true
+        "short" => true
+        "signed" => true
+        "static" => true
+        "typedef" => true
+        "union" => true
+        "unsigned" => true
+        "void" => true
+        "volatile" => true
+        "break" => true
+        "case" => true
+        "continue" => true
+        "default" => true
+        "do" => true
+        "else" => true
+        "enum" => true
+        "for" => true
+        "goto" => true
+        "if" => true
+        "return" => true
+        "sizeof" => true
+        "struct" => true
+        "switch" => true
+        "while" => true
+        "alignas" => true
+        "alignof" => true
+        "bool" => true
+        "constexpr" => true
+        "false" => true
+        "nullptr" => true
+        "static_assert" => true
+        "thread_local" => true
+        "true" => true
+        "typeof" => true
+        _ => false
+    }
 }
 
 fun without_trailing_score2(name: str): String {

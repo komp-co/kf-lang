@@ -9,7 +9,7 @@ and `bootstrap/stage0.toml` pins the one this tree builds from.
 
 ```console
 $ KOMP_PUBLISH=out/komp sh bootstrap/build.sh
-[1/4] cc the seed, kflat 0.1.0 -> komp0, kflatc
+[1/4] cc the seed, kflat 0.2.0 -> komp0, kflatc
 [2/4] komp0 compiler/komp -> stage1.c ; cc stage1.c -> komp1
       komp0 compiler/kflatc -> kflatc1.c ; cc kflatc1.c -> kflatc
 [3/4] komp1 compiler/komp -> stage2.c ; compiler/kflatc -> kflatc2.c

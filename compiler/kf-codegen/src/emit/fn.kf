@@ -121,6 +121,7 @@ mutating fun Stmt.deref_self_stmt(owner: str): void {
                     Some(guard) => deref_self_expr_ptr(guard, owner)
                     None => { }
                 }
+                deref_self_stmt_list(&var sa.guard_prelude, owner)
                 deref_self_stmt_list(&var sa.body, owner)
             }
         }

@@ -29,10 +29,15 @@ build.sh     — root-level compiler build entry point
 The passes run in order `kf-parse` → `kf-assemble` → `kf-resolve` →
 `kf-typecheck` → `kf-mono` → `kf-lower` → `kf-codegen`. `kf-core` holds the
 shared AST and diagnostics, `kf-interface` the compiled crate metadata
-(`.kfi`), `kf-driver` the CLI and build orchestration. Two binaries sit on top:
-`kflatc`, the compiler, which turns one crate into C, and `komp`, the project
-tool, which runs `kflatc` per crate and cc after it. A crate may only import
-its declared dependencies.
+(`.kfi`), `kf-driver` the compiler's entry points (one crate, `check`,
+`query`, test mains). `kf-tool` is the project tool: manifests, fetching, the
+build graph, cc. `kf-shared` holds what both must agree on (artifact paths, a
+crate's source files, hashes), and `kf-integration` the tests that drive whole
+projects through both. Two binaries sit on top: `kflatc`, the compiler, which
+links kf-driver and turns one crate into C, and `komp`, the project tool, which
+links only kf-tool and runs `kflatc` per crate and cc after it. A crate may
+only import its declared dependencies; kf-tool must never depend on a compiler
+crate.
 
 ## Build, Test, and Development Commands
 

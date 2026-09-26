@@ -2,7 +2,6 @@
 #include "kf_runtime.h"
 #endif
 
-#include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -91,20 +90,6 @@ uint32_t kf_sym_intern(const char* value) {
 
 const char* kf_sym_resolve(uint32_t id) {
     return kf_sym_table[id];
-}
-
-uint64_t kf_file_hash(const char* path) {
-    int fd = open(path, O_RDONLY);
-    if (fd < 0) return 0;
-    uint64_t hash = 5381;
-    unsigned char buffer[65536];
-    for (;;) {
-        long count = read(fd, buffer, sizeof(buffer));
-        if (count <= 0) break;
-        for (long i = 0; i < count; i++) hash = hash * 33 + (uint64_t)buffer[i];
-    }
-    close(fd);
-    return hash;
 }
 
 /* Warning output, muted for the duration of a `komp test` run.

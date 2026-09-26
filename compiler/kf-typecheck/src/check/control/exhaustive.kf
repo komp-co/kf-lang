@@ -97,56 +97,6 @@ pub fun report_covered_when_arms(arms: &List<Arm>, ctx: &var TypeCtx): void {
     }
 }
 
-fun Pattern.pattern_covers_pattern(later: &Pattern): bool {
-    return when (self.kind) {
-        Wildcard => !later.pattern_is_poison()
-        Identifier(_) => !later.pattern_is_poison()
-        Variant(name, _) => later.pattern_is_variant(name.as_str())
-        LitInt(value) => later.pattern_is_int(value)
-        LitBool(value) => later.pattern_is_bool(value)
-        LitChar(value) => later.pattern_is_char(value)
-        Or(_) => false
-        LitStr(_) => false
-        StructPat(_, _, _) => false
-        Poison => false
-    }
-}
-
-fun Pattern.pattern_is_poison(): bool {
-    return when (self.kind) {
-        Poison => true
-        _ => false
-    }
-}
-
-fun Pattern.pattern_is_variant(name: str): bool {
-    return when (self.kind) {
-        Variant(other, _) => other.as_str().equals(name)
-        _ => false
-    }
-}
-
-fun Pattern.pattern_is_int(value: int64): bool {
-    return when (self.kind) {
-        LitInt(other) => other == value
-        _ => false
-    }
-}
-
-fun Pattern.pattern_is_bool(value: bool): bool {
-    return when (self.kind) {
-        LitBool(other) => other == value
-        _ => false
-    }
-}
-
-fun Pattern.pattern_is_char(value: uint32): bool {
-    return when (self.kind) {
-        LitChar(other) => other == value
-        _ => false
-    }
-}
-
 fun Pattern.covered_arm_message(): String {
     when (self.kind) {
         Variant(name, _) => return "`${name.as_str()}` is already covered by an earlier arm"
@@ -191,6 +141,7 @@ fun Pattern.pattern_is_irrefutable(): bool {
         LitStr(_) => false
         LitBool(_) => false
         LitChar(_) => false
+        Range(_, _, _) => false
         Variant(_, _) => false
         StructPat(_, _, _) => false
         Poison => false
@@ -223,6 +174,7 @@ fun Pattern.pattern_covers_variant(name: str): bool {
         LitStr(_) => false
         LitBool(_) => false
         LitChar(_) => false
+        Range(_, _, _) => false
         StructPat(_, _, _) => false
         Poison => false
     }
@@ -264,6 +216,7 @@ fun Pattern.pattern_covers_bool(value: bool): bool {
         LitInt(_) => return false
         LitStr(_) => return false
         LitChar(_) => return false
+        Range(_, _, _) => return false
         Variant(_, _) => return false
         StructPat(_, _, _) => return false
         Poison => return false

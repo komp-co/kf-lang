@@ -8,3 +8,6 @@ core = { path = "../../libs/core" }
 alloc = { path = "../../libs/alloc" }
 std = { path = "../../libs/std" }
 json = { path = "../../../json" }
+
+[native]
+c_sources = ["native/file_hash.c"]

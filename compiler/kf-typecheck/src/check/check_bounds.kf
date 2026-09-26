@@ -171,11 +171,13 @@ fun Type.method_is_mutating(method_name: String, arity: uint64, ctx: &var TypeCt
             if name_starts_with(sname, "List__") {
                 // Synthesized container methods are not in the sig table.
                 // `at_mut` hands out `&var`, so it needs a mutable receiver.
-                if m.equals("push")   { return true }
-                if m.equals("set")    { return true }
-                if m.equals("pop")    { return true }
-                if m.equals("at_mut") { return true }
-                return false
+                return when m {
+                    "push" => true
+                    "set" => true
+                    "pop" => true
+                    "at_mut" => true
+                    _ => false
+                }
             }
             if m.equals("call") {
                 val trait_name = call_trait_name(arity, true)

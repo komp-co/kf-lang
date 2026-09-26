@@ -46,71 +46,70 @@ pub fun run_query(kind: str, path: str, offset_arg: str, name_arg: str, overlay_
         runtime_println(json.as_str())
         return 1
     }
-    if kind == "symbols" {
-        val m = query_parse_file(path, overlay_path)
-        val json = render_symbols_json(path, &m)
-        runtime_println(json.as_str())
-        return 0
-    }
-    if kind == "folding" {
-        val m = query_parse_file(path, overlay_path)
-        val json = render_folding_json(path, &m)
-        runtime_println(json.as_str())
-        return 0
-    }
-    if kind == "hover" {
-        if !is_byte_offset(offset_arg) {
-            val json = render_json_error("hover needs a byte offset: --offset <N>")
+    when kind {
+        "symbols" => {
+            val m = query_parse_file(path, overlay_path)
+            val json = render_symbols_json(path, &m)
             runtime_println(json.as_str())
-            return 1
+            return 0
         }
-        return run_hover_query(path, parse_byte_offset(offset_arg), overlay_path)
-    }
-    if kind == "inlays" {
-        return run_inlays_query(path, overlay_path)
-    }
-    if kind == "tokens" {
-        return run_tokens_query(path, overlay_path)
-    }
-    if kind == "references" {
-        if !is_byte_offset(offset_arg) {
-            val json = render_json_error("references needs a byte offset: --offset <N>")
+        "folding" => {
+            val m = query_parse_file(path, overlay_path)
+            val json = render_folding_json(path, &m)
             runtime_println(json.as_str())
-            return 1
+            return 0
         }
-        return run_references_query(path, parse_byte_offset(offset_arg), overlay_path)
-    }
-    if kind == "signature" {
-        if !is_byte_offset(offset_arg) {
-            val json = render_json_error("signature needs a byte offset: --offset <N>")
-            runtime_println(json.as_str())
-            return 1
+        "hover" => {
+            if !is_byte_offset(offset_arg) {
+                val json = render_json_error("hover needs a byte offset: --offset <N>")
+                runtime_println(json.as_str())
+                return 1
+            }
+            return run_hover_query(path, parse_byte_offset(offset_arg), overlay_path)
         }
-        return run_signature_query(path, parse_byte_offset(offset_arg), overlay_path)
-    }
-    if kind == "rename" {
-        if !is_byte_offset(offset_arg) {
-            val json = render_json_error("rename needs a byte offset: --offset <N>")
-            runtime_println(json.as_str())
-            return 1
+        "inlays" => return run_inlays_query(path, overlay_path)
+        "tokens" => return run_tokens_query(path, overlay_path)
+        "references" => {
+            if !is_byte_offset(offset_arg) {
+                val json = render_json_error("references needs a byte offset: --offset <N>")
+                runtime_println(json.as_str())
+                return 1
+            }
+            return run_references_query(path, parse_byte_offset(offset_arg), overlay_path)
         }
-        return run_rename_query(path, parse_byte_offset(offset_arg), name_arg, overlay_path)
-    }
-    if kind == "completion" {
-        if !is_byte_offset(offset_arg) {
-            val json = render_json_error("completion needs a byte offset: --offset <N>")
-            runtime_println(json.as_str())
-            return 1
+        "signature" => {
+            if !is_byte_offset(offset_arg) {
+                val json = render_json_error("signature needs a byte offset: --offset <N>")
+                runtime_println(json.as_str())
+                return 1
+            }
+            return run_signature_query(path, parse_byte_offset(offset_arg), overlay_path)
         }
-        return run_completion_query(path, parse_byte_offset(offset_arg), overlay_path)
-    }
-    if kind == "selection" {
-        if !is_byte_offset(offset_arg) {
-            val json = render_json_error("selection needs a byte offset: --offset <N>")
-            runtime_println(json.as_str())
-            return 1
+        "rename" => {
+            if !is_byte_offset(offset_arg) {
+                val json = render_json_error("rename needs a byte offset: --offset <N>")
+                runtime_println(json.as_str())
+                return 1
+            }
+            return run_rename_query(path, parse_byte_offset(offset_arg), name_arg, overlay_path)
         }
-        return run_selection_query(path, parse_byte_offset(offset_arg), overlay_path)
+        "completion" => {
+            if !is_byte_offset(offset_arg) {
+                val json = render_json_error("completion needs a byte offset: --offset <N>")
+                runtime_println(json.as_str())
+                return 1
+            }
+            return run_completion_query(path, parse_byte_offset(offset_arg), overlay_path)
+        }
+        "selection" => {
+            if !is_byte_offset(offset_arg) {
+                val json = render_json_error("selection needs a byte offset: --offset <N>")
+                runtime_println(json.as_str())
+                return 1
+            }
+            return run_selection_query(path, parse_byte_offset(offset_arg), overlay_path)
+        }
+        _ => { }
     }
     val message = "unknown query `${kind}`; known queries: symbols, folding, hover, inlays, selection, signature, references, tokens, completion, rename"
     val json = render_json_error(message.as_str())
@@ -159,18 +158,14 @@ pub fun dispatch_query(nargs: int32): int32 {
     while i + 1 < nargs {
         val flag = cli_arg_get(i)
         val value = cli_arg_get(i + 1)
-        if flag == "--file" {
-            file = String.from(value)
-        } else if flag == "--offset" {
-            offset = String.from(value)
-        } else if flag == "--new-name" {
-            new_name = String.from(value)
-        } else if flag == "--overlay" {
-            overlay = String.from(value)
-        } else if flag == "--crate" {
+        when flag {
+            "--file" => file = String.from(value)
+            "--offset" => offset = String.from(value)
+            "--new-name" => new_name = String.from(value)
+            "--overlay" => overlay = String.from(value)
             // Read by the crate loader.
-        } else {
-            return query_usage()
+            "--crate" => { }
+            _ => return query_usage()
         }
         i = i + 2
     }

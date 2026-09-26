@@ -20,7 +20,7 @@
 #
 # The sweep is serial by default, for memory: komp's peak RSS is its whole
 # dependency chain and MEM_BUDGET_MB is per crate. SWEEP_JOBS fans it out;
-# kf-driver's serial test time sets the floor either way. Crates sharing
+# kf-integration's serial test time sets the floor either way. Crates sharing
 # compiler/target are safe concurrently: artifacts are written under a private
 # name and renamed into place.
 #
@@ -102,7 +102,7 @@ if [ "${1:-}" = "--isolated" ]; then
     # commit.
     ( git ls-files --others --exclude-standard -z | xargs -0 -r tar -cf - ) \
         | ( cd "$iso/komp" && tar -xf - ) 2>/dev/null || true
-    # kf-driver and kf-interface depend on the sibling, and it is swept too.
+    # The tool and compiler crates depend on the sibling, and it is swept too.
     if [ -d "$ROOT/../json" ]; then
         cp -r "$ROOT/../json" "$iso/json"
         rm -rf "$iso/json/target"
@@ -113,14 +113,15 @@ if [ "${1:-}" = "--isolated" ]; then
 fi
 
 # Every crate, unless the caller names a subset. `../json` is a sibling
-# checkout but a first-party crate: kf-driver and kf-interface depend on it.
+# checkout but a first-party crate: the tool and compiler crates depend on it.
 #
 # `CRATES` lets CI shard the sweep. `CHECK_CLI=0` skips the CLI gates, which
 # belong to one shard.
 CRATES="${CRATES:-compiler/kf-core compiler/kf-parse compiler/kf-assemble
         compiler/kf-resolve compiler/kf-typecheck compiler/kf-mono
         compiler/kf-lower compiler/kf-codegen compiler/kf-interface
-        compiler/kf-shared compiler/kf-driver libs/core libs/alloc libs/std ../json}"
+        compiler/kf-shared compiler/kf-driver compiler/kf-tool compiler/kf-integration
+        libs/core libs/alloc libs/std ../json}"
 CHECK_CLI="${CHECK_CLI:-1}"
 
 # Peak RSS a single crate's `komp test` may reach, in MB: a ceiling with room
@@ -144,7 +145,7 @@ trap 'rm -rf "$WORK"' EXIT
 # and would find this shim and loop forever.
 #
 # `KF_STD=` (empty) opts out. The same value lives in `dialect_flags()` in
-# compiler/kf-driver/src/build/compile_c.kf, which pins the C komp compiles;
+# compiler/kf-tool/src/build/compile_c.kf, which pins the C komp compiles;
 # this covers the direct `cc` calls here and the C under libs/*/native.
 KF_STD="${KF_STD-gnu17}"
 if [ -n "$KF_STD" ]; then

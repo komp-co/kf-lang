@@ -19,6 +19,8 @@ points, and then compiles and links the C with cc.
 | `komp test <dir>` | Run `@test` functions in the crate |
 | `komp query <what> --file <path> [--offset <N>] [--overlay <path>]` | Answer an editor's question about one file as JSON |
 | `komp update <dir>` | Resolve fetched dependencies again and rewrite `kf.lock` |
+| `komp metadata <dir>` | Print the resolved crate graph as JSON, for tools |
+| `komp publish <dir>` | Add a library's version to a package index by pull request |
 | `komp new <name>` | Scaffold a new project directory |
 | `komp init` | Scaffold a project in the current directory |
 | `komp version` | Print compiler version |
@@ -99,6 +101,40 @@ source.
 inside the crate, runs them, and reports failures. See
 [Writing tests](testing.md).
 
+### komp publish
+
+`komp publish <project-dir>` adds a library's version to a package index,
+[komp-co/index](https://github.com/komp-co/index) unless `--index <url>` or
+`$KFLAT_INDEX` names another:
+
+```console
+$ git tag v0.2.0 && git push origin v0.2.0
+$ komp publish
+checked  json 0.2.0
+entry    js/on/json.toml: 0.2.0 at 3f2a9c1
+opened   https://github.com/komp-co/index/pull/12
+```
+
+The version is `kf.toml`'s, and the commit is the one its `vX.Y.Z` tag names.
+komp refuses, and says what to do, when the crate is a `bin`, its name is not
+lowercase `snake_case`, the working tree has uncommitted changes, the tag is
+missing, names another commit or is not pushed, the crate does not pass
+`komp check`, or the index already has that version.
+
+The entry is committed on a branch `publish/<name>-<version>` in a clone
+under komp's cache. Opening the pull request uses the
+[GitHub CLI](https://cli.github.com), `gh`: komp pushes the branch to your fork
+of the index and opens or updates the pull request with your `gh` login. When
+`gh` is not installed or not logged in, the index is not on GitHub, or a step
+fails, komp says why, keeps the committed entry, and exits 1; run it again
+once `gh` works, or open the pull request from that branch yourself.
+
+`komp publish --status` lists the package's versions in the index, then its
+pull requests with their review state: in review, changes requested,
+approved and waiting to be merged, or declined. The pull requests need `gh`;
+without it only the index's versions are listed. A maintainer of the index
+approves every new package.
+
 ### komp update
 
 `komp update <project-dir>` resolves every version, `git` and `tarball`
@@ -107,6 +143,56 @@ now has, and a tag or branch to the commit it names now. It fetches what is
 new and rewrites `kf.lock`. Every other command fetches only what the lock
 does not already pin. See
 [Fetched dependencies](../start/projects.md#fetched-dependencies).
+
+### komp metadata
+
+`komp metadata <project-dir>` prints the project's resolved crates as one JSON
+object on one line, for tools that run kflatc themselves, such as a language
+server. It fetches first, as a build would, and takes `--locked` and
+`--offline` like one. At a workspace, or at any of its members, it covers
+every member and every crate they reach, so a tool asking about one file sees
+the whole workspace.
+
+With `hello` depending on `greet` by path, and `[lint] dead_code = "allow"`
+(reformatted here):
+
+```text
+$ komp metadata
+{
+  "schema": 1,
+  "komp_version": "0.2.0",
+  "kflatc": "/home/user/komp/bin/kflatc",
+  "workspace_root": null,
+  "target_dir": "/tmp/work/hello/target/kflat",
+  "members": ["/tmp/work/hello"],
+  "crates": [
+    {"name": "core", "version": "0.1.0", "kind": "lib", "root": "/home/user/komp/libs/core",
+     "source": "bundled", "member": false, "deps": [], "loads": [], "lints": []},
+    {"name": "alloc", "version": "0.1.0", "kind": "lib", "root": "/home/user/komp/libs/alloc",
+     "source": "bundled", "member": false, "deps": ["core"], "loads": ["core"], "lints": []},
+    {"name": "greet", "version": "0.3.0", "kind": "lib", "root": "/tmp/work/greet",
+     "source": "path", "member": false, "deps": ["core", "alloc"], "loads": ["core", "alloc"], "lints": []},
+    {"name": "hello", "version": "0.1.0", "kind": "bin", "root": "/tmp/work/hello",
+     "source": "path", "member": true, "deps": ["greet"], "loads": ["core", "alloc", "greet"],
+     "lints": [{"name": "dead_code", "level": "allow"}]}
+  ]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `schema` | Raised when a field changes meaning or goes away; a new field leaves it as it is |
+| `kflatc` | The compiler komp would run |
+| `workspace_root` | The directory holding `[workspace]`, or `null` |
+| `target_dir` | Where compiled crates' `.kfi`, `.h` and `.c` land; kflatc's `--out` |
+| `members` | The crates the command was about, as roots |
+| `crates` | Every crate, each once, dependencies before the crates that use them |
+| `deps` | The crate's direct dependencies by crate name; kflatc's `--dep` |
+| `loads` | Every crate `deps` reach, in order; kflatc's `--load` |
+| `source` | `bundled` (comes with komp), `fetched` (from the cache) or `path` |
+| `lints` | The crate's `[lint]` rows; kflatc's `--lint` |
+
+A graph that does not resolve prints `{"schema": 1, "error": "..."}` and exits 1.
 
 ### komp query
 
