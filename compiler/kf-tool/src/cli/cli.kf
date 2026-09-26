@@ -288,6 +288,10 @@ pub fun run_cli(): int32 {
             }
         }
         "publish" => return publish_command(nargs)
+        "metadata" => {
+            if positionals_from(nargs, 1) > 1 { return usage_error("metadata") }
+            return metadata_command(project_for(nargs, 1).as_str(), nargs)
+        }
         "update" => {
             if positionals_from(nargs, 1) > 1 { return usage_error("update") }
             return update_project(project_for(nargs, 1).as_str(), nargs)

@@ -13,6 +13,7 @@ pub fun command_usage(command: str): str {
         "query" => "komp query <what> --file <path> [--offset <N>] [--overlay <path>]"
         "publish" => "komp publish [--status] [--index <url>] [<project-dir>]"
         "update" => "komp update [-p <crate>] [--manifest-path <path>] [<project-dir>]"
+        "metadata" => "komp metadata [--locked] [--offline] [--manifest-path <path>] [<project-dir>]"
         "new" => "komp new <name>"
         "init" => "komp init"
         "version" => "komp version"
@@ -78,6 +79,10 @@ entry is committed locally, komp says how to finish by hand, and exits 1.
   --status          list this package's versions in the index, and its
                     pull requests with their review state
   --index <url>     another index than komp-co/index or $KFLAT_INDEX"""
+        "metadata" => """Print the project's resolved crates as one JSON object, for tools
+that run kflatc themselves. At a workspace or one of its members, every
+member and every crate they reach, dependencies first. Fetches first, as a
+build would; a failure is JSON too, with an `error` field, and exits 1."""
         "new" => "Create a new project in a new directory of that name."
         "init" => "Create a new project in the current directory."
         "version" => "Print the compiler version."
@@ -109,6 +114,7 @@ pub fun print_usage(): void {
     runtime_println("  query     answer one editor question as JSON")
     runtime_println("  update    re-resolve fetched dependencies and rewrite kf.lock")
     runtime_println("  publish   add this library's version to a package index")
+    runtime_println("  metadata  print the resolved crate graph as JSON")
     runtime_println("  new       create a new project")
     runtime_println("  init      create a new project in the current directory")
     runtime_println("  version   print the compiler version")
