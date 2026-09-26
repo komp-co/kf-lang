@@ -28,9 +28,10 @@ jobs:
           BASE: ${{ github.base_ref }}
         run: |
           # The file is found by what it defines, so moving it breaks no release.
+          # Prints nothing, and succeeds, for a tree that predates it.
           version_at() {
             file=$(git grep -l "fun kflat_version" "$1" -- compiler | head -1)
-            [ -n "$file" ] && git show "$file" | sed -n 's/^ *return "\(.*\)"$/\1/p'
+            if [ -n "$file" ]; then git show "$file" | sed -n 's/^ *return "\(.*\)"$/\1/p'; fi
           }
           new=$(version_at HEAD)
           old=$(version_at "origin/$BASE")
