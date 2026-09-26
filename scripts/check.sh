@@ -18,9 +18,9 @@
 # The sweep does not stop at the first failing crate. Each crate's output is
 # kept in its own file and printed only if it failed.
 #
-# The sweep is serial by default, for memory: komp's peak RSS is its whole
-# dependency chain and MEM_BUDGET_MB is per crate. SWEEP_JOBS fans it out;
-# kf-integration's serial test time sets the floor either way. Crates sharing
+# The sweep runs SWEEP_JOBS crates at once, one per core up to four; each
+# crate's peak RSS is its whole dependency chain, and MEM_BUDGET_MB is per
+# crate. kf-integration's test time sets the floor. Crates sharing
 # compiler/target are safe concurrently: artifacts are written under a private
 # name and renamed into place.
 #
@@ -128,9 +128,11 @@ CHECK_CLI="${CHECK_CLI:-1}"
 # above the real numbers, so a regression trips it and ordinary growth does
 # not. Raise it only with a measurement saying why.
 MEM_BUDGET_MB="${MEM_BUDGET_MB:-2560}"
-# How many crates the sweep runs at once. 1 is serial and the default: the
-# budget above is per crate.
-SWEEP_JOBS="${SWEEP_JOBS:-1}"
+# How many crates the sweep runs at once; 1 is serial. Past four the crates
+# wait on each other's dependencies more than on the cores.
+cores="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)"
+[ "$cores" -le 4 ] 2>/dev/null || cores=4
+SWEEP_JOBS="${SWEEP_JOBS:-$cores}"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -188,6 +190,12 @@ esac
 
 if [ "$run_fixpoint" -eq 1 ]; then
 phase "fixpoint"
+# A whole run hands the fixpoint's komp to the sweep, as CI's jobs do.
+if [ "$run_sweep" -eq 1 ] && [ -z "${KOMP_PREBUILT:-}" ] && [ -z "${KOMP_PUBLISH:-}" ]; then
+    KOMP_PUBLISH="$WORK/fixpoint-bin/komp"
+    KOMP_PREBUILT="$KOMP_PUBLISH"
+    export KOMP_PUBLISH
+fi
 if ! sh bootstrap/build.sh > "$WORK/fixpoint.log" 2>&1; then
     cat "$WORK/fixpoint.log"
     echo "FAIL: fixpoint" >&2
@@ -239,10 +247,9 @@ int main(int argc, char** argv) {
 MAXRSS
 "${CC:-cc}" -O1 -o "$WORK/maxrss" "$WORK/maxrss.c"
 
-# The sweep needs a komp of its own. In --sweep mode nothing has built one;
-# in a whole run the fixpoint discarded its binaries.
-# KOMP_PREBUILT names a komp the fixpoint job published for this commit;
-# without one, the seed builds it here.
+# The sweep needs a komp of its own. KOMP_PREBUILT names one the fixpoint
+# published for this commit, in this run or in CI's fixpoint job; without one,
+# the seed builds it here.
 if [ -n "${KOMP_PREBUILT:-}" ] && [ -x "$KOMP_PREBUILT" ] && [ -x "$(dirname "$KOMP_PREBUILT")/kflatc" ]; then
 phase "using the published komp"
 cp "$KOMP_PREBUILT" "$WORK/komp"
@@ -1066,38 +1073,35 @@ for h in $KFLAT_HOMES; do
     kflat_restore "$h"
 done
 
-running=0
-for c in $CRATES; do
-    log="$WORK/$(echo "$c" | tr / _).log"
-    scratch="$(crate_scratch "$c")"
-    rm -rf "$scratch"
-    mkdir -p "$scratch"
-    if [ "$SWEEP_JOBS" -le 1 ]; then
-        t0="$(date +%s)"
-        rc=0
-        KOMP_SCRATCH_ROOT="$scratch" "$WORK/maxrss" "$WORK/komp" -q test "$c" > "$log" 2>&1 || rc=$?
-        echo "$rc" > "$log.rc"
-        lrc=0
-        KOMP_SCRATCH_ROOT="$scratch" "$WORK/komp" check -D unused_import -D wildcard_import "$c" > "$log.lint" 2>&1 || lrc=$?
-        echo "$lrc" > "$log.lint.rc"
-        echo "$(( $(date +%s) - t0 ))" > "$log.secs"
-    else
-        ( t0="$(date +%s)"
-          rc=0
-          KOMP_SCRATCH_ROOT="$scratch" "$WORK/maxrss" "$WORK/komp" -q test "$c" > "$log" 2>&1 || rc=$?
-          echo "$rc" > "$log.rc"
-          lrc=0
-          KOMP_SCRATCH_ROOT="$scratch" "$WORK/komp" check -D unused_import -D wildcard_import "$c" > "$log.lint" 2>&1 || lrc=$?
-          echo "$lrc" > "$log.lint.rc"
-          echo "$(( $(date +%s) - t0 ))" > "$log.secs" ) &
-        running=$(( running + 1 ))
-        if [ "$running" -ge "$SWEEP_JOBS" ]; then
-            wait
-            running=0
-        fi
-    fi
+# One crate's test and lint, as a script so `xargs -P` can run it: xargs
+# starts the next crate as soon as any slot frees.
+cat > "$WORK/sweep_one.sh" <<'SWEEP_ONE'
+c="$1"; log="$2"; scratch="$3"; WORK="$4"
+rm -rf "$scratch"
+mkdir -p "$scratch"
+t0="$(date +%s)"
+rc=0
+KOMP_SCRATCH_ROOT="$scratch" "$WORK/maxrss" "$WORK/komp" -q test "$c" > "$log" 2>&1 || rc=$?
+echo "$rc" > "$log.rc"
+lrc=0
+KOMP_SCRATCH_ROOT="$scratch" "$WORK/komp" check -D unused_import -D wildcard_import "$c" > "$log.lint" 2>&1 || lrc=$?
+echo "$lrc" > "$log.lint.rc"
+echo "$(( $(date +%s) - t0 ))" > "$log.secs"
+SWEEP_ONE
+
+# The slowest crates start first, so the pool does not end on one of them
+# alone. The report below keeps CRATES order.
+SLOW_FIRST="compiler/kf-integration compiler/kf-typecheck"
+started=""
+for c in $SLOW_FIRST; do
+    case " $(echo $CRATES) " in *" $c "*) started="$started $c" ;; esac
 done
-wait
+for c in $CRATES; do
+    case " $started " in *" $c "*) ;; *) started="$started $c" ;; esac
+done
+for c in $started; do
+    printf '%s\0%s\0%s\0%s\0' "$c" "$WORK/$(echo "$c" | tr / _).log" "$(crate_scratch "$c")" "$WORK"
+done | xargs -0 -n 4 -P "$SWEEP_JOBS" sh "$WORK/sweep_one.sh"
 for h in $KFLAT_HOMES; do
     kflat_save "$h"
 done
