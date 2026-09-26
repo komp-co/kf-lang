@@ -83,11 +83,6 @@ src/main.kf:3:13: error: lambda parameter `x` needs a type annotation (its type 
   checked against the template ([#3]). Put the arguments on the literal.
 - A method returning its own type with the parameters transposed is wrongly
   rejected ([#2]).
-- A type argument is not inferred backwards from a later use ([#6]): `var xs = List.new()`
-  followed by `xs.push(1)` is reported rather than solved. What does work is the
-  slot — an annotation, a return type or a parameter supplies a generic static
-  call's type arguments — and a literal takes its type from its first use, so
-  `var i = 0` beside `i < xs.size()` is a `uint64`.
 
 ## Extension functions
 
@@ -177,7 +172,6 @@ not agree with it in every case.
 
 [#2]: https://github.com/komp-co/komp/issues/2
 [#3]: https://github.com/komp-co/komp/issues/3
-[#6]: https://github.com/komp-co/komp/issues/6
 [#15]: https://github.com/komp-co/komp/issues/15
 [#20]: https://github.com/komp-co/komp/issues/20
 [#21]: https://github.com/komp-co/komp/issues/21
