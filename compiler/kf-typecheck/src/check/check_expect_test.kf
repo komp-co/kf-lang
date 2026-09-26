@@ -1,0 +1,36 @@
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.span.no_span
+import kf_core.ast.*
+
+/// A context knowing `Option` and its `int32` instance.
+fun ctx_knowing_option_of_int32(): TypeCtx {
+    var ctx = mk_ctx()
+    unsafe { ctx.sigs.lang_option = intern("Option") }
+    var args = List.new<TypeRef>()
+    args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    val inst = GenericInst { mangled: String.from("Option__int32"), base: String.from("Option"), args: args }
+    unsafe { ctx.sigs.insert_inst(inst) }
+    return ctx
+}
+
+fun option_slot_of_int32(): Type {
+    return Type { kind: TypeKind.Struct(intern("Option__int32")), provenance: Provenance.Inferred(no_span()) }
+}
+
+@test fun a_poison_value_claims_an_option_slot_unwrapped(): void {
+    var ctx = ctx_knowing_option_of_int32()
+    var value = new_expr(no_span(), ExprKind.Variable(intern("x")))
+    value.ty = poison_ty()
+    val claimed = value.apply_expected(option_slot_of_int32(), &var ctx)
+    assert_eq(claimed && !value.is_variant_ctor, true, "accepted, so nothing cascades, but not wrapped in Some")
+}
+
+@test fun a_payload_value_is_still_wrapped(): void {
+    var ctx = ctx_knowing_option_of_int32()
+    var value = new_expr(no_span(), ExprKind.Variable(intern("x")))
+    value.ty = int32_ty(no_span())
+    val claimed = value.apply_expected(option_slot_of_int32(), &var ctx)
+    assert_eq(claimed && value.is_variant_ctor, true, "an int32 in an Option<int32> slot becomes Some")
+}
