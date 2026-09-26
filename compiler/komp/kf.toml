@@ -5,12 +5,5 @@ kind = "bin"
 
 [dependencies]
 alloc = { path = "../../libs/alloc" }
-kf_core = { path = "../kf-core" }
-kf_parse = { path = "../kf-parse" }
-kf_resolve = { path = "../kf-resolve" }
-kf_typecheck = { path = "../kf-typecheck" }
-kf_mono = { path = "../kf-mono" }
-kf_lower = { path = "../kf-lower" }
-kf_codegen = { path = "../kf-codegen" }
-kf_driver = { path = "../kf-driver" }
+kf_tool = { path = "../kf-tool" }
 std = { path = "../../libs/std" }
