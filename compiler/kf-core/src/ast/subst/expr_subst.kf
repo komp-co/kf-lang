@@ -249,15 +249,8 @@ fun replacement_is_a_borrow(pname: str, names: &var List<String>, repls: &var Li
 }
 
 pub fun subst_mangled_name(name: str, names: &var List<String>, repls: &var List<TypeRef>): String {
-    // A name with no `__` is itself unless it is a parameter — the common case,
-    // skipped without rebuilding it.
-    if !name.contains("__") {
-        var is_param = false
-        while item in &names {
-            if item.as_str().equals(name) { is_param = true }
-        }
-        if !is_param { return String.from(name) }
-    }
+    // Only a segment naming a parameter changes; the common case has none.
+    if !name.has_param_segment(names) { return String.from(name) }
     val s = name
     val n = s.byte_len()
     var out = ""
@@ -284,6 +277,31 @@ pub fun subst_mangled_name(name: str, names: &var List<String>, repls: &var List
     val chosen_tail = if out.replacement_is_suffix(tail.as_str(), repls) { String.from(tail.as_str()) } else { pick_seg(tail.as_str(), names, repls) }
     out.append(chosen_tail.as_str())
     return out
+}
+
+/// Whether some `__`-separated segment of the name is one of `names`.
+fun str.has_param_segment(names: &List<String>): bool {
+    if names.size() == 0 { return false }
+    val n = self.byte_len()
+    var seg_start: uint64 = 0
+    var i: uint64 = 0
+    while i + 1 < n {
+        if self.byte_at(i) == 95 && self.byte_at(i + 1) == 95 {
+            if self.substring(seg_start, i).as_str().is_one_of(names) { return true }
+            i = i + 2
+            seg_start = i
+        } else {
+            i = i + 1
+        }
+    }
+    return self.substring(seg_start, n).as_str().is_one_of(names)
+}
+
+fun str.is_one_of(names: &List<String>): bool {
+    while item in &names {
+        if item.as_str().equals(self) { return true }
+    }
+    return false
 }
 
 // A compound can already hold a complete replacement (`List__kf_core__Stmt`);
