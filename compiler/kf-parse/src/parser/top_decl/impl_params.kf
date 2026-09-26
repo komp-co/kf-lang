@@ -1,0 +1,48 @@
+// `impl<T: Show> Show for Box<T>` declares the impl's parameters up front; the
+// target then only uses them. Both spellings reach the same generics: the
+// target's parameters, carrying the bounds the list gives them.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_parse.parser.*
+
+impl Parser {
+    /// Every target parameter must be declared, every declared one used, and
+    /// each bounded in one place only.
+    mutating fun merge_declared_params(declared: &List<TypeParam>, target: &List<TypeParam>): List<TypeParam> {
+        var merged = List.new<TypeParam>()
+        while used in &target {
+            val found = declared_named(declared, used.name)
+            when (found) {
+                Some(param) => {
+                    if used.bounds.size() > 0 && param.bounds.size() > 0 {
+                        val message = "`${used.name.as_str()}` is bounded twice; keep its bounds in `impl<...>`"
+                        self.parse_err(used.span, message)
+                    }
+                    val bounds = if param.bounds.size() > 0 { param.bounds.clone() } else { used.bounds.clone() }
+                    merged.push(TypeParam { span: used.span, name: used.name, bounds: bounds })
+                }
+                None => {
+                    val message = "`${used.name.as_str()}` is not declared in `impl<...>`; add it to the list"
+                    self.parse_err(used.span, message)
+                    merged.push(used.clone())
+                }
+            }
+        }
+        while param in &declared {
+            if declared_named(target, param.name).is_none() {
+                val message = "`${param.name.as_str()}` is declared in `impl<...>` but the target does not use it"
+                self.parse_err(param.span, message)
+            }
+        }
+        return merged
+    }
+}
+
+fun declared_named(params: &List<TypeParam>, name: Sym): TypeParam? {
+    while param in &params {
+        if param.name.as_str().equals(name.as_str()) { return param.clone() }
+    }
+    return null
+}
