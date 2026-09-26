@@ -19,6 +19,7 @@ points, and then compiles and links the C with cc.
 | `komp test <dir>` | Run `@test` functions in the crate |
 | `komp query <what> --file <path> [--offset <N>] [--overlay <path>]` | Answer an editor's question about one file as JSON |
 | `komp update <dir>` | Resolve fetched dependencies again and rewrite `kf.lock` |
+| `komp publish <dir>` | Add a library's version to a package index by pull request |
 | `komp new <name>` | Scaffold a new project directory |
 | `komp init` | Scaffold a project in the current directory |
 | `komp version` | Print compiler version |
@@ -98,6 +99,40 @@ source.
 `komp test <project-dir>` finds all `@test` functions in `_test.kf` files
 inside the crate, runs them, and reports failures. See
 [Writing tests](testing.md).
+
+### komp publish
+
+`komp publish <project-dir>` adds a library's version to a package index,
+[komp-co/index](https://github.com/komp-co/index) unless `--index <url>` or
+`$KFLAT_INDEX` names another:
+
+```console
+$ git tag v0.2.0 && git push origin v0.2.0
+$ komp publish
+checked  json 0.2.0
+entry    js/on/json.toml: 0.2.0 at 3f2a9c1
+opened   https://github.com/komp-co/index/pull/12
+```
+
+The version is `kf.toml`'s, and the commit is the one its `vX.Y.Z` tag names.
+komp refuses, and says what to do, when the crate is a `bin`, its name is not
+lowercase `snake_case`, the working tree has uncommitted changes, the tag is
+missing, names another commit or is not pushed, the crate does not pass
+`komp check`, or the index already has that version.
+
+The entry is committed on a branch `publish/<name>-<version>` in a clone
+under komp's cache. Opening the pull request uses the
+[GitHub CLI](https://cli.github.com), `gh`: komp pushes the branch to your fork
+of the index and opens or updates the pull request with your `gh` login. When
+`gh` is not installed or not logged in, the index is not on GitHub, or a step
+fails, komp says why, keeps the committed entry, and exits 0; run it again
+once `gh` works, or open the pull request from that branch yourself.
+
+`komp publish --status` lists the package's versions in the index, then its
+pull requests with their review state: in review, changes requested,
+approved and waiting to be merged, or declined. The pull requests need `gh`;
+without it only the index's versions are listed. A maintainer of the index
+approves every new package.
 
 ### komp update
 

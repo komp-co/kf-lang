@@ -115,8 +115,8 @@ version the requirement allows that has not been yanked.
 Without an `index` key the requirement goes to the default index,
 [komp-co/index](https://github.com/komp-co/index), or to `$KFLAT_INDEX` when
 that is set. `[indexes]` names any other one; an index is a git repository,
-so a private one is a private repository. Its README says how to add a
-package.
+so a private one is a private repository. `komp publish` adds a library to
+one; see [komp publish](../tools/cli.md#komp-publish).
 
 The index is read only to choose a version. What was chosen is fetched like
 any other remote dependency and pinned in `kf.lock`, which also records the

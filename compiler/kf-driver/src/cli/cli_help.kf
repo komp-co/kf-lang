@@ -10,6 +10,7 @@ pub fun command_usage(command: str): str {
     if command == "test"  { return "komp test [--unity] [<project-dir>] [--case <substring>] [--filter <substring>]" }
     if command == "fix"   { return "komp fix [--dry-run] [--manifest-path <path>] [<project-dir>]" }
     if command == "query" { return "komp query <what> --file <path> [--offset <N>] [--overlay <path>]" }
+    if command == "publish" { return "komp publish [--status] [--index <url>] [<project-dir>]" }
     if command == "update" { return "komp update [-p <crate>] [--manifest-path <path>] [<project-dir>]" }
     if command == "new"   { return "komp new <name>" }
     if command == "init"  { return "komp init" }
@@ -78,6 +79,18 @@ to the commit it names now. Fetches, and rewrites kf.lock.
 
   -p, --package <c>   update the workspace holding this member"""
     }
+    if command == "publish" {
+        return """Add this library's version to a package index by pull request.
+
+The version is kf.toml's; the commit is the one its tag vX.Y.Z names, which
+must be checked out, clean, and pushed. The crate must pass `komp check`.
+Opening the pull request uses `gh`; without it, or without a login, the
+entry is committed locally and komp says how to finish by hand.
+
+  --status          list this package's versions in the index, and its
+                    pull requests with their review state
+  --index <url>     another index than komp-co/index or $KFLAT_INDEX"""
+    }
     if command == "new" { return "Create a new project in a new directory of that name." }
     if command == "init" { return "Create a new project in the current directory." }
     if command == "version" { return "Print the compiler version." }
@@ -107,6 +120,7 @@ pub fun print_usage(): void {
     runtime_println("  fix       apply the repairs the checker suggests")
     runtime_println("  query     answer one editor question as JSON")
     runtime_println("  update    re-resolve fetched dependencies and rewrite kf.lock")
+    runtime_println("  publish   add this library's version to a package index")
     runtime_println("  new       create a new project")
     runtime_println("  init      create a new project in the current directory")
     runtime_println("  version   print the compiler version")
