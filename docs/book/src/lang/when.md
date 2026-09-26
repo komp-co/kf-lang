@@ -1,9 +1,9 @@
 # when
 
 `when` is the pattern-matching expression. It matches enums, integers,
-booleans, characters and strings by their literal spelling, and any other
-value through a [guard](#guards). The compiler checks that every case is
-covered.
+booleans, characters and strings by their literal spelling, ranges of
+integers and characters, and any other value through a [guard](#guards). The
+compiler checks that every case is covered.
 
 ## Matching scalars
 
@@ -34,89 +34,11 @@ when n { ... }      // both spellings are the same grammar
 when (n) { ... }
 ```
 
-## Literal patterns
+## Patterns
 
-An arm can match an integer, a negative integer, a boolean, or a character:
-
-```kflat
-fun step(delta: int32): str {
-    return when delta {
-        -1 => "back"
-        0 => "still"
-        1 => "forward"
-        _ => "far"
-    }
-}
-
-fun is_vowel(c: char): bool {
-    return when c {
-        'a' => true
-        'e' => true
-        'i' => true
-        'o' => true
-        'u' => true
-        _ => false
-    }
-}
-```
-
-A literal pattern must be of the subject's own kind: an integer pattern needs
-an integer subject, `'a'` a `char`, and `true` a `bool`. Anything else is
-rejected, naming both:
-
-```kflat
-fun main(): int32 {
-    val s = String.from("abc")
-    return when s {
-        1 => 5
-        _ => 0
-    }
-}
-```
-
-```console
-$ komp check .
-src/main.kf:4:9: error: this pattern is an integer, but the subject is `String`
-```
-
-There is deliberately no float literal pattern: matching on float equality is
-a trap, and no language worth copying allows it.
-
-## String patterns
-
-A string literal matches a `str`, a `String`, or a borrow of either, by
-content:
-
-```kflat
-fun code(verb: str): int32 {
-    return when verb {
-        "get" => 1
-        "put" => 2
-        _ => 0
-    }
-}
-```
-
-No set of strings is ever complete, so a string `when` always needs `_` or a
-binding. Like any other arm, a string arm may carry a guard (`"get" if loud`).
-An interpolated string is not a pattern.
-
-A string pattern on anything else is rejected:
-
-```kflat
-fun main(): int32 {
-    val n = 3
-    return when n {
-        "three" => 1
-        _ => 0
-    }
-}
-```
-
-```console
-$ komp check .
-src/main.kf:4:9: error: this pattern is a string, but the subject is `int32`
-```
+An arm can match a literal, a string, a range of values, or several
+alternatives at once; [Patterns](patterns.md) covers each form and which arms
+the compiler reports as unreachable.
 
 ## Guards
 
@@ -159,9 +81,6 @@ fun classify(p: Point, target: &Point): int32 {
     }
 }
 ```
-
-A temporary built inside a guard is not dropped yet; see
-[limitations](../limitations.md#when-guards).
 
 A guarded arm covers nothing for exhaustiveness purposes — its condition may
 be false at runtime — so the `when` above still needs the unguarded

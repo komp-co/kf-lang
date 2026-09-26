@@ -79,13 +79,16 @@ fun pick_callee(raw: String, mangled: String): String {
 fun emit_call(name: String, mangled: String, args: List<Expr>, is_intrinsic: bool): String {
     val nstr = name.as_str()
     // Builtins dispatch on the raw name.
-    if nstr == "panic" { return emit_runtime_cstr_call(name, args) }
-    if nstr == "take" {
-        val arg0 = *args.at(0)
-        return arg0.emit_expr()
+    when nstr {
+        "panic" => return emit_runtime_cstr_call(name, args)
+        "take" => {
+            val arg0 = *args.at(0)
+            return arg0.emit_expr()
+        }
+        "alloc_i32" => return emit_alloc("int32_t", args)
+        "free_ptr" => return emit_free(args)
+        _ => { }
     }
-    if nstr == "alloc_i32" { return emit_alloc("int32_t", args) }
-    if nstr == "free_ptr" { return emit_free(args) }
     // Memory intrinsics carry their type in the callee (`alloc__Expr`).
     // `take__T(x)` is an identity.
     //

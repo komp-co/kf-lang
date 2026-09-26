@@ -237,18 +237,20 @@ fun check_known_artifact_keys(keys: &List<String>, error: &var String): void {
 }
 
 fun artifact_key_known(key: str): bool {
-    if key == "format" { return true }
-    if key == "compiler_abi" { return true }
-    if key == "runtime_abi" { return true }
-    if key == "name" { return true }
-    if key == "version" { return true }
-    if key == "target" { return true }
-    if key == "profile" { return true }
-    if key == "source_fingerprint" { return true }
-    if key == "interface_hash" { return true }
-    if key == "implementation_hash" { return true }
-    if key == "interface" { return true }
-    if key == "header" { return true }
-    if key == "archive" { return true }
-    return false
+    return when key {
+        "format" => true
+        "compiler_abi" => true
+        "runtime_abi" => true
+        "name" => true
+        "version" => true
+        "target" => true
+        "profile" => true
+        "source_fingerprint" => true
+        "interface_hash" => true
+        "implementation_hash" => true
+        "interface" => true
+        "header" => true
+        "archive" => true
+        _ => false
+    }
 }

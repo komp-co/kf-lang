@@ -15,6 +15,7 @@
 - [Operators](lang/operators.md)
 - [Control flow](lang/control-flow.md)
 - [when](lang/when.md)
+- [Patterns](lang/patterns.md)
 - [Functions](lang/functions.md)
 - [Annotations](lang/annotations.md)
 - [Structs](lang/structs.md)

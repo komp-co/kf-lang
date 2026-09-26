@@ -23,8 +23,11 @@ pub enum PatternKind {
     Variant(Sym, List<Pattern>)
     /// `Point { x, y: 5 }`: field names and patterns matched by index.
     StructPat(Sym, List<Sym>, List<Pattern>)
-    /// `1 | 2 | 3`. Every alternative binds the same names.
+    /// `1 | 2 | 3`. No alternative binds a name.
     Or(List<Pattern>)
+    /// `0..32`, `'a'..='z'`: both bounds inclusive once parsed; the flag
+    /// marks a char range.
+    Range(int64, int64, bool)
     /// An error.
     Poison
 }

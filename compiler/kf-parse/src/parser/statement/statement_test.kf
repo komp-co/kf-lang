@@ -186,3 +186,28 @@ fun first_binder_span(src: str): Span {
     val b = first_binder_span("fun f(): int32 { return 1 }")
     assert_eq(b.is_none(), true, "`return` binds no name")
 }
+
+@test fun alternatives_parse_clean(): void {
+    val p = parser_for("fun f(i: int32): int32 { when (i) { 1 | 2 | 3 => return 1  _ => return 0 } }")
+    val _m = p.parse_module(List.new<String>())
+    assert_eq(p.diags.size(), 0, "`|` separates alternatives")
+}
+
+@test fun a_range_and_an_alternative_parse_clean(): void {
+    val source = "fun f(i: int32): int32 { when (i) { -5..5 | 9 => return 1  'a'..='z' => return 2  _ => return 0 } }"
+    val p = parser_for(source)
+    val _m = p.parse_module(List.new<String>())
+    assert_eq(p.diags.size(), 0, "`..` binds tighter than `|`")
+}
+
+@test fun an_empty_range_is_reported(): void {
+    val p = parser_for("fun f(i: int32): int32 { when (i) { 5..5 => return 1  _ => return 0 } }")
+    val _m = p.parse_module(List.new<String>())
+    assert_eq(p.diags.size(), 1, "5..5 matches nothing")
+}
+
+@test fun a_range_bound_of_another_kind_is_reported(): void {
+    val p = parser_for("fun f(i: int32): int32 { when (i) { 1..'z' => return 1  _ => return 0 } }")
+    val _m = p.parse_module(List.new<String>())
+    assert_eq(p.diags.size() > 0, true, "an integer range needs an integer upper bound")
+}

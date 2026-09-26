@@ -203,27 +203,27 @@ pub fun parse_case_spec(name: str, source: str): CaseSpec {
             val key = case_str_trim(key_raw.as_str())
             val value = case_str_trim(value_raw.as_str())
 
-            if key.equals("deps") {
-                deps = value.clone()
-            } else if key.equals("broken") {
-                broken = value.clone()
-            } else if key.equals("build") {
-                if value.equals("fail") {
-                    expect_build_fail = true
-                } else {
-                    bad = String.from("build")
+            when key {
+                "deps" => deps = value.clone()
+                "broken" => broken = value.clone()
+                "build" => {
+                    if value.equals("fail") {
+                        expect_build_fail = true
+                    } else {
+                        bad = String.from("build")
+                    }
                 }
-            } else if key.equals("run") {
-                if case_str_starts_with(value.as_str(), "exit") {
-                    val vlen: uint64 = value.as_str().byte_len()
-                    val num_raw = value.as_str().substring(4, vlen)
-                    val num = case_str_trim(num_raw.as_str())
-                    expect_exit = case_parse_int32(num.as_str())
-                } else {
-                    bad = String.from("run")
+                "run" => {
+                    if case_str_starts_with(value.as_str(), "exit") {
+                        val vlen: uint64 = value.as_str().byte_len()
+                        val num_raw = value.as_str().substring(4, vlen)
+                        val num = case_str_trim(num_raw.as_str())
+                        expect_exit = case_parse_int32(num.as_str())
+                    } else {
+                        bad = String.from("run")
+                    }
                 }
-            } else {
-                bad = key.clone()
+                _ => bad = key.clone()
             }
         }
 

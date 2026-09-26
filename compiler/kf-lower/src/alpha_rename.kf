@@ -161,10 +161,9 @@ fun Pattern.rn_register_pattern(ctx: &var RnCtx): void {
                 sub.rn_register_pattern(ctx)
             }
         }
-        Or(alts) => {
-            // Every alternative binds the same names.
-            if alts.size() > 0 { rn_register_pattern(alts.at(0), ctx) }
-        }
+        // Alternatives bind nothing.
+        Or(_) => return
+        Range(_, _, _) => return
         Wildcard => return
         LitInt(_) => return
         LitStr(_) => return

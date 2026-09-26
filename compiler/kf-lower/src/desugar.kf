@@ -111,12 +111,25 @@ fun Pattern.pattern_to_tag(): SwitchTag {
         LitBool(b) => SwitchTag.IntLit(bool_case_value(b))
         // A code point compares as an integer.
         LitChar(c) => SwitchTag.IntLit(c as int64)
-        // Strings and or-patterns have no C `case` label; check_pattern has
-        // already rejected them.
+        Range(low, high, _) => SwitchTag.Range(low, high)
+        Or(alternatives) => alternatives_to_tag(&alternatives)
+        // Typecheck rewrote a string arm to a binder and a guard.
         LitStr(_) => SwitchTag.Wildcard
-        Or(_) => SwitchTag.Wildcard
         Poison => SwitchTag.Wildcard
     }
+}
+
+/// A catch-all alternative makes the whole arm one.
+fun alternatives_to_tag(alternatives: &List<Pattern>): SwitchTag {
+    var tags = List.new<SwitchTag>()
+    while alternative in &alternatives {
+        val tag = alternative.pattern_to_tag()
+        when (tag) {
+            Wildcard => return SwitchTag.Wildcard
+            _ => tags.push(tag)
+        }
+    }
+    return SwitchTag.Alternatives(tags)
 }
 
 fun Pattern.pattern_binders(): List<Sym> {
@@ -140,11 +153,9 @@ fun Pattern.pattern_binders_into(out: &var List<Sym>): void {
                 out.push(item)
             }
         }
-        Or(alts) => {
-            if alts.size() > 0 {
-                (*alts.at(0)).pattern_binders_into(out)
-            }
-        }
+        // Alternatives bind nothing; check_pattern rejects one that does.
+        Or(_) => return
+        Range(_, _, _) => return
         Wildcard => return
         LitInt(_) => return
         LitStr(_) => return

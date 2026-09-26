@@ -60,10 +60,13 @@ pub fun parse_index_file(src: str): List<IndexVersion> {
             checksum = ""
             yanked = false
         } else if in_version {
-            if key.as_str() == "version" { version = read_string_value(line.clone()) }
-            if key.as_str() == "source" { source = line.clone() }
-            if key.as_str() == "checksum" { checksum = read_string_value(line.clone()) }
-            if key.as_str() == "yanked" { yanked = read_bool_value(line.clone()) }
+            when key.as_str() {
+                "version" => version = read_string_value(line.clone())
+                "source" => source = line.clone()
+                "checksum" => checksum = read_string_value(line.clone())
+                "yanked" => yanked = read_bool_value(line.clone())
+                _ => { }
+            }
         }
     }
     if in_version { out.push(index_version_from(version, source.as_str(), checksum, yanked)) }

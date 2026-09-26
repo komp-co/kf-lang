@@ -85,3 +85,86 @@ fun literal_diags(subject_name: str, kind: PatternKind): List<Diagnostic> {
     arms.push(coverage_arm(PatternKind.LitStr(String.from("get")), false))
     assert_eq(coverage_diags("str", arms, false).size(), 1, "a string arm covers nothing")
 }
+
+fun alternatives_of(first: PatternKind, second: PatternKind): PatternKind {
+    var alternatives = List.new<Pattern>()
+    alternatives.push(new_pattern(no_span(), first))
+    alternatives.push(new_pattern(no_span(), second))
+    return PatternKind.Or(alternatives)
+}
+
+@test fun a_binding_alternative_is_rejected(): void {
+    val kind = alternatives_of(PatternKind.LitInt(1), PatternKind.Identifier(intern("x")))
+    val diags = literal_diags("int32", kind)
+    val expected = "an alternative in `A | B` cannot bind a name; split the arm, or bind the whole subject with a guard"
+    assert_eq(diags.at(0).primary.message.as_str(), expected, "the binding alternative is named")
+}
+
+@test fun a_string_beside_an_integer_is_rejected(): void {
+    val kind = alternatives_of(PatternKind.LitInt(1), PatternKind.LitStr(String.from("one")))
+    assert_eq(literal_diags("int32", kind).size(), 1, "strings cannot mix with integers")
+}
+
+@test fun each_alternative_is_checked_against_the_subject(): void {
+    val kind = alternatives_of(PatternKind.LitInt(1), PatternKind.LitChar(97))
+    assert_eq(literal_diags("int32", kind).size(), 1, "'a' is not an int32")
+}
+
+@test fun string_alternatives_are_accepted(): void {
+    val kind = alternatives_of(PatternKind.LitStr(String.from("a")), PatternKind.LitStr(String.from("b")))
+    assert_eq(literal_diags("str", kind).size(), 0, "\"a\" | \"b\" over a str")
+}
+
+@test fun an_integer_range_on_a_char_is_rejected(): void {
+    val diags = literal_diags("char", PatternKind.Range(97, 122, false))
+    val expected = "this pattern is an integer range, but the subject is `char`"
+    assert_eq(diags.at(0).primary.message.as_str(), expected, "the range kind is named")
+}
+
+@test fun a_char_range_on_a_char_is_accepted(): void {
+    assert_eq(literal_diags("char", PatternKind.Range(97, 122, true)).size(), 0, "'a'..='z' over a char")
+}
+
+@test fun alternatives_naming_every_variant_close_the_when(): void {
+    var alternatives = List.new<Pattern>()
+    alternatives.push(new_pattern(no_span(), PatternKind.Identifier(intern("Red"))))
+    alternatives.push(new_pattern(no_span(), PatternKind.Identifier(intern("Green"))))
+    alternatives.push(new_pattern(no_span(), PatternKind.Identifier(intern("Blue"))))
+    var arms = List.new<Arm>()
+    arms.push(coverage_arm(PatternKind.Or(alternatives), false))
+    assert_eq(coverage_diags("Color", arms, true).size(), 0, "Red | Green | Blue is exhaustive")
+}
+
+fun covered_diags(first: PatternKind, second: PatternKind): List<Diagnostic> {
+    var arms = List.new<Arm>()
+    arms.push(coverage_arm(first, false))
+    arms.push(coverage_arm(second, false))
+    arms.push(coverage_arm(PatternKind.Wildcard, false))
+    return coverage_diags("int32", arms, false)
+}
+
+@test fun a_value_inside_an_earlier_range_is_covered(): void {
+    val diags = covered_diags(PatternKind.Range(0, 9, false), PatternKind.LitInt(5))
+    val expected = "this arm is already covered by an earlier arm"
+    assert_eq(diags.at(0).primary.message.as_str(), expected, "5 is inside 0..10")
+}
+
+@test fun a_range_inside_an_earlier_range_is_covered(): void {
+    val diags = covered_diags(PatternKind.Range(0, 9, false), PatternKind.Range(2, 4, false))
+    assert_eq(diags.size(), 1, "2..5 is inside 0..10")
+}
+
+@test fun an_overlapping_range_is_not_covered(): void {
+    val diags = covered_diags(PatternKind.Range(0, 9, false), PatternKind.Range(5, 20, false))
+    assert_eq(diags.size(), 0, "5..21 reaches past 0..10")
+}
+
+@test fun an_alternative_already_listed_is_covered(): void {
+    val first = alternatives_of(PatternKind.LitInt(1), PatternKind.LitInt(2))
+    assert_eq(covered_diags(first, PatternKind.LitInt(2)).size(), 1, "2 was an earlier alternative")
+}
+
+@test fun alternatives_each_covered_earlier_are_covered(): void {
+    val later = alternatives_of(PatternKind.LitInt(3), PatternKind.LitInt(7))
+    assert_eq(covered_diags(PatternKind.Range(0, 9, false), later).size(), 1, "3 | 7 lies inside 0..10")
+}

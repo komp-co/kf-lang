@@ -185,9 +185,12 @@ pub mutating fun LintConfig.apply_cli_lint_flags(diags: &var List<Diagnostic>): 
         }
         var level = LintLevel.Warn
         var is_flag = false
-        if a.equals("-A") { level = LintLevel.Allow; is_flag = true }
-        if a.equals("-W") { level = LintLevel.Warn;  is_flag = true }
-        if a.equals("-D") { level = LintLevel.Deny;  is_flag = true }
+        when a {
+            "-A" => { level = LintLevel.Allow; is_flag = true }
+            "-W" => { level = LintLevel.Warn; is_flag = true }
+            "-D" => { level = LintLevel.Deny;  is_flag = true }
+            _ => { }
+        }
         if is_flag {
             if i + 1 >= n {
                 diags.push(error_at(no_span(), "`${a}` expects a lint name"))

@@ -22,9 +22,9 @@ pub fun check_when_arms(subject_ty: Type, arms: &var List<Arm>, span: Span, ctx:
             Some(rewritten) => { unsafe { *pattern_ptr = rewritten } }
             None => { }
         }
-        when ((unsafe { &*pattern_ptr }).kind) {
-            LitStr(text) => arm.desugar_string_pattern(text.clone(), subject_ty, ctx)
-            _ => { }
+        when ((unsafe { &*pattern_ptr }).string_texts()) {
+            Some(texts) => arm.desugar_string_pattern(texts, subject_ty, ctx)
+            None => { }
         }
         (unsafe { &*pattern_ptr }).report_shadowing_pattern(ctx)
         (unsafe { &*pattern_ptr }).check_pattern(subject_ty, ctx)
@@ -173,9 +173,13 @@ pub fun Pattern.check_pattern(subject_ty: Type, ctx: &var TypeCtx): void {
         LitInt(_) => self.check_literal_pattern(subject_ty, "an integer", ctx)
         LitBool(_) => self.check_literal_pattern(subject_ty, "a `bool`", ctx)
         LitChar(_) => self.check_literal_pattern(subject_ty, "a `char`", ctx)
+        Range(_, _, is_char) => {
+            val literal = if is_char { "a `char` range" } else { "an integer range" }
+            self.check_literal_pattern(subject_ty, literal, ctx)
+        }
         // Rewritten to a binder and a guard before this runs.
         LitStr(_) => return
-        Or(_) => return
+        Or(alternatives) => check_alternatives(&alternatives, subject_ty, ctx)
         Identifier(name) => ctx.declare(name.as_string(), subject_ty)
         Variant(name, payloads) => {
             check_variant_pattern(name.as_string(), payloads, subject_ty, self.span, ctx)
@@ -208,6 +212,7 @@ fun Pattern.check_literal_pattern(subject_ty: Type, literal: str, ctx: &var Type
 fun PatternKind.is_int_literal(): bool {
     return when (self) {
         LitInt(_) => true
+        Range(_, _, is_char) => !is_char
         _ => false
     }
 }
@@ -222,16 +227,25 @@ fun PatternKind.is_bool_literal(): bool {
 fun PatternKind.is_char_literal(): bool {
     return when (self) {
         LitChar(_) => true
+        Range(_, _, is_char) => is_char
         _ => false
     }
 }
 
 // UpperCamelCase identifiers are variants; lower_snake_case ones bind.
+/// Each alternative of an `A | B` is rewritten the same way.
 fun Pattern.reclassify_ident_variant(): Pattern? {
     when (self.kind) {
         Identifier(name) => {
             if !is_variant_spelling(name.as_str()) { return null }
             return new_pattern(self.span, PatternKind.Variant(name, List.new<Pattern>()))
+        }
+        Or(alternatives) => {
+            var rewritten = List.new<Pattern>()
+            while alternative in &alternatives {
+                rewritten.push(alternative.reclassify_ident_variant() ?: alternative.clone())
+            }
+            return new_pattern(self.span, PatternKind.Or(rewritten))
         }
         _ => return null
     }

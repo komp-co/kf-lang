@@ -99,20 +99,14 @@ fun read_fix(reader: &var JsonReader, root: str, out: &var List<LocatedFix>): vo
     if !reader.begin_object() { return }
     while reader.object_has_next() {
         val key = reader.read_key()
-        if key == "title" {
-            title = reader.read_string()
-        } else if key == "replacement" {
-            replacement = reader.read_string()
-        } else if key == "applicability" {
-            applicability = reader.read_string()
-        } else if key == "byte_start" {
-            start = reader.read_int64()
-        } else if key == "byte_end" {
-            end = reader.read_int64()
-        } else if key == "file" {
-            if !reader.take_null() { file = reader.read_string() }
-        } else {
-            reader.skip_value()
+        when key {
+            "title" => title = reader.read_string()
+            "replacement" => replacement = reader.read_string()
+            "applicability" => applicability = reader.read_string()
+            "byte_start" => start = reader.read_int64()
+            "byte_end" => end = reader.read_int64()
+            "file" => if !reader.take_null() { file = reader.read_string() }
+            _ => reader.skip_value()
         }
     }
     if reader.has_error() || applicability.as_str() != "machine-applicable" || file.byte_len() == 0 { return }

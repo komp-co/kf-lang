@@ -179,21 +179,23 @@ fun method_source_name(name: String): String {
 }
 
 fun method_name_is_runtime_owned(name: str): bool {
-    if name == "clone" { return true }
-    if name == "as_str" { return true }
-    if name == "equals" { return true }
-    if name == "byte_len" { return true }
-    if name == "len" { return true }
-    if name == "append" { return true }
-    if name == "display" { return true }
-    if name == "get" { return true }
-    if name == "at" { return true }
-    if name == "at_mut" { return true }
-    if name == "size" { return true }
-    if name == "is_empty" { return true }
-    if name == "push" { return true }
-    if name == "set" { return true }
-    return false
+    return when name {
+        "clone" => true
+        "as_str" => true
+        "equals" => true
+        "byte_len" => true
+        "len" => true
+        "append" => true
+        "display" => true
+        "get" => true
+        "at" => true
+        "at_mut" => true
+        "size" => true
+        "is_empty" => true
+        "push" => true
+        "set" => true
+        _ => false
+    }
 }
 
 fun fn_decl_qualifies(td: TopDecl): bool {
