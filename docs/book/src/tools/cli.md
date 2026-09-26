@@ -19,6 +19,7 @@ points, and then compiles and links the C with cc.
 | `komp test <dir>` | Run `@test` functions in the crate |
 | `komp query <what> --file <path> [--offset <N>] [--overlay <path>]` | Answer an editor's question about one file as JSON |
 | `komp update <dir>` | Resolve fetched dependencies again and rewrite `kf.lock` |
+| `komp metadata <dir>` | Print the resolved crate graph as JSON, for tools |
 | `komp publish <dir>` | Add a library's version to a package index by pull request |
 | `komp new <name>` | Scaffold a new project directory |
 | `komp init` | Scaffold a project in the current directory |
@@ -142,6 +143,56 @@ now has, and a tag or branch to the commit it names now. It fetches what is
 new and rewrites `kf.lock`. Every other command fetches only what the lock
 does not already pin. See
 [Fetched dependencies](../start/projects.md#fetched-dependencies).
+
+### komp metadata
+
+`komp metadata <project-dir>` prints the project's resolved crates as one JSON
+object on one line, for tools that run kflatc themselves, such as a language
+server. It fetches first, as a build would, and takes `--locked` and
+`--offline` like one. At a workspace, or at any of its members, it covers
+every member and every crate they reach, so a tool asking about one file sees
+the whole workspace.
+
+With `hello` depending on `greet` by path, and `[lint] dead_code = "allow"`
+(reformatted here):
+
+```text
+$ komp metadata
+{
+  "schema": 1,
+  "komp_version": "0.2.0",
+  "kflatc": "/home/user/komp/bin/kflatc",
+  "workspace_root": null,
+  "target_dir": "/tmp/work/hello/target/kflat",
+  "members": ["/tmp/work/hello"],
+  "crates": [
+    {"name": "core", "version": "0.1.0", "kind": "lib", "root": "/home/user/komp/libs/core",
+     "source": "bundled", "member": false, "deps": [], "loads": [], "lints": []},
+    {"name": "alloc", "version": "0.1.0", "kind": "lib", "root": "/home/user/komp/libs/alloc",
+     "source": "bundled", "member": false, "deps": ["core"], "loads": ["core"], "lints": []},
+    {"name": "greet", "version": "0.3.0", "kind": "lib", "root": "/tmp/work/greet",
+     "source": "path", "member": false, "deps": ["core", "alloc"], "loads": ["core", "alloc"], "lints": []},
+    {"name": "hello", "version": "0.1.0", "kind": "bin", "root": "/tmp/work/hello",
+     "source": "path", "member": true, "deps": ["greet"], "loads": ["core", "alloc", "greet"],
+     "lints": [{"name": "dead_code", "level": "allow"}]}
+  ]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `schema` | Raised when a field changes meaning or goes away; a new field leaves it as it is |
+| `kflatc` | The compiler komp would run |
+| `workspace_root` | The directory holding `[workspace]`, or `null` |
+| `target_dir` | Where compiled crates' `.kfi`, `.h` and `.c` land; kflatc's `--out` |
+| `members` | The crates the command was about, as roots |
+| `crates` | Every crate, each once, dependencies before the crates that use them |
+| `deps` | The crate's direct dependencies by crate name; kflatc's `--dep` |
+| `loads` | Every crate `deps` reach, in order; kflatc's `--load` |
+| `source` | `bundled` (comes with komp), `fetched` (from the cache) or `path` |
+| `lints` | The crate's `[lint]` rows; kflatc's `--lint` |
+
+A graph that does not resolve prints `{"schema": 1, "error": "..."}` and exits 1.
 
 ### komp query
 
