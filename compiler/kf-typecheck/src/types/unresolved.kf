@@ -15,31 +15,33 @@ import kf_core.diagnostic.with_fix
 /// cannot import; keep them in sync by hand. `runtime_intrinsic_ret` is the
 /// smaller subset whose result types are modelled.
 pub fun runtime_prelude_declares(name: str): bool {
-    if name.equals("kf_sym_intern")             { return true }
-    if name.equals("kf_file_hash")              { return true }
-    if name.equals("kf_sym_resolve")            { return true }
-    if name.equals("kf_fs_dir_open")            { return true }
-    if name.equals("kf_fs_dir_next")            { return true }
-    if name.equals("kf_fs_dir_close")           { return true }
-    if name.equals("str_equals")                { return true }
-    if name.equals("str_as_str")                { return true }
-    if name.equals("int64_display")             { return true }
-    if name.equals("uint64_display")            { return true }
-    if name.equals("runtime_print")             { return true }
-    if name.equals("runtime_println")           { return true }
-    if name.equals("is_dir")                    { return true }
-    if name.equals("join")                      { return true }
-    if name.equals("kf_arg_init")               { return true }
-    if name.equals("kf_arg_count")              { return true }
-    if name.equals("kf_arg_get")                { return true }
-    if name.equals("kf_current_dir")            { return true }
-    if name.equals("kf_self_dir")               { return true }
-    if name.equals("kf_create_dir_all")         { return true }
-    if name.equals("kf_temp_dir")               { return true }
-    if name.equals("kf_remove_dir_all")         { return true }
-    if name.equals("kf_process_status")         { return true }
-    if name.equals("exit")                      { return true }
-    return false
+    return when name {
+        "kf_sym_intern" => true
+        "kf_file_hash" => true
+        "kf_sym_resolve" => true
+        "kf_fs_dir_open" => true
+        "kf_fs_dir_next" => true
+        "kf_fs_dir_close" => true
+        "str_equals" => true
+        "str_as_str" => true
+        "int64_display" => true
+        "uint64_display" => true
+        "runtime_print" => true
+        "runtime_println" => true
+        "is_dir" => true
+        "join" => true
+        "kf_arg_init" => true
+        "kf_arg_count" => true
+        "kf_arg_get" => true
+        "kf_current_dir" => true
+        "kf_self_dir" => true
+        "kf_create_dir_all" => true
+        "kf_temp_dir" => true
+        "kf_remove_dir_all" => true
+        "kf_process_status" => true
+        "exit" => true
+        _ => false
+    }
 }
 
 /// Reported apart from undeclared variables: a missing function is usually a

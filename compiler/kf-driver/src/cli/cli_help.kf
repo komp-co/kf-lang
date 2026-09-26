@@ -4,24 +4,26 @@
 /// One-line synopsis, shared with the usage error for bad arguments, so the
 /// two never disagree.
 pub fun command_usage(command: str): str {
-    if command == "build" { return "komp build [--verbose] [--unity] [-o <out.c>] [--manifest-path <path>] [-A|-W|-D <lint>] [--deny-warnings] [<project-dir>]" }
-    if command == "check" { return "komp check [--diagnostic-format=json] [-A|-W|-D <lint>] [--deny-warnings] [--manifest-path <path>] [<project-dir>]" }
-    if command == "run"   { return "komp run [--unity] [-p <crate>] [--manifest-path <path>] [<project-dir>]" }
-    if command == "test"  { return "komp test [--unity] [<project-dir>] [--case <substring>] [--filter <substring>]" }
-    if command == "fix"   { return "komp fix [--dry-run] [--manifest-path <path>] [<project-dir>]" }
-    if command == "query" { return "komp query <what> --file <path> [--offset <N>] [--overlay <path>]" }
-    if command == "publish" { return "komp publish [--status] [--index <url>] [<project-dir>]" }
-    if command == "update" { return "komp update [-p <crate>] [--manifest-path <path>] [<project-dir>]" }
-    if command == "new"   { return "komp new <name>" }
-    if command == "init"  { return "komp init" }
-    if command == "version" { return "komp version" }
-    if command == "help"  { return "komp help [<command>]" }
-    return ""
+    return when command {
+        "build" => "komp build [--verbose] [--unity] [-o <out.c>] [--manifest-path <path>] [-A|-W|-D <lint>] [--deny-warnings] [<project-dir>]"
+        "check" => "komp check [--diagnostic-format=json] [-A|-W|-D <lint>] [--deny-warnings] [--manifest-path <path>] [<project-dir>]"
+        "run" => "komp run [--unity] [-p <crate>] [--manifest-path <path>] [<project-dir>]"
+        "test" => "komp test [--unity] [<project-dir>] [--case <substring>] [--filter <substring>]"
+        "fix" => "komp fix [--dry-run] [--manifest-path <path>] [<project-dir>]"
+        "query" => "komp query <what> --file <path> [--offset <N>] [--overlay <path>]"
+        "publish" => "komp publish [--status] [--index <url>] [<project-dir>]"
+        "update" => "komp update [-p <crate>] [--manifest-path <path>] [<project-dir>]"
+        "new" => "komp new <name>"
+        "init" => "komp init"
+        "version" => "komp version"
+        "help" => "komp help [<command>]"
+        _ => ""
+    }
 }
 
 fun command_detail(command: str): str {
-    if command == "build" {
-        return """Compile the project and write artifacts under target/kflat.
+    return when command {
+        "build" => """Compile the project and write artifacts under target/kflat.
 
   --verbose            name each crate as it is compiled
   --unity              compile the whole program to one C file
@@ -31,9 +33,7 @@ fun command_detail(command: str): str {
   --manifest-path <p>  the project's kf.toml, or its directory
   -p, --package <c>    build this workspace member
   --workspace          build every workspace member"""
-    }
-    if command == "check" {
-        return """Type-check without producing a binary.
+        "check" => """Type-check without producing a binary.
 
   --diagnostic-format=json   one JSON object per diagnostic
   -A | -W | -D <lint>        allow, warn or deny one lint for this run
@@ -41,46 +41,34 @@ fun command_detail(command: str): str {
   --manifest-path <path>     the project's kf.toml, or its directory
   -p, --package <crate>      check this workspace member
   --workspace                check every workspace member"""
-    }
-    if command == "run" {
-        return """Build the project and run the binary it produces.
+        "run" => """Build the project and run the binary it produces.
 
   --unity             build through one C file instead of per-crate artifacts
   -p, --package <c>   run this workspace member"""
-    }
-    if command == "test" {
-        return """Run the project's @test functions.
+        "test" => """Run the project's @test functions.
 
   --unity              build through one C file
   --case <substring>   run only cases whose name contains it
   --filter <substring> run only suites whose name contains it
   -p, --package <c>    test this workspace member
   --workspace          test every workspace member"""
-    }
-    if command == "fix" {
-        return """Apply the repairs the checker suggests, in place.
+        "fix" => """Apply the repairs the checker suggests, in place.
 
   --dry-run           print what would change and write nothing
   -p, --package <c>   fix this workspace member
   --workspace         fix every workspace member"""
-    }
-    if command == "query" {
-        return """Answer one editor question about one file, as a single JSON line.
+        "query" => """Answer one editor question about one file, as a single JSON line.
 Takes no project directory: komp finds the crate itself.
 
   --file <path>      the file being asked about
   --offset <N>       byte offset the question is about
   --overlay <path>   read the buffer from here instead of from disk"""
-    }
-    if command == "update" {
-        return """Resolve every version, git and tarball dependency again: a
+        "update" => """Resolve every version, git and tarball dependency again: a
 requirement moves to the highest version its index now has, a tag or branch
 to the commit it names now. Fetches, and rewrites kf.lock.
 
   -p, --package <c>   update the workspace holding this member"""
-    }
-    if command == "publish" {
-        return """Add this library's version to a package index by pull request.
+        "publish" => """Add this library's version to a package index by pull request.
 
 The version is kf.toml's; the commit is the one its tag vX.Y.Z names, which
 must be checked out, clean, and pushed. The crate must pass `komp check`.
@@ -90,12 +78,12 @@ entry is committed locally, komp says how to finish by hand, and exits 1.
   --status          list this package's versions in the index, and its
                     pull requests with their review state
   --index <url>     another index than komp-co/index or $KFLAT_INDEX"""
+        "new" => "Create a new project in a new directory of that name."
+        "init" => "Create a new project in the current directory."
+        "version" => "Print the compiler version."
+        "help" => "Print the command list, or the help for one command."
+        _ => ""
     }
-    if command == "new" { return "Create a new project in a new directory of that name." }
-    if command == "init" { return "Create a new project in the current directory." }
-    if command == "version" { return "Print the compiler version." }
-    if command == "help" { return "Print the command list, or the help for one command." }
-    return ""
 }
 
 /// A real command.

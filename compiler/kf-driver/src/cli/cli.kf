@@ -152,153 +152,152 @@ pub fun run_cli(): int32 {
     }
     val a0: str = cli_arg_get(0)
 
-    if a0 == "version" {
-        println("komp ${kflat_version()}")
-        return 0
-    }
-    if a0 == "help" {
-        // `komp help build` means `komp build --help`.
-        if nargs >= 2 && has_help(cli_arg_get(1)) {
-            print_command_help(cli_arg_get(1))
+    when a0 {
+        "version" => {
+            println("komp ${kflat_version()}")
             return 0
         }
-        print_usage()
-        return 0
-    }
-    if a0 == "check" {
-        // Lint flags are read by the lint config itself and skipped here. The
-        // project directory is the last argument that is not a flag or value.
-        var as_json = false
-        var project = ""
-        var ci = 1
-        while ci < nargs {
-            val arg = cli_arg_get(ci)
-            if arg == "--diagnostic-format=json" {
-                as_json = true
-            } else if arg == "-A" || arg == "-W" || arg == "-D" {
-                ci = ci + 1                      // skip the lint name
-            } else if arg == "--manifest-path" || is_selection_value_flag(arg) {
-                ci = ci + 1                      // read by manifest_root / package_flag
-            } else if arg == "--deny-warnings" || arg == "--workspace" || is_fetch_flag(arg) {
-                // read by wants_workspace / apply_cli_lint_flags / fetched_for
-            } else {
-                project = String.from(arg)
+        "help" => {
+            // `komp help build` means `komp build --help`.
+            if nargs >= 2 && has_help(cli_arg_get(1)) {
+                print_command_help(cli_arg_get(1))
+                return 0
             }
-            ci = ci + 1
+            print_usage()
+            return 0
         }
-        val from_manifest = manifest_root(nargs)
-        if from_manifest.as_str() != "" { project = from_manifest }
-        if project.as_str() == "" { project = String.from(".") }
-        return run_on_selected("check", project.as_str(), nargs, as_json)
-    }
-    if a0 == "fix" {
-        if nargs >= 2 && cli_arg_get(1) == "--dry-run" {
-            if positionals_from(nargs, 2) > 1 { return usage_error("fix") }
-            return run_on_selected("fix", project_for(nargs, 2).as_str(), nargs, true)
-        }
-        if positionals_from(nargs, 1) > 1 { return usage_error("fix") }
-        return run_on_selected("fix", project_for(nargs, 1).as_str(), nargs, false)
-    }
-    if a0 == "query" {
-        // Answered by the compiler: one file, one question, one JSON line.
-        return run_kflatc_query()
-    }
-    if a0 == "run" {
-        val mode = build_mode_from_flag(cli_arg_get(1))
-        val base = when (mode) {
-            Unity => 2
-            Separate => 1
-        }
-        if positionals_from(nargs, base) > 1 { return usage_error("run") }
-        val root = single_selected_crate("run", project_for(nargs, base).as_str(), nargs)
-        if root.as_str() == "" { return 1 }
-        if !fetched_for(root.as_str(), nargs) { return 1 }
-        return run_project_mode(root.as_str(), mode)
-    }
-    if a0 == "build" {
-        // The whole line is read so flags compose: `-o`, `--unity`,
-        // `--verbose`, and the one positional directory anywhere. Lint flags
-        // are skipped, as in `check`; lowering's lints are only reachable from
-        // a build.
-        var verbose = false
-        var unity = false
-        var output = ""
-        var project = ""
-        var bi = 1
-        while bi < nargs {
-            val arg: str = cli_arg_get(bi)
-            if arg == "--verbose" {
-                verbose = true
-            } else if arg == "--unity" {
-                unity = true
-            } else if arg == "-o" || arg == "--output" {
-                bi = bi + 1
-                if bi >= nargs { return usage_error("build") }
-                output = String.from(cli_arg_get(bi))
-            } else if arg == "--manifest-path" || is_selection_value_flag(arg) {
-                bi = bi + 1                      // read by manifest_root / package_flag
-            } else if arg == "-A" || arg == "-W" || arg == "-D" {
-                bi = bi + 1                      // skip the lint name
-            } else if arg == "--workspace" || arg == "--deny-warnings" || is_fetch_flag(arg) {
-                // read by wants_workspace / apply_cli_lint_flags / fetched_for
-            } else if starts_with_dash(arg) {
-                return usage_error("build")
-            } else if project.as_str() == "" {
-                project = String.from(arg)
-            } else if output.as_str() == "" {
-                // `komp build --unity <dir> out.c`
-                output = String.from(arg)
-            } else {
-                return usage_error("build")
-            }
-            bi = bi + 1
-        }
-        val from_manifest = manifest_root(nargs)
-        if from_manifest.as_str() != "" { project = from_manifest }
-        if project.as_str() == "" { project = String.from(".") }
-        if output.as_str() == "" && !unity {
-            return run_on_selected("build", project.as_str(), nargs, verbose)
-        }
-        // A whole program is one crate's.
-        project = single_selected_crate("build", project.as_str(), nargs)
-        if project.as_str() == "" { return 1 }
-        if !fetched_for(project.as_str(), nargs) { return 1 }
-
-        // A single output file is the whole-program form: `komp build -o
-        // out.c` means `komp <dir> out.c`.
-        if output.as_str() != "" {
-            return build_project_mode(project.as_str(), build_mode_from_flag("--unity"), output.as_str())
-        }
-        val out = default_unity_output(project.as_str())
-        return build_project_mode(project.as_str(), build_mode_from_flag("--unity"), out.as_str())
-    }
-    if a0 == "test" {
-        val mode = build_mode_from_flag(cli_arg_get(1))
-        when (mode) {
-            Unity => {
-                return run_on_selected("test", project_for(nargs, 2).as_str(), nargs, true)
-            }
-            Separate => {
-                if !test_flags_well_formed(nargs, flags_start(nargs, 1)) {
-                    return usage_error("test")
+        "check" => {
+            // Lint flags are read by the lint config itself and skipped here. The
+            // project directory is the last argument that is not a flag or value.
+            var as_json = false
+            var project = ""
+            var ci = 1
+            while ci < nargs {
+                val arg = cli_arg_get(ci)
+                if arg == "--diagnostic-format=json" {
+                    as_json = true
+                } else if arg == "-A" || arg == "-W" || arg == "-D" {
+                    ci = ci + 1                      // skip the lint name
+                } else if arg == "--manifest-path" || is_selection_value_flag(arg) {
+                    ci = ci + 1                      // read by manifest_root / package_flag
+                } else if arg == "--deny-warnings" || arg == "--workspace" || is_fetch_flag(arg) {
+                    // read by wants_workspace / apply_cli_lint_flags / fetched_for
+                } else {
+                    project = String.from(arg)
                 }
-                return run_on_selected("test", project_for(nargs, 1).as_str(), nargs, false)
+                ci = ci + 1
+            }
+            val from_manifest = manifest_root(nargs)
+            if from_manifest.as_str() != "" { project = from_manifest }
+            if project.as_str() == "" { project = String.from(".") }
+            return run_on_selected("check", project.as_str(), nargs, as_json)
+        }
+        "fix" => {
+            if nargs >= 2 && cli_arg_get(1) == "--dry-run" {
+                if positionals_from(nargs, 2) > 1 { return usage_error("fix") }
+                return run_on_selected("fix", project_for(nargs, 2).as_str(), nargs, true)
+            }
+            if positionals_from(nargs, 1) > 1 { return usage_error("fix") }
+            return run_on_selected("fix", project_for(nargs, 1).as_str(), nargs, false)
+        }
+        "query" => {
+            // Answered by the compiler: one file, one question, one JSON line.
+            return run_kflatc_query()
+        }
+        "run" => {
+            val mode = build_mode_from_flag(cli_arg_get(1))
+            val base = when (mode) {
+                Unity => 2
+                Separate => 1
+            }
+            if positionals_from(nargs, base) > 1 { return usage_error("run") }
+            val root = single_selected_crate("run", project_for(nargs, base).as_str(), nargs)
+            if root.as_str() == "" { return 1 }
+            if !fetched_for(root.as_str(), nargs) { return 1 }
+            return run_project_mode(root.as_str(), mode)
+        }
+        "build" => {
+            // The whole line is read so flags compose: `-o`, `--unity`,
+            // `--verbose`, and the one positional directory anywhere. Lint flags
+            // are skipped, as in `check`; lowering's lints are only reachable from
+            // a build.
+            var verbose = false
+            var unity = false
+            var output = ""
+            var project = ""
+            var bi = 1
+            while bi < nargs {
+                val arg: str = cli_arg_get(bi)
+                if arg == "--verbose" {
+                    verbose = true
+                } else if arg == "--unity" {
+                    unity = true
+                } else if arg == "-o" || arg == "--output" {
+                    bi = bi + 1
+                    if bi >= nargs { return usage_error("build") }
+                    output = String.from(cli_arg_get(bi))
+                } else if arg == "--manifest-path" || is_selection_value_flag(arg) {
+                    bi = bi + 1                      // read by manifest_root / package_flag
+                } else if arg == "-A" || arg == "-W" || arg == "-D" {
+                    bi = bi + 1                      // skip the lint name
+                } else if arg == "--workspace" || arg == "--deny-warnings" || is_fetch_flag(arg) {
+                    // read by wants_workspace / apply_cli_lint_flags / fetched_for
+                } else if starts_with_dash(arg) {
+                    return usage_error("build")
+                } else if project.as_str() == "" {
+                    project = String.from(arg)
+                } else if output.as_str() == "" {
+                    // `komp build --unity <dir> out.c`
+                    output = String.from(arg)
+                } else {
+                    return usage_error("build")
+                }
+                bi = bi + 1
+            }
+            val from_manifest = manifest_root(nargs)
+            if from_manifest.as_str() != "" { project = from_manifest }
+            if project.as_str() == "" { project = String.from(".") }
+            if output.as_str() == "" && !unity {
+                return run_on_selected("build", project.as_str(), nargs, verbose)
+            }
+            // A whole program is one crate's.
+            project = single_selected_crate("build", project.as_str(), nargs)
+            if project.as_str() == "" { return 1 }
+            if !fetched_for(project.as_str(), nargs) { return 1 }
+
+            // A single output file is the whole-program form: `komp build -o
+            // out.c` means `komp <dir> out.c`.
+            if output.as_str() != "" {
+                return build_project_mode(project.as_str(), build_mode_from_flag("--unity"), output.as_str())
+            }
+            val out = default_unity_output(project.as_str())
+            return build_project_mode(project.as_str(), build_mode_from_flag("--unity"), out.as_str())
+        }
+        "test" => {
+            val mode = build_mode_from_flag(cli_arg_get(1))
+            when (mode) {
+                Unity => {
+                    return run_on_selected("test", project_for(nargs, 2).as_str(), nargs, true)
+                }
+                Separate => {
+                    if !test_flags_well_formed(nargs, flags_start(nargs, 1)) {
+                        return usage_error("test")
+                    }
+                    return run_on_selected("test", project_for(nargs, 1).as_str(), nargs, false)
+                }
             }
         }
-    }
-    if a0 == "publish" {
-        return publish_command(nargs)
-    }
-    if a0 == "update" {
-        if positionals_from(nargs, 1) > 1 { return usage_error("update") }
-        return update_project(project_for(nargs, 1).as_str(), nargs)
-    }
-    if a0 == "new" {
-        if nargs < 2 { return usage_error("new") }
-        return new_project(cli_arg_get(1))
-    }
-    if a0 == "init" {
-        return init_project()
+        "publish" => return publish_command(nargs)
+        "update" => {
+            if positionals_from(nargs, 1) > 1 { return usage_error("update") }
+            return update_project(project_for(nargs, 1).as_str(), nargs)
+        }
+        "new" => {
+            if nargs < 2 { return usage_error("new") }
+            return new_project(cli_arg_get(1))
+        }
+        "init" => return init_project()
+        _ => { }
     }
 
     // CONSTRAINT: the legacy positional form the bootstrap script uses; no

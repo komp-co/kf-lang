@@ -8,16 +8,18 @@ import kf_parse.parser.*
 /// (`alloc<Expr>` is `alloc__Expr`). None is ever compared, so a following
 /// `<` is always a type-argument list.
 fun is_generic_call_name(s: str): bool {
-    if s == "alloc"         { return true }
-    if s == "alloc_array"   { return true }
-    if s == "realloc_array" { return true }
-    if s == "dealloc"       { return true }
-    if s == "sizeof"        { return true }
-    if s == "take"          { return true }
-    if s == "drop_in_place" { return true }
-    if s == "clone_place"   { return true }
-    if s == "ptr_read"      { return true }
-    return false
+    return when s {
+        "alloc" => true
+        "alloc_array" => true
+        "realloc_array" => true
+        "dealloc" => true
+        "sizeof" => true
+        "take" => true
+        "drop_in_place" => true
+        "clone_place" => true
+        "ptr_read" => true
+        _ => false
+    }
 }
 
 fun tyref_is_poison(tr: TypeRef): bool {

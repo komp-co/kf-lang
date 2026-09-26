@@ -62,25 +62,25 @@ pub fun kflatc_cli(): int32 {
         }
         if i + 1 >= arg_count() { return kflatc_usage() }
         val value = arg_at(i + 1)
-        if flag == "--name" {
-            name = value
-        } else if flag == "--root" {
-            root = value
-        } else if flag == "--out" {
-            out = value
-        } else if flag == "--project" {
-            note_crate_being_built(value)
-        } else if flag == "--crate" {
-            val eq = value.index_of("=") ?: return kflatc_usage()
-            crates.push(CrateSource { name: value.substring(0, eq), root: value.substring(eq + 1, value.byte_len()) })
-        } else if flag == "--load" {
-            loads.push(String.from(value))
-        } else if flag == "--dep" {
-            val eq = value.index_of("=") ?: return kflatc_usage()
-            deps.push(value.substring(0, eq))
-            hashes.push(value.substring(eq + 1, value.byte_len()))
-        } else {
-            return kflatc_usage()
+        when flag {
+            "--name" => name = value
+            "--root" => root = value
+            "--out" => out = value
+            "--project" => note_crate_being_built(value)
+            "--crate" => {
+                val eq = value.index_of("=") ?: return kflatc_usage()
+                crates.push(CrateSource {
+                    name: value.substring(0, eq),
+                    root: value.substring(eq + 1, value.byte_len())
+                })
+            }
+            "--load" => loads.push(String.from(value))
+            "--dep" => {
+                val eq = value.index_of("=") ?: return kflatc_usage()
+                deps.push(value.substring(0, eq))
+                hashes.push(value.substring(eq + 1, value.byte_len()))
+            }
+            _ => return kflatc_usage()
         }
         i = i + 2
     }

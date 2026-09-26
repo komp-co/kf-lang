@@ -16,10 +16,12 @@ extern "C" fun __kf_v2_int32_to_str(v: int32): String
 /// `Equal`, `Compare` and `Display` on built-in types are satisfied without an
 /// impl. Says only that the name is not an error; the type stays poison.
 fun primitive_intrinsic_method(name: str): bool {
-    if name == "equals" { return true }
-    if name == "compare" { return true }
-    if name == "display" { return true }
-    return false
+    return when name {
+        "equals" => true
+        "compare" => true
+        "display" => true
+        _ => false
+    }
 }
 
 /// Only a struct has the container and field fallbacks.
@@ -368,47 +370,50 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
     if is_list {
         // The element fragment after "List__".
         val elem_frag = mangle_suffix(sname, 6)
-        if method_name.as_str().equals("get") {
-            if args.size() != 1 { emit_method_arity(method_name, 1, args.size(), _span, ctx); return poison_ty() }
-            // Typed without the signature, so `impl List<T: Copy>`'s bound is checked here.
-            val bindings = recv_bindings_for_method(sname.clone(), _span, ctx)
-            check_recv_bounds(sname.clone(), method_name.clone(), &bindings, _span, ctx)
-            return ty_from_frag_in_scope(elem_frag, _span, ctx)
-        }
-        // A shared borrow, read in place.
-        if method_name.as_str().equals("at") {
-            if args.size() != 1 { emit_method_arity(method_name, 1, args.size(), _span, ctx); return poison_ty() }
-            val elem_ty = ty_from_frag_in_scope(elem_frag, _span, ctx)
-            val inner: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *inner = elem_ty }
-            return Type { kind: TypeKind.RefTo(false, inner), provenance: Provenance.Inferred(_span) }
-        }
-        // A mutable borrow, mutated in place.
-        if method_name.as_str().equals("at_mut") {
-            if args.size() != 1 { emit_method_arity(method_name, 1, args.size(), _span, ctx); return poison_ty() }
-            val elem_ty = ty_from_frag_in_scope(elem_frag, _span, ctx)
-            val inner: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *inner = elem_ty }
-            return Type { kind: TypeKind.RefTo(true, inner), provenance: Provenance.Inferred(_span) }
-        }
-        if method_name.as_str().equals("size") {
-            if args.size() != 0 { emit_method_arity(method_name, 0, args.size(), _span, ctx); return poison_ty() }
-            return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(_span) }
-        }
-        if method_name.as_str().equals("is_empty") {
-            if args.size() != 0 { emit_method_arity(method_name, 0, args.size(), _span, ctx); return poison_ty() }
-            return bool_ty(_span)
-        }
-        // Items are expected as the element type.
-        if method_name.as_str().equals("push") {
-            if args.size() != 1 { emit_method_arity(method_name, 1, args.size(), _span, ctx); return poison_ty() }
-            expect_arg(args, 0, ty_from_frag_in_scope(elem_frag.clone(), _span, ctx), ctx)
-            return void_ty(_span)
-        }
-        if method_name.as_str().equals("set")  {
-            if args.size() != 2 { emit_method_arity(method_name, 2, args.size(), _span, ctx); return poison_ty() }
-            expect_arg(args, 1, ty_from_frag_in_scope(elem_frag.clone(), _span, ctx), ctx)
-            return void_ty(_span)
+        when method_name.as_str() {
+            "get" => {
+                if args.size() != 1 { emit_method_arity(method_name, 1, args.size(), _span, ctx); return poison_ty() }
+                // Typed without the signature, so `impl List<T: Copy>`'s bound is checked here.
+                val bindings = recv_bindings_for_method(sname.clone(), _span, ctx)
+                check_recv_bounds(sname.clone(), method_name.clone(), &bindings, _span, ctx)
+                return ty_from_frag_in_scope(elem_frag, _span, ctx)
+            }
+            // A shared borrow, read in place.
+            "at" => {
+                if args.size() != 1 { emit_method_arity(method_name, 1, args.size(), _span, ctx); return poison_ty() }
+                val elem_ty = ty_from_frag_in_scope(elem_frag, _span, ctx)
+                val inner: Ptr<Type> = unsafe { alloc<Type>() }
+                unsafe { *inner = elem_ty }
+                return Type { kind: TypeKind.RefTo(false, inner), provenance: Provenance.Inferred(_span) }
+            }
+            // A mutable borrow, mutated in place.
+            "at_mut" => {
+                if args.size() != 1 { emit_method_arity(method_name, 1, args.size(), _span, ctx); return poison_ty() }
+                val elem_ty = ty_from_frag_in_scope(elem_frag, _span, ctx)
+                val inner: Ptr<Type> = unsafe { alloc<Type>() }
+                unsafe { *inner = elem_ty }
+                return Type { kind: TypeKind.RefTo(true, inner), provenance: Provenance.Inferred(_span) }
+            }
+            "size" => {
+                if args.size() != 0 { emit_method_arity(method_name, 0, args.size(), _span, ctx); return poison_ty() }
+                return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(_span) }
+            }
+            "is_empty" => {
+                if args.size() != 0 { emit_method_arity(method_name, 0, args.size(), _span, ctx); return poison_ty() }
+                return bool_ty(_span)
+            }
+            // Items are expected as the element type.
+            "push" => {
+                if args.size() != 1 { emit_method_arity(method_name, 1, args.size(), _span, ctx); return poison_ty() }
+                expect_arg(args, 0, ty_from_frag_in_scope(elem_frag.clone(), _span, ctx), ctx)
+                return void_ty(_span)
+            }
+            "set" => {
+                if args.size() != 2 { emit_method_arity(method_name, 2, args.size(), _span, ctx); return poison_ty() }
+                expect_arg(args, 1, ty_from_frag_in_scope(elem_frag.clone(), _span, ctx), ctx)
+                return void_ty(_span)
+            }
+            _ => { }
         }
     }
     val mangled = sname + String.from("_") + method_name

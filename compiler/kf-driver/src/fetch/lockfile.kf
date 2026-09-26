@@ -123,11 +123,14 @@ pub fun parse_lockfile(src: str): List<LockEntry> {
             index = ""
         } else if in_package {
             val key = read_key(line.clone())
-            if key.as_str() == "name" { name = read_string_value(line.clone()) }
-            if key.as_str() == "version" { version = read_string_value(line.clone()) }
-            if key.as_str() == "source" { source = line.clone() }
-            if key.as_str() == "checksum" { checksum = read_string_value(line.clone()) }
-            if key.as_str() == "index" { index = read_string_value(line.clone()) }
+            when key.as_str() {
+                "name" => name = read_string_value(line.clone())
+                "version" => version = read_string_value(line.clone())
+                "source" => source = line.clone()
+                "checksum" => checksum = read_string_value(line.clone())
+                "index" => index = read_string_value(line.clone())
+                _ => { }
+            }
         }
     }
     if in_package { out.push(lock_entry_from(name, version, source.as_str(), checksum, index)) }

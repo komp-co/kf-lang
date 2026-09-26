@@ -33,20 +33,23 @@ pub fun c_type_name(name: String): String {
 
 fun c_type_named(name: String, args: List<TypeRef>): String {
     val s = name.as_str()
-    if s == "void"   { return String.from("void") }
-    if s == "bool"   { return String.from("bool") }
-    if s == "int8"   { return String.from("int8_t") }
-    if s == "int16"  { return String.from("int16_t") }
-    if s == "int32"  { return String.from("int32_t") }
-    if s == "int64"  { return String.from("int64_t") }
-    if s == "uint8"  { return String.from("uint8_t") }
-    if s == "uint16" { return String.from("uint16_t") }
-    if s == "uint32" { return String.from("uint32_t") }
-    if s == "uint64" { return String.from("uint64_t") }
-    if s == "float32" { return String.from("float") }
-    if s == "float64" { return String.from("double") }
-    if s == "char"   { return String.from("uint32_t") }
-    if s == "str"    { return String.from("const char*") }
+    when s {
+        "void" => return String.from("void")
+        "bool" => return String.from("bool")
+        "int8" => return String.from("int8_t")
+        "int16" => return String.from("int16_t")
+        "int32" => return String.from("int32_t")
+        "int64" => return String.from("int64_t")
+        "uint8" => return String.from("uint8_t")
+        "uint16" => return String.from("uint16_t")
+        "uint32" => return String.from("uint32_t")
+        "uint64" => return String.from("uint64_t")
+        "float32" => return String.from("float")
+        "float64" => return String.from("double")
+        "char" => return String.from("uint32_t")
+        "str" => return String.from("const char*")
+        _ => { }
+    }
 
     if s == "Ptr" {
         if args.size() == 1 {

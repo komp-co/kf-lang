@@ -32,19 +32,22 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
                 if !bi.crate.is_poison() { note_import_use(ctx.sigs, ctx.owner_file, bi.module) }
             }
 
-            if s.equals("int8")    { return Type { kind: TypeKind.Int8,    provenance: Provenance.Declared(self.span) } }
-            if s.equals("int16")   { return Type { kind: TypeKind.Int16,   provenance: Provenance.Declared(self.span) } }
-            if s.equals("int32")   { return int32_ty(self.span) }
-            if s.equals("int64")   { return Type { kind: TypeKind.Int64,   provenance: Provenance.Declared(self.span) } }
-            if s.equals("uint8")   { return Type { kind: TypeKind.UInt8,   provenance: Provenance.Declared(self.span) } }
-            if s.equals("uint16")  { return Type { kind: TypeKind.UInt16,  provenance: Provenance.Declared(self.span) } }
-            if s.equals("uint32")  { return Type { kind: TypeKind.UInt32,  provenance: Provenance.Declared(self.span) } }
-            if s.equals("uint64")  { return Type { kind: TypeKind.UInt64,  provenance: Provenance.Declared(self.span) } }
-            if s.equals("float32") { return Type { kind: TypeKind.Float32, provenance: Provenance.Declared(self.span) } }
-            if s.equals("float64") { return Type { kind: TypeKind.Float64, provenance: Provenance.Declared(self.span) } }
-            if s.equals("bool")    { return bool_ty(self.span) }
-            if s.equals("char")    { return Type { kind: TypeKind.Char,    provenance: Provenance.Declared(self.span) } }
-            if s.equals("str")     { return str_ty(self.span) }
+            when s {
+                "int8" => return Type { kind: TypeKind.Int8, provenance: Provenance.Declared(self.span) }
+                "int16" => return Type { kind: TypeKind.Int16, provenance: Provenance.Declared(self.span) }
+                "int32" => return int32_ty(self.span)
+                "int64" => return Type { kind: TypeKind.Int64, provenance: Provenance.Declared(self.span) }
+                "uint8" => return Type { kind: TypeKind.UInt8, provenance: Provenance.Declared(self.span) }
+                "uint16" => return Type { kind: TypeKind.UInt16, provenance: Provenance.Declared(self.span) }
+                "uint32" => return Type { kind: TypeKind.UInt32, provenance: Provenance.Declared(self.span) }
+                "uint64" => return Type { kind: TypeKind.UInt64, provenance: Provenance.Declared(self.span) }
+                "float32" => return Type { kind: TypeKind.Float32, provenance: Provenance.Declared(self.span) }
+                "float64" => return Type { kind: TypeKind.Float64, provenance: Provenance.Declared(self.span) }
+                "bool" => return bool_ty(self.span)
+                "char" => return Type { kind: TypeKind.Char, provenance: Provenance.Declared(self.span) }
+                "str" => return str_ty(self.span)
+                _ => { }
+            }
             if is_lang_string      { return ctx.string_name().lang_struct_ty(self.span) }
             if s.equals("void")    { return void_ty(self.span) }
             if s.equals("Self") && !ctx.self_ty.is_poison() { return ctx.self_ty.clone() }
@@ -181,19 +184,22 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
 /// Generic user types stay at their template identity; builtin targets keep
 /// their builtin kind.
 pub fun impl_target_ty(name: str, span: Span, string_name: Sym): Type {
-    if name.equals("int8") { return Type { kind: TypeKind.Int8, provenance: Provenance.Inferred(span) } }
-    if name.equals("int16") { return Type { kind: TypeKind.Int16, provenance: Provenance.Inferred(span) } }
-    if name.equals("int32") { return int32_ty(span) }
-    if name.equals("int64") { return Type { kind: TypeKind.Int64, provenance: Provenance.Inferred(span) } }
-    if name.equals("uint8") { return Type { kind: TypeKind.UInt8, provenance: Provenance.Inferred(span) } }
-    if name.equals("uint16") { return Type { kind: TypeKind.UInt16, provenance: Provenance.Inferred(span) } }
-    if name.equals("uint32") { return Type { kind: TypeKind.UInt32, provenance: Provenance.Inferred(span) } }
-    if name.equals("uint64") { return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) } }
-    if name.equals("float32") { return Type { kind: TypeKind.Float32, provenance: Provenance.Inferred(span) } }
-    if name.equals("float64") { return Type { kind: TypeKind.Float64, provenance: Provenance.Inferred(span) } }
-    if name.equals("bool") { return bool_ty(span) }
-    if name.equals("char") { return Type { kind: TypeKind.Char, provenance: Provenance.Inferred(span) } }
-    if name.equals("str") { return str_ty(span) }
+    when name {
+        "int8" => return Type { kind: TypeKind.Int8, provenance: Provenance.Inferred(span) }
+        "int16" => return Type { kind: TypeKind.Int16, provenance: Provenance.Inferred(span) }
+        "int32" => return int32_ty(span)
+        "int64" => return Type { kind: TypeKind.Int64, provenance: Provenance.Inferred(span) }
+        "uint8" => return Type { kind: TypeKind.UInt8, provenance: Provenance.Inferred(span) }
+        "uint16" => return Type { kind: TypeKind.UInt16, provenance: Provenance.Inferred(span) }
+        "uint32" => return Type { kind: TypeKind.UInt32, provenance: Provenance.Inferred(span) }
+        "uint64" => return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) }
+        "float32" => return Type { kind: TypeKind.Float32, provenance: Provenance.Inferred(span) }
+        "float64" => return Type { kind: TypeKind.Float64, provenance: Provenance.Inferred(span) }
+        "bool" => return bool_ty(span)
+        "char" => return Type { kind: TypeKind.Char, provenance: Provenance.Inferred(span) }
+        "str" => return str_ty(span)
+        _ => { }
+    }
     if is_lang_name(name, string_name) { return string_name.lang_struct_ty(span) }
     return Type { kind: TypeKind.Struct(intern(name)), provenance: Provenance.Inferred(span) }
 }

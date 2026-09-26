@@ -191,10 +191,12 @@ fun push_primitive(out: &var List<ScopeItem>, name: str): void {
 /// where a type name is a constructor or static receiver.
 pub fun scope_kind_fits(kind: str, pos: CompletionPos): bool {
     if pos_is_expr(pos) { return true }
-    if kind == "struct" { return true }
-    if kind == "enum" { return true }
-    if kind == "trait" { return true }
-    return false
+    return when kind {
+        "struct" => true
+        "enum" => true
+        "trait" => true
+        _ => false
+    }
 }
 
 /// Keywords legal here, builtin types where a type belongs, and fitting names

@@ -186,10 +186,13 @@ fun default_value_expr(ty: Ptr<TypeRef>, span: Span): Expr {
         Named(n, _args) => {
             val s = n.as_str()
             if is_int_like(s) { return new_expr(span, ExprKind.LitInt(0)) }
-            if s == "bool" { return new_expr(span, ExprKind.LitBool(false)) }
-            if s == "float32" { return new_expr(span, ExprKind.LitInt(0)) }
-            if s == "float64" { return new_expr(span, ExprKind.LitInt(0)) }
-            if s == "str" { return new_expr(span, ExprKind.LitStr("")) }
+            when s {
+                "bool" => return new_expr(span, ExprKind.LitBool(false))
+                "float32" => return new_expr(span, ExprKind.LitInt(0))
+                "float64" => return new_expr(span, ExprKind.LitInt(0))
+                "str" => return new_expr(span, ExprKind.LitStr(""))
+                _ => { }
+            }
             if s == "Ptr" {
                 // 0 as Ptr<...>
                 val zero: Ptr<Expr> = unsafe { alloc<Expr>() }
@@ -208,14 +211,16 @@ fun default_value_expr(ty: Ptr<TypeRef>, span: Span): Expr {
 }
 
 fun is_int_like(s: str): bool {
-    if s == "int8"   { return true }
-    if s == "int16"  { return true }
-    if s == "int32"  { return true }
-    if s == "int64"  { return true }
-    if s == "uint8"  { return true }
-    if s == "uint16" { return true }
-    if s == "uint32" { return true }
-    if s == "uint64" { return true }
-    if s == "char"   { return true }
-    return false
+    return when s {
+        "int8" => true
+        "int16" => true
+        "int32" => true
+        "int64" => true
+        "uint8" => true
+        "uint16" => true
+        "uint32" => true
+        "uint64" => true
+        "char" => true
+        _ => false
+    }
 }

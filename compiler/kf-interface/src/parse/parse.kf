@@ -192,15 +192,17 @@ mutating fun JsonReader.load_decl(crate: CrateId, crate_name: str, path: str, sm
     val kind = self.read_string()
     if !self.expect_key("hidden") { return poison_decl() }
     val hidden = self.read_bool()
-    if kind.as_str() == "fun" { return self.load_fun(crate, path, hidden) }
-    if kind.as_str() == "struct" { return self.load_struct(crate, path, hidden) }
-    if kind.as_str() == "enum" { return self.load_enum(crate, path, hidden) }
-    if kind.as_str() == "impl" { return self.load_impl(crate, path, hidden) }
-    if kind.as_str() == "trait" { return self.load_trait(crate, path, hidden) }
-    if kind.as_str() == "trait_impl" { return self.load_trait_impl(crate, path, hidden) }
-    if kind.as_str() == "extern" { return self.load_extern_decl(crate, path, hidden) }
-    if kind.as_str() == "generic" { return self.load_generic(crate, crate_name, path, smap) }
-    return poison_decl()
+    return when kind.as_str() {
+        "fun" => self.load_fun(crate, path, hidden)
+        "struct" => self.load_struct(crate, path, hidden)
+        "enum" => self.load_enum(crate, path, hidden)
+        "impl" => self.load_impl(crate, path, hidden)
+        "trait" => self.load_trait(crate, path, hidden)
+        "trait_impl" => self.load_trait_impl(crate, path, hidden)
+        "extern" => self.load_extern_decl(crate, path, hidden)
+        "generic" => self.load_generic(crate, crate_name, path, smap)
+        _ => poison_decl()
+    }
 }
 
 mutating fun JsonReader.load_fun(crate: CrateId, path: str, hidden: bool): TopDecl {

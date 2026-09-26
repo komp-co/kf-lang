@@ -75,21 +75,23 @@ pub fun clone_fn_for_ctype(ct: str): String {
 }
 
 fun ctype_is_primitive(ct: str): bool {
-    if ct == "void" { return true }
-    // The unit value owns nothing.
-    if ct == "kf_unit" { return true }
-    if ct == "bool" { return true }
-    if ct == "int8_t" { return true }
-    if ct == "int16_t" { return true }
-    if ct == "int32_t" { return true }
-    if ct == "int64_t" { return true }
-    if ct == "uint8_t" { return true }
-    if ct == "uint16_t" { return true }
-    if ct == "uint32_t" { return true }
-    if ct == "uint64_t" { return true }
-    if ct == "float" { return true }
-    if ct == "double" { return true }
-    return false
+    return when ct {
+        "void" => true
+        // The unit value owns nothing.
+        "kf_unit" => true
+        "bool" => true
+        "int8_t" => true
+        "int16_t" => true
+        "int32_t" => true
+        "int64_t" => true
+        "uint8_t" => true
+        "uint16_t" => true
+        "uint32_t" => true
+        "uint64_t" => true
+        "float" => true
+        "double" => true
+        _ => false
+    }
 }
 
 fun ctype_has_star(ct: str): bool {

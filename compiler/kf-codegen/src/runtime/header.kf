@@ -61,34 +61,36 @@ int32_t kf_process_status(const char* program, void* args, const char* cwd, void
 /// CONSTRAINT: keep in step with the emitted text.
 pub fun runtime_header_declares(name: str): bool {
     // Allocation ABI.
-    if name.equals("kf_alloc")                  { return true }
-    if name.equals("kf_free")                   { return true }
-    if name.equals("kf_realloc")                { return true }
-    if name.equals("exit")                      { return true }
-    // symbol interning
-    if name.equals("kf_sym_intern")             { return true }
-    if name.equals("kf_sym_resolve")            { return true }
-    // directory walk
-    if name.equals("kf_fs_dir_open")            { return true }
-    if name.equals("kf_fs_dir_next")            { return true }
-    if name.equals("kf_fs_dir_close")           { return true }
-    // io / string helpers
-    if name.equals("write_file")                { return true }
-    if name.equals("str_equals")                { return true }
-    if name.equals("str_as_str")                { return true }
-    if name.equals("runtime_print")             { return true }
-    if name.equals("runtime_println")           { return true }
-    if name.equals("panic")                     { return true }
-    if name.equals("is_dir")                    { return true }
-    if name.equals("kf_str_byte_len")           { return true }
-    if name.equals("kf_str_byte_at")            { return true }
-    if name.equals("kf_file_hash")              { return true }
-    // process / environment
-    if name.equals("kf_arg_init")               { return true }
-    if name.equals("kf_arg_count")              { return true }
-    if name.equals("kf_arg_get")                { return true }
-    if name.equals("kf_create_dir_all")         { return true }
-    if name.equals("kf_remove_dir_all")         { return true }
-    if name.equals("kf_process_status")         { return true }
-    return false
+    return when name {
+        "kf_alloc" => true
+        "kf_free" => true
+        "kf_realloc" => true
+        "exit" => true
+        // symbol interning
+        "kf_sym_intern" => true
+        "kf_sym_resolve" => true
+        // directory walk
+        "kf_fs_dir_open" => true
+        "kf_fs_dir_next" => true
+        "kf_fs_dir_close" => true
+        // io / string helpers
+        "write_file" => true
+        "str_equals" => true
+        "str_as_str" => true
+        "runtime_print" => true
+        "runtime_println" => true
+        "panic" => true
+        "is_dir" => true
+        "kf_str_byte_len" => true
+        "kf_str_byte_at" => true
+        "kf_file_hash" => true
+        // process / environment
+        "kf_arg_init" => true
+        "kf_arg_count" => true
+        "kf_arg_get" => true
+        "kf_create_dir_all" => true
+        "kf_remove_dir_all" => true
+        "kf_process_status" => true
+        _ => false
+    }
 }
