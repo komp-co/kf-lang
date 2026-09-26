@@ -34,14 +34,6 @@ early is not rejected either.
 The rule until then: do not keep a borrow past the point where the owner is
 alive. The borrow checker that closes the rest is [#36].
 
-## Exponent notation does not lex
-
-`1e10` and `1.5e-3` read as a number beside a name rather than as one
-number ([#17]). Write the digits out, or scale with a multiplication.
-
-Everything else in this family works: `3.14`, `'A'`, `0xff`, `0b1010` and
-`1_000` all lex.
-
 ## No overload resolution
 
 Two definitions in one scope may not share a name, whether they differ by
@@ -189,7 +181,6 @@ not agree with it in every case.
 [#3]: https://github.com/komp-co/komp/issues/3
 [#6]: https://github.com/komp-co/komp/issues/6
 [#15]: https://github.com/komp-co/komp/issues/15
-[#17]: https://github.com/komp-co/komp/issues/17
 [#20]: https://github.com/komp-co/komp/issues/20
 [#21]: https://github.com/komp-co/komp/issues/21
 [#36]: https://github.com/komp-co/komp/issues/36
