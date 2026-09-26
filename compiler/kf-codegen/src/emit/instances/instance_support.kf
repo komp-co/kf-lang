@@ -25,16 +25,16 @@ pub struct InstanceSupport {
 }
 
 pub fun Module.collect_instance_support(m: &Module): InstanceSupport {
-    var callees = List.new<String>()
-    var type_refs = List.new<String>()
+    var callees = NameSet.new()
+    var type_refs = NameSet.new()
     while decl in &self.decls {
         decl.scan_decl_references(&var callees, &var type_refs)
     }
     // Instances closed transitively. Prototypes and private layouts come only
     // from instance bodies; self code is served by dependency headers.
-    var instance_callees = List.new<String>()
-    var instance_types = List.new<String>()
-    var instance_names = List.new<String>()
+    var instance_callees = NameSet.new()
+    var instance_types = NameSet.new()
+    var instance_names = NameSet.new()
     var progress = true
     while progress {
         progress = false
@@ -43,13 +43,13 @@ pub fun Module.collect_instance_support(m: &Module): InstanceSupport {
                 if instance_is_referenced(td, &callees, &type_refs) {
                     // Every declaration of the name is scanned: layout,
                     // inherent impl and trait impl.
-                    if !support_name_in(&instance_names, td.name.as_str()) {
-                        instance_names.push(td.name.as_string())
+                    if !instance_names.has(td.name.as_str()) {
+                        instance_names.add(td.name.as_string())
                         progress = true
                     }
                     td.scan_decl_references(&var instance_callees, &var instance_types)
-                    merge_names(&instance_callees, &var callees)
-                    merge_names(&instance_types, &var type_refs)
+                    callees.add_all(&instance_callees)
+                    type_refs.add_all(&instance_types)
                 }
             }
         }
@@ -61,7 +61,7 @@ pub fun Module.collect_instance_support(m: &Module): InstanceSupport {
     val view_crate = self.crate
     while td in &m.decls {
         if td.linkage.is_template() {
-            if support_name_in(&instance_names, td.name.as_str()) {
+            if instance_names.has(td.name.as_str()) {
                 instances.push(td.deep_clone_top_decl())
             }
         } else {
@@ -85,29 +85,29 @@ fun support_module(decls: List<TopDecl>, crate: CrateId): Module {
     return Module { crate: crate, path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 }
 
-fun instance_is_referenced(td: TopDecl, callees: &List<String>, type_refs: &List<String>): bool {
+fun instance_is_referenced(td: TopDecl, callees: &NameSet, type_refs: &NameSet): bool {
     when (td.kind) {
-        Function(_p, _r, _b, _pub, _u, _m, _s) => return support_name_in(callees, td.name.as_str())
+        Function(_p, _r, _b, _pub, _u, _m, _s) => return callees.has(td.name.as_str())
         Struct(_f, _p) => {
-            if support_name_in(type_refs, td.name.as_str()) { return true }
+            if type_refs.has(td.name.as_str()) { return true }
             return callee_prefix_matches(callees, td.name.as_str())
         }
         EnumDecl(_v, _p) => {
-            if support_name_in(type_refs, td.name.as_str()) { return true }
+            if type_refs.has(td.name.as_str()) { return true }
             return callee_prefix_matches(callees, td.name.as_str())
         }
         ImplBlock(_methods) => {
-            if support_name_in(type_refs, td.name.as_str()) { return true }
+            if type_refs.has(td.name.as_str()) { return true }
             return callee_prefix_matches(callees, td.name.as_str())
         }
         _ => return false
     }
 }
 
-fun classify_out_of_view(td: TopDecl, callees: &List<String>, type_refs: &List<String>, callee_fns: &var List<TopDecl>, callee_impls: &var List<TopDecl>, private_types: &var List<TopDecl>): void {
+fun classify_out_of_view(td: TopDecl, callees: &NameSet, type_refs: &NameSet, callee_fns: &var List<TopDecl>, callee_impls: &var List<TopDecl>, private_types: &var List<TopDecl>): void {
     when (td.kind) {
         Function(_p, _r, _b, _pub, _u, _m, _s) => {
-            if support_name_in(callees, td.name.as_str()) {
+            if callees.has(td.name.as_str()) {
                 callee_fns.push(td.deep_clone_top_decl())
             }
         }
@@ -116,7 +116,7 @@ fun classify_out_of_view(td: TopDecl, callees: &List<String>, type_refs: &List<S
             var matched = List.new<TopDecl>()
             while method in &methods {
                 val symbol = td.name.as_string() + String.from("_") + method.name.as_string()
-                if support_name_in(callees, symbol.as_str()) {
+                if callees.has(symbol.as_str()) {
                     matched.push(method.deep_clone_top_decl())
                 }
             }
@@ -129,14 +129,14 @@ fun classify_out_of_view(td: TopDecl, callees: &List<String>, type_refs: &List<S
         Struct(_f, is_pub) => {
             // Public layouts come from the dependency header.
             if !is_pub {
-                if support_name_in(type_refs, td.name.as_str()) {
+                if type_refs.has(td.name.as_str()) {
                     private_types.push(td.deep_clone_top_decl())
                 }
             }
         }
         EnumDecl(_v, is_pub) => {
             if !is_pub {
-                if support_name_in(type_refs, td.name.as_str()) {
+                if type_refs.has(td.name.as_str()) {
                     private_types.push(td.deep_clone_top_decl())
                 }
             }
@@ -150,15 +150,15 @@ fun Module.close_over_private_fields(view_crate: CrateId, private_types: &var Li
     var progress = true
     while progress {
         progress = false
-        var extra = List.new<String>()
+        var extra = NameSet.new()
         while private_type in &private_types {
-            var callees = List.new<String>()
+            var callees = NameSet.new()
             private_type.scan_decl_references(&var callees, &var extra)
         }
         while td in &self.decls {
             if td.crate.raw != view_crate.raw {
                 if !td.linkage.is_template() {
-                    if support_name_in(&extra, td.name.as_str()) {
+                    if extra.has(td.name.as_str()) {
                         if !support_decl_list_has(private_types, td.name.as_str()) {
                             when (td.kind) {
                                 Struct(_f, is_pub) => {
@@ -180,12 +180,6 @@ fun Module.close_over_private_fields(view_crate: CrateId, private_types: &var Li
                 }
             }
         }
-    }
-}
-
-fun merge_names(from: &List<String>, into: &var List<String>): void {
-    while item in &from {
-        support_add_unique(into, item.clone())
     }
 }
 

@@ -175,6 +175,18 @@ fun mk_let_t(): Stmt {
     assert_eq(out.as_str(), "compute_total", "plain name untouched")
 }
 
+@test fun a_compound_names_its_parameter_segment(): void {
+    var names = List.new<String>()
+    names.push(String.from("T"))
+    assert_eq("List__T__get".has_param_segment(&names), true, "the middle segment is T")
+}
+
+@test fun a_parameter_inside_a_segment_is_not_named(): void {
+    var names = List.new<String>()
+    names.push(String.from("T"))
+    assert_eq("List__Tree".has_param_segment(&names), false, "Tree only starts with T")
+}
+
 @test fun subst_type_replaces_bare_generic(): void {
     var names = List.new<String>()
     var repls = List.new<TypeRef>()
