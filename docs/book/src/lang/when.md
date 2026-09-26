@@ -160,6 +160,9 @@ fun classify(p: Point, target: &Point): int32 {
 }
 ```
 
+A temporary built inside a guard is not dropped yet; see
+[limitations](../limitations.md#when-guards).
+
 A guarded arm covers nothing for exhaustiveness purposes — its condition may
 be false at runtime — so the `when` above still needs the unguarded
 `Circle(r)` arm. Dropping it is an error, not a silent fallthrough.
