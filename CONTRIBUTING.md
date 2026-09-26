@@ -41,15 +41,27 @@ behind*, not about batching.
 
 ## Releases: `development` into `main`
 
-`main` holds only released states. A merge into it **is** a release:
+`main` holds only released states. A merge into it **is** a release, and the
+only step a person takes:
 
-1. Open a PR from `development` into `main` that raises `kflat_version()`
-   (`compiler/kf-shared/src/version.kf`). The `release-pr` check refuses
-   any other source branch, and a version that does not go up.
-2. Merge it. The release workflow builds the seed from the pinned one, checks
-   the fixpoint, and publishes `vX.Y.Z` with `kflat-seed-X.Y.Z.tar.gz`.
-3. To build from the new seed, pin it in `bootstrap/stage0.toml` in an
-   ordinary PR into `development`.
+1. **Prepare release**, from the Actions tab, with the part of the version to
+   raise. It opens a PR raising `kflat_version()` on `development`, which
+   merges itself once CI is green.
+2. That merge opens the release PR from `development` into `main`
+   (`open-release.yml`). The `release-pr` check refuses any other source
+   branch, and a version that does not go up.
+3. **Merge the release PR.** The release workflow builds the seed from the
+   pinned one, checks the fixpoint, publishes `vX.Y.Z` with
+   `kflat-seed-X.Y.Z.tar.gz`, and opens the PR pinning that seed in
+   `bootstrap/stage0.toml`, which merges itself once CI bootstraps from it.
+
+The automated PRs are pushed and opened with the organization secret
+`RELEASE_TOKEN`, a fine-grained token with Contents and Pull requests write on
+the komp-co repositories, because a PR opened with a workflow's own token runs
+no CI. When it expires, releases still publish, and the workflows say which
+step was left to do by hand. Auto-merge must be allowed on the repository.
+`scripts/release-version.sh` is how every workflow reads and raises the
+version. Each step can also be done by hand, as an ordinary PR.
 
 Both branches are protected **server-side**: GitHub refuses a direct push, and
 a merge needs green CI, so every change lands via PR whatever your local setup

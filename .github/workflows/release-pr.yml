@@ -27,16 +27,11 @@ jobs:
         env:
           BASE: ${{ github.base_ref }}
         run: |
-          # The file is found by what it defines, so moving it breaks no release.
-          # Prints nothing, and succeeds, for a tree that predates it.
-          version_at() {
-            file=$(git grep -l "fun kflat_version" "$1" -- compiler | head -1)
-            if [ -n "$file" ]; then git show "$file" | sed -n 's/^ *return "\(.*\)"$/\1/p'; fi
-          }
-          new=$(version_at HEAD)
-          old=$(version_at "origin/$BASE")
+          new=$(sh scripts/release-version.sh HEAD)
+          old=$(sh scripts/release-version.sh "origin/$BASE")
           echo "main has ${old:-none}, this PR releases $new"
-          if [ -n "$old" ] && [ "$(printf '%s\n%s\n' "$old" "$new" | sort -V | tail -1)" != "$new" -o "$old" = "$new" ]; then
+          higher=$(printf '%s\n%s\n' "$old" "$new" | sort -V | tail -1)
+          if [ -n "$old" ] && { [ "$higher" != "$new" ] || [ "$old" = "$new" ]; }; then
             echo "bump kflat_version() in compiler/kf-shared/src/version.kf past $old" >&2
             exit 1
           fi

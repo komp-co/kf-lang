@@ -32,8 +32,8 @@ The seed only has to *build* the current source, so it can lag. A new one
 comes from a release: a PR from `development` into `main` that raises
 `kflat_version()`. Merging it runs the release workflow, which builds the seed
 from the pinned one, checks the fixpoint, and publishes
-`kflat-seed-X.Y.Z.tar.gz` with its sha256 under the tag `vX.Y.Z`. Pinning it is
-then an ordinary change to `stage0.toml`.
+`kflat-seed-X.Y.Z.tar.gz` with its sha256 under the tag `vX.Y.Z`, then opens
+the PR that pins it in `stage0.toml`. CONTRIBUTING.md has the whole release.
 
 To try a seed before releasing it:
 
