@@ -125,6 +125,7 @@ fun Stmt.scan_stmt(callees: &var List<String>, type_refs: &var List<String>): vo
                     Some(guard) => scan_expr(unsafe { &*guard }, callees, type_refs)
                     None => { }
                 }
+                scan_stmt_list(&arm.guard_prelude, callees, type_refs)
                 scan_stmt_list(&arm.body, callees, type_refs)
             }
         }

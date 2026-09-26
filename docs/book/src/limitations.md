@@ -91,10 +91,6 @@ src/main.kf:3:13: error: lambda parameter `x` needs a type annotation (its type 
 
 ## when guards
 
-- **A temporary built inside a guard is not dropped** ([#85]). In
-  `v if v == "get"` over a `String`, the literal is converted to a `String`
-  for the comparison and leaks. Compare `str`s instead (`v.as_str() == "get"`),
-  or write a string pattern, which does so for you.
 - **A guard inside a lambda does not capture** ([#84]). An outer variable read
   only from a guard, in a `when` inside a lambda body, is not captured.
 
@@ -215,4 +211,3 @@ not agree with it in every case.
 [#75]: https://github.com/komp-co/komp/issues/75
 [#79]: https://github.com/komp-co/komp/issues/79
 [#84]: https://github.com/komp-co/komp/issues/84
-[#85]: https://github.com/komp-co/komp/issues/85

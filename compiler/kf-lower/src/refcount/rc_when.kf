@@ -184,7 +184,8 @@ fun SwitchArm.arm_with_declined_named(ename: str, ctx: &var RcCtx): SwitchArm {
         i = i + 1
     }
     if !changed { return self.clone_switch_arm() }
-    return new_switch_arm(self.span, self.tag, binders, self.guard, clone_stmt_list(&self.body))
+    val prelude = clone_stmt_list(&self.guard_prelude)
+    return new_guarded_switch_arm(self.span, self.tag, binders, self.guard, prelude, clone_stmt_list(&self.body))
 }
 
 fun SwitchArm.clone_switch_arm(): SwitchArm {
@@ -192,7 +193,8 @@ fun SwitchArm.clone_switch_arm(): SwitchArm {
     while binder in &self.binders {
         binders.push(binder.clone())
     }
-    return new_switch_arm(self.span, self.tag, binders, self.guard, clone_stmt_list(&self.body))
+    val prelude = clone_stmt_list(&self.guard_prelude)
+    return new_guarded_switch_arm(self.span, self.tag, binders, self.guard, prelude, clone_stmt_list(&self.body))
 }
 
 fun clone_stmt_list(stmts: &List<Stmt>): List<Stmt> {

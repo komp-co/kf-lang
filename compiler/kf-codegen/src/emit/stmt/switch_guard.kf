@@ -49,17 +49,17 @@ fun emit_chain_arm(a: SwitchArm, ename: String, through_ref: bool, chained: bool
         parts.push(String.from("if ("))
     }
     parts.push(a.tag.chain_test(ename.as_str(), through_ref))
-    parts.push(chain_guard_test(a, through_ref))
+    parts.push(chain_guard_test(a, through_ref, indent + 1, env))
     parts.push(String.from(") {\n"))
     parts.push(join_decls(chain_binder_decls(a, through_ref), indent + 1))
     parts.push(emit_block(a.body, indent + 1, env))
     return concat_all(parts)
 }
 
-/// `&& ({ binders (guard); })` for a guarded arm, empty otherwise. Binders
-/// are plain reads of `__when_subj`, so declaring them again in the body is
-/// free.
-fun chain_guard_test(a: SwitchArm, through_ref: bool): String {
+/// `&& ({ binders prelude (guard); })` for a guarded arm, empty otherwise.
+/// Binders are plain reads of `__when_subj`, so declaring them again in the
+/// body is free.
+fun chain_guard_test(a: SwitchArm, through_ref: bool, indent: uint64, env: &var LocalEnv): String {
     if !switch_arm_has_guard(&a) { return "" }
     var parts = List.new<String>()
     parts.push(String.from(" && ({ "))
@@ -67,6 +67,11 @@ fun chain_guard_test(a: SwitchArm, through_ref: bool): String {
     while decl in &decls {
         parts.push(decl)
         parts.push(String.from(" "))
+    }
+    if a.guard_prelude.size() > 0 {
+        parts.push(String.from("\n"))
+        parts.push(emit_block(a.guard_prelude, indent + 1, env))
+        parts.push(emit_indent(indent + 1))
     }
     val g = a.guard ?: return ""
     parts.push("(${emit_expr(unsafe { &*g })}); })")

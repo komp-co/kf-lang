@@ -102,7 +102,8 @@ fun Stmt.subst_stmt_kinded(names: &var List<String>, repls: &var List<TypeRef>):
             while sa in &sarms {
                 val nbody = subst_stmt_list(sa.body, names, repls)
                 val nguard = clone_expr_ptr_opt(sa.guard, names, repls)
-                narms.push(new_switch_arm(sa.span, sa.tag, clone_sym_list(sa.binders), nguard, nbody))
+                val nprelude = subst_stmt_list(sa.guard_prelude, names, repls)
+                narms.push(new_guarded_switch_arm(sa.span, sa.tag, clone_sym_list(sa.binders), nguard, nprelude, nbody))
             }
             return new_stmt(self.span, StmtKind.Switch(ns, narms))
         }
