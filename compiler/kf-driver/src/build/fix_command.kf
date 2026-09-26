@@ -70,7 +70,7 @@ fun fixes_from_report(report: str, root_dir: str): List<LocatedFix> {
     val lines = report.lines()
     while line in &lines {
         if line.byte_len() > 0 {
-            var reader = new_json_reader(line.as_str())
+            var reader = JsonReader.new(line.as_str())
             read_diagnostic_fix(&var reader, root.as_str(), &var out)
         }
     }

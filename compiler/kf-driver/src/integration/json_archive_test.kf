@@ -22,12 +22,15 @@ fun prepare_real_json_app(): int32 {
     if copied != 0 { return copied }
     write_file(scratch_path("kf_sc4_json_dep/kf.toml"), """[project]
 name = "json"
-version = "0.1.0"
+version = "0.2.0"
 kind = "lib"
 
 [dependencies]
 core = { path = "../kf_sc4_libs/core" }
 alloc = { path = "../kf_sc4_libs/alloc" }
+
+[native]
+hosted_c_sources = ["native/json.c"]
 """)
     write_file(scratch_path("kf_sc4_json_app/kf.toml"), """[project]
 name = "json_app"
@@ -37,12 +40,13 @@ kind = "bin"
 json = { path = "../kf_sc4_json_dep" }
 """)
     write_file(scratch_path("kf_sc4_json_app/src/main.kf"), """import json.writer.*
+import json.quote.*
 
 fun main(): int32 {
-    var writer = new_json_writer()
+    var writer = JsonWriter.object()
     writer.field_string("message", "ok")
     val object = writer.finish()
-    val escaped = json_quote("say \"hi\"")
+    val escaped = "say \"hi\"".json_quoted()
     if object.as_str() == "{\"message\":\"ok\"}" && escaped.as_str() == "\"say \\\"hi\\\"\"" { return 0 }
     return 1
 }
@@ -110,16 +114,16 @@ fun source_and_interface_consumer_c_are_identical(): void {
 }
 
 @test
-fun real_json_quote_runs_from_archive(): void {
+fun real_json_quoted_runs_from_archive(): void {
     val _rc = build_real_json_app()
-    assert_eq(unsafe { system(scratch_path("kf_sc4_json_app/target/kflat/json_app")) }, 0, "json_quote runs from the real archive")
+    assert_eq(unsafe { system(scratch_path("kf_sc4_json_app/target/kflat/json_app")) }, 0, "json_quoted runs from the real archive")
 }
 
 @test
-fun real_json_consumer_has_no_json_quote_body(): void {
+fun real_json_consumer_has_no_json_quoted_body(): void {
     val _rc = build_real_json_app()
     val app_c = read_file(scratch_path("kf_sc4_json_app/target/kflat/json_app.c"))
-    assert_eq(json_contains(app_c.as_str(), "String json__json_quote(const char* __value) {"), false, "consumer contains no dependency body")
+    assert_eq(json_contains(app_c.as_str(), "String json__json_quoted_ext_str(const char* __self) {"), false, "consumer contains no dependency body")
 }
 
 @test

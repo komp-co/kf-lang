@@ -11,18 +11,18 @@ import kf_shared.render_json_error
 ///
 /// Sorted by position, as the LSP delta encoding requires.
 pub fun render_tokens_json(path: str, crate: &QueryCrate): String {
-    val out = new_json_writer()
+    val out = JsonWriter.object()
     out.field_uint32("schema_version", 1)
     out.field_string("file", path)
     val names = crate.module.all_name_spans()
     val ordered = tokens_in_file(&names, crate.file_id)
-    val arr = new_json_array_writer()
+    val arr = JsonWriter.array()
     while t in &ordered {
-        val o = new_json_writer()
+        val o = JsonWriter.object()
         o.field_uint32("byte_start", t.span.start)
         o.field_uint32("byte_end", t.span.end)
         o.field_string("type", t.role.as_str())
-        arr.item_raw(o.finish().as_str())
+        arr.write_raw(o.finish().as_str())
     }
     out.field_raw("tokens", arr.finish().as_str())
     return out.finish()

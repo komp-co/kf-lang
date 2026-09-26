@@ -15,7 +15,7 @@ import kf_shared.render_json_error
 /// `documentation` are null off a declaration; `documentation` also when it
 /// has no `///` run.
 pub fun render_hover_json(path: str, offset: uint32, crate: &QueryCrate): String {
-    val out = new_json_writer()
+    val out = JsonWriter.object()
     out.field_uint32("schema_version", 2)
     out.field_string("file", path)
     out.field_uint32("offset", offset)
