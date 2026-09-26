@@ -57,7 +57,7 @@ pub fun publish_package(root: str, index_url: str, cache: str): int32 {
     println("The entry is committed on branch ${branch} in ${work}.")
     println("Fix the above and run `komp publish` again, or push that branch to a fork of")
     println("${index_url} and open a pull request from it.")
-    return 0
+    return 1
 }
 
 fun publish_refused(reason: str): int32 {

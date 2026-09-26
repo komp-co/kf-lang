@@ -47,11 +47,11 @@ fun a_tagged_release_is_committed_for_review(): void {
 }
 
 @test
-fun an_unopened_pull_request_is_not_a_failure(): void {
+fun an_unopened_pull_request_fails_the_command(): void {
     val cache = test_cache()
     val package = make_package("kf_pub_b", "lib", true)
     val index = empty_index("kf_pub_index_b", false)
-    assert_eq(publish(&package, &index, &cache), 0, "the entry is ready; opening its PR is left to a person")
+    assert_eq(publish(&package, &index, &cache), 1, "a script must see that nothing reached the index")
 }
 
 @test

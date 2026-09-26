@@ -85,7 +85,7 @@ to the commit it names now. Fetches, and rewrites kf.lock.
 The version is kf.toml's; the commit is the one its tag vX.Y.Z names, which
 must be checked out, clean, and pushed. The crate must pass `komp check`.
 Opening the pull request uses `gh`; without it, or without a login, the
-entry is committed locally and komp says how to finish by hand.
+entry is committed locally, komp says how to finish by hand, and exits 1.
 
   --status          list this package's versions in the index, and its
                     pull requests with their review state

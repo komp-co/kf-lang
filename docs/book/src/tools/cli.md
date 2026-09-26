@@ -125,7 +125,7 @@ under komp's cache. Opening the pull request uses the
 [GitHub CLI](https://cli.github.com), `gh`: komp pushes the branch to your fork
 of the index and opens or updates the pull request with your `gh` login. When
 `gh` is not installed or not logged in, the index is not on GitHub, or a step
-fails, komp says why, keeps the committed entry, and exits 0; run it again
+fails, komp says why, keeps the committed entry, and exits 1; run it again
 once `gh` works, or open the pull request from that branch yourself.
 
 `komp publish --status` lists the package's versions in the index, then its
