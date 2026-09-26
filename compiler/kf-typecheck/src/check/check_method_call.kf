@@ -406,12 +406,14 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
             // Items are expected as the element type.
             "push" => {
                 if args.size() != 1 { emit_method_arity(method_name, 1, args.size(), _span, ctx); return poison_ty() }
-                expect_arg(args, 0, ty_from_frag_in_scope(elem_frag.clone(), _span, ctx), ctx)
+                val pushed = coerce_call_arg(args, 0, ty_from_frag_in_scope(elem_frag.clone(), _span, ctx), ctx)
+                if !pushed.valid { return poison_ty() }
                 return void_ty(_span)
             }
             "set" => {
                 if args.size() != 2 { emit_method_arity(method_name, 2, args.size(), _span, ctx); return poison_ty() }
-                expect_arg(args, 1, ty_from_frag_in_scope(elem_frag.clone(), _span, ctx), ctx)
+                val stored = coerce_call_arg(args, 1, ty_from_frag_in_scope(elem_frag.clone(), _span, ctx), ctx)
+                if !stored.valid { return poison_ty() }
                 return void_ty(_span)
             }
             _ => { }

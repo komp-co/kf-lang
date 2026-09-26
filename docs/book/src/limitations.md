@@ -118,8 +118,8 @@ clock, a sleep, and a monotonic `Instant`. The process's arguments are in core
 this first slice stops short in three places:
 
 - **A collection of them does not work.** `List.new<&dyn Shape>()` is typed
-  as the trait rather than as a list ([#73]), and `List<&T>` of plain borrows
-  fails in cc ([#1]). A mixed collection is the usual reason to want dynamic
+  as the trait rather than as a list ([#73]). A `List<&Square>` of one
+  concrete type works; a mixed collection is the usual reason to want dynamic
   dispatch, so this is the gap that matters.
   Holding one in a struct of your own is rejected outright — a borrow is not
   storable, and `&dyn Trait` is a borrow like any other. So is holding a
@@ -176,7 +176,6 @@ is still being hardened — the crate-qualification issues above are all
 symptoms of it. Unity builds take a different path through the driver and do
 not agree with it in every case.
 
-[#1]: https://github.com/komp-co/komp/issues/1
 [#2]: https://github.com/komp-co/komp/issues/2
 [#3]: https://github.com/komp-co/komp/issues/3
 [#6]: https://github.com/komp-co/komp/issues/6
