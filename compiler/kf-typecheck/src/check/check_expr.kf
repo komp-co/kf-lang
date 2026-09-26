@@ -306,7 +306,7 @@ fun BinOp.is_pointer_offset(left: Type, right: Type): bool {
     }
 }
 
-fun is_integer_type(t: Type): bool {
+pub fun is_integer_type(t: Type): bool {
     return when (t.kind) {
         Int8 => true
         Int16 => true

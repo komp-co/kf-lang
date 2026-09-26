@@ -17,12 +17,11 @@ import kf_lower.ownership.check_generic_copies
 import kf_lower.ownership.check_generic_copies
 import kf_codegen.emit_module_kind
 import kf_codegen.emit_module_unit
-import kf_driver.project.join_path
-import kf_driver.project.normalized_path
 import kf_driver.cli.print_json_diag
 import kf_driver.cli.color_enabled
 import kf_codegen.emit.symbols.qualify_type_symbols
 import kf_codegen.emit.symbols.qualify_function_symbols
+import kf_shared.normalized_path
 
 extern "C" fun kf_warnings_are_muted(): int32
 extern "C" fun kf_local_root(): str

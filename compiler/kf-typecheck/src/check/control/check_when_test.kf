@@ -1,0 +1,87 @@
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_core.diagnostic.*
+import kf_core.span.no_span
+
+fun guarded_arm(kind: PatternKind, guard: ExprKind): Arm {
+    val pattern: Box<Pattern> = unsafe { alloc<Pattern>() }
+    unsafe { *pattern = new_pattern(no_span(), kind) }
+    val guard_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *guard_ptr = new_expr(no_span(), guard) }
+    return new_arm(no_span(), pattern, Option.Some<Ptr<Expr>>(guard_ptr), List.new<Stmt>())
+}
+
+fun guard_diags(subject_name: str, guard: ExprKind): List<Diagnostic> {
+    var arms = List.new<Arm>()
+    arms.push(guarded_arm(PatternKind.Identifier(intern("v")), guard))
+    arms.push(coverage_arm(PatternKind.Wildcard, false))
+    return coverage_diags(subject_name, arms, false)
+}
+
+@test fun a_bool_guard_is_accepted(): void {
+    val diags = guard_diags("int32", ExprKind.LitBool(true))
+    assert_eq(diags.size(), 0, "a bool guard needs no diagnostic")
+}
+
+@test fun a_guard_that_is_not_bool_is_rejected(): void {
+    val diags = guard_diags("int32", ExprKind.LitInt(1))
+    assert_eq(diags.size(), 1, "an integer guard is an error")
+}
+
+@test fun a_guard_reads_the_binder_at_the_subject_type(): void {
+    val diags = guard_diags("int64", ExprKind.Variable(intern("v")))
+    val expected = "a `when` guard must be a `bool`, found `int64`"
+    assert_eq(diags.at(0).primary.message.as_str(), expected, "the binder is typed")
+}
+
+@test fun a_guard_reading_a_bool_binder_is_accepted(): void {
+    val diags = guard_diags("bool", ExprKind.Variable(intern("v")))
+    assert_eq(diags.size(), 0, "the binder is a bool")
+}
+
+fun literal_diags(subject_name: str, kind: PatternKind): List<Diagnostic> {
+    var arms = List.new<Arm>()
+    arms.push(coverage_arm(kind, false))
+    arms.push(coverage_arm(PatternKind.Wildcard, false))
+    return coverage_diags(subject_name, arms, false)
+}
+
+@test fun an_integer_pattern_on_an_integer_is_accepted(): void {
+    assert_eq(literal_diags("uint8", PatternKind.LitInt(3)).size(), 0, "3 fits a uint8")
+}
+
+@test fun an_integer_pattern_on_a_str_is_rejected(): void {
+    val diags = literal_diags("str", PatternKind.LitInt(1))
+    val expected = "this pattern is an integer, but the subject is `str`"
+    assert_eq(diags.at(0).primary.message.as_str(), expected, "the mismatch is named")
+}
+
+@test fun a_char_pattern_on_an_integer_is_rejected(): void {
+    assert_eq(literal_diags("int32", PatternKind.LitChar(97)).size(), 1, "'a' is not an int32")
+}
+
+@test fun a_bool_pattern_on_a_char_is_rejected(): void {
+    assert_eq(literal_diags("char", PatternKind.LitBool(true)).size(), 1, "true is not a char")
+}
+
+@test fun a_char_pattern_on_a_char_is_accepted(): void {
+    assert_eq(literal_diags("char", PatternKind.LitChar(97)).size(), 0, "'a' is a char")
+}
+
+@test fun a_string_pattern_on_an_integer_is_rejected(): void {
+    val diags = literal_diags("int32", PatternKind.LitStr(String.from("three")))
+    val expected = "this pattern is a string, but the subject is `int32`"
+    assert_eq(diags.at(0).primary.message.as_str(), expected, "the mismatch is named")
+}
+
+@test fun a_string_pattern_on_a_str_is_accepted(): void {
+    assert_eq(literal_diags("str", PatternKind.LitStr(String.from("get"))).size(), 0, "\"get\" is a str")
+}
+
+@test fun a_string_arm_does_not_close_the_when(): void {
+    var arms = List.new<Arm>()
+    arms.push(coverage_arm(PatternKind.LitStr(String.from("get")), false))
+    assert_eq(coverage_diags("str", arms, false).size(), 1, "a string arm covers nothing")
+}

@@ -4,6 +4,7 @@ import kf_core.diagnostic.*
 import kf_core.span.*
 import kf_driver.fresh_source_map
 import kf_driver.integration.json_contains
+import kf_shared.render_json_error
 
 @test
 fun json_diagnostic_includes_location_and_escaped_message(): void {

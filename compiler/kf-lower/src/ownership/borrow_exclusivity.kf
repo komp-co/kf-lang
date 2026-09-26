@@ -87,12 +87,20 @@ fun Stmt.bx_check_stmt(ptable: Ptr<List<ParamEntry>>, diags: Ptr<List<Diagnostic
         When(subject, arms) => {
             bx_check_expr(unsafe { &*subject }, self.span, ptable, diags)
             while arm in &arms {
+                when (arm.guard) {
+                    Some(guard) => bx_check_expr(unsafe { &*guard }, self.span, ptable, diags)
+                    None => { }
+                }
                 bx_check_stmts(arm.body, ptable, diags)
             }
         }
         Switch(subject, arms) => {
             bx_check_expr(unsafe { &*subject }, self.span, ptable, diags)
             while arm in &arms {
+                when (arm.guard) {
+                    Some(guard) => bx_check_expr(unsafe { &*guard }, self.span, ptable, diags)
+                    None => { }
+                }
                 bx_check_stmts(arm.body, ptable, diags)
             }
         }

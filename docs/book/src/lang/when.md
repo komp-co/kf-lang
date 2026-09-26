@@ -1,8 +1,9 @@
 # when
 
-`when` is the pattern-matching expression. It works on enums, integers,
-booleans, and any type that can be compared for equality. The compiler checks
-that every case is covered.
+`when` is the pattern-matching expression. It matches enums, integers,
+booleans, characters and strings by their literal spelling, and any other
+value through a [guard](#guards). The compiler checks that every case is
+covered.
 
 ## Matching scalars
 
@@ -59,8 +60,63 @@ fun is_vowel(c: char): bool {
 }
 ```
 
+A literal pattern must be of the subject's own kind: an integer pattern needs
+an integer subject, `'a'` a `char`, and `true` a `bool`. Anything else is
+rejected, naming both:
+
+```kflat
+fun main(): int32 {
+    val s = String.from("abc")
+    return when s {
+        1 => 5
+        _ => 0
+    }
+}
+```
+
+```console
+$ komp check .
+src/main.kf:4:9: error: this pattern is an integer, but the subject is `String`
+```
+
 There is deliberately no float literal pattern: matching on float equality is
 a trap, and no language worth copying allows it.
+
+## String patterns
+
+A string literal matches a `str`, a `String`, or a borrow of either, by
+content:
+
+```kflat
+fun code(verb: str): int32 {
+    return when verb {
+        "get" => 1
+        "put" => 2
+        _ => 0
+    }
+}
+```
+
+No set of strings is ever complete, so a string `when` always needs `_` or a
+binding. Like any other arm, a string arm may carry a guard (`"get" if loud`).
+An interpolated string is not a pattern.
+
+A string pattern on anything else is rejected:
+
+```kflat
+fun main(): int32 {
+    val n = 3
+    return when n {
+        "three" => 1
+        _ => 0
+    }
+}
+```
+
+```console
+$ komp check .
+src/main.kf:4:9: error: this pattern is a string, but the subject is `int32`
+```
 
 ## Guards
 
@@ -89,6 +145,23 @@ fun area(s: Shape): int32 {
     }
 }
 ```
+
+A guard is any `bool` expression. It can call a method on the binder, or
+compare it with `==` through the type's `Equal`, which is how a `when` matches
+a value that no literal pattern can spell:
+
+```kflat
+fun classify(p: Point, target: &Point): int32 {
+    return when p {
+        v if v == *target => 1
+        v if v.is_origin() => 2
+        _ => 3
+    }
+}
+```
+
+A temporary built inside a guard is not dropped yet; see
+[limitations](../limitations.md#when-guards).
 
 A guarded arm covers nothing for exhaustiveness purposes — its condition may
 be false at runtime — so the `when` above still needs the unguarded

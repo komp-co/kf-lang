@@ -1,5 +1,6 @@
 import core.assert.assert_eq
 import std.fs.scratch_path
+import kf_shared.normalized_path
 
 extern "C" fun system(cmd: str): int32
 

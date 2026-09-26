@@ -22,6 +22,8 @@ import kf_driver.cli.query.dispatch_query
 import kf_interface.interface_compiler_abi
 import kf_interface.interface_runtime_abi
 import kf_interface.interface_target
+import kf_shared.cli_arg_count
+import kf_shared.kflat_version
 
 extern "C" fun kf_mute_warnings(on: int32): void
 
@@ -110,7 +112,7 @@ pub fun kflatc_cli(): int32 {
 
 /// One `key value` line each, which komp reads to know what it is running.
 fun kflatc_version(): int32 {
-    println("kflatc 0.1.0")
+    println("kflatc ${kflat_version()}")
     println("abi ${interface_compiler_abi()}")
     println("runtime ${interface_runtime_abi()}")
     println("target ${interface_target()}")

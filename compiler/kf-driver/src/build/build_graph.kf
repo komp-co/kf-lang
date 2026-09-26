@@ -4,7 +4,12 @@
 
 import alloc.list.*
 
+import kf_driver.fetch.LockEntry
+import kf_driver.fetch.cache_root
 import kf_driver.project.*
+import kf_shared.absolutize
+import kf_shared.normalized_path
+import kf_shared.canonicalize_path
 
 extern "C" fun access(path: str, mode: int32): int32
 // The compiler binary's directory, to find the bundled stdlib.
@@ -44,7 +49,8 @@ pub fun build_crate_graph(root_dir: str): BuildGraph {
     var done = List.new<String>()
     val root = canonicalize_path(absolutize(root_dir).as_str())
     val freestanding = root_is_freestanding(root.as_str())
-    visit_crate(root, freestanding, &var crates, &var cycle, &var error, &var in_progress, &var done)
+    val sources = DependencySources { lock: read_lock(root.as_str()), cache: cache_root() }
+    visit_crate(root, freestanding, &sources, &var crates, &var cycle, &var error, &var in_progress, &var done)
     if error.as_str() != "" { crates = List.new<BuildCrate>() }
     return BuildGraph { crates: crates, cycle: cycle, freestanding: freestanding, error: error }
 }
@@ -57,7 +63,16 @@ fun root_is_freestanding(root: str): bool {
     return parse_manifest(read_file(manifest_path.as_str()).as_str()).freestanding
 }
 
-fun visit_crate(root: String, freestanding: bool, crates: &var List<BuildCrate>, cycle: &var String, error: &var String, in_progress: &var List<String>, done: &var List<String>): void {
+/// What a remote dependency resolves through: the lock pins it, the cache
+/// holds it.
+struct DependencySources {
+    val lock: List<LockEntry>
+    val cache: String
+}
+
+fun visit_crate(root: String, freestanding: bool, sources: &DependencySources, crates: &var List<BuildCrate>,
+                cycle: &var String, error: &var String, in_progress: &var List<String>,
+                done: &var List<String>): void {
     if error.as_str() != "" { return }
     if cycle.cycle_found() { return }
     if path_list_has(done, root.as_str()) { return }
@@ -80,13 +95,15 @@ fun visit_crate(root: String, freestanding: bool, crates: &var List<BuildCrate>,
     val eff_deps = mf.effective_deps(root.as_str())
     var dep_names = List.new<String>()
     while eff_dep in &eff_deps {
-        // Cloned: `get` aliases the dependency's Strings.
-        val dep_path = eff_dep.path.clone()
-        val dep_root = resolve_dep_root(root.as_str(), dep_path.as_str())
+        val dep_root = dependency_root(root.as_str(), eff_dep, &sources.lock, sources.cache.as_str())
+        if dep_root.byte_len() == 0 {
+            (*error) = "error: dependency `${eff_dep.name}` of ${root} is not fetched; `komp build` fetches it"
+            return
+        }
         // The crate name comes from its own manifest; the dependency key is an
         // alias.
         val dep_manifest = dep_root.clone() + String.from("/kf.toml")
-        visit_crate(dep_root.clone(), freestanding, crates, cycle, error, in_progress, done)
+        visit_crate(dep_root.clone(), freestanding, sources, crates, cycle, error, in_progress, done)
         if cycle.cycle_found() || error.as_str() != "" { return }
         if unsafe { access(dep_manifest.as_str(), 0) } == 0 {
             val dep_mf = parse_manifest(read_file(dep_manifest.as_str()).as_str())
@@ -151,7 +168,7 @@ fun Manifest.effective_deps(crate_root: str): List<Dependency> {
         }
     }
     while dep in &self.deps {
-        out.push(new_dependency(dep.name.clone(), dep.path.clone()))
+        out.push(dep.clone())
     }
     return out
 }
@@ -217,16 +234,4 @@ fun path_list_has(paths: &var List<String>, target: str): bool {
         if path.as_str() == target { return true }
     }
     return false
-}
-
-// A relative path resolves against the depending crate's canonical root.
-fun resolve_dep_root(base: str, rel: str): String {
-    val rn = rel.byte_len()
-    if rn > 0 {
-        if rel.byte_at(0) == 47 {
-            return canonicalize_path(rel)
-        }
-    }
-    val joined = String.from(base) + String.from("/") + String.from(rel)
-    return canonicalize_path(joined.as_str())
 }

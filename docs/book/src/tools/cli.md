@@ -18,6 +18,7 @@ points, and then compiles and links the C with cc.
 | `komp check <dir>` | Type-check only; no binary produced |
 | `komp test <dir>` | Run `@test` functions in the crate |
 | `komp query <what> --file <path> [--offset <N>] [--overlay <path>]` | Answer an editor's question about one file as JSON |
+| `komp update <dir>` | Resolve fetched dependencies again and rewrite `kf.lock` |
 | `komp new <name>` | Scaffold a new project directory |
 | `komp init` | Scaffold a project in the current directory |
 | `komp version` | Print compiler version |
@@ -97,6 +98,15 @@ source.
 `komp test <project-dir>` finds all `@test` functions in `_test.kf` files
 inside the crate, runs them, and reports failures. See
 [Writing tests](testing.md).
+
+### komp update
+
+`komp update <project-dir>` resolves every version, `git` and `tarball`
+dependency again: a version requirement moves to the highest version the index
+now has, and a tag or branch to the commit it names now. It fetches what is
+new and rewrites `kf.lock`. Every other command fetches only what the lock
+does not already pin. See
+[Fetched dependencies](../start/projects.md#fetched-dependencies).
 
 ### komp query
 
@@ -414,6 +424,8 @@ usual), and 2 on a malformed command line.
 | `--verbose` (on `build`) | Show the cc invocation |
 | `--diagnostic-format=json` (on `check`) | Output diagnostics as JSON lines |
 | `--unity` (on `build`/`run`/`test`) | Emit a single merged C unit |
+| `--locked` | Fail rather than change `kf.lock` |
+| `--offline` | Fail rather than fetch a dependency |
 
 ### Colored output
 

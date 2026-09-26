@@ -268,6 +268,13 @@ impl Parser {
             unsafe { self.advance() }
             return new_pattern(pat_span, PatternKind.LitChar(c))
         }
+        when (self.peek().string_literal_text()) {
+            Some(text) => {
+                unsafe { self.advance() }
+                return new_pattern(pat_span, PatternKind.LitStr(text))
+            }
+            None => { }
+        }
         if is_identifier(self.peek()) {
             val name = ident_name_or_anon(self.peek())
             unsafe { self.advance() }
@@ -297,7 +304,7 @@ impl Parser {
         // Unsupported here: reported, then resynced on the arm's `=>` so it
         // costs one diagnostic.
         unsafe { self.advance() }
-        self.parse_err(pat_span, String.from("unsupported pattern — `when` matches enum variants, integer, char and bool literals, a binding, or `_`"))
+        self.parse_err(pat_span, String.from("unsupported pattern — `when` matches enum variants, integer, char, bool and string literals, a binding, or `_`"))
         self.skip_to_arm_arrow()
         return pattern_poison(pat_span)
     }

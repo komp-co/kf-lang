@@ -210,8 +210,10 @@ fun Stmt.assert_dyn_stmt_concrete(): void {
         }
         Switch(subject, arms) => {
             assert_dyn_expr_concrete(unsafe { &*subject })
-            var i = 0
-            while i < arms.size() { assert_dyn_stmt_list_concrete(&arms.at(i).body); i = i + 1 }
+            while arm in &arms {
+                assert_dyn_opt_expr_concrete(arm.guard)
+                assert_dyn_stmt_list_concrete(&arm.body)
+            }
         }
         _ => { }
     }

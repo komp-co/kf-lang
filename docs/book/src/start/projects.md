@@ -25,8 +25,9 @@ version = "0.1.0"
 kind = "bin"
 ```
 
-The name is derived from the directory: hyphens become underscores (`my-project`
-→ `my_project`), because the crate name becomes a C identifier.
+The name is derived from the directory's own name, the last component of the
+path you give: hyphens become underscores (`komp new work/my-project` →
+`my_project`), because the crate name becomes a C identifier.
 
 ### kind: library vs binary
 
@@ -43,8 +44,6 @@ entry point and can only be used as a dependency.
 The generated template for a binary crate:
 
 ```kflat
-import core.display.*
-
 fun main(): int32 {
     println("Hello, world!")
     return 0
@@ -93,8 +92,77 @@ The key (left of `=`) is how the dependency is imported in KFlat source:
 import my_lib.*
 ```
 
-The path is relative to the `kf.toml` that declares it. Only local-path
-dependencies are supported.
+The path is relative to the `kf.toml` that declares it.
+
+### Versions from an index
+
+A dependency written as a version comes from a package index:
+
+```toml
+[dependencies]
+json = "0.1"
+yaml = { version = "0.3", index = "work" }
+
+[indexes]
+work = "https://git.example.org/kflat-index"
+```
+
+A version requirement allows every later version that keeps its leftmost
+non-zero part: `"1.4"` means at least 1.4.0 and below 2.0.0, `"0.2"` at least
+0.2.0 and below 0.3.0, and `"0.0.3"` exactly 0.0.3. komp picks the highest
+version the requirement allows that has not been yanked.
+
+Without an `index` key the requirement goes to the default index,
+[komp-co/index](https://github.com/komp-co/index), or to `$KFLAT_INDEX` when
+that is set. `[indexes]` names any other one; an index is a git repository,
+so a private one is a private repository. Its README says how to add a
+package.
+
+The index is read only to choose a version. What was chosen is fetched like
+any other remote dependency and pinned in `kf.lock`, which also records the
+index, so a build with a lock never reads the index at all.
+
+### Fetched dependencies
+
+A dependency can also come from a git repository or a tarball, on any host:
+
+```toml
+[dependencies]
+json = { git = "https://github.com/komp-co/json" }
+text = { git = "https://git.example.org/text.git", tag = "v1.2.0" }
+yaml = { tarball = "https://example.org/yaml-0.3.0.tar.gz", checksum = "sha256:9f86d0…" }
+```
+
+A `git` source takes at most one of `tag`, `branch` or `rev` (a commit,
+abbreviated or not). Without one, it follows the repository's default branch.
+A `tarball` may carry the sha256 of the archive, which the download must
+match. The crate is at the archive's root, or inside its one top-level
+directory, as release archives lay it out. Each row names exactly one of
+`path`, `git` or `tarball`.
+
+Before `build`, `run`, `check`, `test` or `fix`, komp fetches whatever is new
+into its cache, `$KFLAT_CACHE` or else `~/.cache/kflat`, and records exactly
+what it got in `kf.lock` beside `kf.toml`:
+
+```toml
+[[package]]
+name = "json"
+version = "0.1.0"
+source = { git = "https://github.com/komp-co/json", rev = "f1bd0aee61045540f52524d793c075cbb091cb2e" }
+```
+
+Commit `kf.lock`. While it has a row for a dependency, every build uses that
+commit or that archive, from the cache, without the network, even after the
+branch or tag has moved or a newer version has been published. `komp update`
+resolves every dependency again and rewrites the lock. `--locked` makes a command fail rather than change
+`kf.lock`, and `--offline` makes it fail rather than fetch; CI wants both.
+
+A fetched crate's `core`, `alloc` and `std` are always the ones bundled with
+komp, whatever path its own manifest gives them. A crate name may come from
+only one source in a program: two commits of one crate would define the same
+symbols, so two requirements no one version satisfies are an error. A
+workspace has one `kf.lock`, beside the workspace manifest, which
+covers every member.
 
 `core` and `alloc` do not need an entry — the compiler injects them into any
 crate that declares no dependencies of its own, and a crate that *does* have

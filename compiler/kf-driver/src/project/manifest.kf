@@ -5,18 +5,9 @@
 //   kind = "bin"           # "bin" (default) or "lib"
 //
 //   [dependencies]
-//   kf_core = { path = "../kf-core" }
+//   kf_core = { path = "../kf-core" }     # dependency.kf reads the row
 
 import alloc.list.*
-
-pub struct Dependency {
-    pub val name: String
-    pub val path: String
-}
-
-pub fun new_dependency(name: String, path: String): Dependency {
-    return Dependency { name: name, path: path }
-}
 
 pub struct Manifest {
     pub val name: String
@@ -35,10 +26,14 @@ pub struct Manifest {
     pub val error: String
 }
 
-pub fun new_manifest_with_lints(name: String, version: String, kind: String, deps: List<Dependency>, lint_names: List<String>, lint_levels: List<String>, freestanding: bool): Manifest {
-    var error = ""
-    if name.as_str() == "" {
-        error = String.from("manifest has no crate name (expected name in [project] or [package])")
+/// `dep_error` is the first malformed dependency's, or "".
+pub fun new_manifest_with_lints(name: String, version: String, kind: String, deps: List<Dependency>,
+                                lint_names: List<String>, lint_levels: List<String>, freestanding: bool,
+                                dep_error: String): Manifest {
+    val error = if name.as_str() == "" {
+        String.from("manifest has no crate name (expected name in [project] or [package])")
+    } else {
+        dep_error
     }
     return Manifest { name: name, version: version, kind: kind, deps: deps, lint_names: lint_names, lint_levels: lint_levels, freestanding: freestanding, error: error }
 }
@@ -53,6 +48,9 @@ pub fun parse_manifest(src: str): Manifest {
     var lint_levels = List.new<String>()
     var freestanding = false
     var section = ""
+    var dep_error = ""
+    var index_names = List.new<String>()
+    var index_urls = List.new<String>()
 
     val lines = split_lines(src)
     while raw in &lines {
@@ -98,20 +96,33 @@ pub fun parse_manifest(src: str): Manifest {
                             lint_levels.push(value.clone())
                         }
                     }
+                    // One `name = "url"` per row.
+                    if sect_str == "indexes" {
+                        index_names.push(read_key(line.clone()))
+                        index_urls.push(read_string_value(line.clone()))
+                    }
                     if in_deps {
-                        val key = read_key(line)
-                        val path = read_inline_table_path(line)
-                        val p_str = path.as_str()
-                        val have_path = p_str != ""
-                        if have_path {
-                            deps.push(new_dependency(key, path))
-                        }
+                        val dep = parse_dependency(read_key(line.clone()), line.as_str())
+                        if dep_error.byte_len() == 0 { dep_error = dep.source_error() }
+                        deps.push(dep)
                     }
                 }
             }
         }
     }
-    return new_manifest_with_lints(name, version, kind, deps, lint_names, lint_levels, freestanding)
+    var looked_up = List.new<Dependency>()
+    while dep in &deps {
+        if dep.version.byte_len() == 0 {
+            looked_up.push(dep.clone())
+            continue
+        }
+        val url = index_url_for(dep.index.as_str(), &index_names, &index_urls)
+        if url.byte_len() == 0 && dep_error.byte_len() == 0 {
+            dep_error = "dependency `${dep.name}` names index `${dep.index}`, which `[indexes]` does not declare"
+        }
+        looked_up.push(dep.in_index(url.as_str()))
+    }
+    return new_manifest_with_lints(name, version, kind, looked_up, lint_names, lint_levels, freestanding, dep_error)
 }
 
 /// `[native] c_sources`: C files, relative to the crate root, compiled and
@@ -281,24 +292,4 @@ pub fun read_bool_value(s: String): bool {
         i = i + 1
     }
     return false
-}
-
-// 'name = { path = "value" }' -> 'value'
-fun read_inline_table_path(s: String): String {
-    val line = s.as_str()
-    val n = line.byte_len()
-    var i: uint64 = 0
-    while i + 4 <= n {
-        val b0 = line.byte_at(i)
-        val b1 = line.byte_at(i + 1)
-        val b2 = line.byte_at(i + 2)
-        val b3 = line.byte_at(i + 3)
-        val is_path = b0 == 112 && b1 == 97 && b2 == 116 && b3 == 104
-        if is_path {
-            val tail = line.substring(i + 4, n)
-            return read_string_value(tail)
-        }
-        i = i + 1
-    }
-    return ""
 }

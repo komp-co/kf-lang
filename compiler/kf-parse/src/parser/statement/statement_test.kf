@@ -8,10 +8,16 @@ import kf_core.span.*
 import kf_core.ast.*
 import kf_parse.parser.parser_for
 
-@test fun a_string_pattern_is_reported(): void {
+@test fun a_string_pattern_parses_clean(): void {
     val p = parser_for("fun f(s: str): int32 { when (s) { \"a\" => return 1  _ => return 0 } }")
     val _m = p.parse_module(List.new<String>())
-    assert_eq(p.diags.size() > 0, true, "a string in pattern position is an error, not silence")
+    assert_eq(p.diags.size(), 0, "a string literal is a supported pattern")
+}
+
+@test fun an_interpolated_string_pattern_is_reported(): void {
+    val p = parser_for("fun f(s: str): int32 { when (s) { \"a\${s}\" => return 1  _ => return 0 } }")
+    val _m = p.parse_module(List.new<String>())
+    assert_eq(p.diags.size() > 0, true, "an interpolated string is not a pattern")
 }
 
 @test fun an_integer_pattern_still_parses_clean(): void {

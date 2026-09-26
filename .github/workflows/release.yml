@@ -1,0 +1,46 @@
+name: Release
+
+# A merge into `main` is a release: this workflow builds the seed, this
+# commit's komp and kflatc as C, from the pinned seed, verifies the fixpoint,
+# and publishes it under the tag `v<kflat_version()>`. Pinning that release in
+# bootstrap/stage0.toml makes it the seed.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+      - name: Read the version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(sed -n 's/^ *return "\(.*\)"$/\1/p' compiler/kf-shared/src/version.kf)
+          if gh release view "v$version" > /dev/null 2>&1; then
+            echo "v$version is already released; a release PR must bump kflat_version()" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build the seed and verify the fixpoint
+        run: sh bootstrap/build.sh --seed-out dist
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "v$VERSION" dist/* --target "$GITHUB_SHA" \
+            --title "kflat $VERSION" --generate-notes

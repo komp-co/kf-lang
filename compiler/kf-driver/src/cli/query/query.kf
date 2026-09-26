@@ -8,8 +8,8 @@ import alloc.list.*
 import kf_core.ast.*
 import kf_parse.lexer.tokenize
 import kf_parse.parser.new_parser
-import kf_driver.cli.render_json_error
-import kf_driver.cli.cli_arg_get
+import kf_shared.render_json_error
+import kf_shared.cli_arg_get
 
 extern "C" fun access(path: str, mode: int32): int32
 

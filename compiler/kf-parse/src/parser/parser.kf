@@ -269,6 +269,14 @@ pub fun Token.is_char_literal(): bool {
     }
 }
 
+/// The text of a plain string literal; an interpolated one never lexes as one.
+pub fun Token.string_literal_text(): String? {
+    return when (self.kind) {
+        StringLiteral(text) => text.clone()
+        _ => null
+    }
+}
+
     /// 0 unless a CharLiteral.
 pub fun Token.char_literal_value(): uint32 {
     return when (self.kind) {

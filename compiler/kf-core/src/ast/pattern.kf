@@ -41,7 +41,7 @@ pub fun pattern_poison(span: Span): Pattern {
 pub struct Arm {
     pub val span:    Span
     pub val pattern: Box<Pattern>
-    pub val guard:   Ptr<Expr>?
+    pub var guard:   Ptr<Expr>?
     pub var body:    List<Stmt>
 }
 

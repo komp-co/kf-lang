@@ -89,6 +89,15 @@ src/main.kf:3:13: error: lambda parameter `x` needs a type annotation (its type 
   in the C compiler ([#75]). Leave the annotation off where the bound supplies
   it.
 
+## when guards
+
+- **A temporary built inside a guard is not dropped** ([#85]). In
+  `v if v == "get"` over a `String`, the literal is converted to a `String`
+  for the comparison and leaks. Compare `str`s instead (`v.as_str() == "get"`),
+  or write a string pattern, which does so for you.
+- **A guard inside a lambda does not capture** ([#84]). An outer variable read
+  only from a guard, in a `when` inside a lambda body, is not captured.
+
 ## Generics
 
 - A generic struct literal typed only by its binding
@@ -175,6 +184,9 @@ a process launch and a re-check. A KFlat-native server that links the compiler
 in-process is [kf-lsp#1](https://github.com/komp-co/kf-lsp/issues/1). There is
 no formatter ([#15]).
 
+A package's feature flags are not read, and there is no `komp publish`: a
+version reaches the index by a pull request written by hand ([#79]).
+
 ## Where the compiler itself stands
 
 The compiler self-hosts and the fixpoint holds: komp compiles its own source
@@ -202,3 +214,6 @@ not agree with it in every case.
 [#58]: https://github.com/komp-co/komp/issues/58
 [#73]: https://github.com/komp-co/komp/issues/73
 [#75]: https://github.com/komp-co/komp/issues/75
+[#79]: https://github.com/komp-co/komp/issues/79
+[#84]: https://github.com/komp-co/komp/issues/84
+[#85]: https://github.com/komp-co/komp/issues/85

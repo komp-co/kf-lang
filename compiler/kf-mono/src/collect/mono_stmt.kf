@@ -47,6 +47,10 @@ pub mutating fun Stmt.mono_stmt_in(owner: str): void {
             mono_expr_in(unsafe { &var *subj_ptr }, owner)
             while i in 0..arms.size() {
                 val arm = arms.at_mut(i)
+                when (arm.guard) {
+                    Some(guard) => mono_expr_in(unsafe { &var *guard }, owner)
+                    None => { }
+                }
                 mono_stmt_list_in(&var arm.body, owner)
             }
         }

@@ -1,6 +1,8 @@
 import core.args.arg_count
 import core.args.arg_at
 import alloc.list.*
+import kf_shared.is_quiet_flag
+import kf_shared.cli_arg_get
 
 pub fun is_help_flag(arg: str): bool {
     return arg == "-h" || arg == "--help"
@@ -50,7 +52,7 @@ fun test_flags_well_formed(nargs: int32, start: int32): bool {
     var i: int32 = start
     while i < nargs {
         val a = cli_arg_get(i)
-        if a == "--workspace" {
+        if a == "--workspace" || is_fetch_flag(a) {
             i = i + 1
         } else {
             val takes_value = a == "--case" || a == "--filter" || a == "--manifest-path"
@@ -75,7 +77,7 @@ pub struct CliArgs {
 
 fun known_command(value: str): bool {
     val compile_command = value == "build" || value == "check" || value == "run" || value == "test"
-    val project_command = value == "new" || value == "init" || value == "bootstrap"
+    val project_command = value == "new" || value == "init"
     return compile_command || project_command || value == "help" || value == "version"
 }
 
