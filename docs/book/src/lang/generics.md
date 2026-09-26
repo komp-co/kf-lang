@@ -121,6 +121,27 @@ A bound on the impl block is what a lazy iterator adapter needs, since the
 source iterator and the callable are the *struct's* parameters rather than any
 one method's.
 
+A bound on a trait impl's parameter is a condition on the impl. core writes
+`impl Clone for Option<T: Clone>`, so `Option<X>` is `Clone` only when `X` is,
+and a bound asking for `Clone` checks the argument too:
+
+```kflat
+struct Unique { pub var n: int32 }
+
+fun dup<T: Clone>(v: &T): T { return v.clone() }
+
+fun main(): int32 {
+    val o: Option<Unique> = Unique { n: 1 }
+    val p = dup<Option<Unique>>(&o)
+    return 0
+}
+```
+
+```console
+$ komp check .
+src/main.kf:7:13: error: type `Option<Unique>` does not implement trait `Clone` (required by bound `T: Clone` on `dup`)
+```
+
 `.equals()` under a `T: Equal` bound works whether `T` is a primitive or a
 struct, as does `==` on the same bound. Primitives satisfy `Equal`, `Compare`
 and `Display` intrinsically, with no `impl` to find.

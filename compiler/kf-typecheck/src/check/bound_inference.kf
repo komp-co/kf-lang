@@ -146,7 +146,8 @@ pub fun bound_type_implements_here(bound_ty: &Type, trait_name: str, args: Strin
                                    ctx: &var TypeCtx): bool {
     if trait_name.equals(ctx.lang_trait_name(lang_copy_key()).as_str()) { return bound_ty.type_is_copy(ctx) }
     if !bound_ty.bound_type_implements(trait_name, ctx.sigs) { return false }
-    return impl_args_agree(bound_ty, trait_name, args.as_str(), free, span, ctx)
+    if !impl_args_agree(bound_ty, trait_name, args.as_str(), free, span, ctx) { return false }
+    return bound_ty.instance_args_meet(trait_name, span, ctx)
 }
 
 /// The impl's arguments, with its parameters taking the receiver's, agree
