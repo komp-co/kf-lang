@@ -4,14 +4,15 @@ import kf_driver.project.parse_dependency
 
 fun git_row(name: str, tag: str, rev: str): LockEntry {
     return LockEntry {
-        name: String.from(name), version: "1.0.0", git: "https://example.org/${name}.git", tag: String.from(tag),
+        name: String.from(name), version: "1.0.0", index: "", git: "https://example.org/${name}.git",
+        tag: String.from(tag),
         branch: "", rev: String.from(rev), tarball: "", checksum: ""
     }
 }
 
 fun tarball_row(): LockEntry {
     return LockEntry {
-        name: "text", version: "2.0.0", git: "", tag: "", branch: "", rev: "",
+        name: "text", version: "2.0.0", index: "", git: "", tag: "", branch: "", rev: "",
         tarball: "https://example.org/text.tar.gz", checksum: "sha256:abc"
     }
 }

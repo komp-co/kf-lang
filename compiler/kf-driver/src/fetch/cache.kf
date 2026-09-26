@@ -28,5 +28,9 @@ pub fun LockEntry.cached_root(cache: str): String {
 
 /// A fetch finished: the crate root holds its manifest.
 pub fun is_fetched(crate_root: str): bool {
-    return unsafe { access("${crate_root}/kf.toml".as_str(), 0) } == 0
+    return path_exists("${crate_root}/kf.toml".as_str())
+}
+
+pub fun path_exists(path: str): bool {
+    return unsafe { access(path, 0) } == 0
 }

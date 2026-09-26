@@ -21,7 +21,9 @@ pub fun fetch_failed(message: String): Fetched {
 
 /// A row with every field "": no pin.
 pub fun empty_lock_entry(): LockEntry {
-    return LockEntry { name: "", version: "", git: "", tag: "", branch: "", rev: "", tarball: "", checksum: "" }
+    return LockEntry {
+        name: "", version: "", index: "", git: "", tag: "", branch: "", rev: "", tarball: "", checksum: ""
+    }
 }
 
 /// An empty directory private to this process under `<cache>/<kind>`.
@@ -38,11 +40,11 @@ pub fun remove_tree(path: str): void {
 }
 
 /// Moves `staged` to `root`. Losing a race to another komp is success: both
-/// wrote the same pinned bytes.
+/// wrote the same bytes.
 pub fun publish_fetched(staged: str, root: str): bool {
     if unsafe { rename(staged, root) } == 0 { return true }
     remove_tree(staged)
-    return is_fetched(root)
+    return path_exists(root)
 }
 
 /// The row for the crate published at `root`, named by its own manifest.
@@ -53,7 +55,8 @@ pub fun entry_at(root: str, git: &String, tag: &String, branch: &String, rev: St
     if manifest.error.byte_len() > 0 { return fetch_failed("its kf.toml is invalid: ${manifest.error}") }
     return Fetched {
         entry: LockEntry {
-            name: manifest.name.clone(), version: manifest.version.clone(), git: git.clone(), tag: tag.clone(),
+            name: manifest.name.clone(), version: manifest.version.clone(), index: "", git: git.clone(),
+            tag: tag.clone(),
             branch: branch.clone(), rev: rev, tarball: tarball.clone(), checksum: checksum
         },
         error: ""

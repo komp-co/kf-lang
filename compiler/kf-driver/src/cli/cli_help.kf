@@ -72,8 +72,9 @@ Takes no project directory: komp finds the crate itself.
   --overlay <path>   read the buffer from here instead of from disk"""
     }
     if command == "update" {
-        return """Resolve every git and tarball dependency again: a tag or branch
-moves to the commit it names now. Fetches, and rewrites kf.lock.
+        return """Resolve every version, git and tarball dependency again: a
+requirement moves to the highest version its index now has, a tag or branch
+to the commit it names now. Fetches, and rewrites kf.lock.
 
   -p, --package <c>   update the workspace holding this member"""
     }
@@ -113,9 +114,9 @@ pub fun print_usage(): void {
     runtime_println("The project directory defaults to the current directory, or is")
     runtime_println("named by --manifest-path. At a workspace, a command runs on its")
     runtime_println("default-member; --package <crate> and --workspace choose others.")
-    runtime_println("Git and tarball dependencies are fetched before a build and pinned in")
-    runtime_println("kf.lock: --locked fails rather than change it, --offline rather than")
-    runtime_println("fetch.")
+    runtime_println("Dependencies from an index, git or a tarball are fetched before a")
+    runtime_println("build and pinned in kf.lock: --locked fails rather than change it,")
+    runtime_println("--offline rather than fetch.")
     runtime_println("Global: -q, --quiet suppress warnings; -h, --help print this.")
     runtime_println("")
     runtime_println("`komp <command> --help` describes one command.")

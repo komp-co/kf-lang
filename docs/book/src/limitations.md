@@ -184,9 +184,8 @@ a process launch and a re-check. A KFlat-native server that links the compiler
 in-process is [kf-lsp#1](https://github.com/komp-co/kf-lsp/issues/1). There is
 no formatter ([#15]).
 
-There is no package index yet. A dependency names where it comes from, a path,
-a git repository or a tarball, and a bare version such as `json = "0.2"` is
-rejected. Versions, feature flags and publishing are [#79].
+A package's feature flags are not read, and there is no `komp publish`: a
+version reaches the index by a pull request written by hand ([#79]).
 
 ## Where the compiler itself stands
 

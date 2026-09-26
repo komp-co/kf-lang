@@ -90,15 +90,17 @@ fun a_git_dependency_keeps_its_tag(): void {
 
 @test
 fun a_dependency_without_a_source_is_an_error(): void {
-    val manifest = one_dependency("json = \"0.2\"")
-    assert_eq(manifest.error.as_str(), "dependency `json` names no source: give it `path`, `git` or `tarball`",
-        "a bare version needs an index, which komp does not read")
+    val manifest = one_dependency("json = { features = \"x\" }")
+    val expected = "dependency `json` names no source: give it a version, `path`, `git` or `tarball`"
+    assert_eq(manifest.error.as_str(), expected,
+        "a table needs one of them")
 }
 
 @test
 fun a_dependency_with_two_sources_is_an_error(): void {
     val manifest = one_dependency("json = { path = \"../json\", git = \"https://example.org/json.git\" }")
-    assert_eq(manifest.error.as_str(), "dependency `json` names more than one of `path`, `git` and `tarball`",
+    val expected = "dependency `json` names more than one of a version, `path`, `git` and `tarball`"
+    assert_eq(manifest.error.as_str(), expected,
         "which one would win is not the user's to guess")
 }
 
@@ -121,4 +123,38 @@ fun a_checksum_needs_its_algorithm(): void {
     val manifest = one_dependency("json = { tarball = \"https://example.org/json.tar.gz\", checksum = \"abc\" }")
     assert_eq(manifest.error.as_str(), "dependency `json`: a checksum is written `sha256:<hex digest>`",
         "the prefix leaves room for another algorithm")
+}
+
+@test
+fun a_bare_version_is_a_requirement(): void {
+    val manifest = one_dependency("json = \"0.2\"")
+    assert_eq(manifest.deps.at(0).version.as_str(), "0.2", "a string row is a version")
+}
+
+@test
+fun a_bare_version_is_looked_up_in_the_default_index(): void {
+    val manifest = one_dependency("json = \"0.2\"")
+    assert_eq(manifest.deps.at(0).index_url.as_str(), default_index_url().as_str(), "no `index` key")
+}
+
+@test
+fun a_named_index_is_looked_up_in_indexes(): void {
+    val dependencies = "[dependencies]\njson = { version = \"0.2\", index = \"work\" }\n"
+    val manifest = parse_manifest(
+        "[project]\nname = \"app\"\n\n${dependencies}\n[indexes]\nwork = \"file:///srv/index\"\n".as_str())
+    assert_eq(manifest.deps.at(0).index_url.as_str(), "file:///srv/index", "`[indexes]` may follow its user")
+}
+
+@test
+fun an_undeclared_index_is_an_error(): void {
+    val manifest = one_dependency("json = { version = \"0.2\", index = \"work\" }")
+    assert_eq(manifest.error.as_str(), "dependency `json` names index `work`, which `[indexes]` does not declare",
+        "a typo in an index name")
+}
+
+@test
+fun a_malformed_requirement_is_an_error(): void {
+    val manifest = one_dependency("json = \"^0.2\"")
+    assert_eq(manifest.error.as_str(), "dependency `json`: `^0.2` is not a version requirement such as \"1.4\"",
+        "the caret is implied, and not written")
 }

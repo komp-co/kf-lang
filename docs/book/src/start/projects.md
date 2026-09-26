@@ -94,6 +94,34 @@ import my_lib.*
 
 The path is relative to the `kf.toml` that declares it.
 
+### Versions from an index
+
+A dependency written as a version comes from a package index:
+
+```toml
+[dependencies]
+json = "0.1"
+yaml = { version = "0.3", index = "work" }
+
+[indexes]
+work = "https://git.example.org/kflat-index"
+```
+
+A version requirement allows every later version that keeps its leftmost
+non-zero part: `"1.4"` means at least 1.4.0 and below 2.0.0, `"0.2"` at least
+0.2.0 and below 0.3.0, and `"0.0.3"` exactly 0.0.3. komp picks the highest
+version the requirement allows that has not been yanked.
+
+Without an `index` key the requirement goes to the default index,
+[komp-co/index](https://github.com/komp-co/index), or to `$KFLAT_INDEX` when
+that is set. `[indexes]` names any other one; an index is a git repository,
+so a private one is a private repository. Its README says how to add a
+package.
+
+The index is read only to choose a version. What was chosen is fetched like
+any other remote dependency and pinned in `kf.lock`, which also records the
+index, so a build with a lock never reads the index at all.
+
 ### Fetched dependencies
 
 A dependency can also come from a git repository or a tarball, on any host:
@@ -125,14 +153,15 @@ source = { git = "https://github.com/komp-co/json", rev = "f1bd0aee61045540f5252
 
 Commit `kf.lock`. While it has a row for a dependency, every build uses that
 commit or that archive, from the cache, without the network, even after the
-branch or tag has moved. `komp update` resolves every dependency again and
-rewrites the lock. `--locked` makes a command fail rather than change
+branch or tag has moved or a newer version has been published. `komp update`
+resolves every dependency again and rewrites the lock. `--locked` makes a command fail rather than change
 `kf.lock`, and `--offline` makes it fail rather than fetch; CI wants both.
 
 A fetched crate's `core`, `alloc` and `std` are always the ones bundled with
 komp, whatever path its own manifest gives them. A crate name may come from
 only one source in a program: two commits of one crate would define the same
-symbols. A workspace has one `kf.lock`, beside the workspace manifest, which
+symbols, so two requirements no one version satisfies are an error. A
+workspace has one `kf.lock`, beside the workspace manifest, which
 covers every member.
 
 `core` and `alloc` do not need an entry — the compiler injects them into any
