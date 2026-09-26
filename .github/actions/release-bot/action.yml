@@ -1,0 +1,38 @@
+name: Act as the release App
+description: >
+  A token from the komp release App, with git set to commit and push as the
+  App. Its pushes and pull requests trigger CI, which the workflow's own
+  token's do not.
+inputs:
+  app-id:
+    description: vars.RELEASE_APP_ID
+    required: true
+  private-key:
+    description: secrets.RELEASE_APP_PRIVATE_KEY
+    required: true
+outputs:
+  token:
+    description: For `gh`, as GH_TOKEN.
+    value: ${{ steps.app.outputs.token }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/create-github-app-token@v2
+      id: app
+      with:
+        app-id: ${{ inputs.app-id }}
+        private-key: ${{ inputs.private-key }}
+
+    - name: Commit and push as the App
+      shell: sh
+      env:
+        GH_TOKEN: ${{ steps.app.outputs.token }}
+        SLUG: ${{ steps.app.outputs.app-slug }}
+        REPOSITORY: ${{ github.repository }}
+      run: |
+        id=$(gh api "/users/${SLUG}%5Bbot%5D" --jq .id)
+        git config user.name "${SLUG}[bot]"
+        git config user.email "${id}+${SLUG}[bot]@users.noreply.github.com"
+        # checkout's header for the workflow token would win over these.
+        git config --local --unset-all http.https://github.com/.extraheader || true
+        git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git"
