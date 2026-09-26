@@ -33,7 +33,7 @@ pub fun parse_interface(src: str): InterfaceLoad {
 }
 
 pub fun parse_interface_mapped(src: str, smap: Ptr<SourceMap>): InterfaceLoad {
-    var reader = new_json_reader(src)
+    var reader = JsonReader.new(src)
     if !reader.begin_object() { return load_error("malformed interface JSON") }
     if !reader.expect_key("kfi") {
         if reader.has_error() { return load_error("malformed interface JSON") }

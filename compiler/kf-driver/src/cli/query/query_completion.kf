@@ -18,7 +18,7 @@ import kf_shared.render_json_error
 /// `kind` is `local`, `parameter`, `function`, `struct`, `enum`, `trait`,
 /// `field` or `method`.
 pub fun render_completion_json(path: str, offset: uint32, crate: &QueryCrate): String {
-    val out = new_json_writer()
+    val out = JsonWriter.object()
     out.field_uint32("schema_version", 2)
     out.field_string("file", path)
     out.field_uint32("offset", offset)
@@ -97,7 +97,7 @@ fun is_name_byte(b: uint8): bool {
 /// trait alike.
 fun Module.members_json(owner: str): String {
     var seen = List.new<String>()
-    var arr = new_json_array_writer()
+    var arr = JsonWriter.array()
     while td in &self.decls {
         if td.name.as_str() == owner {
             td.add_fields(&var seen, &var arr)
@@ -111,7 +111,7 @@ fun Module.members_json(owner: str): String {
     return arr.finish()
 }
 
-fun TopDecl.add_fields(seen: &var List<String>, arr: &var JsonArrayWriter): void {
+fun TopDecl.add_fields(seen: &var List<String>, arr: &var JsonWriter): void {
     when (self.kind) {
         Struct(fields, _pub) => {
             while f in &fields {
@@ -123,7 +123,7 @@ fun TopDecl.add_fields(seen: &var List<String>, arr: &var JsonArrayWriter): void
     }
 }
 
-fun TopDecl.add_methods(seen: &var List<String>, arr: &var JsonArrayWriter): void {
+fun TopDecl.add_methods(seen: &var List<String>, arr: &var JsonWriter): void {
     val members = self.impl_members()
     while mm in &members {
         if !mm.method_is_static() {
@@ -146,14 +146,14 @@ fun TopDecl.method_is_static(): bool {
 }
 
 /// Once per name, though several impls may offer it.
-fun push_item(seen: &var List<String>, arr: &var JsonArrayWriter, label: str, kind: str, detail: str): void {
+fun push_item(seen: &var List<String>, arr: &var JsonWriter, label: str, kind: str, detail: str): void {
     while item in &seen {
         if item.as_str() == label { return }
     }
     seen.push(String.from(label))
-    val o = new_json_writer()
+    val o = JsonWriter.object()
     o.field_string("label", label)
     o.field_string("kind", kind)
     o.field_string("detail", detail)
-    arr.item_raw(o.finish().as_str())
+    arr.write_raw(o.finish().as_str())
 }

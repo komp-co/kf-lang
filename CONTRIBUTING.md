@@ -93,7 +93,8 @@ A `classify` job first decides what the PR needs (`scripts/ci-classify.sh`):
 
 The four jobs each clone the public
 [`json`](https://github.com/komp-co/json) dependency as a sibling
-(`../json`):
+(`../json`), at the commit `bootstrap/json.rev` pins, so a change to `json`
+reaches komp only through a PR that moves the pin:
 
 1. **fixpoint** — `sh scripts/check.sh --fixpoint`, the self-host fixpoint
    (stage1 == stage2),

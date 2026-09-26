@@ -14,7 +14,7 @@ import kf_shared.render_json_error
 ///
 /// `label` is null outside a call or for an undeclared callee.
 pub fun render_signature_json(path: str, offset: uint32, crate: &QueryCrate): String {
-    val out = new_json_writer()
+    val out = JsonWriter.object()
     out.field_uint32("schema_version", 1)
     out.field_string("file", path)
     out.field_uint32("offset", offset)
@@ -161,7 +161,7 @@ fun TopDecl.extension_function_signature(): SignatureText {
 fun rendered_signature(name: str, params: &List<Param>, ret: &TypeRef): SignatureText {
     var label = String.from(name)
     label.append("(")
-    val arr = new_json_array_writer()
+    val arr = JsonWriter.array()
     while i in 0..params.size() {
         if i > 0 { label.append(", ") }
         val p = *params.at(i)
@@ -170,9 +170,9 @@ fun rendered_signature(name: str, params: &List<Param>, ret: &TypeRef): Signatur
         val pty: TypeRef = unsafe { *p.ty }
         one.append(pty.tyref_to_source().as_str())
         label.append(one.as_str())
-        val o = new_json_writer()
+        val o = JsonWriter.object()
         o.field_string("label", one.as_str())
-        arr.item_raw(o.finish().as_str())
+        arr.write_raw(o.finish().as_str())
     }
     label.append("): ")
     label.append(ret.tyref_to_source().as_str())
