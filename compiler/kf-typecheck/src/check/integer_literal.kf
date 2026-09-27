@@ -1,8 +1,9 @@
 import kf_core.ast.*
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
+import kf_typecheck.check.control.yields_only_numeric_literals
 
-fun is_integer_literal(e: Expr): bool {
+fun is_integer_literal(e: &Expr): bool {
     when (e.kind) {
         LitInt(_) => return true
         Unary(op, inner) => {
@@ -75,7 +76,7 @@ mutating fun Expr.reject_integer_literal(expected: Type, ctx: &var TypeCtx): voi
 }
 
 /// Its first use may choose its width.
-fun is_numeric_literal(e: Expr): bool {
+pub fun is_numeric_literal(e: &Expr): bool {
     if is_integer_literal(e) { return true }
     return when (e.kind) {
         LitFloat(_) => true
@@ -85,7 +86,7 @@ fun is_numeric_literal(e: Expr): bool {
 
 /// Takes the other operand's type.
 fun Expr.operand_takes_other_type(ctx: &var TypeCtx): bool {
-    if is_integer_literal(*self) { return true }
+    if is_integer_literal(self) || self.yields_only_numeric_literals() { return true }
     when (self.kind) {
         // A literal's binding, not an open call's or a `null`'s.
         Variable(name) => {

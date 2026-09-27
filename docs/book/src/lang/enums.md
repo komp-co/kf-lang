@@ -90,6 +90,20 @@ fun find(n: int32): int32? {    // same as Option<int32>
 
 Only `Option<T>` gets the `T?` shorthand. `Result<T, E>` does not.
 
+`null` is `Option.None` wherever an optional is expected. Comparing an optional
+with it tests which variant it holds, so `x == null` and `x != null` work for
+any payload, whether or not it implements `Equal`. `null` goes on the right:
+
+```kflat
+struct Message {
+    val id: String?
+}
+
+fun has_id(m: &Message): bool {
+    return m.id != null
+}
+```
+
 ## The ?: (elvis) operator
 
 `?:` unwraps an `Option` or bails. `val v = opt ?: <bail>` binds the payload

@@ -35,6 +35,13 @@ val small: int8 = 3
 val big: int64 = 5000000000
 ```
 
+The annotation reaches literals inside an `if` or `when` used as a value too,
+so each branch takes the slot's width:
+
+```kflat
+val limit: uint64 = if strict { 1000 } else { 9223372036854775807 }
+```
+
 A signed integer can be cast to a wider type with `as`:
 
 ```kflat

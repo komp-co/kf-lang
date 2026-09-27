@@ -16,6 +16,7 @@ import kf_core.ast.*
 import kf_typecheck.types.join_arm_types
 import kf_typecheck.types.type_eq
 import kf_typecheck.check.expect_or_reject
+import kf_typecheck.check.is_numeric_literal
 
 /// Only called after `tail_yields_value` said yes. A failed join keeps the
 /// type so far; `apply_tail_ty` may still adapt the path.
@@ -56,6 +57,15 @@ pub fun Stmt.tail_ty(string_name: Sym): Type {
 pub fun list_tail_ty(stmts: &List<Stmt>, string_name: Sym): Type {
     if stmts.size() == 0 { return poison_ty() }
     return (stmts.at(stmts.size() - 1)).tail_ty(string_name)
+}
+
+/// Every path ends in a bare number, whose width a slot may still choose.
+pub fun list_tail_is_numeric_literal(stmts: &List<Stmt>): bool {
+    if stmts.size() == 0 { return false }
+    return when (stmts.at(stmts.size() - 1).kind) {
+        Expression(ep) => is_numeric_literal(&*ep)
+        _ => false
+    }
 }
 
 /// Rewrites the tail expressions through the pointers the list holds.
