@@ -284,3 +284,39 @@ fun branches_moving_x(): Stmt {
     assert_eq(copies, true, "`x` is read after the `if`, so both branch moves become copies")
 }
 
+/// `when (<subject>) { Some(x) => { return x } None => {} }`, checked; whether
+/// the returned `x` became a copy.
+fun return_of_binder_copies(subject: Expr): bool {
+    val dp = fresh_diag_ptr()
+    var ctx = fresh_ctx(dp)
+    ctx.declare_owned(intern("opt"))
+    var payloads = List.new<Pattern>()
+    payloads.push(new_pattern(no_span(), PatternKind.Identifier(intern("x"))))
+    val pp: Ptr<Pattern> = unsafe { alloc<Pattern>() }
+    unsafe { *pp = new_pattern(no_span(), PatternKind.Variant(intern("Some"), payloads)) }
+    var body = List.new<Stmt>()
+    body.push(mk_return(mk_str_var(String.from("x"))))
+    var arms = List.new<Arm>()
+    arms.push(new_arm(no_span(), pp, null, body))
+    val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *sp = subject }
+    var w = new_stmt(no_span(), StmtKind.When(sp, arms))
+    w.move_check_stmt(&var ctx)
+    return when (w.kind) {
+        When(_s, checked) => when (checked.at(0).body.at(0).kind) {
+            Return(value) => (unsafe { (value!!).coerce }) == coerce_clone()
+            _ => false
+        }
+        _ => false
+    }
+}
+
+@test fun a_binder_over_a_fresh_value_moves_out(): void {
+    var made = new_expr(no_span(), ExprKind.Call(intern("make"), List.new<Expr>()))
+    made.ty = intern("String").lang_struct_ty(no_span())
+    assert_eq(return_of_binder_copies(made), false, "nothing else owns the call's result")
+}
+
+@test fun a_binder_over_a_named_value_is_a_view(): void {
+    assert_eq(return_of_binder_copies(mk_str_var(String.from("opt"))), true, "`opt` still owns its payload")
+}

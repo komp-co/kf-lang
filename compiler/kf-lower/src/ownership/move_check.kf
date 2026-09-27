@@ -194,6 +194,9 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
                     subj_mo = mc_names_has(ctx.move_only_names, ctx.self_owner.as_str())
                 }
             }
+            // A fresh value is owned by nothing else, so a variant's binders
+            // own what they bind rather than view it.
+            val subj_fresh = subj.is_fresh_move_only_value(ctx)
             val moved_before = ctx.snapshot_moved()
             val owned_before = ctx.snapshot_owned()
             val borrowed_before = ctx.snapshot_borrowed()
@@ -205,7 +208,8 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
                 ctx.restore_owned(owned_before)
                 ctx.restore_borrowed(borrowed_before)
                 declare_pattern_binds(arm.pattern, ctx)
-                if subj_mo { declare_pattern_binds_borrowed(arm.pattern, ctx) }
+                val owns_payloads = subj_fresh && arm.pattern.is_flat_variant()
+                if subj_mo && !owns_payloads { declare_pattern_binds_borrowed(arm.pattern, ctx) }
                 when (arm.guard) {
                     Some(guard) => move_check_expr_borrow(unsafe { &var *guard }, ctx)
                     None => { }
@@ -246,3 +250,33 @@ fun mc_names_has(names: &List<String>, name: str): bool {
     return false
 }
 
+/// A call's result, owned by nobody but the `when` over it.
+///
+/// CONSTRAINT: rc_insert hoists exactly these subjects and consumes them, so
+/// the arms own the payloads their binders take.
+fun Expr.is_fresh_move_only_value(ctx: &var MoveCtx): bool {
+    if self.coerce != coerce_none() { return false }
+    if !self.ty.mc_is_move_only(ctx.move_only_names) { return false }
+    return when (self.kind) {
+        Call(_n, _a) => true
+        MethodCall(_r, _m, _a) => true
+        _ => false
+    }
+}
+
+/// A variant whose payloads are each a name or `_`.
+fun Pattern.is_flat_variant(): bool {
+    when (self.kind) {
+        Variant(_name, payloads) => {
+            while p in &payloads {
+                when (p.kind) {
+                    Identifier(_n) => { }
+                    Wildcard => { }
+                    _ => return false
+                }
+            }
+            return true
+        }
+        _ => return false
+    }
+}

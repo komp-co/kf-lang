@@ -53,6 +53,21 @@ fun route(t: Ticket, urgent: bool): void {
 }
 ```
 
+A `when` over a fresh value, such as a call's result, hands the payload to
+its binder, which owns it. So `?:` moves an element out of a list:
+
+```kflat
+fun drain(queue: &var List<Ticket>, done: &var List<Ticket>): void {
+    while !queue.is_empty() {
+        val t = queue.take_last() ?: return
+        done.push(t)     // `t` owns the ticket; no copy
+    }
+}
+```
+
+A `when` over a named value only views its payload: the value still owns
+it, and moving a binder out copies it.
+
 ## The copy the compiler inserts for you
 
 The same thing happens when a value is read *through a borrow* and handed to
