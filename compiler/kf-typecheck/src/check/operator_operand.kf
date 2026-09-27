@@ -14,8 +14,8 @@ import kf_typecheck.types.type_eq
 /// it by reference. Decided by the trait, since generic code over `T: Equal` is
 /// checked against it.
 pub fun BinOp.check_binary_operands(lhs_ptr: Ptr<Expr>, rhs_ptr: Ptr<Expr>, span: Span, ctx: &var TypeCtx): Type {
-    val lhs = unsafe { *lhs_ptr }
-    val rhs = unsafe { *rhs_ptr }
+    val lhs = unsafe { &*lhs_ptr }
+    val rhs = unsafe { &*rhs_ptr }
     val ty = self.check_binary(lhs, rhs, span, ctx)
     if ty.is_poison() { return ty }
     if !lhs.ty.operand_dispatches_to_its_trait() { return ty }
