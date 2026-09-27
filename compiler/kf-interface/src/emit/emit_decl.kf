@@ -4,7 +4,7 @@ import kf_core.ast.*
 import json.writer.*
 import kf_core.ast.subst.mangle_tyref
 
-fun emit_decl(td: TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
+fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
     when (td.kind) {
         Function(params, ret, _b, is_pub, _u, _mut, _st) => {
             val o = JsonWriter.object()
@@ -148,7 +148,7 @@ fun interface_trait_suffix(trait_ref: TypeRef, m: &Module): String {
 
 // Hidden entries carry private methods too: a template body may call them
 // through archive symbols.
-fun emit_interface_methods(owner: TopDecl, methods: &List<TopDecl>, callable: bool, include_private: bool, suffix: String,
+fun emit_interface_methods(owner: &TopDecl, methods: &List<TopDecl>, callable: bool, include_private: bool, suffix: String,
     unmangled: bool): String {
     val arr = JsonWriter.array()
     while method in &methods {
