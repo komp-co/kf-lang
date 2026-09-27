@@ -151,12 +151,11 @@ fun self_is_by_value(callee: str): bool {
     // A trait impl (`<Type>_<method>__<Trait>`) takes self by pointer, even
     // `str_display__Display`.
     if callee_is_trait_impl(callee) { return false }
-    // The synthesized clone takes self by pointer for every type, including
-    // `int64_clone`, which the prefix below would otherwise catch.
+    // The synthesized clone takes self by pointer for every type.
     if callee.ends_with("_clone") { return false }
-    if callee.starts_with("str_")     { return true }
-    if callee.starts_with("int64_")   { return true }
-    return false
+    if callee.starts_with("str_") { return true }
+    // The runtime's formatter; int64's trait impls take self by pointer.
+    return callee.equals("int64_display")
 }
 
 fun callee_is_trait_impl(callee: str): bool {
