@@ -43,8 +43,10 @@ pub mutating fun Stmt.desugar_stmt(): void {
             while ai in 0..arms.size() {
                 desugar_stmts(&var arms.at_mut(ai).body)
             }
-            // Built from copies, so the store frees the `when` it replaces.
-            self.kind = StmtKind.Switch(Box.new(subject.clone()), desugar_when_arms(&arms))
+            // Built from copies and held by a local, so the store frees the
+            // `when` it replaces.
+            val lowered = StmtKind.Switch(Box.new(subject.clone()), desugar_when_arms(&arms))
+            self.kind = lowered
         }
         If(_cond, then_body, else_body) => {
             desugar_stmts(&var then_body)
