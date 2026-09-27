@@ -156,7 +156,7 @@ mutating fun Module.materialize_impl_method(inst: &Inst, mangled: String, gps: &
                         nm.push(mth)
                     }
                     if found && !already {
-                        var spec = clone_subst_decl(*nm.at(tmpl_idx), inst.args, mangled.clone())
+                        var spec = clone_subst_decl(nm.at(tmpl_idx), inst.args, mangled.clone())
                         if !is_poison_decl(spec) {
                             if !self.crate.is_poison() {
                                 spec.linkage = Linkage.GenericTemplate

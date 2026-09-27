@@ -18,6 +18,8 @@ pub struct RcCtx {
     pub var frame_stack: List<RcFrame>
     pub var block_counter: uint64
     pub var move_only_names: List<String>
+    /// Types whose values cannot hold a borrow; see rc_borrow_free.kf.
+    pub var borrow_free: List<String>
     // Decides per callee whether a by-value String argument transfers
     // ownership (a komp function drops it) or is only lent (an extern keeps
     // the caller's drop).
@@ -38,6 +40,7 @@ pub fun new_rc_ctx(fn_name: String): RcCtx {
         frame_stack: List.new<RcFrame>(),
         block_counter: 0,
         move_only_names: List.new<String>(),
+        borrow_free: List.new<String>(),
         ptable: tp,
         variants: vp,
         string_name: intern("")
@@ -65,35 +68,19 @@ pub fun RcCtx.rc_owning_frame(name: str): int64 {
 
 /// For a binding given a new value after its rhs consumed the old one.
 pub mutating fun RcCtx.restore_heap_local_at(idx: uint64, name: String): void {
-    var fresh = List.new<RcFrame>()
-    while i in 0..self.frame_stack.size() {
-        val f = *self.frame_stack.at(i)
-        var locals = List.new<String>()
-        while heap_local in &f.heap_locals {
-            locals.push(heap_local)
-        }
-        if i == idx {
-            if !names_contains(&locals, name.as_str()) { locals.push(name.clone()) }
-        }
-        fresh.push(RcFrame { block_idx: f.block_idx, heap_locals: locals, is_loop: f.is_loop,
-            view_locals: f.view_locals.clone() })
-    }
-    self.frame_stack = fresh
+    val f = self.frame_stack.at_mut(idx)
+    if !names_contains(&f.heap_locals, name.as_str()) { f.heap_locals.push(name) }
 }
 
 pub mutating fun RcCtx.add_heap_local(name: String): void {
     val top_idx = self.frame_stack.size() - 1
-    var f = *self.frame_stack.at(top_idx)
-    f.heap_locals.push(name)
-    self.replace_top_frame(f)
+    self.frame_stack.at_mut(top_idx).heap_locals.push(name)
 }
 
 /// Record `name` as a binding in the current scope that owns nothing.
 pub mutating fun RcCtx.add_view_local(name: String): void {
     val top_idx = self.frame_stack.size() - 1
-    var f = *self.frame_stack.at(top_idx)
-    f.view_locals.push(name)
-    self.replace_top_frame(f)
+    self.frame_stack.at_mut(top_idx).view_locals.push(name)
 }
 
 /// A name never recorded either way is not a view.
@@ -105,40 +92,17 @@ pub fun RcCtx.is_view_local(name: str): bool {
     return view_frame >= 0 && view_frame > self.rc_owning_frame(name)
 }
 
-mutating fun RcCtx.replace_top_frame(f: RcFrame): void {
-    val top_idx = self.frame_stack.size() - 1
-    var fresh = List.new<RcFrame>()
-    while i in 0..self.frame_stack.size() {
-        if i == top_idx {
-            fresh.push(f)
-        } else {
-            fresh.push(*self.frame_stack.at(i))
-        }
-    }
-    self.frame_stack = fresh
-}
-
 /// One Release per heap local, in reverse declaration order.
 pub mutating fun RcCtx.pop_frame(): List<Stmt> {
     val top_idx = self.frame_stack.size() - 1
-    val f = *self.frame_stack.at(top_idx)
-
     var releases = List.new<Stmt>()
+    val f = self.frame_stack.at(top_idx)
     var i: uint64 = f.heap_locals.size()
     while i > 0 {
         i = i - 1
-        val name_clone = f.heap_locals.at(i).clone()
-        releases.push(new_stmt(no_span(), StmtKind.Release(intern(name_clone.as_str()))))
+        releases.push(new_stmt(no_span(), StmtKind.Release(intern(f.heap_locals.at(i).as_str()))))
     }
-
-    var fresh = List.new<RcFrame>()
-    var j = 0
-    while j < top_idx {
-        fresh.push(*self.frame_stack.at(j))
-        j = j + 1
-    }
-    self.frame_stack = fresh
-
+    self.frame_stack.pop()
     return releases
 }
 
@@ -149,8 +113,7 @@ pub mutating fun RcCtx.consume_kind(name: String): uint8 {
     var var_frame: uint64 = 0
     var found = false
     while i in 0..self.frame_stack.size() {
-        val f = *self.frame_stack.at(i)
-        if names_contains(&f.heap_locals, name.as_str()) {
+        if names_contains(&self.frame_stack.at(i).heap_locals, name.as_str()) {
             var_frame = i
             found = true
         }
@@ -172,11 +135,11 @@ mutating fun RcCtx.exit_releases(stop_at_loop: bool, exclude: List<String>): Lis
     var fi: uint64 = self.frame_stack.size()
     while fi > 0 {
         fi = fi - 1
-        val f = *self.frame_stack.at(fi)
+        val f = self.frame_stack.at(fi)
         var li: uint64 = f.heap_locals.size()
         while li > 0 {
             li = li - 1
-            val name = *f.heap_locals.at(li)
+            val name = f.heap_locals.at(li)
             val excluded = names_contains(exclude, name.as_str())
             if !excluded {
                 releases.push(new_stmt(no_span(), StmtKind.Release(intern(name.as_str()))))

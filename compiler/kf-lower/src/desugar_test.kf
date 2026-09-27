@@ -32,8 +32,8 @@ fun mk_none_arm(): Arm {
     val subj = new_expr(no_span(), ExprKind.Variable(intern("opt")))
     val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *sp = subj }
-    val w = new_stmt(no_span(), StmtKind.When(sp, arms))
-    val rewritten = desugar_stmt(w)
+    var rewritten = new_stmt(no_span(), StmtKind.When(sp, arms))
+    rewritten.desugar_stmt()
     when (rewritten.kind) {
         Switch(_, switch_arms) => {
             assert_eq(switch_arms.size() == 2, true, "two arms")
@@ -65,8 +65,8 @@ fun mk_none_arm(): Arm {
     val subj = new_expr(no_span(), ExprKind.LitBool(true))
     val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *sp = subj }
-    val w = new_stmt(no_span(), StmtKind.When(sp, arms))
-    val rewritten = desugar_stmt(w)
+    var rewritten = new_stmt(no_span(), StmtKind.When(sp, arms))
+    rewritten.desugar_stmt()
     when (rewritten.kind) {
         Switch(_, switch_arms) => {
             val a = *switch_arms.at(0)

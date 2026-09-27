@@ -12,21 +12,23 @@ pub mutating fun Module.rc_insert_module(list_name: Sym): void {
     val vp: Ptr<VariantPayloads> = unsafe { alloc<VariantPayloads>() }
     unsafe { *vp = self.variant_payloads_of() }
     val string_name = self.lang_type_name(lang_string_key())
+    val free = self.borrow_free_names(string_name)
     while i in 0..self.decls.size() {
-        rc_insert_top_decl_pv(self.decls.at_mut(i), names, tp, vp, string_name)
+        rc_insert_top_decl_pv(self.decls.at_mut(i), names, tp, vp, string_name, &free)
     }
 }
 
 /// `vp` says which payloads each enum variant owns, so a `when` arm can take
 /// responsibility for those it binds.
 pub fun rc_insert_top_decl_pv(td: &var TopDecl, names: List<String>, tp: Ptr<List<ParamEntry>>, vp: Ptr<VariantPayloads>,
-                              string_name: Sym): void {
+                              string_name: Sym, free: &List<String>): void {
     when (td.kind) {
         Function(params, ret, body, p, u, m, s) => {
             val fn_name_a = td.name.as_string()
             var ctx = new_rc_ctx(fn_name_a)
             // Deep-cloned: `names` is shared across decls and RcCtx frees it.
             ctx.move_only_names = clone_str_list(&names)
+            ctx.borrow_free = clone_str_list(free)
             ctx.ptable = tp
             ctx.variants = vp
             ctx.string_name = string_name
@@ -39,7 +41,7 @@ pub fun rc_insert_top_decl_pv(td: &var TopDecl, names: List<String>, tp: Ptr<Lis
         }
         ImplBlock(methods) => {
             while i in 0..methods.size() {
-                rc_insert_top_decl_pv(methods.at_mut(i), names, tp, vp, string_name)
+                rc_insert_top_decl_pv(methods.at_mut(i), names, tp, vp, string_name, free)
             }
             td.kind = TopDeclKind.ImplBlock(methods)
         }
@@ -145,7 +147,7 @@ fun Expr.collect_var_names_in_expr(out: &var List<String>): void {
         Unary(_op, ip) => collect_var_names_in_expr(unsafe { *ip }, out)
         Deref(ip) => collect_var_names_in_expr(unsafe { *ip }, out)
         MethodCall(recv_ptr, _m, args) => {
-            if !self.is_static_call { collect_var_names_in_expr(unsafe { *recv_ptr }, out) }
+            if !self.is_static_call && !self.is_variant_ctor { collect_var_names_in_expr(unsafe { *recv_ptr }, out) }
             collect_var_names_in_list(args, out)
         }
         FieldAccess(obj_ptr, _f) => collect_var_names_in_expr(unsafe { *obj_ptr }, out)

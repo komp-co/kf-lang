@@ -30,6 +30,7 @@ pub mutating fun Module.desugar_when_expr_module(): void {
 mutating fun TopDecl.when_expr_top_decl(): void {
     when (self.kind) {
         Function(params, ret, body, p, u, mu, st) => {
+            if !stmts_hold_a_when_value(&body) { return }
             var temps = WhenTemps { n: 0 }
             val new_body = when_expr_stmt_list(&body, &var temps)
             self.kind = TopDeclKind.Function(params, ret, new_body, p, u, mu, st)

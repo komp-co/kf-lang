@@ -90,53 +90,46 @@ pub mutating fun Module.trim_variant_binders(): void {
     }
 }
 
-/// `self_owner` is the enclosing impl's target, or "".
+/// `self_owner` is the enclosing impl's target, or "". Edits in place: most
+/// bodies bind no trimmed payload.
 mutating fun TopDecl.trim_decl(arity: &VariantArity, self_owner: str): void {
     when (self.kind) {
-        Function(params, ret, body, p, u, mu, s) => {
-            self.kind = TopDeclKind.Function(params, ret, trim_stmts(&body, arity, self_owner), p, u, mu, s)
-        }
+        Function(_params, _ret, body, _p, _u, _mu, _s) => trim_stmts(&var body, arity, self_owner)
         ImplBlock(methods) => {
             while i in 0..methods.size() {
                 trim_decl(methods.at_mut(i), arity, self.name.as_str())
             }
-            self.kind = TopDeclKind.ImplBlock(methods)
         }
         _ => return
     }
 }
 
-fun trim_stmts(stmts: &List<Stmt>, arity: &VariantArity, self_owner: str): List<Stmt> {
-    var out = List.new<Stmt>()
-    while stmt in &stmts {
-        out.push(trim_stmt(stmt, arity, self_owner))
+fun trim_stmts(stmts: &var List<Stmt>, arity: &VariantArity, self_owner: str): void {
+    while i in 0..stmts.size() {
+        stmts.at_mut(i).trim_stmt(arity, self_owner)
     }
-    return out
 }
 
-fun trim_stmt(s: Stmt, arity: &VariantArity, self_owner: str): Stmt {
-    when (s.kind) {
+mutating fun Stmt.trim_stmt(arity: &VariantArity, self_owner: str): void {
+    when (self.kind) {
         Switch(subj, arms) => {
             val owner = switch_owner(unsafe { &*subj }, arity, self_owner)
-            var out = List.new<SwitchArm>()
-            while a in &arms {
-                val kept = keep_bindable(a.binders, &a.tag, owner.as_str(), arity)
-                var arm_body = trim_stmts(&a.body, arity, self_owner)
-                if kept.size() < a.binders.size() {
-                    arm_body = blank_returns_of(&arm_body, &a.binders, kept.size())
+            while ai in 0..arms.size() {
+                val a = arms.at_mut(ai)
+                trim_stmts(&var a.body, arity, self_owner)
+                val kept = bindable_count(&a.binders, &a.tag, owner.as_str(), arity)
+                if kept < a.binders.size() {
+                    blank_returns_of(&var a.body, &a.binders, kept)
+                    a.binders = binder_prefix(&a.binders, kept)
                 }
-                out.push(new_guarded_switch_arm(a.span, a.tag, kept, a.guard.duplicate(),
-                    a.guard_prelude.clone(), arm_body))
             }
-            return new_stmt(s.span, StmtKind.Switch(subj, out))
         }
-        If(cond, then_body, else_body) => {
-            return new_stmt(s.span, StmtKind.If(cond, trim_stmts(&then_body, arity, self_owner), trim_stmts(&else_body, arity, self_owner)))
+        If(_cond, then_body, else_body) => {
+            trim_stmts(&var then_body, arity, self_owner)
+            trim_stmts(&var else_body, arity, self_owner)
         }
-        While(cond, body) => {
-            return new_stmt(s.span, StmtKind.While(cond, trim_stmts(&body, arity, self_owner)))
-        }
-        _ => return s
+        While(_cond, body) => trim_stmts(&var body, arity, self_owner)
+        _ => { }
     }
 }
 
@@ -148,23 +141,24 @@ fun Expr.switch_owner(arity: &VariantArity, self_owner: str): String {
     return self.ty.switch_subject_enum()
 }
 
-/// Only variant arms are trimmed; an unknown owner or variant answers the
-/// written count, so real bindings are never deleted.
-fun keep_bindable(written: List<Sym>, tag: &SwitchTag, owner: str, arity: &VariantArity): List<Sym> {
-    if written.size() == 0 { return written }
-    if owner.byte_len() == 0 { return written }
+/// How many written binders the variant still has payloads for. Only variant
+/// arms are trimmed; an unknown owner or variant answers the written count,
+/// so real bindings are never deleted.
+fun bindable_count(written: &List<Sym>, tag: &SwitchTag, owner: str, arity: &VariantArity): uint64 {
+    if written.size() == 0 || owner.byte_len() == 0 { return written.size() }
     val vname = when (tag) {
         Variant(name) => name.clone()
         _ => ""
     }
-    if vname.as_str().byte_len() == 0 { return written }
+    if vname.as_str().byte_len() == 0 { return written.size() }
     val keep = arity.variant_arity_for(owner, vname.as_str(), written.size())
-    if keep >= written.size() { return written }
+    return if keep < written.size() { keep } else { written.size() }
+}
+
+fun binder_prefix(written: &List<Sym>, keep: uint64): List<Sym> {
     var out = List.new<Sym>()
-    var i = 0
-    while i < keep {
+    while i in 0..keep {
         out.push(written.get(i))
-        i = i + 1
     }
     return out
 }
@@ -188,42 +182,30 @@ fun Expr.expr_reads_dropped(written: &List<Sym>, kept: uint64): bool {
 
 /// `return <dropped binder>` becomes a bare `return`: at `void` the method
 /// returns nothing too. Any other read of a missing payload is left to fail.
-fun blank_returns_of(stmts: &List<Stmt>, written: &List<Sym>, kept: uint64): List<Stmt> {
-    var out = List.new<Stmt>()
-    while stmt in &stmts {
-        out.push(blank_returns_in(stmt, written, kept))
+fun blank_returns_of(stmts: &var List<Stmt>, written: &List<Sym>, kept: uint64): void {
+    while i in 0..stmts.size() {
+        stmts.at_mut(i).blank_returns_in(written, kept)
     }
-    return out
 }
 
-fun blank_returns_in(s: Stmt, written: &List<Sym>, kept: uint64): Stmt {
-    when (s.kind) {
+mutating fun Stmt.blank_returns_in(written: &List<Sym>, kept: uint64): void {
+    when (self.kind) {
         Return(e) => {
-            when (e) {
-                Some(p) => {
-                    if expr_reads_dropped(unsafe { &*p }, written, kept) {
-                        return new_stmt(s.span, StmtKind.Return(null))
-                    }
-                }
-                None => {}
+            val p = e.view() ?: return
+            if expr_reads_dropped(unsafe { &*p }, written, kept) {
+                self.kind = StmtKind.Return(null)
             }
-            return s
         }
-        Switch(subj, arms) => {
-            var out = List.new<SwitchArm>()
-            while a in &arms {
-                val body = blank_returns_of(&a.body, written, kept)
-                out.push(new_guarded_switch_arm(a.span, a.tag, a.binders, a.guard.duplicate(),
-                    a.guard_prelude.clone(), body))
+        Switch(_subj, arms) => {
+            while ai in 0..arms.size() {
+                blank_returns_of(&var arms.at_mut(ai).body, written, kept)
             }
-            return new_stmt(s.span, StmtKind.Switch(subj, out))
         }
-        If(cond, then_body, else_body) => {
-            return new_stmt(s.span, StmtKind.If(cond, blank_returns_of(&then_body, written, kept), blank_returns_of(&else_body, written, kept)))
+        If(_cond, then_body, else_body) => {
+            blank_returns_of(&var then_body, written, kept)
+            blank_returns_of(&var else_body, written, kept)
         }
-        While(cond, body) => {
-            return new_stmt(s.span, StmtKind.While(cond, blank_returns_of(&body, written, kept)))
-        }
-        _ => return s
+        While(_cond, body) => blank_returns_of(&var body, written, kept)
+        _ => { }
     }
 }

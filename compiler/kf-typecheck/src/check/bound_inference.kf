@@ -35,7 +35,7 @@ pub fun infer_from_bounds(callee: str, gnames: &List<String>, inf_tys: &var List
             while k in 0..wanted.size() {
                 val g = name_index(gnames, wanted.at(k).as_str())
                 if g < inf_tys.size() && inf_tys.at(g).is_poison() {
-                    inf_tys.set(g, *impl_args.at(k))
+                    inf_tys.set(g, impl_args.at(k).clone())
                     progress = true
                 }
             }

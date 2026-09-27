@@ -13,15 +13,11 @@ pub mutating fun Module.desugar_module(): void {
 
 mutating fun TopDecl.desugar_top_decl(): void {
     when (self.kind) {
-        Function(params, ret, body, p, u, m, s) => {
-            val new_body = desugar_stmt_list(body)
-            self.kind = TopDeclKind.Function(params, ret, new_body, p, u, m, s)
-        }
+        Function(_params, _ret, body, _p, _u, _m, _s) => desugar_stmts(&var body)
         ImplBlock(methods) => {
             while i in 0..methods.size() {
                 desugar_top_decl(methods.at_mut(i))
             }
-            self.kind = TopDeclKind.ImplBlock(methods)
         }
         Struct(_, _) => return
         EnumDecl(_, _) => return
@@ -34,64 +30,57 @@ mutating fun TopDecl.desugar_top_decl(): void {
     }
 }
 
-pub fun desugar_stmt_list(stmts: &List<Stmt>): List<Stmt> {
-    var out = List.new<Stmt>()
-    while s in &stmts {
-        val rewritten = desugar_stmt(s)
-        out.push(rewritten)
+/// In place: only a `when` statement is replaced.
+pub fun desugar_stmts(stmts: &var List<Stmt>): void {
+    while i in 0..stmts.size() {
+        stmts.at_mut(i).desugar_stmt()
     }
-    return out
 }
 
-pub fun desugar_stmt(s: Stmt): Stmt {
-    when (s.kind) {
-        When(subj_ptr, arms) => {
-            val switch_arms = desugar_when_arms(arms)
-            return new_stmt(s.span, StmtKind.Switch(subj_ptr, switch_arms))
+pub mutating fun Stmt.desugar_stmt(): void {
+    when (self.kind) {
+        When(subject, arms) => {
+            while ai in 0..arms.size() {
+                desugar_stmts(&var arms.at_mut(ai).body)
+            }
+            // Built from copies, so the store frees the `when` it replaces.
+            self.kind = StmtKind.Switch(Box.new(subject.clone()), desugar_when_arms(&arms))
         }
-        If(cond_ptr, then_body, else_body) => {
-            val new_then = desugar_stmt_list(then_body)
-            val new_else = desugar_stmt_list(else_body)
-            return new_stmt(s.span, StmtKind.If(cond_ptr, new_then, new_else))
+        If(_cond, then_body, else_body) => {
+            desugar_stmts(&var then_body)
+            desugar_stmts(&var else_body)
         }
-        While(cond_ptr, body) => {
-            val new_body = desugar_stmt_list(body)
-            return new_stmt(s.span, StmtKind.While(cond_ptr, new_body))
-        }
+        While(_cond, body) => desugar_stmts(&var body)
         // Typecheck expands it; reaching here means that pass was skipped.
-        ForEach(_b, _s, _bd) => return s
-        LetVal(_, _, _) => return s
-        LetVar(_, _, _) => return s
-        Assign(_, _) => return s
-        AssignTo(_, _) => return s
-        Return(_) => return s
-        Expression(_) => return s
-        Switch(_, _) => return s
-        Drop(_) => return s
+        ForEach(_b, _s, _bd) => { }
+        LetVal(_, _, _) => { }
+        LetVar(_, _, _) => { }
+        Assign(_, _) => { }
+        AssignTo(_, _) => { }
+        Return(_) => { }
+        Expression(_) => { }
+        Switch(_, _) => { }
+        Drop(_) => { }
         // Produced later, by rc_insert.
-        Release(_) => return s
-        Break => return s
-        Continue => return s
-        Poison => return s
+        Release(_) => { }
+        Break => { }
+        Continue => { }
+        Poison => { }
     }
 }
 
-fun desugar_when_arms(arms: List<Arm>): List<SwitchArm> {
+fun desugar_when_arms(arms: &List<Arm>): List<SwitchArm> {
     var out = List.new<SwitchArm>()
     while arm in &arms {
-        val sa = arm.arm_to_switch()
-        out.push(sa)
+        out.push(arm.arm_to_switch())
     }
     return out
 }
 
 fun Arm.arm_to_switch(): SwitchArm {
-    val pp = self.pattern
-    val pat = unsafe { *pp }
-    val tag = pat.pattern_to_tag()
-    val binders = pat.pattern_binders()
-    val new_body = desugar_stmt_list(self.body)
-    return new_switch_arm(self.span, tag, binders, self.guard.duplicate(), new_body)
+    val pat: &Pattern = unsafe { &*self.pattern }
+    return new_switch_arm(self.span, pat.pattern_to_tag(), pat.pattern_binders(), self.guard.duplicate(),
+        self.body.clone())
 }
 
 fun bool_case_value(b: bool): int64 {

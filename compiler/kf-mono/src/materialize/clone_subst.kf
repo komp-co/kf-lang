@@ -17,7 +17,7 @@ fun TopDecl.attach_subst_dyn_metadata(target: TopDecl, names: &var List<String>,
     return result
 }
 
-pub fun clone_subst_decl(tmpl: TopDecl, args: &List<TypeRef>, mangled: String): TopDecl {
+pub fun clone_subst_decl(tmpl: &TopDecl, args: &List<TypeRef>, mangled: String): TopDecl {
     var names = List.new<String>()
     var repls = List.new<TypeRef>()
     while k in 0..tmpl.generics.size() {
@@ -36,7 +36,8 @@ pub fun clone_subst_decl(tmpl: TopDecl, args: &List<TypeRef>, mangled: String): 
                 nf.push(new_field(f.span, f.name.as_string(), nty, f.is_var, f.is_pub))
             }
             val result = new_owned_top_decl(tmpl.crate, tmpl.span, mangled.as_str(), TopDeclKind.Struct(nf, is_pub))
-            return tmpl.attach_subst_dyn_metadata(result, &var names, &var repls)
+            val attached = tmpl.attach_subst_dyn_metadata(result, &var names, &var repls)
+            return attached
         }
         EnumDecl(variants, is_pub) => {
             var nv = List.new<Variant>()
@@ -51,7 +52,8 @@ pub fun clone_subst_decl(tmpl: TopDecl, args: &List<TypeRef>, mangled: String): 
                 nv.push(new_variant(v.span, v.name.as_string(), npay))
             }
             val result = new_owned_top_decl(tmpl.crate, tmpl.span, mangled.as_str(), TopDeclKind.EnumDecl(nv, is_pub))
-            return tmpl.attach_subst_dyn_metadata(result, &var names, &var repls)
+            val attached = tmpl.attach_subst_dyn_metadata(result, &var names, &var repls)
+            return attached
         }
         Function(_params, _ret_ptr, _body, _pub, _u, _m, _s) => {
             var fn = clone_subst_method(tmpl, &var names, &var repls)
@@ -66,7 +68,8 @@ pub fun clone_subst_decl(tmpl: TopDecl, args: &List<TypeRef>, mangled: String): 
                 nm.push(clone_subst_member(method, &var names, &var repls))
             }
             val result = new_owned_top_decl(tmpl.crate, tmpl.span, mangled.as_str(), TopDeclKind.ImplBlock(nm))
-            return tmpl.attach_subst_dyn_metadata(result, &var names, &var repls)
+            val attached = tmpl.attach_subst_dyn_metadata(result, &var names, &var repls)
+            return attached
         }
         TraitImpl(tref, methods) => {
             // CONSTRAINT: keep the trait ref until normalization. A generic
@@ -80,7 +83,8 @@ pub fun clone_subst_decl(tmpl: TopDecl, args: &List<TypeRef>, mangled: String): 
             unsafe { *new_trait_ref = subst_type_ref(&*tref, &var names, &var repls) }
             val result = new_owned_top_decl(tmpl.crate, tmpl.span, mangled.as_str(), TopDeclKind.TraitImpl(new_trait_ref, nm))
             val attached = tmpl.attach_subst_dyn_metadata(result, &var names, &var repls)
-            return retarget_dyn_vtables(attached, mangled.as_str())
+            val retargeted = retarget_dyn_vtables(attached, mangled.as_str())
+            return retargeted
         }
         Extern(_p, _r, _pub, _u) => {
             return new_owned_top_decl(tmpl.crate, tmpl.span, "", TopDeclKind.Poison)
@@ -144,7 +148,7 @@ fun Sym.retarget_dyn_adapter(was: str, now: str): Sym {
 }
 
 /// Members include associated-type bindings, which specialize like any type.
-fun clone_subst_member(member: TopDecl, names: &var List<String>, repls: &var List<TypeRef>): TopDecl {
+fun clone_subst_member(member: &TopDecl, names: &var List<String>, repls: &var List<TypeRef>): TopDecl {
     when (member.kind) {
         AssocTypeBinding(chosen) => {
             val nchosen: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
@@ -179,7 +183,7 @@ fun retained_generics(gps: &List<TypeParam>, names: &var List<String>, repls: &v
 }
 
 /// Keeps the decl's own name; only its types and body are specialized.
-fun clone_subst_method(meth: TopDecl, names: &var List<String>, repls: &var List<TypeRef>): TopDecl {
+fun clone_subst_method(meth: &TopDecl, names: &var List<String>, repls: &var List<TypeRef>): TopDecl {
     when (meth.kind) {
         Function(params, ret_ptr, body, is_pub, is_unsafe, is_mut, is_static) => {
             var nparams = List.new<Param>()
@@ -193,7 +197,8 @@ fun clone_subst_method(meth: TopDecl, names: &var List<String>, repls: &var List
             val nbody = subst_stmt_list(body, names, repls)
             var result = new_owned_top_decl(meth.crate, meth.span, meth.name.as_str(), TopDeclKind.Function(nparams, nret, nbody, is_pub, is_unsafe, is_mut, is_static))
             result.generics = retained_generics(&meth.generics, names, repls)
-            return meth.attach_subst_dyn_metadata(result, names, repls)
+            val attached = meth.attach_subst_dyn_metadata(result, names, repls)
+            return attached
         }
         _ => return new_owned_top_decl(meth.crate, meth.span, "", TopDeclKind.Poison)
     }

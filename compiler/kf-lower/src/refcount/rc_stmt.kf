@@ -139,13 +139,38 @@ fun hoist_operator_operands(ep: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>
     }
 }
 
-// Hoisting is safe only when the statement's output cannot carry a borrow
-// of the temp: a non-heap, non-view result. `val v = make().as_str()` is left
-// to leak.
-fun stmt_output_is_hoist_safe(e: Expr): bool {
-    if is_heap_ty_rc(e.ty) { return false }
-    if ty_is_view(e.ty) { return false }
-    return true
+/// Hoists the temporaries below every subexpression whose value cannot hold
+/// a borrow: they are consumed there, so none outlives the statement.
+/// `val v = make().as_str()` keeps its temporary, and leaks it.
+fun hoist_bounded_temps(ep: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>): void {
+    val e = unsafe { &*ep }
+    if e.coerce != coerce_addr_of() && e.ty.holds_no_borrow(ctx) {
+        hoist_borrowed_temps(ep, ctx, out)
+        return
+    }
+    when (e.kind) {
+        Binary(_l, _op, _r) => hoist_operator_operands(ep, ctx, out)
+        Call(_n, args) => {
+            while i in 0..args.size() {
+                hoist_bounded_temps(args.at_mut(i), ctx, out)
+            }
+        }
+        MethodCall(recv_ptr, _m, args) => {
+            hoist_bounded_temps(recv_ptr, ctx, out)
+            while i in 0..args.size() {
+                hoist_bounded_temps(args.at_mut(i), ctx, out)
+            }
+        }
+        StructLit(_n, finits) => {
+            while finit in &finits {
+                hoist_bounded_temps(finit.value, ctx, out)
+            }
+        }
+        FieldAccess(obj_ptr, _f) => hoist_bounded_temps(obj_ptr, ctx, out)
+        Unary(_op, inner) => hoist_bounded_temps(inner, ctx, out)
+        Cast(inner, _t) => hoist_bounded_temps(inner, ctx, out)
+        _ => { }
+    }
 }
 
 // An Expression statement discards its result, so it is always hoist-safe.
@@ -155,24 +180,18 @@ pub mutating fun Stmt.collect_stmt_hoists(ctx: &var RcCtx): List<Stmt> {
         Expression(ep) => hoist_borrowed_temps(ep, ctx, &var out)
         LetVal(_n, _ty, ep) => {
             val p = ep ?: return out
-            if stmt_output_is_hoist_safe(unsafe { *p }) { hoist_borrowed_temps(p, ctx, &var out) }
-            else { hoist_operator_operands(p, ctx, &var out) }
+            hoist_bounded_temps(p, ctx, &var out)
         }
         // No initializer, nothing to hoist.
         LetVar(_n, _ty, ep) => {
             val p = ep ?: return out
-            if stmt_output_is_hoist_safe(unsafe { *p }) { hoist_borrowed_temps(p, ctx, &var out) }
-            else { hoist_operator_operands(p, ctx, &var out) }
+            hoist_bounded_temps(p, ctx, &var out)
         }
-        Assign(_n, ep) => {
-            if stmt_output_is_hoist_safe(unsafe { *ep }) { hoist_borrowed_temps(ep, ctx, &var out) }
-            else { hoist_operator_operands(ep, ctx, &var out) }
-        }
-        AssignTo(_place, ep) => hoist_operator_operands(ep, ctx, &var out)
+        Assign(_n, ep) => hoist_bounded_temps(ep, ctx, &var out)
+        AssignTo(_place, ep) => hoist_bounded_temps(ep, ctx, &var out)
         Return(ep) => {
             val rp = ep ?: return out
-            if stmt_output_is_hoist_safe(unsafe { *rp }) { hoist_borrowed_temps(rp, ctx, &var out) }
-            else { hoist_operator_operands(rp, ctx, &var out) }
+            hoist_bounded_temps(rp, ctx, &var out)
         }
         // An `if` condition is a bool, so its temporaries can always be
         // hoisted ahead of the statement. Bodies hoist in their own scope.
