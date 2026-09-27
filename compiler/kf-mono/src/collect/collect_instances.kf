@@ -214,6 +214,9 @@ fun Expr.collect_insts_in_expr(gps: &List<String>, marities: &List<MethodArity>,
         Unary(_op, ip) => { collect_insts_in_expr(unsafe { &*ip }, gps, marities, work) }
         Deref(ip) => { collect_insts_in_expr(unsafe { &*ip }, gps, marities, work) }
         MethodCall(recv_ptr, method_sym, args) => {
+            // CONSTRAINT: the receiver is walked first, so an instance it
+            // mints (`Bag<int32> { .. }`) is queued ahead of the method's.
+            collect_insts_in_expr(unsafe { &*recv_ptr }, gps, marities, work)
             // `Type.method<Targs>(...)` needs `Type<Targs>`, and with it the
             // impl holding the static method.
             if self.is_static_call {
@@ -274,7 +277,6 @@ fun Expr.collect_insts_in_expr(gps: &List<String>, marities: &List<MethodArity>,
                     }
                 }
             }
-            collect_insts_in_expr(unsafe { &*recv_ptr }, gps, marities, work)
             collect_insts_in_expr_list(args, gps, marities, work)
         }
         FieldAccess(obj_ptr, _f) => { collect_insts_in_expr(unsafe { &*obj_ptr }, gps, marities, work) }
