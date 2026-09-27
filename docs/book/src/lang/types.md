@@ -27,8 +27,8 @@ The spellings in the table are the primitive type names. Short names such as
 `i32` and `u32` are ordinary identifiers, not aliases; a program may declare
 its own types with those names.
 
-Integer literals without a type annotation default to `int32`. If you need
-another width, annotate:
+Integer literals without a type annotation default to `int32`, and must fit
+it: `val z = 3000000000` is out of range. If you need another width, annotate:
 
 ```kflat
 val small: int8 = 3
