@@ -27,79 +27,97 @@ fun is_fresh_owned_producer(rev: Expr, ctx: &var RcCtx): bool {
     }
 }
 
-pub fun rc_insert_stmt_list(stmts: &List<Stmt>, ctx: &var RcCtx): List<Stmt> {
-    var out = List.new<Stmt>()
-    while i in 0..stmts.size() {
-        var s = *stmts.at(i)
+/// Rewrites `stmts` in place, splicing each statement's hoisted temporaries
+/// and early-exit releases in around it.
+pub fun rc_insert_stmts(stmts: &var List<Stmt>, ctx: &var RcCtx): void {
+    val n = stmts.size()
+    var laid_out = List.new<Stmt>()
+    var slots = List.new<uint64>()
+    while i in 0..n {
+        var before = List.new<Stmt>()
+        var after = List.new<Stmt>()
         // Borrowed fresh temporaries (`make().as_str()`) are hoisted ahead of
         // the statement so their drop fires.
-        val temp_hoists = s.collect_stmt_hoists(ctx)
-        while temp_hoist in &temp_hoists {
-            out.push(rc_insert_stmt(temp_hoist, ctx))
-        }
-        when (s.kind) {
-            Return(ep) => {
-                var exclude = returned_var_names(ep.view())
-                refine_return_exclusions(ep.view(), ctx, &var exclude)
-                val rels = ctx.exit_releases(false, exclude)
-                val after_eval = return_drops_after_eval(ep.view(), rels.size(), ctx)
-                if after_eval {
-                    lower_return_drop_after_eval(ep.duplicate(), rels, ctx, &var out)
-                } else {
-                    push_stmts(&var out, rels)
-                    out.push(s)
-                }
-            }
-            Break => {
-                val rels = ctx.exit_releases(true, List.new<String>())
-                push_stmts(&var out, rels)
-                out.push(s)
-            }
-            Continue => {
-                val rels = ctx.exit_releases(true, List.new<String>())
-                push_stmts(&var out, rels)
-                out.push(s)
-            }
-            Switch(subj_ptr, _arms) => {
-                // An owning rvalue subject is bound to a temp first.
-                val hoist = hoist_owned_when_subject(subj_ptr, s.span, ctx)
-                while item in &hoist {
-                    out.push(rc_insert_stmt(item, ctx))
-                }
-                out.push(rc_insert_stmt(s, ctx))
-            }
-            // Ends one ownership and begins one; see rc_assign.kf.
-            Assign(asn_name, rhs_ptr) => {
-                val before = assign_ownership_before(asn_name, rhs_ptr, ctx)
-                val old = self_read_assign_old(asn_name, rhs_ptr, &before, s.span, ctx, &var out)
-                val marked = rc_insert_stmt(s, ctx)
-                // `s = s + x` borrows `s`; `s = concat(s, x)` consumes it and
-                // gets the same buffer back.
-                val still_owning = ctx.rc_owning_frame(asn_name.as_str()) >= 0
-                val pre = assign_ownership_after(asn_name, s.span, &before, ctx)
-                push_stmts(&var out, pre)
-                out.push(marked)
-                if still_owning {
-                    when (old) {
-                        Some(nm) => out.push(new_stmt(s.span, StmtKind.Release(nm)))
-                        None => { }
-                    }
-                }
-            }
-            // The old value is named, then released after the store.
-            AssignTo(place_ptr, rhs_ptr) => {
-                place_rhs_take_ownership(rhs_ptr, ctx)
-                val old = lower_place_assign_drop(place_ptr, rhs_ptr, s.span, ctx, &var out)
-                out.push(rc_insert_stmt(s, ctx))
-                when (old) {
-                    Some(nm) => out.push(new_stmt(s.span, StmtKind.Release(nm)))
-                    None => { }
-                }
-            }
-            _ => out.push(rc_insert_stmt(s, ctx))
-        }
+        push_rewritten(&var before, stmts.at_mut(i).collect_stmt_hoists(ctx), ctx)
+        stmts.at_mut(i).rc_insert_in_list(&var before, &var after, ctx)
+        laid_out.extend(before)
+        slots.push(n + laid_out.size())
+        laid_out.push(new_stmt(no_span(), StmtKind.Break))
+        laid_out.extend(after)
     }
-    return out
+    splice_into_slots(stmts, laid_out, &slots)
+}
+
+/// Appends `laid_out` and swaps each original statement into its slot there,
+/// then drops the placeholders the swaps left at the front.
+fun splice_into_slots(stmts: &var List<Stmt>, laid_out: List<Stmt>, slots: &List<uint64>): void {
+    val n = slots.size()
+    stmts.extend(laid_out)
+    while i in 0..n {
+        stmts.swap(i, slots.get(i))
+    }
+    stmts.reverse()
+    while _i in 0..n {
+        stmts.pop()
+    }
+    stmts.reverse()
+}
+
+fun push_rewritten(out: &var List<Stmt>, items: List<Stmt>, ctx: &var RcCtx): void {
+    var taken = items
+    while i in 0..taken.size() {
+        taken.at_mut(i).rc_insert_stmt(ctx)
+    }
+    out.extend(taken)
+}
+
+/// Rewrites the statement, putting what runs before it on `before` and what
+/// runs after it on `after`.
+mutating fun Stmt.rc_insert_in_list(before: &var List<Stmt>, after: &var List<Stmt>, ctx: &var RcCtx): void {
+    val span = self.span
+    when (self.kind) {
+        Return(ep) => {
+            var exclude = returned_var_names(ep.view())
+            refine_return_exclusions(ep.view(), ctx, &var exclude)
+            val rel_count = ctx.exit_releases(false, &exclude).size()
+            if return_drops_after_eval(ep.view(), rel_count, ctx) {
+                after.extend(ctx.exit_releases(false, &exclude))
+                after.push(self.bind_return_value(ctx))
+            } else {
+                before.extend(ctx.exit_releases(false, &exclude))
+            }
+        }
+        Break => before.extend(ctx.exit_releases(true, &List.new<String>()))
+        Continue => before.extend(ctx.exit_releases(true, &List.new<String>()))
+        Switch(subj_ptr, _arms) => {
+            // An owning rvalue subject is bound to a temp first.
+            push_rewritten(before, hoist_owned_when_subject(subj_ptr, span, ctx), ctx)
+            self.rc_insert_stmt(ctx)
+        }
+        // Ends one ownership and begins one; see rc_assign.kf.
+        Assign(asn_name, rhs_ptr) => {
+            val name = asn_name
+            val prior = assign_ownership_before(name, rhs_ptr, ctx)
+            val old = self_read_assign_old(name, rhs_ptr, &prior, span, ctx, before)
+            self.rc_insert_stmt(ctx)
+            // `s = s + x` borrows `s`; `s = concat(s, x)` consumes it and
+            // gets the same buffer back.
+            val still_owning = ctx.rc_owning_frame(name.as_str()) >= 0
+            before.extend(assign_ownership_after(name, span, &prior, ctx))
+            if !still_owning { return }
+            val nm = old ?: return
+            after.push(new_stmt(span, StmtKind.Release(nm)))
+        }
+        // The old value is named, then released after the store.
+        AssignTo(place_ptr, rhs_ptr) => {
+            place_rhs_take_ownership(rhs_ptr, ctx)
+            val old = lower_place_assign_drop(place_ptr, rhs_ptr, span, ctx, before)
+            self.rc_insert_stmt(ctx)
+            val nm = old ?: return
+            after.push(new_stmt(span, StmtKind.Release(nm)))
+        }
+        _ => self.rc_insert_stmt(ctx)
+    }
 }
 
 // `val x = y` on a heap type: ownership moves, with no retain and no release

@@ -91,11 +91,11 @@
 6 compiler/kf-lower/src/refcount/rc_classify.kf
 4 compiler/kf-lower/src/refcount/rc_frame.kf
 5 compiler/kf-lower/src/refcount/rc_guard.kf
-34 compiler/kf-lower/src/refcount/rc_insert.kf
+32 compiler/kf-lower/src/refcount/rc_insert.kf
 20 compiler/kf-lower/src/refcount/rc_mark_moved.kf
 5 compiler/kf-lower/src/refcount/rc_place.kf
 2 compiler/kf-lower/src/refcount/rc_return.kf
-25 compiler/kf-lower/src/refcount/rc_stmt.kf
+24 compiler/kf-lower/src/refcount/rc_stmt.kf
 1 compiler/kf-lower/src/refcount/rc_value_params.kf
 19 compiler/kf-lower/src/refcount/rc_when.kf
 5 compiler/kf-lower/src/trim_binders.kf

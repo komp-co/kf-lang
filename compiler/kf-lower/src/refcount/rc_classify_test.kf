@@ -113,7 +113,8 @@ import kf_core.ast.*
     unsafe { *rp = call }
     var body = List.new<Stmt>()
     body.push(new_stmt(no_span(), StmtKind.Return(ret_op(rp))))
-    val out = rc_insert_stmt_list(&body, &var ctx)
+    var out = body
+    rc_insert_stmts(&var out, &var ctx)
     assert_eq(out.size(), 3, "the value, then the drop, then the return")
     when (out.at(1).kind) {
         Release(n) => assert_eq(n.as_str(), "hoisted", "released after the value exists")
@@ -130,6 +131,7 @@ import kf_core.ast.*
     val vp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *vp = mk_string_var_expr(String.from("kept")) }
     body.push(new_stmt(no_span(), StmtKind.Return(ret_op(vp))))
-    val out = rc_insert_stmt_list(&body, &var ctx)
+    var out = body
+    rc_insert_stmts(&var out, &var ctx)
     assert_eq(out.size(), 2, "moving `kept` out evaluates nothing, so `other` is released first")
 }

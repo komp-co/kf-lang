@@ -34,16 +34,17 @@ pub fun rc_insert_top_decl_pv(td: &var TopDecl, names: List<String>, tp: Ptr<Lis
             ctx.string_name = string_name
             val _idx = ctx.push_frame(false)
             track_value_params(&params, &var ctx)
-            val new_body = rc_insert_stmt_list(body, &var ctx)
-            val releases = ctx.pop_frame()
-            val final_body = append_releases(new_body, releases)
-            td.kind = TopDeclKind.Function(params, ret, final_body, p, u, m, s)
+            rc_insert_stmts(&var body, &var ctx)
+            append_releases(&var body, ctx.pop_frame())
+            // CONSTRAINT: a binder is a copy of the payload, so the grown body
+            // is moved back into place.
+            td.kind = TopDeclKind.Function(take<List<Param>>(params), take<Box<TypeRef>>(ret), take<List<Stmt>>(body),
+                p, u, m, s)
         }
         ImplBlock(methods) => {
             while i in 0..methods.size() {
                 rc_insert_top_decl_pv(methods.at_mut(i), names, tp, vp, string_name, free)
             }
-            td.kind = TopDeclKind.ImplBlock(methods)
         }
         Struct(_, _) => return
         EnumDecl(_, _) => return
@@ -56,12 +57,6 @@ pub fun rc_insert_top_decl_pv(td: &var TopDecl, names: List<String>, tp: Ptr<Lis
     }
 }
 
-
-fun push_stmts(out: &var List<Stmt>, items: List<Stmt>): void {
-    while item in &items {
-        out.push(item)
-    }
-}
 
 enum BorrowMode { Value, Borrow }
 
@@ -218,19 +213,20 @@ fun ty_is_struct_value(t: Type): bool {
 }
 
 /// `return <expr>` that must drop locals after evaluating the value, which
-/// may read through them: capture, drop, return the temp.
-fun lower_return_drop_after_eval(value: Box<Expr>?, rels: List<Stmt>, ctx: &var RcCtx, out: &var List<Stmt>): void {
-    val rp = value.view() ?: return
-    val re = unsafe { *rp }
+/// may read through them: this becomes `val __retval_N = <expr>`, and the
+/// answer is the `return __retval_N` to follow the drops.
+mutating fun Stmt.bind_return_value(ctx: &var RcCtx): Stmt {
     val tmp_id = ctx.block_counter
     ctx.block_counter = tmp_id + 1
-    val tmp_name = "__retval_${u64_to_str(tmp_id)}"
-    out.push(new_stmt(re.span, StmtKind.LetVal(intern(tmp_name.as_str()), null, value)))
-    push_stmts(out, rels)
-    var v = new_expr(re.span, ExprKind.Variable(intern(tmp_name.as_str())))
-    v.ty = re.ty.clone()
-    val vp: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *vp = v }
-    val operand: Box<Expr>? = vp
-    out.push(new_stmt(re.span, StmtKind.Return(operand)))
+    val tmp_name = intern("__retval_${u64_to_str(tmp_id)}")
+    var v = new_expr(self.span, ExprKind.Variable(tmp_name))
+    when (self.kind) {
+        Return(value) => {
+            val rp = value.view() ?: return new_stmt(self.span, StmtKind.Return(null))
+            v.ty = unsafe { &*rp }.ty.clone()
+            self.kind = StmtKind.LetVal(tmp_name, null, take<Box<Expr>?>(value))
+        }
+        _ => { }
+    }
+    return new_stmt(self.span, StmtKind.Return(Box.new(v)))
 }

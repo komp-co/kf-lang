@@ -147,64 +147,39 @@ fun arms_move_out(arms: &List<SwitchArm>, name: str): bool {
 /// Gives every owning payload an arm declined a generated name, so it is
 /// dropped like any binder. Scalars are left unnamed. Names come from
 /// `block_counter`, so they are stable across runs, which the fixpoint needs.
-pub fun name_declined_payloads(arms: &List<SwitchArm>, ename: str, ctx: &var RcCtx): List<SwitchArm> {
-    var out = List.new<SwitchArm>()
-    while arm in &arms {
-        out.push(arm.arm_with_declined_named(ename, ctx))
+pub fun name_declined_payloads(arms: &var List<SwitchArm>, ename: str, ctx: &var RcCtx): void {
+    while i in 0..arms.size() {
+        arms.at_mut(i).name_declined(ename, ctx)
     }
-    return out
 }
 
-fun SwitchArm.arm_with_declined_named(ename: str, ctx: &var RcCtx): SwitchArm {
+mutating fun SwitchArm.name_declined(ename: str, ctx: &var RcCtx): void {
     val vname = self.arm_variant_name()
     // A wildcard arm keeps the whole-subject drop.
-    if vname.as_str().equals("") { return self.clone_switch_arm() }
+    if vname.as_str().equals("") { return }
     val n = variant_payload_count(unsafe { &*ctx.variants }, ename, vname.as_str())
-    if n == 0 { return self.clone_switch_arm() }
+    if n == 0 { return }
 
     var binders = List.new<Sym>()
     var changed = false
-    var i = 0
-    while i < n {
+    while i in 0..n {
         if self.arm_binds_real(i) {
-            binders.push(self.binders.at(i).clone())
+            binders.push(self.binders.get(i))
         } else {
             val ty = variant_payload_type(unsafe { &*ctx.variants }, ename, vname.as_str(), i)
             if payload_owns(ty.as_str(), ctx) {
                 val id = ctx.block_counter
                 ctx.block_counter = id + 1
-                binders.push(intern(("__declined_${u64_to_str(id)}").as_str()))
+                binders.push(intern("__declined_${u64_to_str(id)}"))
                 changed = true
             } else if i < self.binders.size() {
-                binders.push(self.binders.at(i).clone())
+                binders.push(self.binders.get(i))
             } else {
                 binders.push(intern("_"))
             }
         }
-        i = i + 1
     }
-    if !changed { return self.clone_switch_arm() }
-    val prelude = clone_stmt_list(&self.guard_prelude)
-    return new_guarded_switch_arm(self.span, self.tag, binders, self.guard.duplicate(),
-        prelude, clone_stmt_list(&self.body))
-}
-
-fun SwitchArm.clone_switch_arm(): SwitchArm {
-    var binders = List.new<Sym>()
-    while binder in &self.binders {
-        binders.push(binder.clone())
-    }
-    val prelude = clone_stmt_list(&self.guard_prelude)
-    return new_guarded_switch_arm(self.span, self.tag, binders, self.guard.duplicate(),
-        prelude, clone_stmt_list(&self.body))
-}
-
-fun clone_stmt_list(stmts: &List<Stmt>): List<Stmt> {
-    var out = List.new<Stmt>()
-    while stmt in &stmts {
-        out.push(stmt.clone())
-    }
-    return out
+    if changed { self.binders = binders }
 }
 
 /// A bare variable subject, an enum this module declares, and an arm that
