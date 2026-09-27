@@ -6,13 +6,13 @@ import kf_core.span.no_span
 import kf_parse.parser.parser_for
 
 fun index_diags(src: str): uint64 {
-    val p = parser_for(src)
+    var p = parser_for(src)
     val _m = p.parse_module(List.new<String>())
     return p.diags.size()
 }
 
 fun index_msg(src: str): String {
-    val p = parser_for(src)
+    var p = parser_for(src)
     val _m = p.parse_module(List.new<String>())
     if p.diags.size() == 0 { return String.from("") }
     return p.diags.at(0).primary.message.clone()
@@ -20,7 +20,7 @@ fun index_msg(src: str): String {
 
 /// `index`, `index_mut`, or "" when the first statement is no subscript.
 fun index_accessor(src: str): String {
-    val p = parser_for(src)
+    var p = parser_for(src)
     val m = p.parse_module(List.new<String>())
     var body = List.new<Stmt>()
     when (m.decls.at(0).kind) {
@@ -68,7 +68,7 @@ fun index_accessor(src: str): String {
 }
 
 fun statements_in_first_fn(src: str): uint64 {
-    val p = parser_for(src)
+    var p = parser_for(src)
     val m = p.parse_module(List.new<String>())
     return when (m.decls.at(0).kind) {
         Function(_params, _ret, body, _pub, _unsafe, _mutating, _static) => body.size()

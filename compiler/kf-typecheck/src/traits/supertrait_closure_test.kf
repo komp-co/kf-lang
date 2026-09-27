@@ -35,14 +35,14 @@ fun closure_names(one: str): List<String> {
 }
 
 @test fun closure_of_a_trait_without_supertraits_is_empty(): void {
-    val sigs = new_sig_table()
+    var sigs = new_sig_table()
     sigs.insert_trait(closure_trait("Equal", List.new<SuperTraitReq>()))
     val closed = sigs.supertrait_closure("Equal")
     assert_eq(closed.size(), 0, "Equal requires nothing")
 }
 
 @test fun closure_walks_a_chain(): void {
-    val sigs = new_sig_table()
+    var sigs = new_sig_table()
     sigs.insert_trait(closure_trait("Equal", List.new<SuperTraitReq>()))
     sigs.insert_trait(closure_trait("Compare", closure_supers_of(closure_names("Equal"))))
     sigs.insert_trait(closure_trait("Sortable", closure_supers_of(closure_names("Compare"))))
@@ -51,7 +51,7 @@ fun closure_names(one: str): List<String> {
 }
 
 @test fun closure_dedupes_a_diamond(): void {
-    val sigs = new_sig_table()
+    var sigs = new_sig_table()
     var d_supers = List.new<SuperTraitReq>()
     d_supers.push(closure_super("A"))
     d_supers.push(closure_super("B"))
@@ -64,7 +64,7 @@ fun closure_names(one: str): List<String> {
 }
 
 @test fun closure_terminates_on_a_cycle(): void {
-    val sigs = new_sig_table()
+    var sigs = new_sig_table()
     sigs.insert_trait(closure_trait("Alpha", closure_supers_of(closure_names("Beta"))))
     sigs.insert_trait(closure_trait("Beta", closure_supers_of(closure_names("Alpha"))))
     val closed = sigs.supertrait_closure("Alpha")
@@ -72,7 +72,7 @@ fun closure_names(one: str): List<String> {
 }
 
 @test fun cycle_is_reported_from_either_end(): void {
-    val sigs = new_sig_table()
+    var sigs = new_sig_table()
     sigs.insert_trait(closure_trait("Alpha", closure_supers_of(closure_names("Beta"))))
     sigs.insert_trait(closure_trait("Beta", closure_supers_of(closure_names("Alpha"))))
     assert_eq(sigs.supertrait_cycle_from("Alpha"), true, "cycle seen from Alpha")
@@ -80,7 +80,7 @@ fun closure_names(one: str): List<String> {
 }
 
 @test fun a_chain_is_not_a_cycle(): void {
-    val sigs = new_sig_table()
+    var sigs = new_sig_table()
     sigs.insert_trait(closure_trait("Equal", List.new<SuperTraitReq>()))
     sigs.insert_trait(closure_trait("Compare", closure_supers_of(closure_names("Equal"))))
     assert_eq(sigs.supertrait_cycle_from("Compare"), false, "a chain terminates cleanly")

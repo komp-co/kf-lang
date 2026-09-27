@@ -67,12 +67,15 @@ fun Type.field_is_var(name: Sym, ctx: &var TypeCtx): bool {
         _ => {}
     }
     if t.is_poison() { return true }
-    val sname = when (t.kind) {
-        Struct(s) => s.as_str()
-        _ => ""
+    val is_struct = when (t.kind) {
+        Struct(_) => true
+        _ => false
     }
-    if sname == "" { return true }
-    val layout = unsafe { (*ctx.sigs).find_struct(sname, ctx.owner_crate) } ?: return true
+    if !is_struct { return true }
+    // By its declared name, as a field read finds it: a call's result carries
+    // the canonical identity.
+    val sname = t.kind.struct_name()
+    val layout = unsafe { (*ctx.sigs).find_struct(sname.as_str(), ctx.owner_crate) } ?: return true
     while f in &layout.fields {
         if f.name.as_str().equals(name.as_str()) { return f.is_var }
     }
@@ -167,8 +170,9 @@ fun Type.method_is_mutating(method_name: String, arity: uint64, ctx: &var TypeCt
         BoxOf(p)    => return method_is_mutating(unsafe { *p }, method_name.clone(), arity, ctx)
         RefTo(_, p) => return method_is_mutating(unsafe { *p }, method_name.clone(), arity, ctx)
         Struct(n) => {
-            val sname = n.as_string()
-            if name_starts_with(sname, "List__") {
+            // By its declared name: a field's type carries the canonical identity.
+            val sname = self.kind.struct_name()
+            if name_starts_with(sname.clone(), "List__") {
                 // Synthesized container methods are not in the sig table.
                 // `at_mut` hands out `&var`, so it needs a mutable receiver.
                 return when m {

@@ -50,7 +50,7 @@ fun read_line_yields_every_line_and_stops_at_the_end(): void {
     val _in = create_dir_all(Path.new(stdin_dir()))
     write_file(scratch_path("kf_stdin_io/input.txt"), "alpha\n\nbeta\n")
     // `Command` has no stdin redirect.
-    val run = Command.new("/bin/sh")
+    var run = Command.new("/bin/sh")
     run.arg("-c")
     run.arg("${scratch_path("kf_stdin_io/reader/target/kflat/reader")} < ${scratch_path("kf_stdin_io/input.txt")} > ${scratch_path("kf_stdin_io/out.txt")}")
     val code = run.status().exit_code()
@@ -66,7 +66,7 @@ fun read_line_on_empty_input_reads_nothing(): void {
     assert_eq(built, 0, "the reader builds")
     val _e = create_dir_all(Path.new(stdin_dir()))
     write_file(scratch_path("kf_stdin_io/empty.txt"), "")
-    val run = Command.new("/bin/sh")
+    var run = Command.new("/bin/sh")
     run.arg("-c")
     run.arg("${scratch_path("kf_stdin_io/reader/target/kflat/reader")} < ${scratch_path("kf_stdin_io/empty.txt")}")
     assert_eq(run.status().exit_code(), 0, "no input is zero lines, not one empty one")

@@ -6,9 +6,9 @@ import kf_core.ast.dyn_meta.*
 
 pub fun Module.emit_interface_dyn_traits(crate: CrateId): String {
     val layouts = self.collect_interface_dyn_traits(crate)
-    val array = JsonWriter.array()
+    var array = JsonWriter.array()
     while layout in &layouts {
-        val object = JsonWriter.object()
+        var object = JsonWriter.object()
         object.field_string("identity", layout.identity.as_str())
         object.field_string("principal", layout.principal.as_str())
         object.field_raw("args", emit_dyn_types(&layout.args).as_str())
@@ -20,9 +20,9 @@ pub fun Module.emit_interface_dyn_traits(crate: CrateId): String {
 
 pub fun Module.emit_interface_dyn_vtables(crate: CrateId): String {
     val tables = self.collect_interface_dyn_vtables(crate)
-    val array = JsonWriter.array()
+    var array = JsonWriter.array()
     while table in &tables {
-        val object = JsonWriter.object()
+        var object = JsonWriter.object()
         object.field_string("layout", table.layout.as_str())
         object.field_string("receiver", table.receiver.dyn_type_to_source().as_str())
         object.field_string("receiver_identity", table.receiver_identity.as_str())
@@ -36,9 +36,9 @@ pub fun Module.emit_interface_dyn_vtables(crate: CrateId): String {
 }
 
 fun emit_dyn_methods(methods: &List<DynMethodSlot>): String {
-    val array = JsonWriter.array()
+    var array = JsonWriter.array()
     while method in &methods {
-        val object = JsonWriter.object()
+        var object = JsonWriter.object()
         object.field_string("name", method.name.as_str())
         object.field_int64("slot", method.slot as int64)
         object.field_bool("mutating", method.is_mutating)
@@ -50,7 +50,7 @@ fun emit_dyn_methods(methods: &List<DynMethodSlot>): String {
 }
 
 fun emit_dyn_types(types: &List<Type>): String {
-    val array = JsonWriter.array()
+    var array = JsonWriter.array()
     while item in &types {
         array.write_string(item.dyn_type_to_source().as_str())
     }
@@ -58,7 +58,7 @@ fun emit_dyn_types(types: &List<Type>): String {
 }
 
 fun emit_dyn_symbols(symbols: &List<Sym>): String {
-    val array = JsonWriter.array()
+    var array = JsonWriter.array()
     while symbol in &symbols {
         array.write_string(symbol.as_str())
     }

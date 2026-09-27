@@ -8,7 +8,7 @@ import json.writer.*
 
 /// `{"schema_version":1,"file":..,"ranges":[..]}`
 pub fun render_folding_json(path: str, m: &Module): String {
-    val out = JsonWriter.object()
+    var out = JsonWriter.object()
     out.field_uint32("schema_version", 1)
     out.field_string("file", path)
     var arr = JsonWriter.array()
@@ -58,7 +58,7 @@ mutating fun JsonWriter.append_member_ranges(td: &TopDecl): void {
 }
 
 fun range_object(start: uint32, end: uint32, kind: str): String {
-    val o = JsonWriter.object()
+    var o = JsonWriter.object()
     o.field_uint32("byte_start", start)
     o.field_uint32("byte_end", end)
     o.field_string("kind", kind)

@@ -10,7 +10,7 @@ import kf_parse.parser.parser_for
 
 // `e.field = rhs` is an AssignTo on a FieldAccess.
 @test fun parse_deref_field_store(): void {
-    val p = parser_for("fun f(): void { (*e).ty = t }")
+    var p = parser_for("fun f(): void { (*e).ty = t }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
     val td = *m.decls.at(0)
@@ -41,37 +41,37 @@ import kf_parse.parser.parser_for
 }
 
 @test fun parse_test_annotation_recorded(): void {
-    val p = parser_for("@test fun foo(): void {}")
+    var p = parser_for("@test fun foo(): void {}")
     val td = p.parse_top_decl()
     assert_eq(td.annotations.at(0).as_str(), "test", "@test → annotation == test")
 }
 
 @test fun parse_unannotated_fun_has_empty_annotation(): void {
-    val p = parser_for("fun foo(): void {}")
+    var p = parser_for("fun foo(): void {}")
     val td = p.parse_top_decl()
     assert_eq(td.annotations.size(), 0, "plain fun → no annotations")
 }
 
 @test fun parse_unknown_annotation_recorded_not_rejected(): void {
-    val p = parser_for("@inline fun foo(): void {}")
+    var p = parser_for("@inline fun foo(): void {}")
     val td = p.parse_top_decl()
     assert_eq(td.annotations.at(0).as_str(), "inline", "@inline recorded verbatim, not rejected")
 }
 
 @test fun parse_derive_annotation_captures_args(): void {
-    val p = parser_for("@derive(Default) struct S { var x: int32 }")
+    var p = parser_for("@derive(Default) struct S { var x: int32 }")
     val td = p.parse_top_decl()
     assert_eq(td.annotations.at(0).as_str(), "derive(Default)", "@derive(Default) → annotation carries the arg")
 }
 
 @test fun parse_derive_annotation_multiple_traits(): void {
-    val p = parser_for("@derive(Default, Equal) struct S { var x: int32 }")
+    var p = parser_for("@derive(Default, Equal) struct S { var x: int32 }")
     val td = p.parse_top_decl()
     assert_eq(td.annotations.at(0).as_str(), "derive(Default,Equal)", "@derive lists comma-joined traits")
 }
 
 @test fun parse_trait_records_required_method(): void {
-    val p = parser_for("trait Clone { fun clone(): int32 }")
+    var p = parser_for("trait Clone { fun clone(): int32 }")
     val td = p.parse_top_decl()
     assert_eq(td.name.as_str(), "Clone", "trait name")
     when (td.kind) {
@@ -85,7 +85,7 @@ import kf_parse.parser.parser_for
 }
 
 @test fun parse_trait_impl_for_type(): void {
-    val p = parser_for("impl Clone for Pair<A, B> { fun clone(): int32 { return 0 } }")
+    var p = parser_for("impl Clone for Pair<A, B> { fun clone(): int32 { return 0 } }")
     val td = p.parse_top_decl()
     assert_eq(td.name.as_str(), "Pair", "impl target is Pair")
     assert_eq(td.generics.size(), 2, "impl generics A,B")
@@ -99,7 +99,7 @@ import kf_parse.parser.parser_for
 }
 
 @test fun parse_inherent_impl_still_implblock(): void {
-    val p = parser_for("impl Pair<A, B> { fun first(): int32 { return 0 } }")
+    var p = parser_for("impl Pair<A, B> { fun first(): int32 { return 0 } }")
     val td = p.parse_top_decl()
     when (td.kind) {
         ImplBlock(_) => assert_eq(true, true, "inherent impl stays ImplBlock")
@@ -117,19 +117,19 @@ fun tyref_named_name(tr: TypeRef): String {
 // A keyword where a name is required is an error, not a silent "_".
 
 @test fun keyword_as_variable_name_is_a_parse_error(): void {
-    val p = parser_for("fun main(): int32 {\nval when = 5\nreturn 0\n}")
+    var p = parser_for("fun main(): int32 {\nval when = 5\nreturn 0\n}")
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size(), 1, "one parse error for `val when`")
 }
 
 @test fun keyword_as_fun_and_struct_name_are_parse_errors(): void {
-    val p = parser_for("struct impl { val a: int32 }\nfun return(): int32 { return 0 }")
+    var p = parser_for("struct impl { val a: int32 }\nfun return(): int32 { return 0 }")
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size(), 2, "struct `impl` + fun `return`")
 }
 
 @test fun keyword_error_names_the_keyword(): void {
-    val p = parser_for("fun main(): int32 {\nval fun = 1\nreturn 0\n}")
+    var p = parser_for("fun main(): int32 {\nval fun = 1\nreturn 0\n}")
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size(), 1, "one error")
     val d = *p.diags.at(0)
@@ -137,13 +137,13 @@ fun tyref_named_name(tr: TypeRef): String {
 }
 
 @test fun valid_names_produce_no_parse_errors(): void {
-    val p = parser_for("struct Pair { val a: int32 }\nfun main(): int32 {\nval x = 1\nreturn x\n}")
+    var p = parser_for("struct Pair { val a: int32 }\nfun main(): int32 {\nval x = 1\nreturn x\n}")
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size(), 0, "clean program parses with zero diags")
 }
 
 fun diag_count(src: str): uint64 {
-    val p = parser_for(src)
+    var p = parser_for(src)
     val _m = p.parse_module(List.new<String>())
     return p.diags.size()
 }
@@ -268,7 +268,7 @@ fun impl_method_is_mutating(td: TopDecl, i: uint64): bool {
 }
 
 @test fun parse_impl_mutating_flag_lands_on_ast(): void {
-    val p = parser_for("impl Foo { mutating fun bump(): void { } fun peek(): int32 { return 1 } pub mutating fun grow(): void { } }")
+    var p = parser_for("impl Foo { mutating fun bump(): void { } fun peek(): int32 { return 1 } pub mutating fun grow(): void { } }")
     val m = p.parse_module(List.new<String>())
     val td = first_decl(m)
     assert_eq(impl_method_is_mutating(td, 0), true,  "mutating fun -> is_mutating")
@@ -284,7 +284,7 @@ fun bound_head_name(tr: TypeRef): String {
 }
 
 @test fun parse_type_param_single_bound(): void {
-    val p = parser_for("fun show_all<T: Display>(x: T): void { }")
+    var p = parser_for("fun show_all<T: Display>(x: T): void { }")
     val td = p.parse_top_decl()
     assert_eq(td.generics.size(), 1, "one type param")
     val tp = *td.generics.at(0)
@@ -295,7 +295,7 @@ fun bound_head_name(tr: TypeRef): String {
 
 @test fun parse_type_param_plus_bounds_and_generic_bound(): void {
     // The second bound's `>` is half of a `>>` pair.
-    val p = parser_for("fun sort<T: Drop + Compare<T>>(xs: List<T>): void { }")
+    var p = parser_for("fun sort<T: Drop + Compare<T>>(xs: List<T>): void { }")
     val td = p.parse_top_decl()
     assert_eq(td.generics.size(), 1, "one type param")
     val tp = *td.generics.at(0)
@@ -305,7 +305,7 @@ fun bound_head_name(tr: TypeRef): String {
 }
 
 @test fun parse_struct_type_param_bound(): void {
-    val p = parser_for("struct SortedList<T: Compare<T>> { val items: List<T> }")
+    var p = parser_for("struct SortedList<T: Compare<T>> { val items: List<T> }")
     val td = p.parse_top_decl()
     assert_eq(td.generics.size(), 1, "one type param")
     val tp = *td.generics.at(0)
@@ -314,13 +314,13 @@ fun bound_head_name(tr: TypeRef): String {
 }
 
 @test fun parse_unbounded_param_has_no_bounds(): void {
-    val p = parser_for("fun id<T>(x: T): T { return x }")
+    var p = parser_for("fun id<T>(x: T): T { return x }")
     val td = p.parse_top_decl()
     assert_eq(td.generics.at(0).bounds.size(), 0, "no bounds")
 }
 
 @test fun collection_while_in_keeps_the_loop(): void {
-    val p = parser_for("while x in xs { }")
+    var p = parser_for("while x in xs { }")
     val s = p.parse_stmt()
     when (s.kind) {
         ForEach(binder, _subj, _body) => assert_eq(binder.as_str(), "x", "the binder is kept as written")
@@ -330,7 +330,7 @@ fun bound_head_name(tr: TypeRef): String {
 
 // A range is an ordinary value; both forms parse to one node.
 @test fun range_while_in_parses_like_a_collection(): void {
-    val p = parser_for("while i in 0..3 { }")
+    var p = parser_for("while i in 0..3 { }")
     val s = p.parse_stmt()
     when (s.kind) {
         ForEach(binder, _subj, _body) => assert_eq(binder.as_str(), "i", "the binder is kept as written")
@@ -340,7 +340,7 @@ fun bound_head_name(tr: TypeRef): String {
 
 // The loop survives to typecheck, which checks the subject is `Iterable`.
 @test fun while_in_body_is_not_expanded_by_the_parser(): void {
-    val p = parser_for("while x in xs { return }")
+    var p = parser_for("while x in xs { return }")
     val s = p.parse_stmt()
     when (s.kind) {
         ForEach(_binder, _subj, body) => {
@@ -359,7 +359,7 @@ fun bound_head_name(tr: TypeRef): String {
 // arm, since returning a bound List escapes a Drop payload.
 
 @test fun parse_assoc_type_declaration(): void {
-    val p = parser_for("trait Producer { type Out\n fun make(): int32 }")
+    var p = parser_for("trait Producer { type Out\n fun make(): int32 }")
     val td = p.parse_top_decl()
     when (td.kind) {
         TraitDecl(members, _pub, _) => {
@@ -374,7 +374,7 @@ fun bound_head_name(tr: TypeRef): String {
 }
 
 @test fun parse_assoc_type_with_bounds(): void {
-    val p = parser_for("trait Iterable { type Iter: Iterator + Clone\n fun iter(): int32 }")
+    var p = parser_for("trait Iterable { type Iter: Iterator + Clone\n fun iter(): int32 }")
     val td = p.parse_top_decl()
     when (td.kind) {
         TraitDecl(members, _pub, _) => {
@@ -389,7 +389,7 @@ fun bound_head_name(tr: TypeRef): String {
 }
 
 @test fun parse_assoc_type_binding_in_an_impl(): void {
-    val p = parser_for("impl Producer for Widget { type Out = int32\n fun make(): int32 { return 1 } }")
+    var p = parser_for("impl Producer for Widget { type Out = int32\n fun make(): int32 { return 1 } }")
     val td = p.parse_top_decl()
     when (td.kind) {
         TraitImpl(_tref, members) => {
@@ -411,7 +411,7 @@ fun bound_head_name(tr: TypeRef): String {
 
 // `C.Iter` in type position is a projection.
 @test fun parse_projection_in_a_return_type(): void {
-    val p = parser_for("fun first(items: C): C.Iter { return items }")
+    var p = parser_for("fun first(items: C): C.Iter { return items }")
     val td = p.parse_top_decl()
     when (td.kind) {
         Function(_params, ret, _b, _pb, _u, _mv, _s) => {

@@ -1,9 +1,7 @@
 //! build: fail
 //! deps: core
-//! broken: #74 — the field check is skipped when the owner came from a call
 // val_field_assignment_rejected with `s` bound from a call: the owner's type
-// is missing, so the check answers permissively. Assignment, a mutating method
-// and a `&var` borrow all miss it; the root-binding check is unaffected.
+// carries its canonical identity, and the field is still found `val`.
 
 struct S {
     pub val n: int32

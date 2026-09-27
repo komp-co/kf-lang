@@ -17,7 +17,7 @@ import json.writer.*
 /// `kind` is `local`, `parameter`, `function`, `struct`, `enum`, `trait`,
 /// `field` or `method`.
 pub fun render_completion_json(path: str, offset: uint32, crate: &TypedCrate): String {
-    val out = JsonWriter.object()
+    var out = JsonWriter.object()
     out.field_uint32("schema_version", 2)
     out.field_string("file", path)
     out.field_uint32("offset", offset)
@@ -139,7 +139,7 @@ fun push_item(seen: &var List<String>, arr: &var JsonWriter, label: str, kind: s
         if item.as_str() == label { return }
     }
     seen.push(String.from(label))
-    val o = JsonWriter.object()
+    var o = JsonWriter.object()
     o.field_string("label", label)
     o.field_string("kind", kind)
     o.field_string("detail", detail)

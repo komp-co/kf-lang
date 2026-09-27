@@ -76,7 +76,7 @@ impl ServeSession {
             return error_line(id, "unsupported_protocol", message.as_str())
         }
         self.greeted = true
-        val writer = JsonWriter.object()
+        var writer = JsonWriter.object()
         writer.field_int64("protocol", serve_protocol())
         writer.field_string("compiler", kflat_version())
         return result_line(id, writer.finish().as_str())
@@ -128,7 +128,7 @@ impl ServeSession {
         }
         val checked = unit.check_crate(params.target_dir.as_str(), &self.buffers, &cfg)
         if checked.failure.byte_len() > 0 { return error_line(id, "check_failed", checked.failure.as_str()) }
-        val writer = JsonWriter.object()
+        var writer = JsonWriter.object()
         writer.field_int64("errors", (config_diags.size() + count_errors(&checked.diagnostics) as uint64) as int64)
         writer.key("diagnostics")
         writer.begin_array()

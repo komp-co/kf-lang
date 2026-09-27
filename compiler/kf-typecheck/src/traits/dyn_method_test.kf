@@ -50,7 +50,7 @@ fun dyn_extra_trait(): TraitInfo {
 }
 
 fun dyn_method_ref(argument: Type, mutable: bool): Type {
-    val arguments = new_type_vec()
+    var arguments = new_type_vec()
     arguments.push(argument)
     val dynamic = dyn_trait_type(intern("Dispatch"), arguments, no_span())
     val inner: Ptr<Type> = unsafe { alloc<Type>() }

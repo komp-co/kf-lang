@@ -5,7 +5,7 @@ import kf_core.span.*
 @derive(Clone)
 pub struct Pattern {
     pub val span: Span
-    pub val kind: PatternKind
+    pub var kind: PatternKind
 }
 
 pub enum PatternKind {

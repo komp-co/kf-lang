@@ -96,7 +96,7 @@ fun index_binding(trait_args: str, chosen: Type, written: str): AssocBindingInfo
 /// Two `Index` impls on `Bag` binding `Out` differently, so reading the wrong
 /// one shows.
 fun two_instantiations_of_index(): SigTable {
-    val sigs = new_sig_table()
+    var sigs = new_sig_table()
     sigs.insert_assoc_binding(index_binding("uint64", int32_ty(no_span()), "int32"))
     sigs.insert_assoc_binding(index_binding("Range", bool_ty(no_span()), "bool"))
     return sigs
@@ -151,7 +151,7 @@ fun stdout_layout(crate: str, field_count: uint64): StructLayout {
 
 /// Core registers a field-less `Stdout` first; the program declares its own.
 fun core_then_program_stdout(): SigTable {
-    val sigs = new_sig_table()
+    var sigs = new_sig_table()
     sigs.insert_type_identity(new_type_identity(new_crate_id("core"), intern("core.display"), intern("Stdout")))
     sigs.insert_struct(stdout_layout("core", 0))
     sigs.insert_type_identity(new_type_identity(new_crate_id("program"), intern("program"), intern("Stdout")))
@@ -179,7 +179,7 @@ fun a_crate_declaring_no_such_type_takes_the_first(): void {
 
 @test
 fun a_crates_own_enum_hides_another_crates_struct(): void {
-    val sigs = new_sig_table()
+    var sigs = new_sig_table()
     sigs.insert_struct(StructLayout { name: String.from("Duration"), fields: List.new<StructFieldInfo>(), is_refcounted: false, owner_crate: new_crate_id("core") })
     sigs.insert_type_identity(new_type_identity(new_crate_id("program"), intern("program"), intern("Duration")))
     sigs.insert_enum(EnumLayout { name: String.from("Duration"), variants: List.new<VariantInfo>(), owner_crate: new_crate_id("program") })
@@ -189,7 +189,7 @@ fun a_crates_own_enum_hides_another_crates_struct(): void {
 
 @test
 fun a_crates_plain_type_hides_another_crates_generic(): void {
-    val sigs = new_sig_table()
+    var sigs = new_sig_table()
     var params = List.new<String>()
     params.push(String.from("T"))
     sigs.insert_generic_info(GenericInfo { name: String.from("Range"), type_params: params, owner_crate: new_crate_id("core") })
@@ -205,7 +205,7 @@ fun SigTable.variant_count(name: str, caller: str): uint64 {
 
 @test
 fun a_crates_own_enum_hides_another_crates_enum(): void {
-    val sigs = new_sig_table()
+    var sigs = new_sig_table()
     var core_variants = List.new<VariantInfo>()
     core_variants.push(VariantInfo { name: String.from("Less"), payloads: List.new<Type>() })
     core_variants.push(VariantInfo { name: String.from("More"), payloads: List.new<Type>() })

@@ -9,7 +9,7 @@ import kf_parse.parser.parser_for
 
 /// Read through a borrow: a copied Stmt aliases its Expr pointers.
 fun first_stmt_span(src: str): Span {
-    val p = parser_for(src)
+    var p = parser_for(src)
     val m = p.parse_module(List.new<String>())
     var out = no_span()
     if m.decls.size() == 0 { return out }
@@ -24,7 +24,7 @@ fun first_stmt_span(src: str): Span {
 }
 
 fun first_expr_span(src: str): Span {
-    val p = parser_for(src)
+    var p = parser_for(src)
     val m = p.parse_module(List.new<String>())
     var out = no_span()
     if m.decls.size() == 0 { return out }

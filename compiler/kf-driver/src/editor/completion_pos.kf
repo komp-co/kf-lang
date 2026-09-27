@@ -220,7 +220,7 @@ mutating fun JsonWriter.push_items(items: &List<ScopeItem>): void {
 }
 
 mutating fun JsonWriter.push_item_json(it: &ScopeItem): void {
-    val o = JsonWriter.object()
+    var o = JsonWriter.object()
     o.field_string("label", it.label.as_str())
     o.field_string("kind", it.kind.as_str())
     o.field_string("detail", it.detail.as_str())

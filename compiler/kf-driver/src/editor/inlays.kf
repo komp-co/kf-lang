@@ -8,7 +8,7 @@ import json.writer.*
 
 /// `{"schema_version":1,"file":..,"inlays":[{"byte_offset":N,"label":": T"}]}`
 pub fun render_inlays_json(path: str, crate: &TypedCrate): String {
-    val out = JsonWriter.object()
+    var out = JsonWriter.object()
     out.field_uint32("schema_version", 1)
     out.field_string("file", path)
     var arr = JsonWriter.array()
@@ -78,7 +78,7 @@ fun Stmt.inlay_binding(ann: Ptr<TypeRef>?, init_opt: Ptr<Expr>?, crate: &TypedCr
     val at = self.binder.end
     var label = String.from(": ")
     label.append(ty.written_type(crate.sigs).as_str())
-    val o = JsonWriter.object()
+    var o = JsonWriter.object()
     o.field_uint32("byte_offset", at)
     o.field_string("label", label.as_str())
     arr.write_raw(o.finish().as_str())

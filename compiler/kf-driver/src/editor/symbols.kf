@@ -9,7 +9,7 @@ import json.writer.*
 
 /// `{"schema_version":1,"file":..,"symbols":[..]}`
 pub fun render_symbols_json(path: str, m: &Module): String {
-    val out = JsonWriter.object()
+    var out = JsonWriter.object()
     out.field_uint32("schema_version", 1)
     out.field_string("file", path)
     out.field_raw("symbols", render_symbol_list(&m.decls, false).as_str())
@@ -18,7 +18,7 @@ pub fun render_symbols_json(path: str, m: &Module): String {
 
 /// `nested` marks an impl or trait body's members, which are methods.
 fun render_symbol_list(decls: &List<TopDecl>, nested: bool): String {
-    val arr = JsonWriter.array()
+    var arr = JsonWriter.array()
     while td in &decls {
         val rendered = td.render_symbol(nested)
         if rendered.as_str() != "" {
@@ -32,7 +32,7 @@ fun render_symbol_list(decls: &List<TopDecl>, nested: bool): String {
 fun TopDecl.render_symbol(nested: bool): String {
     val kind = self.symbol_kind_of(nested)
     if kind == "" { return "" }
-    val o = JsonWriter.object()
+    var o = JsonWriter.object()
     o.field_string("name", self.symbol_name_of().as_str())
     o.field_string("kind", kind)
     o.field_string("detail", self.symbol_detail_of().as_str())
@@ -103,9 +103,9 @@ fun TopDecl.symbol_children_of(): String {
 }
 
 fun render_field_list(fields: &List<Field>): String {
-    val arr = JsonWriter.array()
+    var arr = JsonWriter.array()
     while f in &fields {
-        val o = JsonWriter.object()
+        var o = JsonWriter.object()
         o.field_string("name", f.name.as_str())
         o.field_string("kind", "field")
         val fty: TypeRef = unsafe { *f.ty }
@@ -119,9 +119,9 @@ fun render_field_list(fields: &List<Field>): String {
 }
 
 fun render_variant_list(variants: &List<Variant>): String {
-    val arr = JsonWriter.array()
+    var arr = JsonWriter.array()
     while v in &variants {
-        val o = JsonWriter.object()
+        var o = JsonWriter.object()
         o.field_string("name", v.name.as_str())
         o.field_string("kind", "variant")
         o.field_string("detail", "")

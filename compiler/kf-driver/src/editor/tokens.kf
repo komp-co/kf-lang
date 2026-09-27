@@ -10,14 +10,14 @@ import json.writer.*
 ///
 /// Sorted by position, as the LSP delta encoding requires.
 pub fun render_tokens_json(path: str, crate: &TypedCrate): String {
-    val out = JsonWriter.object()
+    var out = JsonWriter.object()
     out.field_uint32("schema_version", 1)
     out.field_string("file", path)
     val names = crate.module.all_name_spans()
     val ordered = tokens_in_file(&names, crate.file_id)
-    val arr = JsonWriter.array()
+    var arr = JsonWriter.array()
     while t in &ordered {
-        val o = JsonWriter.object()
+        var o = JsonWriter.object()
         o.field_uint32("byte_start", t.span.start)
         o.field_uint32("byte_end", t.span.end)
         o.field_string("type", t.role.as_str())

@@ -46,7 +46,7 @@ fun SigTable.shadow_diag_count(name: str): uint64 {
 }
 
 @test fun redeclaring_a_direct_supertraits_assoc_is_reported(): void {
-    val sigs = new_sig_table()
+    var sigs = new_sig_table()
     sigs.insert_trait(shadow_trait("Producer", no_shadow_names(), shadow_names("Out")))
     sigs.insert_trait(shadow_trait("Doubler", shadow_names("Producer"), shadow_names("Out")))
     assert_eq(sigs.shadow_diag_count("Doubler"), 1, "Doubler redeclares Producer's Out")
@@ -54,7 +54,7 @@ fun SigTable.shadow_diag_count(name: str): uint64 {
 
 @test fun redeclaring_across_a_chain_is_reported(): void {
     // Transitive: two hops up still collides.
-    val sigs = new_sig_table()
+    var sigs = new_sig_table()
     sigs.insert_trait(shadow_trait("Producer", no_shadow_names(), shadow_names("Out")))
     sigs.insert_trait(shadow_trait("Doubler", shadow_names("Producer"), no_shadow_names()))
     sigs.insert_trait(shadow_trait("Tripler", shadow_names("Doubler"), shadow_names("Out")))
@@ -62,14 +62,14 @@ fun SigTable.shadow_diag_count(name: str): uint64 {
 }
 
 @test fun declaring_an_assoc_no_supertrait_has_is_quiet(): void {
-    val sigs = new_sig_table()
+    var sigs = new_sig_table()
     sigs.insert_trait(shadow_trait("Producer", no_shadow_names(), shadow_names("Out")))
     sigs.insert_trait(shadow_trait("Doubler", shadow_names("Producer"), shadow_names("Item")))
     assert_eq(sigs.shadow_diag_count("Doubler"), 0, "a different name is not a redeclaration")
 }
 
 @test fun inheriting_an_assoc_without_redeclaring_is_quiet(): void {
-    val sigs = new_sig_table()
+    var sigs = new_sig_table()
     sigs.insert_trait(shadow_trait("Producer", no_shadow_names(), shadow_names("Out")))
     sigs.insert_trait(shadow_trait("Doubler", shadow_names("Producer"), no_shadow_names()))
     assert_eq(sigs.shadow_diag_count("Doubler"), 0, "inheriting Out is the point of the feature")
@@ -77,7 +77,7 @@ fun SigTable.shadow_diag_count(name: str): uint64 {
 
 @test fun a_cycle_reports_nothing_here(): void {
     // A cycle is left to check_supertrait_cycles.
-    val sigs = new_sig_table()
+    var sigs = new_sig_table()
     sigs.insert_trait(shadow_trait("Alpha", shadow_names("Beta"), shadow_names("Out")))
     sigs.insert_trait(shadow_trait("Beta", shadow_names("Alpha"), shadow_names("Out")))
     assert_eq(sigs.shadow_diag_count("Alpha"), 0, "the cycle error stands alone")

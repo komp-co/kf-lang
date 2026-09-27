@@ -8,7 +8,7 @@ import kf_parse.parser.new_parser
 /// As `parse_source` parses a buffer.
 fun module_for(src: str): Module {
     val toks = tokenize(src, 1)
-    val p = new_parser(toks)
+    var p = new_parser(toks)
     return p.parse_module(List.new<String>())
 }
 

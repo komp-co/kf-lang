@@ -7,7 +7,7 @@ import kf_core.ast.subst.mangle_tyref
 fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
     when (td.kind) {
         Function(params, ret, _b, is_pub, _u, _mut, _st) => {
-            val o = JsonWriter.object()
+            var o = JsonWriter.object()
             o.field_string("kind", "fun")
             o.field_bool("hidden", hidden)
             o.field_string("name", td.name.as_str())
@@ -24,7 +24,7 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             return o.finish()
         }
         Struct(fields, is_pub) => {
-            val o = JsonWriter.object()
+            var o = JsonWriter.object()
             o.field_string("kind", "struct")
             o.field_bool("hidden", hidden)
             o.field_string("name", td.name.as_str())
@@ -34,9 +34,9 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             o.field_string("c_type_name", cname.as_str())
             o.field_bool("no_mangle", unmangled)
             o.field_string("lang", (&td).lang_key_of().as_str())
-            val arr = JsonWriter.array()
+            var arr = JsonWriter.array()
             while f in &fields {
-                val fo = JsonWriter.object()
+                var fo = JsonWriter.object()
                 fo.field_string("name", f.name.as_str())
                 val fty: TypeRef = unsafe { *f.ty }
                 fo.field_string("type", fty.tyref_to_source().as_str())
@@ -48,7 +48,7 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             return o.finish()
         }
         EnumDecl(variants, is_pub) => {
-            val o = JsonWriter.object()
+            var o = JsonWriter.object()
             o.field_string("kind", "enum")
             o.field_bool("hidden", hidden)
             o.field_string("name", td.name.as_str())
@@ -58,11 +58,11 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             o.field_string("c_type_name", cname.as_str())
             o.field_bool("no_mangle", unmangled)
             o.field_string("lang", (&td).lang_key_of().as_str())
-            val arr = JsonWriter.array()
+            var arr = JsonWriter.array()
             while v in &variants {
-                val vo = JsonWriter.object()
+                var vo = JsonWriter.object()
                 vo.field_string("name", v.name.as_str())
-                val payloads = JsonWriter.array()
+                var payloads = JsonWriter.array()
                 while item in &v.payloads {
                     payloads.write_string(item.tyref_to_source().as_str())
                 }
@@ -73,7 +73,7 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             return o.finish()
         }
         ImplBlock(methods) => {
-            val o = JsonWriter.object()
+            var o = JsonWriter.object()
             o.field_string("kind", "impl")
             o.field_bool("hidden", hidden)
             o.field_string("target", td.name.as_str())
@@ -81,7 +81,7 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             return o.finish()
         }
         TraitDecl(methods, is_pub, supers) => {
-            val o = JsonWriter.object()
+            var o = JsonWriter.object()
             o.field_string("kind", "trait")
             o.field_bool("hidden", hidden)
             o.field_string("name", td.name.as_str())
@@ -89,7 +89,7 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             o.field_string("lang", (&td).lang_key_of().as_str())
             // Supertraits cross too, or a consumer accepts an impl the
             // defining crate rejects.
-            val supers_arr = JsonWriter.array()
+            var supers_arr = JsonWriter.array()
             while item in &supers {
                 supers_arr.write_string(item.tyref_to_source().as_str())
             }
@@ -102,7 +102,7 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
         Extern(params, ret, is_pub, is_unsafe) => {
             // The C prototype comes from kf_runtime.h; only the semantic
             // signature travels.
-            val o = JsonWriter.object()
+            var o = JsonWriter.object()
             o.field_string("kind", "extern")
             o.field_bool("hidden", hidden)
             o.field_string("name", td.name.as_str())
@@ -115,7 +115,7 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             return o.finish()
         }
         TraitImpl(trait_ref, methods) => {
-            val o = JsonWriter.object()
+            var o = JsonWriter.object()
             o.field_string("kind", "trait_impl")
             o.field_bool("hidden", hidden)
             o.field_string("target", td.name.as_str())
@@ -150,12 +150,12 @@ fun interface_trait_suffix(trait_ref: TypeRef, m: &Module): String {
 // through archive symbols.
 fun emit_interface_methods(owner: &TopDecl, methods: &List<TopDecl>, callable: bool, include_private: bool, suffix: String,
     unmangled: bool): String {
-    val arr = JsonWriter.array()
+    var arr = JsonWriter.array()
     while method in &methods {
         when (method.kind) {
             Function(params, ret, _body, is_pub, _unsafe, is_mutating, is_static) => {
                 if is_pub || include_private {
-                    val object = JsonWriter.object()
+                    var object = JsonWriter.object()
                     object.field_string("name", method.name.as_str())
                     if callable {
                         var link = String.from("")
@@ -188,9 +188,9 @@ fun emit_interface_methods(owner: &TopDecl, methods: &List<TopDecl>, callable: b
 }
 
 fun emit_interface_params(params: &List<Param>): String {
-    val arr = JsonWriter.array()
+    var arr = JsonWriter.array()
     while p in &params {
-        val po = JsonWriter.object()
+        var po = JsonWriter.object()
         po.field_string("name", p.name.as_str())
         val pty: TypeRef = unsafe { *p.ty }
         po.field_string("type", pty.tyref_to_source().as_str())

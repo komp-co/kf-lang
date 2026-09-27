@@ -3,7 +3,7 @@ import std.process.*
 import core.assert.assert_eq
 
 @test fun ffi_run_echo_returns_zero(): void {
-    val command = Command.new("/bin/echo")
+    var command = Command.new("/bin/echo")
     command.arg("hello")
     val rc = command.status().exit_code()
     assert_eq(rc == 0, true, "echo /bin/echo runs and returns 0")
@@ -19,7 +19,7 @@ import core.assert.assert_eq
 @test fun ffi_command_redirects_output_to_file(): void {
     val temp = TempDir.new("kf-codegen-ffi")
     val out_path = temp.path().join("output.txt")
-    val command = Command.new("/bin/echo")
+    var command = Command.new("/bin/echo")
     command.arg("asdf")
     command.stdout_to(out_path)
     val rc = command.status().exit_code()

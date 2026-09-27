@@ -35,9 +35,9 @@ pub fun TypedCrate.scope_items_at(offset: uint32): List<ScopeItem> {
 /// As the `items` array of a completion answer.
 pub fun TypedCrate.scope_items_json(offset: uint32): String {
     val items = self.scope_items_at(offset)
-    val arr = JsonWriter.array()
+    var arr = JsonWriter.array()
     while it in &items {
-        val o = JsonWriter.object()
+        var o = JsonWriter.object()
         o.field_string("label", it.label.as_str())
         o.field_string("kind", it.kind.as_str())
         o.field_string("detail", it.detail.as_str())

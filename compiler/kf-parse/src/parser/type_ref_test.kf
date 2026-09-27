@@ -3,7 +3,7 @@ import core.assert.assert_eq
 import kf_core.ast.*
 
 fun dyn_type_mutability(src: str): int32 {
-    val p = parser_for(src)
+    var p = parser_for(src)
     val td = p.parse_top_decl()
     when (td.kind) {
         Function(params, _, _, _, _, _, _) => {
@@ -21,7 +21,7 @@ fun dyn_type_mutability(src: str): int32 {
 }
 
 fun dyn_type_has_principal(src: str, expected: str): bool {
-    val p = parser_for(src)
+    var p = parser_for(src)
     val td = p.parse_top_decl()
     when (td.kind) {
         Function(params, _, _, _, _, _, _) => {
@@ -42,7 +42,7 @@ fun dyn_type_has_principal(src: str, expected: str): bool {
 }
 
 fun dyn_type_argument_count(src: str): uint64 {
-    val p = parser_for(src)
+    var p = parser_for(src)
     val td = p.parse_top_decl()
     when (td.kind) {
         Function(params, _, _, _, _, _, _) => {
@@ -63,7 +63,7 @@ fun dyn_type_argument_count(src: str): uint64 {
 }
 
 fun dyn_type_diagnostic_count(src: str): uint64 {
-    val p = parser_for(src)
+    var p = parser_for(src)
     val _td = p.parse_top_decl()
     return p.diags.size()
 }
