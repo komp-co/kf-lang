@@ -33,6 +33,26 @@ The auto-clone is deep: every field and nested structure is copied with its
 own independent buffer. A warning tells you where the clone was inserted, so
 you can add a `move` keyword or restructure the code to avoid the copy.
 
+## Moves on branches and in matches
+
+Only one branch of an `if` or `when` runs, so each branch may move the same
+value. Nothing is copied unless the value is read after the branches join:
+
+```kflat
+struct Ticket { pub var id: String }
+
+fun file(t: Ticket): void { }
+fun archive(t: Ticket): void { }
+
+fun route(t: Ticket, urgent: bool): void {
+    if urgent {
+        file(t)
+    } else {
+        archive(t)       // moves `t` too; no copy
+    }
+}
+```
+
 ## The copy the compiler inserts for you
 
 The same thing happens when a value is read *through a borrow* and handed to

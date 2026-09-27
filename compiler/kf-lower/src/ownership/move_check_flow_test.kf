@@ -240,3 +240,47 @@ mutating fun MoveCtx.register_move_sink(callee: str): void {
         _ => assert_eq(false, true, "expected Return")
     }
 }
+
+fun first_init_copies(body: &List<Stmt>): bool {
+    return when (body.at(0).kind) {
+        LetVal(_n, _t, init) => (unsafe { (init!!).coerce }) == coerce_clone()
+        _ => false
+    }
+}
+
+fun branches_moving_x(): Stmt {
+    var then_body = List.new<Stmt>()
+    then_body.push(mk_letval(String.from("y"), mk_str_var(String.from("x"))))
+    var else_body = List.new<Stmt>()
+    else_body.push(mk_letval(String.from("z"), mk_str_var(String.from("x"))))
+    return mk_if_stmt(then_body, else_body)
+}
+
+@test fun a_move_on_both_branches_copies_neither(): void {
+    val dp = fresh_diag_ptr()
+    var ctx = fresh_ctx(dp)
+    ctx.declare_owned(intern("x"))
+    var s = branches_moving_x()
+    s.move_check_stmt(&var ctx)
+    val copies = when (s.kind) {
+        If(_c, t, e) => first_init_copies(&t) || first_init_copies(&e)
+        _ => true
+    }
+    assert_eq(copies, false, "only one branch runs, so each moves `x`")
+}
+
+@test fun a_use_after_both_branches_copies_each(): void {
+    val dp = fresh_diag_ptr()
+    var ctx = fresh_ctx(dp)
+    ctx.declare_owned(intern("x"))
+    var s = branches_moving_x()
+    s.move_check_stmt(&var ctx)
+    var after = mk_letval(String.from("w"), mk_str_var(String.from("x")))
+    after.move_check_stmt(&var ctx)
+    val copies = when (s.kind) {
+        If(_c, t, e) => first_init_copies(&t) && first_init_copies(&e)
+        _ => false
+    }
+    assert_eq(copies, true, "`x` is read after the `if`, so both branch moves become copies")
+}
+

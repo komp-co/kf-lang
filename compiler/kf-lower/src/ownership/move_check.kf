@@ -141,15 +141,14 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
             if !then_div && !else_div {
                 check_branch_divergence(moved_after_then, moved_after_else, self.span, ctx)
             }
-            // A name consumed in both branches is cloned: no single pending
-            // node survives the merge.
+            // A name consumed in both branches keeps both consumes pending.
             var merged = List.new<MovedEntry>()
             if !then_div {
-                val m2 = union_moved_marking(merged, moved_after_then, ctx)
+                val m2 = union_moved_consumes(merged, moved_after_then)
                 merged = m2
             }
             if !else_div {
-                val m3 = union_moved_marking(merged, moved_after_else, ctx)
+                val m3 = union_moved_consumes(merged, moved_after_else)
                 merged = m3
             }
             ctx.moved = merged
@@ -161,7 +160,7 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
             val fe_moved_before = ctx.snapshot_moved()
             move_check_stmt_list(body, ctx)
             val fe_moved_after = ctx.snapshot_moved()
-            while fe in &fe_moved_after {
+            while fe in &distinct_moved(&fe_moved_after) {
                 if !moved_contains(fe_moved_before, fe.name) {
                     emit_loop_move_leak(fe.name.as_string(), fe.site, ctx)
                 }
@@ -174,7 +173,7 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
             val moved_after_first = ctx.snapshot_moved()
             // Moved in the body but not before it: moved again on the next
             // iteration.
-            while e in &moved_after_first {
+            while e in &distinct_moved(&moved_after_first) {
                 val pre = moved_contains(moved_before, e.name)
                 if !pre {
                     emit_loop_move_leak(e.name.as_string(), e.site, ctx)
@@ -215,7 +214,7 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
                 val arm_div = stmt_list_diverges(arm.body)
                 if !arm_div {
                     val after = ctx.snapshot_moved()
-                    unioned_moved = union_moved_marking(unioned_moved, after, ctx)
+                    unioned_moved = union_moved_consumes(unioned_moved, after)
                 }
             }
             ctx.moved = unioned_moved
@@ -246,3 +245,4 @@ fun mc_names_has(names: &List<String>, name: str): bool {
     }
     return false
 }
+
