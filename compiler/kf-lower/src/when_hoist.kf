@@ -62,19 +62,17 @@ fun hoist_in_children(ep: Ptr<Expr>, temps: &var WhenTemps, out: &var List<Stmt>
 /// free the AST's copy.
 fun hoist_in_arg_list(ep: Ptr<Expr>, temps: &var WhenTemps, out: &var List<Stmt>): void {
     when (unsafe { ep.kind }) {
-        Call(n, args) => {
-            var a = args
-            while i in 0..a.size() {
-                hoist_in_place(a.at_mut(i), temps, out)
+        // A binder shares the arguments' storage, and none is added or
+        // removed, so each is rewritten where it lies.
+        Call(_n, args) => {
+            while i in 0..args.size() {
+                hoist_in_place(args.at_mut(i), temps, out)
             }
-            unsafe { ep.kind = ExprKind.Call(n, a) }
         }
-        MethodCall(recv, m, args) => {
-            var a = args
-            while i in 0..a.size() {
-                hoist_in_place(a.at_mut(i), temps, out)
+        MethodCall(_recv, _m, args) => {
+            while i in 0..args.size() {
+                hoist_in_place(args.at_mut(i), temps, out)
             }
-            unsafe { ep.kind = ExprKind.MethodCall(recv, m, a) }
         }
         _ => { }
     }

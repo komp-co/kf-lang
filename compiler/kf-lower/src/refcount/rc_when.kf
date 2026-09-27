@@ -182,14 +182,17 @@ mutating fun SwitchArm.name_declined(ename: str, ctx: &var RcCtx): void {
     if changed { self.binders = binders }
 }
 
-/// A bare variable subject, an enum this module declares, and an arm that
-/// hands an owning payload out.
+/// A bare variable subject of an enum this module declares, which is a
+/// hoisted fresh value or has an arm that hands an owning payload out.
 pub fun Expr.when_consumes_subject(arms: &List<SwitchArm>, ctx: &var RcCtx): bool {
     val sname = self.when_subject_var()
     if sname.as_str().equals("") { return false }
     val ename = self.when_subject_enum()
     if ename.as_str().equals("") { return false }
     if !variant_payloads_knows(unsafe { &*ctx.variants }, ename.as_str()) { return false }
+    // CONSTRAINT: the move check gives the binders of a fresh subject its
+    // payload, so a hoisted one is always consumed.
+    if is_hoisted_subject(sname.as_str()) { return true }
     var escapes = false
     while arm in &arms {
         val vname = arm.arm_variant_name()

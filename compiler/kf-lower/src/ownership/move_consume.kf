@@ -150,7 +150,7 @@ pub mutating fun Expr.mark_var_consumed(ctx: &var MoveCtx): void {
 /// consume in the same statement copies too, and the original stays owned.
 pub mutating fun Expr.consume_var_node(name: Sym, ctx: &var MoveCtx): void {
     if ctx.ctx_consumed_here(name) {
-        ctx.clone_pending_consume(name)
+        val _cloned = ctx.clone_pending_consumes(name)
         if ctx_clone_node(unsafe { self as Ptr<Expr> }) {
             warn_use_after_move(self.span, name.as_string(), ctx)
         }
@@ -169,11 +169,6 @@ pub mutating fun Expr.consume_var_node(name: Sym, ctx: &var MoveCtx): void {
     }
 }
 
-/// A no-op when nothing is pending or it already copies.
-mutating fun MoveCtx.clone_pending_consume(name: Sym): void {
-    val node: Ptr<Expr> = self.pending_consume(name)
-    if ctx_clone_node(node) { }
-}
 
 // Runs after the borrow walk of the same args: `foo(x, x.len())` reads x
 // before the callee runs. Arg `i` is declared param `i`.
@@ -217,14 +212,7 @@ fun warn_use_after_move(span: Span, name: String, ctx: &var MoveCtx): void {
 // updates state. `is_consume` is whether this use moves the value.
 // Over-cloning only adds a copy; under-cloning is a double free.
 fun mark_uam_clone(name: Sym, e: &var Expr, is_consume: bool, ctx: &var MoveCtx): void {
-    val node: Ptr<Expr> = ctx.pending_consume(name)
-    val raw: uint64 = unsafe { node as uint64 }
-    if raw != 0 {
-        if unsafe { node.coerce } == coerce_none() {
-            unsafe { node.coerce = coerce_clone() }
-            warn_use_after_move(e.span, name.as_string(), ctx)
-        }
-    }
+    if ctx.clone_pending_consumes(name) { warn_use_after_move(e.span, name.as_string(), ctx) }
     ctx.unmark_moved(name)
     if is_consume {
         // This use is now the pending consume.

@@ -14,8 +14,7 @@ pub mutating fun Module.move_check_module(diags: Ptr<List<Diagnostic>>, mob_coun
     // Module-scoped: mono turns one source line into many functions.
     var warnings = self.new_warn_state()
     while i in 0..self.decls.size() {
-        var td = *self.decls.at(i)
-        td.move_check_top_decl(diags, names, &var param_table, mob_count, smap, &var warnings)
+        self.decls.at_mut(i).move_check_top_decl(diags, names, &var param_table, mob_count, smap, &var warnings)
     }
     // Hands the module's advisories to the caller's channel, which the driver
     // levels and prints. Each is copied explicitly: pushing one by value
@@ -36,12 +35,12 @@ mutating fun TopDecl.move_check_top_decl_in(diags: Ptr<List<Diagnostic>>, names:
             var ctx = new_move_ctx(diags, clone_str_list(names), ptable, mob_count, self.name.as_string(), smap, warn)
             ctx.self_owner = String.from(self_owner)
             declare_owned_value_params(params, &var ctx)
-            move_check_stmt_list(body, &var ctx)
+            move_check_stmt_list(&var body, &var ctx)
         }
         ImplBlock(methods) => {
             while i in 0..methods.size() {
-                var meth = *methods.at(i)
-                meth.move_check_top_decl_in(diags, names, ptable, mob_count, smap, self.name.as_str(), warn)
+                methods.at_mut(i).move_check_top_decl_in(diags, names, ptable, mob_count, smap, self.name.as_str(),
+                    warn)
             }
         }
         Struct(_, _) => return
@@ -55,10 +54,9 @@ mutating fun TopDecl.move_check_top_decl_in(diags: Ptr<List<Diagnostic>>, names:
     }
 }
 
-pub fun move_check_stmt_list(stmts: &List<Stmt>, ctx: &var MoveCtx): void {
+pub fun move_check_stmt_list(stmts: &var List<Stmt>, ctx: &var MoveCtx): void {
     while i in 0..stmts.size() {
-        var s = *stmts.at(i)
-        s.move_check_stmt(ctx)
+        stmts.at_mut(i).move_check_stmt(ctx)
     }
 }
 
@@ -83,15 +81,15 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
         LetVar(var_name, _, init_ptr) => {
             // A null init is `var x: T` with no value yet; nothing is bound.
             val ip = init_ptr ?: return
-            move_check_expr_value(unsafe { &var *ip }, ctx)
-            val init = unsafe { *ip }
+            val init = unsafe { &var *ip }
+            move_check_expr_value(init, ctx)
+            // A `var` owns what it holds, so a value read through a borrow is
+            // copied; one read through a raw pointer is the unsafe code's own.
             val borrow_init = init.ty.mc_is_move_only(ctx.move_only_names) && init.is_borrow_source(ctx)
-            if borrow_init {
-                ctx.declare_borrowed(var_name)
-            } else {
-                val heap = init.ty.is_heap_ty()
-                if heap { ctx.declare_owned(var_name) }
+            if borrow_init && !init.reads_through_a_raw_pointer() {
+                init.mark_auto_clone(String.from("<var binding>"), 0, ctx)
             }
+            if init.ty.is_heap_ty() { ctx.declare_owned(var_name) }
         }
         Assign(asn_name, expr_ptr) => {
             move_check_expr_value(unsafe { &var *expr_ptr }, ctx)
@@ -128,12 +126,12 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
             val borrowed_before = ctx.snapshot_borrowed()
             val then_div = stmt_list_diverges(then_body)
             val else_div = stmt_list_diverges(else_body)
-            move_check_stmt_list(then_body, ctx)
+            move_check_stmt_list(&var then_body, ctx)
             val moved_after_then = ctx.snapshot_moved()
             ctx.restore_moved(moved_before)
             ctx.restore_owned(owned_before)
             ctx.restore_borrowed(borrowed_before)
-            move_check_stmt_list(else_body, ctx)
+            move_check_stmt_list(&var else_body, ctx)
             val moved_after_else = ctx.snapshot_moved()
             // A diverging branch never falls through, so it is left out of the
             // merge. The branch-end sets are unioned, so a name moved before
@@ -141,15 +139,14 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
             if !then_div && !else_div {
                 check_branch_divergence(moved_after_then, moved_after_else, self.span, ctx)
             }
-            // A name consumed in both branches is cloned: no single pending
-            // node survives the merge.
+            // A name consumed in both branches keeps both consumes pending.
             var merged = List.new<MovedEntry>()
             if !then_div {
-                val m2 = union_moved_marking(merged, moved_after_then, ctx)
+                val m2 = union_moved_consumes(merged, moved_after_then)
                 merged = m2
             }
             if !else_div {
-                val m3 = union_moved_marking(merged, moved_after_else, ctx)
+                val m3 = union_moved_consumes(merged, moved_after_else)
                 merged = m3
             }
             ctx.moved = merged
@@ -159,9 +156,9 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
         ForEach(_binder, subj_ptr, body) => {
             move_check_expr_borrow(unsafe { &var *subj_ptr }, ctx)
             val fe_moved_before = ctx.snapshot_moved()
-            move_check_stmt_list(body, ctx)
+            move_check_stmt_list(&var body, ctx)
             val fe_moved_after = ctx.snapshot_moved()
-            while fe in &fe_moved_after {
+            while fe in &distinct_moved(&fe_moved_after) {
                 if !moved_contains(fe_moved_before, fe.name) {
                     emit_loop_move_leak(fe.name.as_string(), fe.site, ctx)
                 }
@@ -170,11 +167,11 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
         While(cond_ptr, body) => {
             move_check_expr_borrow(unsafe { &var *cond_ptr }, ctx)
             val moved_before = ctx.snapshot_moved()
-            move_check_stmt_list(body, ctx)
+            move_check_stmt_list(&var body, ctx)
             val moved_after_first = ctx.snapshot_moved()
             // Moved in the body but not before it: moved again on the next
             // iteration.
-            while e in &moved_after_first {
+            while e in &distinct_moved(&moved_after_first) {
                 val pre = moved_contains(moved_before, e.name)
                 if !pre {
                     emit_loop_move_leak(e.name.as_string(), e.site, ctx)
@@ -195,27 +192,32 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
                     subj_mo = mc_names_has(ctx.move_only_names, ctx.self_owner.as_str())
                 }
             }
+            // A fresh value is owned by nothing else, so a variant's binders
+            // own what they bind rather than view it.
+            val subj_fresh = subj.is_fresh_move_only_value(ctx)
             val moved_before = ctx.snapshot_moved()
             val owned_before = ctx.snapshot_owned()
             val borrowed_before = ctx.snapshot_borrowed()
             // Diverging arms are skipped. Seeded from empty, so a name
             // reassigned in every arm comes out live.
             var unioned_moved = List.new<MovedEntry>()
-            while arm in &arms {
+            while ai in 0..arms.size() {
+                val arm = arms.at_mut(ai)
                 ctx.restore_moved(moved_before)
                 ctx.restore_owned(owned_before)
                 ctx.restore_borrowed(borrowed_before)
                 declare_pattern_binds(arm.pattern, ctx)
-                if subj_mo { declare_pattern_binds_borrowed(arm.pattern, ctx) }
+                val owns_payloads = subj_fresh && arm.pattern.is_flat_variant()
+                if subj_mo && !owns_payloads { declare_pattern_binds_borrowed(arm.pattern, ctx) }
                 when (arm.guard) {
                     Some(guard) => move_check_expr_borrow(unsafe { &var *guard }, ctx)
                     None => { }
                 }
-                move_check_stmt_list(arm.body, ctx)
+                move_check_stmt_list(&var arm.body, ctx)
                 val arm_div = stmt_list_diverges(arm.body)
                 if !arm_div {
                     val after = ctx.snapshot_moved()
-                    unioned_moved = union_moved_marking(unioned_moved, after, ctx)
+                    unioned_moved = union_moved_consumes(unioned_moved, after)
                 }
             }
             ctx.moved = unioned_moved
@@ -245,4 +247,47 @@ fun mc_names_has(names: &List<String>, name: str): bool {
         if item.as_str().equals(name) { return true }
     }
     return false
+}
+
+/// A call's result, owned by nobody but the `when` over it.
+///
+/// CONSTRAINT: rc_insert hoists exactly these subjects and consumes them, so
+/// the arms own the payloads their binders take.
+fun Expr.is_fresh_move_only_value(ctx: &var MoveCtx): bool {
+    if self.coerce != coerce_none() { return false }
+    if !self.ty.mc_is_move_only(ctx.move_only_names) { return false }
+    return when (self.kind) {
+        Call(_n, _a) => true
+        MethodCall(_r, _m, _a) => true
+        _ => false
+    }
+}
+
+/// A variant whose payloads are each a name or `_`.
+fun Pattern.is_flat_variant(): bool {
+    when (self.kind) {
+        Variant(_name, payloads) => {
+            while p in &payloads {
+                when (p.kind) {
+                    Identifier(_n) => { }
+                    Wildcard => { }
+                    _ => return false
+                }
+            }
+            return true
+        }
+        _ => return false
+    }
+}
+
+/// `*p`, or a field reached from one, where `p` is a raw pointer.
+fun Expr.reads_through_a_raw_pointer(): bool {
+    return when (self.kind) {
+        Deref(inner) => when (inner.ty.kind) {
+            PtrTo(_p) => true
+            _ => false
+        }
+        FieldAccess(base, _f) => base.reads_through_a_raw_pointer()
+        _ => false
+    }
 }
