@@ -154,7 +154,8 @@ fun borrow_of(inner: Type, mutable: bool, span: Span): Type {
 fun check_let(name: String, ann: Ptr<TypeRef>?, init_ptr: Ptr<Expr>, mutable: bool, span: Span, ctx: &var TypeCtx): void {
     // Read before check_expr clears it.
     val written = unsafe { init_ptr.coerce }
-    check_local_initializer(unsafe { &var *init_ptr }, ctx)
+    val live = unsafe { &var *init_ptr }
+    check_local_initializer(live, ctx)
     // The live node: the rewrites below replace what a copy would still hold.
     val init: &Expr = unsafe { &*init_ptr }
 
@@ -177,6 +178,11 @@ fun check_let(name: String, ann: Ptr<TypeRef>?, init_ptr: Ptr<Expr>, mutable: bo
             }
         }
         None => {
+            // With no slot to pick their width, branch numbers take the joined
+            // type and are range-checked against it.
+            if init.yields_only_numeric_literals() {
+                val _pinned = live.apply_expected(init.ty.clone(), ctx)
+            }
             // An unannotated literal defaults to String through the same
             // `From<str>` rewrite.
             val is_lit_str: bool = is_lit_str_expr(*init) && ctx.string_is_visible()
@@ -202,7 +208,7 @@ fun check_let(name: String, ann: Ptr<TypeRef>?, init_ptr: Ptr<Expr>, mutable: bo
     }
     // Its first use may choose a literal's width, an open call's type
     // arguments, or what a `null` is absent from.
-    val flexible = is_numeric_literal(*init) || open_call_pending(init.span, ctx) || init.is_bare_null()
+    val flexible = is_numeric_literal(init) || open_call_pending(init.span, ctx) || init.is_bare_null()
     if ann.is_none() && flexible {
         ctx.declare_flexible(name, ty, mutable, init_ptr)
         return

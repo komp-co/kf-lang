@@ -59,6 +59,22 @@ fun check_when_guard(guard: Ptr<Expr>, ctx: &var TypeCtx): void {
 
 /// The join of every arm's type, then every arm made to carry it. Two passes,
 /// since reconciling against the first arm narrowed a later, wider one.
+/// An `if` or `when` whose every value is a bare number, left open for a slot.
+pub fun Expr.yields_only_numeric_literals(): bool {
+    return when (self.kind) {
+        IfExpr(_c, then_value, else_value) => is_numeric_literal(&*then_value) && is_numeric_literal(&*else_value)
+        WhenExpr(_s, arms) => arms_yield_only_numeric_literals(&arms)
+        _ => false
+    }
+}
+
+fun arms_yield_only_numeric_literals(arms: &List<Arm>): bool {
+    while arm in &arms {
+        if !list_tail_is_numeric_literal(&arm.body) { return false }
+    }
+    return true
+}
+
 pub fun check_when_expr_value(arms: &List<Arm>, ctx: &var TypeCtx): Type {
     if arms.size() == 0 { return poison_ty() }
     // Each arm's value is its walked tail.
@@ -85,6 +101,8 @@ pub fun check_when_expr_value(arms: &List<Arm>, ctx: &var TypeCtx): Type {
         }
         i = i + 1
     }
+    // Bare numbers stay open, so the slot the `when` fills picks their width.
+    if arms_yield_only_numeric_literals(arms) { return result }
     // Every arm gets the joined type, so codegen emits one C type. Mismatches
     // were already reported.
     while arm_k in &arms {
@@ -107,11 +125,15 @@ pub fun check_if_expr(cond_ptr: Ptr<Expr>, then_ptr: Ptr<Expr>, else_ptr: Ptr<Ex
 }
 
 fun check_if_expr_value(then_ptr: Ptr<Expr>, else_ptr: Ptr<Expr>, ctx: &var TypeCtx): Type {
-    val then_ty = unsafe { then_ptr.ty }
-    val else_ty = unsafe { else_ptr.ty }
+    val then_value = unsafe { &*then_ptr }
+    val else_value = unsafe { &*else_ptr }
+    val then_ty = then_value.ty.clone()
+    val else_ty = else_value.ty.clone()
     if then_ty.is_poison() { return then_ty }
     if else_ty.is_poison() { return else_ty }
     val joined = then_ty.join_arm_types(&else_ty, ctx.string_name())
+    // Two bare numbers stay open, so the slot the `if` fills picks their width.
+    if is_numeric_literal(then_value) && is_numeric_literal(else_value) && !joined.is_poison() { return joined }
     if joined.is_poison() {
         // A second chance, as in the `when` form.
         if expect_or_reject(unsafe { &var *else_ptr }, then_ty.clone(), ctx) { return then_ty }
