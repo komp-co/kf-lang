@@ -1,0 +1,49 @@
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.span.no_span
+import kf_core.ast.*
+import kf_lower.ownership.names_contains
+
+fun named_tref(n: str): Ptr<TypeRef> {
+    val p: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
+    unsafe { *p = new_type_ref(no_span(), TypeRefKind.Named(intern(n), List.new<TypeRef>())) }
+    return p
+}
+
+fun struct_of(name: str, field_type: str): TopDecl {
+    var fields = List.new<Field>()
+    fields.push(new_field(no_span(), String.from("f"), named_tref(field_type), false, true))
+    return new_top_decl(no_span(), String.from(name), TopDeclKind.Struct(fields, true))
+}
+
+fun free_names_of(decls: List<TopDecl>): List<String> {
+    var m = new_module(List.new<String>())
+    m.decls = decls
+    return m.borrow_free_names(intern("String"))
+}
+
+@test fun a_struct_of_scalars_holds_no_borrow(): void {
+    var decls = List.new<TopDecl>()
+    decls.push(struct_of("Id", "uint32"))
+    assert_eq(names_contains(&free_names_of(decls), "Id"), true, "a uint32 cannot borrow")
+}
+
+@test fun a_struct_with_a_view_field_can_hold_a_borrow(): void {
+    var decls = List.new<TopDecl>()
+    decls.push(struct_of("Token", "str"))
+    assert_eq(names_contains(&free_names_of(decls), "Token"), false, "a str field borrows")
+}
+
+@test fun a_struct_around_a_viewing_struct_can_hold_a_borrow(): void {
+    var decls = List.new<TopDecl>()
+    decls.push(struct_of("Outer", "Token"))
+    decls.push(struct_of("Token", "str"))
+    assert_eq(names_contains(&free_names_of(decls), "Outer"), false, "Token borrows, so Outer does")
+}
+
+@test fun the_lang_string_holds_no_borrow(): void {
+    var decls = List.new<TopDecl>()
+    decls.push(struct_of("String", "Ptr"))
+    assert_eq(names_contains(&free_names_of(decls), "String"), true, "the string owns its buffer")
+}

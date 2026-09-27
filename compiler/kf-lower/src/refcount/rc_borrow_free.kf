@@ -1,0 +1,117 @@
+// Which values cannot hold a borrow. A temporary below one is consumed
+// within the statement, so it can be dropped at the statement's end.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_lower.ownership.names_contains
+
+/// Every struct and enum whose fields, transitively, are scalars, the lang
+/// string, a `Box` of such, or such types. The lang string owns its buffer.
+pub fun Module.borrow_free_names(string_name: Sym): List<String> {
+    var free = List.new<String>()
+    while td in &self.decls {
+        if td.is_struct_or_enum() { free.push(td.name.as_string()) }
+    }
+    var changed = true
+    while changed {
+        changed = false
+        var kept = List.new<String>()
+        while td in &self.decls {
+            if td.is_struct_or_enum() && names_contains(&free, td.name.as_str()) {
+                if td.name == string_name || td.fields_hold_no_borrow(&free, string_name) {
+                    kept.push(td.name.as_string())
+                } else {
+                    changed = true
+                }
+            }
+        }
+        free = kept
+    }
+    return free
+}
+
+fun TopDecl.is_struct_or_enum(): bool {
+    return when (self.kind) {
+        Struct(_fields, _p) => true
+        EnumDecl(_variants, _p) => true
+        _ => false
+    }
+}
+
+fun TopDecl.fields_hold_no_borrow(free: &List<String>, string_name: Sym): bool {
+    when (self.kind) {
+        Struct(fields, _p) => {
+            while f in &fields {
+                if !f.ty.holds_no_borrow(free, string_name) { return false }
+            }
+            return true
+        }
+        EnumDecl(variants, _p) => {
+            while v in &variants {
+                while payload in &v.payloads {
+                    if !payload.holds_no_borrow(free, string_name) { return false }
+                }
+            }
+            return true
+        }
+        _ => return false
+    }
+}
+
+fun TypeRef.holds_no_borrow(free: &List<String>, string_name: Sym): bool {
+    when (self.kind) {
+        Named(n, args) => {
+            if is_scalar_type_name(n.as_str()) || n == string_name { return true }
+            if n.as_str().equals("Box") {
+                while a in &args {
+                    if !a.holds_no_borrow(free, string_name) { return false }
+                }
+                return true
+            }
+            return args.size() == 0 && names_contains(free, n.as_str())
+        }
+        _ => return false
+    }
+}
+
+fun is_scalar_type_name(s: str): bool {
+    return when s {
+        "bool" => true
+        "char" => true
+        "void" => true
+        "int8" => true
+        "int16" => true
+        "int32" => true
+        "int64" => true
+        "uint8" => true
+        "uint16" => true
+        "uint32" => true
+        "uint64" => true
+        "float32" => true
+        "float64" => true
+        _ => false
+    }
+}
+
+/// A scalar, or a struct or enum in `borrow_free`.
+fun Type.holds_no_borrow(ctx: &RcCtx): bool {
+    return when (self.kind) {
+        Int8 => true
+        Int16 => true
+        Int32 => true
+        Int64 => true
+        UInt8 => true
+        UInt16 => true
+        UInt32 => true
+        UInt64 => true
+        Float32 => true
+        Float64 => true
+        Bool => true
+        Char => true
+        Void => true
+        Struct(n) => names_contains(&ctx.borrow_free, type_identity_display(n).as_str())
+        EnumTy(n) => names_contains(&ctx.borrow_free, type_identity_display(n).as_str())
+        _ => false
+    }
+}
