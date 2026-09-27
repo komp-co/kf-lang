@@ -174,7 +174,7 @@ fun coerce_code_for(from: Type, is_lit: bool, to: Type, string_name: Sym): uint8
 }
 
 // `null` parses as a Variable and means None in an Option slot.
-fun is_null_var(e: Expr): bool {
+fun is_null_var(e: &Expr): bool {
     return when (e.kind) {
         Variable(name) => name.as_str().equals("null")
         _ => false
