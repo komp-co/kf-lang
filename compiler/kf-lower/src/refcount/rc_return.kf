@@ -46,6 +46,8 @@ fun Expr.collect_escaping_names(ctx: &var RcCtx, out: &var List<String>): void {
         self.collect_moved_names(BorrowMode.Value, out)
         return
     }
+    // A copy holds nothing of the local it was taken from.
+    if self.coerce == coerce_clone() { return }
     when (self.kind) {
         Variable(name) => out.push(name.as_string())
         Release(name) => out.push(name.as_string())
