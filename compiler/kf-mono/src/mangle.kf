@@ -43,7 +43,7 @@ pub fun extract_struct_name(t: Type): String {
     val tk = t.kind
     return when (tk) {
         Struct(n) => type_identity_display(n)
-        // Primitives with runtime-provided methods: `str_equals`, `int64_display`.
+        // Primitives whose methods mangle by name: `str_equals`, `int64_equals`.
         StrTy => String.from("str")
         Int64 => String.from("int64")
         // Pointers and borrows dispatch on the pointee, as typecheck autoderefs.

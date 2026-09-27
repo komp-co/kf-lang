@@ -1,9 +1,5 @@
 import core.assert.assert_eq
 
-@test fun int64_display_takes_self_by_value(): void {
-    assert_eq(self_is_by_value("int64_display"), true, "the runtime formatter takes the value")
-}
-
 @test fun int64_equals_takes_self_by_pointer(): void {
     assert_eq(self_is_by_value("int64_equals"), false, "a trait impl on int64 takes a pointer")
 }

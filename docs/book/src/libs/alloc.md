@@ -40,6 +40,15 @@ val greeting = String.from("hello") + String.from("! ")
 println(greeting)    // "hello! "
 ```
 
+Any `Display` value renders to a `String` with `display()` and no argument,
+which is what `"${v}"` holds. A type that declares its own `display()` keeps
+it:
+
+```kflat
+val n: uint64 = 42
+val text = n.display()    // "42"
+```
+
 It is an ordinary struct, so you can implement your own traits for it:
 
 ```kflat

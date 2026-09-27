@@ -249,7 +249,7 @@ library:
 | `Drop` | `drop(): void` | Destructor — runs when value goes out of scope |
 | `Equal` | `equals(other: Self): bool` | Equality (`==`, `!=`) |
 | `Compare` | `compare(other: Self): int32` | Ordering (`<`, `>`, `<=`, `>=`) |
-| `Display` | `display(): String` | Conversion to string (`println`, interpolation) |
+| `Display` | `display(out: &var dyn Write): void` | Rendering (`println`, interpolation, `v.display(): String`) |
 | `From<T>` | `static from(value: T): Self` | Explicit value conversion |
 | `Default` | `default(): Self` | Default value |
 | `Add` / `Sub` / `Mul` / `Div` / `Mod` | `add(...)`, etc. | Arithmetic operators |
