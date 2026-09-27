@@ -20,11 +20,11 @@ pub fun qualify_stmt_list(stmts: &var List<Stmt>, names: &var List<String>, repl
 mutating fun Stmt.qualify_stmt(names: &var List<String>, repls: &var List<TypeRef>, rename_types: bool): void {
     when (self.kind) {
         LetVal(_n, ty_p, init_p) => {
-            qualify_tyref_ptr(ty_p.view(), names, repls)
+            if rename_types { qualify_tyref_ptr(ty_p.view(), names, repls) }
             qualify_expr_ptr_opt(init_p.view(), names, repls, rename_types)
         }
         LetVar(_n, ty_p, init_p) => {
-            qualify_tyref_ptr(ty_p.view(), names, repls)
+            if rename_types { qualify_tyref_ptr(ty_p.view(), names, repls) }
             qualify_expr_ptr_opt(init_p.view(), names, repls, rename_types)
         }
         Assign(_n, ep) => qualify_expr_ptr(ep, names, repls, rename_types)
@@ -74,9 +74,12 @@ fun qualify_expr_ptr_opt(p_opt: Ptr<Expr>?, names: &var List<String>, repls: &va
 
 fun qualify_expr_ptr(ep: Ptr<Expr>, names: &var List<String>, repls: &var List<TypeRef>, rename_types: bool): void {
     val e = unsafe { *ep }
-    unsafe { ep.ty = qualify_type(e.ty, names, repls) }
-    qualify_type_args(unsafe { &var ep.type_args }, names, repls)
-    if e.is_dynamic_call {
+    // Types were respelled in the type phase; a function name never names one.
+    if rename_types {
+        unsafe { ep.ty = qualify_type(e.ty, names, repls) }
+        qualify_type_args(unsafe { &var ep.type_args }, names, repls)
+    }
+    if rename_types && e.is_dynamic_call {
         val layout = subst_mangled_name(e.dynamic_layout.as_str(), names, repls)
         unsafe { ep.dynamic_layout = intern(layout.as_str()) }
     }
@@ -206,7 +209,7 @@ fun qualify_expr_ptr(ep: Ptr<Expr>, names: &var List<String>, repls: &var List<T
         }
         Cast(ip, tp) => {
             qualify_expr_ptr(ip, names, repls, rename_types)
-            qualify_tyref_ptr(tp, names, repls)
+            if rename_types { qualify_tyref_ptr(tp, names, repls) }
         }
         DynCoerce(ip, vtable) => {
             // The vtable identity is a type name; the value is qualified. The

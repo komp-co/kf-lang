@@ -48,20 +48,26 @@ mutating fun TopDecl.qualify_decl(names: &var List<String>, repls: &var List<Typ
     }
     when (self.kind) {
         Struct(fields, _pub) => {
-            if rename_types { self.rename_decl_if_mapped(names, repls) }
+            if !rename_types { return }
+            self.rename_decl_if_mapped(names, repls)
             qualify_field_list(fields, names, repls)
         }
         EnumDecl(variants, _pub) => {
-            if rename_types { self.rename_decl_if_mapped(names, repls) }
+            if !rename_types { return }
+            self.rename_decl_if_mapped(names, repls)
             qualify_variant_list(&var variants, names, repls)
         }
         Function(params, ret, body, _pub, _u, _mut, _st) => {
-            if !rename_types { self.rename_decl_if_mapped(names, repls) }
-            qualify_param_list(params, names, repls)
-            qualify_tyref_ptr(ret, names, repls)
+            if rename_types {
+                qualify_param_list(params, names, repls)
+                qualify_tyref_ptr(ret, names, repls)
+            } else {
+                self.rename_decl_if_mapped(names, repls)
+            }
             qualify_stmt_list(body, names, repls, rename_types)
         }
         Extern(params, ret, _pub, _u) => {
+            if !rename_types { return }
             qualify_param_list(params, names, repls)
             qualify_tyref_ptr(ret, names, repls)
         }
@@ -75,7 +81,7 @@ mutating fun TopDecl.qualify_decl(names: &var List<String>, repls: &var List<Typ
             // (`impl Call1<Point> for GetX`) is spelled only here. Mono builds
             // the dispatch suffix from it, so it must match the qualified call
             // sites.
-            qualify_tyref_ptr(tref, names, repls)
+            if rename_types { qualify_tyref_ptr(tref, names, repls) }
             qualify_method_list(methods, names, repls, rename_types)
         }
         AssocType(_bounds) => return
@@ -95,12 +101,14 @@ fun qualify_method_list(methods: &List<TopDecl>, names: &var List<String>, repls
     while mth in &methods {
         when (mth.kind) {
             Function(params, ret, body, _pub, _u, _mut, _st) => {
-                qualify_param_list(params, names, repls)
-                qualify_tyref_ptr(ret, names, repls)
+                if rename_types {
+                    qualify_param_list(params, names, repls)
+                    qualify_tyref_ptr(ret, names, repls)
+                }
                 qualify_stmt_list(body, names, repls, rename_types)
             }
             // A binding names a type, and Mono reads it after this pass.
-            AssocTypeBinding(chosen) => qualify_tyref_ptr(chosen, names, repls)
+            AssocTypeBinding(chosen) => { if rename_types { qualify_tyref_ptr(chosen, names, repls) } }
             _ => {}
         }
     }
