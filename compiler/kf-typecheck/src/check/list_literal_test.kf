@@ -1,0 +1,46 @@
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.span.no_span
+import kf_core.span.Span
+import kf_core.ast.*
+
+fun point_ty(): Type {
+    return Type { kind: TypeKind.Struct(intern("Point")), provenance: Provenance.Inferred(no_span()) }
+}
+
+@test fun an_element_of_another_type_is_named_as_an_element(): void {
+    var ctx = mk_ctx()
+    var element = new_expr(no_span(), ExprKind.LitBool(true))
+    element.ty = bool_ty(no_span())
+    var args = List.new<Expr>()
+    args.push(element)
+    var arg_tys = List.new<Type>()
+    arg_tys.push(bool_ty(no_span()))
+    val _ok = check_list_literal_element(&var args, &arg_tys, int32_ty(no_span()), &var ctx)
+    val expected = "this element is `bool`, but the list holds `int32`"
+    assert_eq(unsafe { (*ctx.diags).at(0).primary.message.as_str() }, expected, "the element, not a push")
+}
+
+@test fun a_type_without_from_elements_is_named(): void {
+    var ctx = mk_ctx()
+    var elements = List.new<Expr>()
+    elements.push(new_expr(no_span(), ExprKind.LitInt(1)))
+    var literal = list_literal_expr(Span { file_id: 1, start: 4, end: 7 }, &elements)
+    // As checked: built as the default List first.
+    literal.ty = Type { kind: TypeKind.Struct(intern("List__int32")), provenance: Provenance.Inferred(no_span()) }
+    val _claimed = literal.retarget_list_literal(point_ty(), &var ctx)
+    val expected = "a list literal cannot build `Point`: it does not implement `FromElements`"
+    assert_eq(unsafe { (*ctx.diags).at(0).primary.message.as_str() }, expected, "the trait is named")
+}
+
+@test fun an_empty_literal_no_use_types_is_reported_as_a_literal(): void {
+    var ctx = mk_ctx()
+    val span = Span { file_id: 1, start: 4, end: 6 }
+    note_open_call(span, String.from("List"), String.from("new"), &var ctx)
+    ctx.list_literals.push(span)
+    ctx.report_open_calls()
+    val repair = "annotate the binding (`val xs: List<int32> = []`), or push to it first"
+    val expected = "cannot tell what `[]` holds — ${repair}"
+    assert_eq(unsafe { (*ctx.diags).at(0).primary.message.as_str() }, expected, "the literal, not `List.new()`")
+}

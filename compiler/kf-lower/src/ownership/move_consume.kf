@@ -50,7 +50,7 @@ mutating fun Expr.mark_auto_clone(callee: String, idx: uint64, ctx: &var MoveCtx
 fun reject_auto_clone(span: Span, ty: &Type, callee: String, idx: uint64, ctx: &var MoveCtx): void {
     if span_is_in_a_dependency(span, ctx) { return }
     if !warning_has_a_subject(span, ctx) { return }
-    val idx_s = unsafe { __kf_v2_int32_to_str(idx as int32) }
+    val idx_s = "${idx}"
     val m = String.from("copying `") + ty.unauthorized_clone_name() +
         String.from("` here to fill arg ") + idx_s +
         String.from(" of `") + callee.clone() +
@@ -78,6 +78,21 @@ fun check_consumed_args_for(args: &var List<Expr>, callee: String, ctx: &var Mov
 pub fun check_consumed_ctor_payloads(args: &var List<Expr>, ctx: &var MoveCtx): void {
     while i in 0..args.size() {
         check_consumed_sink(args.at_mut(i), String.from("<enum-payload>"), ctx)
+    }
+}
+
+/// `Option.Some(x)` filling an `Option<Ptr<T>>` or `Option<&T>` holds a
+/// pointer to `x`, not `x`: the payload borrows.
+fun Expr.payload_is_a_borrow(): bool {
+    when (self.kind) {
+        MethodCall(_recv, name, _args) => if name.as_str() != "Some" { return false }
+        _ => return false
+    }
+    if self.type_args.size() != 1 { return false }
+    return when (self.type_args.at(0).kind) {
+        Reference(_, _) => true
+        Named(n, _) => n.as_str() == "Ptr"
+        _ => false
     }
 }
 
@@ -173,7 +188,7 @@ pub fun move_check_args_consume(args: &var List<Expr>, callee: String, ctx: &var
 fun warn_auto_clone(span: Span, callee: String, idx: uint64, ctx: &var MoveCtx): void {
     if span_is_in_a_dependency(span, ctx) { return }
     if !warning_has_a_subject(span, ctx) { return }
-    val idx_s = unsafe { __kf_v2_int32_to_str(idx as int32) }
+    val idx_s = "${idx}"
     val m = String.from("auto-inserted a copy in `") + ctx.cur_fn.clone() +
         String.from("` (arg ") + idx_s +
         String.from(" of `") + callee.clone() +

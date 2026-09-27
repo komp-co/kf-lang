@@ -9,18 +9,17 @@ import kf_typecheck.traits.validate_dyn_placement
 import kf_typecheck.check.borrow.check_returned_borrow
 import kf_typecheck.check.control.check_when_arms
 
-extern "C" fun __kf_v2_int32_to_str(v: int32): String
 
 pub mutating fun Stmt.check_stmt(ctx: &var TypeCtx): void {
     when (self.kind) {
         LetVal(name, ty_ref_ptr, init_ptr) => {
             // Only Lower synthesizes a binding without an initializer.
             val ip = init_ptr ?: return
-            check_let(name.as_string(), ty_ref_ptr, ip, false, self.span, ctx)
+            check_let(name.as_string(), ty_ref_ptr.view(), ip, false, self.span, ctx)
         }
         LetVar(name, ty_ref_ptr, init_ptr) => {
             val ip = init_ptr ?: return
-            check_let(name.as_string(), ty_ref_ptr, ip, true, self.span, ctx)
+            check_let(name.as_string(), ty_ref_ptr.view(), ip, true, self.span, ctx)
         }
         Assign(name, expr_ptr) => {
             check_assign(name.as_string(), expr_ptr, self.span, ctx)
@@ -55,7 +54,7 @@ pub mutating fun Stmt.check_stmt(ctx: &var TypeCtx): void {
             }
         }
         Return(maybe_expr) => {
-            check_return(maybe_expr, self.span, ctx)
+            check_return(maybe_expr.view(), self.span, ctx)
         }
         If(cond_ptr, then_body, else_body) => {
             check_expr(unsafe { &var *cond_ptr }, ctx)
@@ -200,7 +199,10 @@ fun check_let(name: String, ann: Ptr<TypeRef>?, init_ptr: Ptr<Expr>, mutable: bo
             }
         }
     }
-    if ann.is_none() && is_numeric_literal(unsafe { *init_ptr }) {
+    // Its first use may choose a literal's width, an open call's type
+    // arguments, or what a `null` is absent from.
+    val flexible = is_numeric_literal(init) || open_call_pending(init.span, ctx) || init.is_bare_null()
+    if ann.is_none() && flexible {
         ctx.declare_flexible(name, ty, mutable, init_ptr)
         return
     }

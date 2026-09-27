@@ -15,6 +15,8 @@ import kf_typecheck.traits.try_dyn_coerce
 /// True when the node was transformed or coerced.
 pub mutating fun Expr.apply_expected(expected: Type, ctx: &var TypeCtx): bool {
     if self.pin_at_first_use(expected.clone(), ctx) { return true }
+    if self.retarget_list_literal(expected.clone(), ctx) { return true }
+    val _typed_by_slot = self.pin_open_binding(expected.clone(), ctx)
     // Each branch independently.
     var was_if = false
     var if_hit = false
@@ -35,9 +37,8 @@ pub mutating fun Expr.apply_expected(expected: Type, ctx: &var TypeCtx): bool {
     // Every arm, and a block's tail.
     when (self.kind) {
         Block(stmts) => {
-            var vp: Ptr<Expr> = unsafe { 0 as Ptr<Expr> }
-            if stmts.size() > 0 { vp = stmt_value_expr(*stmts.at(stmts.size() - 1)) }
-            if unsafe { vp as uint64 } == 0 { return false }
+            if stmts.size() == 0 { return false }
+            val vp = stmt_value_expr(*stmts.at(stmts.size() - 1)) ?: return false
             if !apply_expected(unsafe { &var *vp }, expected.clone(), ctx) { return false }
             self.ty = unsafe { vp.ty }
             return true
@@ -51,10 +52,8 @@ pub mutating fun Expr.apply_expected(expected: Type, ctx: &var TypeCtx): bool {
         WhenExpr(_subject, arms) => {
             was_when = true
             while item in &arms {
-                val vp = arm_value_expr(item)
-                if unsafe { vp as uint64 } != 0 {
-                    if apply_expected(unsafe { &var *vp }, expected.clone(), ctx) { when_hit = true }
-                }
+                val vp = arm_value_expr(item) ?: continue
+                if apply_expected(unsafe { &var *vp }, expected.clone(), ctx) { when_hit = true }
             }
         }
         _ => { }
@@ -194,8 +193,7 @@ fun Type.type_is_option(ctx: &var TypeCtx): bool {
 /// node.
 pub fun wrap_safe_call_value(subject_ty: Type, arms: &var List<Arm>, span: Span, ctx: &var TypeCtx): void {
     if arms.size() == 0 { return }
-    val vp = arm_value_expr(arms.at(0))
-    if unsafe { vp as uint64 } == 0 { return }
+    val vp = arm_value_expr(arms.at(0)) ?: return
     if !unsafe { vp.is_safe_call_value } { return }
 
     // The receiver must be optional, or the desugar's own `null` is what
@@ -207,11 +205,9 @@ pub fun wrap_safe_call_value(subject_ty: Type, arms: &var List<Arm>, span: Span,
             msg.append("` — a value that is always present is reached with `.`")
             ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
             // One error per mistake: the absent arm's `null` is not reported.
-            var i = 1
-            while i < arms.size() {
-                val np = arm_value_expr(arms.at(i))
-                if unsafe { np as uint64 } != 0 { note_null_typed(unsafe { np.span }, ctx) }
-                i = i + 1
+            while i in 1..arms.size() {
+                val np = arm_value_expr(arms.at(i)) ?: continue
+                note_null_typed(unsafe { np.span }, ctx)
             }
             return
         }

@@ -8,7 +8,6 @@ import kf_codegen.concat_all
 import kf_codegen.concat
 import kf_codegen.emit.*
 
-pub extern "C" fun __kf_v2_int32_to_str(v: int32): String
 
 pub fun Module.emit_enum_tags(): String {
     var parts = List.new<String>()
@@ -63,7 +62,7 @@ fun emit_enum_body(name: String, variants: List<Variant>): String {
         } else {
             while j in 0..v.payloads.size() {
                 val pt = *v.payloads.at(j)
-                val jstr = unsafe { __kf_v2_int32_to_str(j as int32) }
+                val jstr = "${j}"
                 parts.push("            ${pt.c_value_type()} _${jstr};\n")
             }
         }
@@ -73,20 +72,20 @@ fun emit_enum_body(name: String, variants: List<Variant>): String {
     return concat_all(parts)
 }
 
-pub fun Module.emit_enum_drops(lookup: &Module, deep: bool): String {
+pub fun Module.emit_enum_drops(lookup: &Module): String {
     var parts = List.new<String>()
     val decls = self.decls
     while td in &decls {
         val k = td.kind
         when (k) {
-            EnumDecl(variants, _p) => parts.push(emit_enum_drop(td.name.as_string(), variants, lookup, deep))
+            EnumDecl(variants, _p) => parts.push(emit_enum_drop(td.name.as_string(), variants, lookup))
             _ => {}
         }
     }
     return concat_all(parts)
 }
 
-fun emit_enum_drop(name: String, variants: List<Variant>, m: &Module, deep: bool): String {
+fun emit_enum_drop(name: String, variants: List<Variant>, m: &Module): String {
     var parts = List.new<String>()
     parts.push("static inline void ${name}__glue_drop(${name} v) {\n")
     if type_has_user_drop(name, m) {
@@ -98,7 +97,7 @@ fun emit_enum_drop(name: String, variants: List<Variant>, m: &Module, deep: bool
         var j = 0
         while j < v.payloads.size() {
             val pt = *v.payloads.at(j)
-            val jstr = unsafe { __kf_v2_int32_to_str(j as int32) }
+            val jstr = "${j}"
             val lval = "v.u.V_${v.name.as_string()}._${jstr}"
             if is_box_tref(pt) {
                 // A Box payload: drop the pointee, then free the box.
@@ -112,7 +111,7 @@ fun emit_enum_drop(name: String, variants: List<Variant>, m: &Module, deep: bool
             } else {
                 // A Box one level down (`Opt(Box<T>?)`) is dropped on the shallow
                 // walk too.
-                val needs = ty_needs_drop_in_glue(pt, m, deep) || tref_wraps_box(pt)
+                val needs = ty_needs_drop_deep(pt, m) || tref_wraps_box(pt)
                 if needs {
                     val drop_fn = release_fn_for_ctype(pt.c_type().as_str())
                     parts.push("            ${drop_fn}(${lval});\n")
@@ -128,20 +127,20 @@ fun emit_enum_drop(name: String, variants: List<Variant>, m: &Module, deep: bool
 
 // Deep retain, so containers can retain an enum element through
 // `<Enum>_retain`.
-pub fun Module.emit_enum_retains(lookup: &Module, deep: bool): String {
+pub fun Module.emit_enum_retains(lookup: &Module): String {
     var parts = List.new<String>()
     val decls = self.decls
     while td in &decls {
         val k = td.kind
         when (k) {
-            EnumDecl(variants, _p) => parts.push(emit_enum_retain(td.name.as_string(), variants, lookup, deep))
+            EnumDecl(variants, _p) => parts.push(emit_enum_retain(td.name.as_string(), variants, lookup))
             _ => {}
         }
     }
     return concat_all(parts)
 }
 
-fun emit_enum_retain(name: String, variants: List<Variant>, m: &Module, deep: bool): String {
+fun emit_enum_retain(name: String, variants: List<Variant>, m: &Module): String {
     var parts = List.new<String>()
     parts.push(String.from("static inline "))
     parts.push(name.clone())
@@ -157,9 +156,9 @@ fun emit_enum_retain(name: String, variants: List<Variant>, m: &Module, deep: bo
         var j = 0
         while j < v.payloads.size() {
             val pt = *v.payloads.at(j)
-            val needs = ty_needs_drop_in_glue(pt, m, deep)
+            val needs = ty_needs_drop_deep(pt, m)
             if needs {
-                val jstr = unsafe { __kf_v2_int32_to_str(j as int32) }
+                val jstr = "${j}"
                 val ct = pt.c_type()
                 parts.push(String.from("            v.u.V_"))
                 parts.push(v.name.as_string())
@@ -212,7 +211,7 @@ fun emit_enum_clone(name: String, variants: List<Variant>, m: &Module): String {
         var j = 0
         while j < v.payloads.size() {
             val pt = *v.payloads.at(j)
-            val jstr = unsafe { __kf_v2_int32_to_str(j as int32) }
+            val jstr = "${j}"
             // lval = v.u.V_<variant>._<j>
             var lval = String.from("v.u.V_")
             lval = concat(lval, v.name.as_string())

@@ -257,7 +257,10 @@ impl Parser {
             RParen => return expr_poison(span)
             LBrace => return expr_poison(span)
             RBrace => return expr_poison(span)
-            LBracket => return expr_poison(span)
+            LBracket => {
+                val literal = self.parse_list_literal(span)
+                return self.parse_postfix(literal)
+            }
             RBracket => return expr_poison(span)
             Comma => return expr_poison(span)
             Colon => return expr_poison(span)

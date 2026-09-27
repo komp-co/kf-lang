@@ -10,7 +10,8 @@
 # of a line continues it; parameter and argument lists may span lines), but a
 # diagnostic message built with interpolation reads best on one line, and those
 # land in the 90-120 band. 120 keeps them and still catches the 200+ character
-# lines that are genuinely unreadable.set -eu
+# lines that are genuinely unreadable.
+set -eu
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"

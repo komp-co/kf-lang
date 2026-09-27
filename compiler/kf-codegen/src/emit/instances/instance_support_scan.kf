@@ -4,7 +4,7 @@ import kf_core.ast.*
 
 import kf_codegen.emit.mangle_named
 
-fun TopDecl.scan_decl_references(callees: &var List<String>, type_refs: &var List<String>): void {
+fun TopDecl.scan_decl_references(callees: &var NameSet, type_refs: &var NameSet): void {
     when (self.kind) {
         Function(params, ret, body, _pub, _u, _m, _s) => {
             while param in &params {
@@ -34,19 +34,19 @@ fun TopDecl.scan_decl_references(callees: &var List<String>, type_refs: &var Lis
     }
 }
 
-fun scan_tyref_ptr(popt: Ptr<TypeRef>?, type_refs: &var List<String>): void {
+fun scan_tyref_ptr(popt: Ptr<TypeRef>?, type_refs: &var NameSet): void {
     val p = popt ?: return
     (unsafe { &*p }).scan_tyref(type_refs)
 }
 
-fun TypeRef.scan_tyref(type_refs: &var List<String>): void {
+fun TypeRef.scan_tyref(type_refs: &var NameSet): void {
     when (self.kind) {
         Named(n, args) => {
             if args.size() == 0 {
-                support_add_unique(type_refs, n.as_string())
+                type_refs.add(n.as_string())
                 return
             }
-            support_add_unique(type_refs, mangle_named(n.as_string(), args))
+            type_refs.add(mangle_named(n.as_string(), args))
             while arg in &args {
                 (arg).scan_tyref(type_refs)
             }
@@ -56,9 +56,9 @@ fun TypeRef.scan_tyref(type_refs: &var List<String>): void {
     }
 }
 
-fun Type.scan_type(type_refs: &var List<String>): void {
+fun Type.scan_type(type_refs: &var NameSet): void {
     val mangled = type_mangle(unsafe { *self })
-    support_add_unique(type_refs, String.from(mangled.as_str()))
+    type_refs.add(String.from(mangled.as_str()))
     when (self.kind) {
         PtrTo(p) => scan_type(unsafe { &*p }, type_refs)
         BoxOf(p) => scan_type(unsafe { &*p }, type_refs)
@@ -67,23 +67,23 @@ fun Type.scan_type(type_refs: &var List<String>): void {
     }
 }
 
-fun scan_stmt_list(stmts: &List<Stmt>, callees: &var List<String>, type_refs: &var List<String>): void {
+fun scan_stmt_list(stmts: &List<Stmt>, callees: &var NameSet, type_refs: &var NameSet): void {
     while stmt in &stmts {
         (stmt).scan_stmt(callees, type_refs)
     }
 }
 
-fun Stmt.scan_stmt(callees: &var List<String>, type_refs: &var List<String>): void {
+fun Stmt.scan_stmt(callees: &var NameSet, type_refs: &var NameSet): void {
     when (self.kind) {
         LetVal(_n, ann, init) => {
-            scan_tyref_ptr(ann, type_refs)
+            scan_tyref_ptr(ann.view(), type_refs)
             when (init) {
                 Some(p) => scan_expr(unsafe { &*p }, callees, type_refs)
                 None => { }
             }
         }
         LetVar(_n, ann, init) => {
-            scan_tyref_ptr(ann, type_refs)
+            scan_tyref_ptr(ann.view(), type_refs)
             // A null init has nothing to scan.
             when (init) {
                 Some(p) => scan_expr(unsafe { &*p }, callees, type_refs)
@@ -134,18 +134,18 @@ fun Stmt.scan_stmt(callees: &var List<String>, type_refs: &var List<String>): vo
     }
 }
 
-fun Expr.scan_expr(callees: &var List<String>, type_refs: &var List<String>): void {
+fun Expr.scan_expr(callees: &var NameSet, type_refs: &var NameSet): void {
     self.ty.scan_type(type_refs)
     val mc = self.mangled_callee
     if mc.as_str().byte_len() > 0 {
-        support_add_unique(callees, mc.as_string())
+        callees.add(mc.as_string())
     }
     while type_arg in &self.type_args {
         (type_arg).scan_tyref(type_refs)
     }
     when (self.kind) {
         Call(name, args) => {
-            support_add_unique(callees, name.as_string())
+            callees.add(name.as_string())
             scan_expr_list(args, callees, type_refs)
         }
         StructLit(name, finits) => {
@@ -154,9 +154,9 @@ fun Expr.scan_expr(callees: &var List<String>, type_refs: &var List<String>): vo
                 while type_arg in &self.type_args {
                     refs.push(type_arg)
                 }
-                support_add_unique(type_refs, mangle_named(name.as_string(), refs))
+                type_refs.add(mangle_named(name.as_string(), refs))
             } else {
-                support_add_unique(type_refs, name.as_string())
+                type_refs.add(name.as_string())
             }
             while fi in &finits {
                 val vp: Ptr<Expr> = fi.value
@@ -189,16 +189,16 @@ fun Expr.scan_expr(callees: &var List<String>, type_refs: &var List<String>): vo
     }
 }
 
-fun scan_expr_list(args: &List<Expr>, callees: &var List<String>, type_refs: &var List<String>): void {
+fun scan_expr_list(args: &List<Expr>, callees: &var NameSet, type_refs: &var NameSet): void {
     while arg in &args {
         arg.scan_expr(callees, type_refs)
     }
 }
 
 // `Pair__gen_app__Score_get` references its owning instance type.
-fun callee_prefix_matches(callees: &List<String>, type_name: str): bool {
+fun callee_prefix_matches(callees: &NameSet, type_name: str): bool {
     val n = type_name.byte_len()
-    while callee in &callees {
+    while callee in &callees.names {
         val cn = callee.as_str().byte_len()
         if cn > n + 1 {
             if callee.as_str().starts_with(type_name) {
@@ -209,16 +209,4 @@ fun callee_prefix_matches(callees: &List<String>, type_name: str): bool {
         }
     }
     return false
-}
-
-pub fun support_name_in(names: &List<String>, name: str): bool {
-    while item in &names {
-        if item.as_str() == name { return true }
-    }
-    return false
-}
-
-fun support_add_unique(names: &var List<String>, name: String): void {
-    if support_name_in(names, name.as_str()) { return }
-    names.push(name)
 }

@@ -65,8 +65,63 @@ written. Without alloc the name is free.
 var xs = List.new<int32>()
 ```
 
-No allocation happens until the first `push`. The list type parameter is
-required (there is no element to infer from at construction time).
+No allocation happens until the first `push`. Without a type argument, the
+list's first use supplies one: `var xs = List.new()` followed by `xs.push(10)`
+is a `List<int32>`, and so is one passed where a `List<int32>` is expected.
+A list no use types is an error, naming both repairs.
+
+## List literals
+
+`[a, b, c]` builds a list with its elements in it, in order. Its element type
+comes from the elements, or from the slot it is written in:
+
+```kflat
+val xs = [1, 2, 3]                   // List<int32>
+val wide: List<int64> = [1, 2]       // the slot's element type
+val names = [
+    String.from("ada"),
+    String.from("grace"),
+]
+total([10, 20])                      // total(xs: List<int32>)
+if [1, 2, 3].size() != 3 { ... }
+```
+
+Every element must have the list's type: `[1, true]` is reported at `true`,
+as "this element is `bool`, but the list holds `int32`".
+
+An empty `[]` is typed like `List.new()`: by its slot, or by its first use.
+
+```kflat
+val none: List<uint8> = []
+var later = []
+later.push(7)                        // a List<int32>
+```
+
+A literal is not tied to `List`. Written where another collection is
+expected, it builds that one instead, through core's `FromElements`: the
+type's `new()`, then one `push` per element. Your own collection opts in by
+implementing it:
+
+```kflat
+struct Bag {
+    pub var total: int32
+    pub var count: int32
+}
+
+impl FromElements<int32> for Bag {
+    static fun new(): Bag { return Bag { total: 0, count: 0 } }
+    mutating fun push(item: int32): void {
+        self.total = self.total + item
+        self.count = self.count + 1
+    }
+}
+
+val bag: Bag = [4, 5, 6]             // total 15, count 3
+```
+
+A type with a `push` of its own keeps it: written calls still reach it, and
+the trait's `push` can simply call it. A slot whose type does not implement
+`FromElements` is reported as such.
 
 ## Adding and reading elements
 

@@ -88,7 +88,7 @@ A `classify` job first decides what the PR needs (`scripts/ci-classify.sh`):
 | The PR changes | Jobs that run |
 |---|---|
 | only Markdown | none |
-| only Markdown and `//` comment lines in `.kf` files | fixpoint (includes the size ratchets) |
+| only Markdown and `//` comment lines in `.kf` files | fixpoint (includes the ratchets: file size, line length, unsafe blocks) |
 | anything else | all four |
 
 The four jobs each clone the public

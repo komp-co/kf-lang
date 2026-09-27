@@ -5,7 +5,6 @@ import kf_core.ast.*
 import kf_codegen.concat_all
 
 // Converts an integer to the source text codegen emits into C.
-pub extern "C" fun int64_display(v: int64): String
 
 // Applies the conversion TypeCheck recorded in `e.coerce`, so no emit site
 // needs to know the slot it flows into.
@@ -38,6 +37,10 @@ pub fun Expr.emit_expr(): String {
     // An auto-clone the move checker marked: a deep copy, or the bare value
     // for a primitive or pointer.
     if self.coerce == coerce_clone() {
+        when (self.ty.kind) {
+            BoxOf(_) => return emit_box_copy(base, self.ty.c_type_of_type())
+            _ => { }
+        }
         val ct = self.ty.c_type_of_type()
         val cf = clone_fn_for_ctype(ct.as_str())
         if cf.as_str().byte_len() == 0 {
@@ -53,9 +56,18 @@ pub fun Expr.emit_expr(): String {
     return base
 }
 
+/// A copied `Box` owns a fresh copy of its pointee: two owners of one
+/// allocation would each free it.
+fun emit_box_copy(base: String, box_ct: String): String {
+    val ct = box_ct.as_str().substring(0, box_ct.byte_len() - 1)
+    val cf = clone_fn_for_ctype(ct.as_str())
+    val value = if cf.as_str().byte_len() > 0 { "${cf}(*__src)" } else { String.from("*__src") }
+    return "({ ${ct}* __src = ${base}; ${ct}* __copy = __src ? (${ct}*)kf_alloc(sizeof(${ct})) : NULL; " +
+        "if (__copy) { *__copy = ${value}; } __copy; })"
+}
+
 fun Expr.emit_expr_base(): String {
-    val ek = self.kind
-    when (ek) {
+    when (self.kind) {
         LitInt(n) => return emit_lit_int(n)
         LitBool(b) => return emit_lit_bool(b)
         LitStr(s) => return emit_lit_str(s)
@@ -104,7 +116,7 @@ fun emit_if_expr(cond_p: Ptr<Expr>, then_p: Ptr<Expr>, else_p: Ptr<Expr>): Strin
 }
 
 fun emit_lit_int(n: int64): String {
-    return unsafe { int64_display(n) }
+    return "${n}"
 }
 
 // The literal's own spelling, already valid C for a double.
@@ -114,7 +126,7 @@ fun emit_lit_float(text: String): String {
 
 // A Unicode scalar as uint32_t; a C character constant stops at ASCII.
 fun emit_lit_char(scalar: uint32): String {
-    return unsafe { int64_display(scalar as int64) }
+    return "${scalar}"
 }
 
 fun emit_lit_bool(b: bool): String {
