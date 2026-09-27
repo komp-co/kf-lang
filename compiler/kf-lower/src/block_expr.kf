@@ -32,6 +32,7 @@ pub mutating fun Module.desugar_block_expr_module(): void {
 mutating fun TopDecl.block_expr_top_decl(): void {
     when (self.kind) {
         Function(params, ret, body, p, u, mu, st) => {
+            if !stmts_carry_a_block(&body) { return }
             var temps = BlockTemps { n: 0 }
             val new_body = block_expr_stmt_list(&body, &var temps)
             self.kind = TopDeclKind.Function(params, ret, new_body, p, u, mu, st)
@@ -59,6 +60,41 @@ fun block_expr_stmt_list(stmts: &List<Stmt>, temps: &var BlockTemps): List<Stmt>
         block_expr_stmt(stmt, temps, &var out)
     }
     return out
+}
+
+/// Whether any `return` or binding, at any depth, has a block value to expand.
+fun stmts_carry_a_block(stmts: &List<Stmt>): bool {
+    while s in &stmts {
+        if s.carries_a_block_value() { return true }
+    }
+    return false
+}
+
+fun Stmt.carries_a_block_value(): bool {
+    return when (self.kind) {
+        Return(value) => value_carries_a_block(&value)
+        LetVal(_n, _ty, init) => value_carries_a_block(&init)
+        LetVar(_n, _ty, init) => value_carries_a_block(&init)
+        If(_c, then_body, else_body) => stmts_carry_a_block(&then_body) || stmts_carry_a_block(&else_body)
+        While(_c, body) => stmts_carry_a_block(&body)
+        ForEach(_b, _s, body) => stmts_carry_a_block(&body)
+        When(_s, arms) => arms.any_arm_carries_a_block()
+        _ => false
+    }
+}
+
+fun value_carries_a_block(value: &Box<Expr>?): bool {
+    return when (value) {
+        Some(e) => e.carries_a_block()
+        None => false
+    }
+}
+
+fun List<Arm>.any_arm_carries_a_block(): bool {
+    while a in &self {
+        if stmts_carry_a_block(&a.body) { return true }
+    }
+    return false
 }
 
 /// Appends, because a block value expands into several statements.
