@@ -92,7 +92,7 @@ fun Module.emit_modules(crate: CrateId, smap: Ptr<SourceMap>): String {
     return arr.finish()
 }
 
-fun module_decl_crosses(td: TopDecl, m: &Module, crate: CrateId, hidden: &List<String>): bool {
+fun module_decl_crosses(td: &TopDecl, m: &Module, crate: CrateId, hidden: &List<String>): bool {
     if decl_crosses_interface(td, m, crate) { return true }
     return hidden_name_in(hidden, td.name.as_str())
 }
@@ -140,7 +140,7 @@ fun Module.emit_module_decls(crate: CrateId, path: str, hidden: &List<String>, s
 
 // A hidden template that cannot be sliced (synthesized) is skipped; the
 // consumer re-synthesizes it from its annotation.
-mutating fun JsonWriter.append_decl_entry(td: TopDecl, m: &Module, crate: CrateId, hidden: &List<String>, smap: Ptr<SourceMap>): void {
+mutating fun JsonWriter.append_decl_entry(td: &TopDecl, m: &Module, crate: CrateId, hidden: &List<String>, smap: Ptr<SourceMap>): void {
     if decl_is_exported(td) {
         if impl_target_is_exported(td, m, crate) {
             self.write_raw(emit_decl(td, false, m.type_is_no_mangle(td.name.as_str()), m).as_str())

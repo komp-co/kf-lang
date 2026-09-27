@@ -18,8 +18,8 @@ import kf_core.ast.*
     unsafe { *init = new_expr(no_span(), ExprKind.StructLit(intern("Lambda_main_0"), fields)) }
     unsafe { init.ty = Type { kind: TypeKind.Struct(intern("Lambda_main_0")), provenance: Provenance.Inferred(no_span()) } }
 
-    val stmt = new_stmt(no_span(), StmtKind.LetVal(intern("closure"), null, init))
-    val _rewritten = rc_insert_stmt(stmt, &var ctx)
+    var stmt = new_stmt(no_span(), StmtKind.LetVal(intern("closure"), null, init))
+    stmt.rc_insert_stmt(&var ctx)
     val releases = ctx.pop_frame()
 
     assert_eq(releases.size() == 1, true, "only the closure remains an owner")

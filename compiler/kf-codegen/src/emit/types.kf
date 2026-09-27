@@ -242,6 +242,9 @@ pub fun ty_needs_drop_deep(t: TypeRef, m: &Module): bool {
 }
 
 // By-value embedding cannot cycle in a valid module, so this terminates.
+//
+// CONSTRAINT: an impl block carries its type's name and may come first, so
+// only the struct or enum itself answers.
 fun declared_type_owns_heap(name: str, m: &Module): bool {
     while td in &m.decls {
         if td.name.as_str() == name {
@@ -251,6 +254,7 @@ fun declared_type_owns_heap(name: str, m: &Module): bool {
                         val field_type = unsafe { *field.ty }
                         if member_owns_heap(field_type, m) { return true }
                     }
+                    return false
                 }
                 EnumDecl(variants, _is_pub) => {
                     while variant in &variants {
@@ -259,10 +263,10 @@ fun declared_type_owns_heap(name: str, m: &Module): bool {
                             if member_owns_heap(*payloads.at(k), m) { return true }
                         }
                     }
+                    return false
                 }
                 _ => {}
             }
-            return false
         }
     }
     return false

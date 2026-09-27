@@ -7,8 +7,9 @@ import kf_core.ast.*
 import kf_lower.ownership.names_contains
 
 /// Every struct and enum whose fields, transitively, are scalars, the lang
-/// string, a `Box` of such, or such types. The lang string owns its buffer.
-pub fun Module.borrow_free_names(string_name: Sym): List<String> {
+/// string, a `Box` of such, or such types. The lang string owns its buffer,
+/// and a lang list the elements behind its pointer.
+pub fun Module.borrow_free_names(string_name: Sym, list_name: Sym): List<String> {
     var free = List.new<String>()
     while td in &self.decls {
         if td.is_struct_or_enum() { free.push(td.name.as_string()) }
@@ -19,7 +20,7 @@ pub fun Module.borrow_free_names(string_name: Sym): List<String> {
         var kept = List.new<String>()
         while td in &self.decls {
             if td.is_struct_or_enum() && names_contains(&free, td.name.as_str()) {
-                if td.name == string_name || td.fields_hold_no_borrow(&free, string_name) {
+                if td.name == string_name || td.fields_hold_no_borrow(&free, string_name, list_name) {
                     kept.push(td.name.as_string())
                 } else {
                     changed = true
@@ -39,18 +40,19 @@ fun TopDecl.is_struct_or_enum(): bool {
     }
 }
 
-fun TopDecl.fields_hold_no_borrow(free: &List<String>, string_name: Sym): bool {
+fun TopDecl.fields_hold_no_borrow(free: &List<String>, string_name: Sym, list_name: Sym): bool {
+    val owns_pointees = self.lang_key_of().as_str().equals(lang_list_key())
     when (self.kind) {
         Struct(fields, _p) => {
             while f in &fields {
-                if !f.ty.holds_no_borrow(free, string_name) { return false }
+                if !f.ty.holds_no_borrow(free, string_name, list_name, owns_pointees) { return false }
             }
             return true
         }
         EnumDecl(variants, _p) => {
             while v in &variants {
                 while payload in &v.payloads {
-                    if !payload.holds_no_borrow(free, string_name) { return false }
+                    if !payload.holds_no_borrow(free, string_name, list_name, false) { return false }
                 }
             }
             return true
@@ -59,13 +61,15 @@ fun TopDecl.fields_hold_no_borrow(free: &List<String>, string_name: Sym): bool {
     }
 }
 
-fun TypeRef.holds_no_borrow(free: &List<String>, string_name: Sym): bool {
+/// `owns_pointees`: a `Ptr` here owns what it points at, as a list's does.
+fun TypeRef.holds_no_borrow(free: &List<String>, string_name: Sym, list_name: Sym, owns_pointees: bool): bool {
     when (self.kind) {
         Named(n, args) => {
             if is_scalar_type_name(n.as_str()) || n == string_name { return true }
-            if n.as_str().equals("Box") {
+            val owns_args = n.as_str().equals("Box") || n == list_name || (owns_pointees && n.as_str().equals("Ptr"))
+            if owns_args {
                 while a in &args {
-                    if !a.holds_no_borrow(free, string_name) { return false }
+                    if !a.holds_no_borrow(free, string_name, list_name, false) { return false }
                 }
                 return true
             }

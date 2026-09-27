@@ -6,7 +6,7 @@ import kf_interface.*
 // Public non-generic functions, structs and enums, public trait signatures,
 // and impls of exported types. Generic templates are selected by
 // `decl_is_exported_template`.
-pub fun decl_is_exported(td: TopDecl): bool {
+pub fun decl_is_exported(td: &TopDecl): bool {
     if td.generics.size() > 0 { return false }
     // Sent as a template: a structured row cannot carry an associated type.
     if td.trait_declares_assoc_type() { return false }
@@ -28,7 +28,7 @@ pub fun decl_is_exported(td: TopDecl): bool {
 /// A public generic, or a trait declaring an associated type: sent as source.
 /// Synthesized declarations (derive) are excluded; the consumer re-synthesizes
 /// them.
-pub fun decl_is_exported_template(td: TopDecl): bool {
+pub fun decl_is_exported_template(td: &TopDecl): bool {
     if td.generics.size() == 0 {
         if !td.trait_declares_assoc_type() { return false }
     }
@@ -64,7 +64,7 @@ pub fun TopDecl.trait_declares_assoc_type(): bool {
 
 // An impl of a private type would reference a layout the interface never
 // carries.
-pub fun impl_target_is_exported(td: TopDecl, m: &Module, crate: CrateId): bool {
+pub fun impl_target_is_exported(td: &TopDecl, m: &Module, crate: CrateId): bool {
     val list_name = m.lang_type_name(lang_list_key())
     val option_name = m.lang_type_name(lang_option_key())
     var is_impl = false
@@ -90,7 +90,7 @@ pub fun impl_target_is_exported(td: TopDecl, m: &Module, crate: CrateId): bool {
     return false
 }
 
-pub fun decl_crosses_interface(td: TopDecl, m: &Module, crate: CrateId): bool {
+pub fun decl_crosses_interface(td: &TopDecl, m: &Module, crate: CrateId): bool {
     if !decl_is_exported(td) {
         if !decl_is_exported_template(td) { return false }
     }

@@ -26,7 +26,8 @@ fun lowered_dyn_body(): List<Stmt> {
     body.push(new_stmt(no_span(), StmtKind.LetVal(intern("object"), null, coercion_ptr)))
     var ctx = new_rc_ctx(String.from("use_show"))
     val _frame = ctx.push_frame(false)
-    return rc_insert_stmt_list(body, &var ctx)
+    rc_insert_stmts(&var body, &var ctx)
+    return body
 }
 
 @test fun dyn_trait_lower_preserves_coercion(): void {

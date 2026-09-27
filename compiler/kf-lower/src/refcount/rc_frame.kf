@@ -130,7 +130,7 @@ pub mutating fun RcCtx.consume_kind(name: String): uint8 {
 /// Releases an early jump emits, top frame down, without popping.
 /// `stop_at_loop` stops after the first loop frame (break/continue). Names in
 /// `exclude`, which the jump still reads, are skipped.
-mutating fun RcCtx.exit_releases(stop_at_loop: bool, exclude: List<String>): List<Stmt> {
+mutating fun RcCtx.exit_releases(stop_at_loop: bool, exclude: &List<String>): List<Stmt> {
     var releases = List.new<Stmt>()
     var fi: uint64 = self.frame_stack.size()
     while fi > 0 {
@@ -154,8 +154,8 @@ mutating fun RcCtx.exit_releases(stop_at_loop: bool, exclude: List<String>): Lis
 
 // A terminator already emitted every live frame's releases, so none are
 // appended after it.
-fun stmt_is_terminator(s: Stmt): bool {
-    return when (s.kind) {
+fun Stmt.is_terminator(): bool {
+    return when (self.kind) {
         Return(_) => true
         Break => true
         Continue => true
@@ -163,18 +163,9 @@ fun stmt_is_terminator(s: Stmt): bool {
     }
 }
 
-fun append_releases(body: List<Stmt>, releases: List<Stmt>): List<Stmt> {
-    var out = List.new<Stmt>()
-    while item in &body {
-        out.push(item)
-    }
-    if body.size() > 0 {
-        if stmt_is_terminator(*body.at(body.size() - 1)) { return out }
-    }
-    while release in &releases {
-        out.push(release)
-    }
-    return out
+fun append_releases(body: &var List<Stmt>, releases: List<Stmt>): void {
+    if body.size() > 0 && body.at(body.size() - 1).is_terminator() { return }
+    body.extend(releases)
 }
 
 // `str`, and a returned `Ptr<T>`/`&T`: may point into a local, so every named

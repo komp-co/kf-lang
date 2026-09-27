@@ -215,7 +215,7 @@ fun BinOp.binary_uses_same_type_rhs(): bool {
     }
 }
 
-fun BinOp.check_binary(lhs: Expr, rhs: Expr, span: Span, ctx: &var TypeCtx): Type {
+fun BinOp.check_binary(lhs: &Expr, rhs: &Expr, span: Span, ctx: &var TypeCtx): Type {
     if lhs.ty.is_poison() || rhs.ty.is_poison() {
         return poison_ty()
     }
@@ -241,7 +241,7 @@ fun BinOp.check_binary(lhs: Expr, rhs: Expr, span: Span, ctx: &var TypeCtx): Typ
     }
 }
 
-fun BinOp.bitwise_op(lhs: Expr, rhs: Expr, span: Span, ctx: &var TypeCtx): Type {
+fun BinOp.bitwise_op(lhs: &Expr, rhs: &Expr, span: Span, ctx: &var TypeCtx): Type {
     if !lhs.ty.type_eq(rhs.ty) {
         emit_operator_type_mismatch(lhs.ty, rhs.ty, span, ctx)
         return poison_ty()
@@ -277,7 +277,7 @@ fun BinOp.arith_trait_name(ctx: &var TypeCtx): Sym {
 }
 
 // Dispatches to the matching core.arith impl and returns `Self`.
-fun BinOp.arith_op(lhs: Expr, rhs: Expr, span: Span, ctx: &var TypeCtx): Type {
+fun BinOp.arith_op(lhs: &Expr, rhs: &Expr, span: Span, ctx: &var TypeCtx): Type {
     if self.is_pointer_offset(lhs.ty, rhs.ty) {
         return lhs.ty
     }
@@ -340,7 +340,7 @@ fun operator_type_implements(ty: Type, trait_name: str, ctx: &var TypeCtx): bool
 }
 
 
-fun comparison_op(lhs: Expr, rhs: Expr, span: Span, ctx: &var TypeCtx): Type {
+fun comparison_op(lhs: &Expr, rhs: &Expr, span: Span, ctx: &var TypeCtx): Type {
     val equal = ctx.lang_trait_name(lang_equal_key()).as_str()
     if !lhs.ty.type_eq(rhs.ty) {
         emit_operator_type_mismatch(lhs.ty, rhs.ty, span, ctx)
@@ -374,7 +374,7 @@ fun comparison_op(lhs: Expr, rhs: Expr, span: Span, ctx: &var TypeCtx): Type {
     return bool_ty(span)
 }
 
-fun relational_op(lhs: Expr, rhs: Expr, span: Span, ctx: &var TypeCtx): Type {
+fun relational_op(lhs: &Expr, rhs: &Expr, span: Span, ctx: &var TypeCtx): Type {
     val compare = ctx.lang_trait_name(lang_compare_key()).as_str()
     if !lhs.ty.type_eq(rhs.ty) {
         emit_operator_type_mismatch(lhs.ty, rhs.ty, span, ctx)
@@ -402,7 +402,7 @@ fun relational_op(lhs: Expr, rhs: Expr, span: Span, ctx: &var TypeCtx): Type {
 }
 
 
-fun logical_op(lhs: Expr, rhs: Expr, span: Span, ctx: &var TypeCtx): Type {
+fun logical_op(lhs: &Expr, rhs: &Expr, span: Span, ctx: &var TypeCtx): Type {
     val bool_ty_val = bool_ty(no_span())
     val is_bool_l = lhs.ty.type_eq(bool_ty_val)
     val is_bool_r = rhs.ty.type_eq(bool_ty_val)

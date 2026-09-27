@@ -189,39 +189,31 @@ mutating fun Module.materialize_impl_method(inst: &Inst, mangled: String, gps: &
 
 /// The method-level mirror of `strip_templates`.
 mutating fun Module.strip_impl_method_templates(): void {
-    var kept = List.new<TopDecl>()
-    while td in &self.decls {
-        var rebuilt_owner = false
-        when (td.kind) {
-            ImplBlock(methods) => {
-                var has_template = false
-                var nm = List.new<TopDecl>()
-                while mth in &methods {
-                    if mth.generics.size() > 0 {
-                        has_template = true
-                    } else {
-                        nm.push(mth)
-                    }
-                }
-                if has_template {
-                    var rebuilt = new_top_decl(td.span, td.name.as_string(), TopDeclKind.ImplBlock(nm))
-                    rebuilt.crate = td.crate
-                    rebuilt.module_path = td.module_path
-                    rebuilt.decl = td.decl
-                    rebuilt.generics = td.generics
-                    rebuilt.annotations = td.annotations.clone()
-                    rebuilt.linkage = td.linkage
-                    rebuilt.link_name = td.link_name
-                    rebuilt.decl_end = td.decl_end
-                    kept.push(rebuilt)
-                    rebuilt_owner = true
+    while i in 0..self.decls.size() {
+        self.decls.at_mut(i).drop_method_templates()
+    }
+}
+
+/// An impl block keeps only its non-generic methods.
+mutating fun TopDecl.drop_method_templates(): void {
+    when (self.kind) {
+        ImplBlock(methods) => {
+            var i: uint64 = 0
+            var dropped = false
+            while i < methods.size() {
+                if methods.at(i).generics.size() > 0 {
+                    val _template = methods.remove(i)
+                    dropped = true
+                } else {
+                    i = i + 1
                 }
             }
-            _ => { }
+            // CONSTRAINT: a binder is a copy of the payload, so the shrunk list
+            // is moved back into place.
+            if dropped { self.kind = TopDeclKind.ImplBlock(take<List<TopDecl>>(methods)) }
         }
-        if !rebuilt_owner { kept.push(td) }
+        _ => { }
     }
-    self.decls = kept
 }
 
 fun str_list_contains(xs: List<String>, target: str): bool {
