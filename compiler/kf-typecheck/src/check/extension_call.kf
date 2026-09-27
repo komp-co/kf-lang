@@ -27,7 +27,8 @@ pub fun dyn_or_extension_call(e: &var Expr, recv_ptr: Ptr<Expr>, recv: &Expr, na
         return true
     }
     var call_args = List.new<Expr>()
-    call_args.push(unsafe { *recv_ptr })
+    // Owned copies: the store below frees the method call they came from.
+    call_args.push(recv.clone())
     while arg in &args {
         call_args.push(arg)
     }

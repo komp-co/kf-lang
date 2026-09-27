@@ -245,12 +245,8 @@ fun try_get_enum_recv_name(kind: ExprKind, ctx: &var TypeCtx): String {
 
 fun check_variant_construction(enum_name: String, type_args: &var List<TypeRef>, variant_name: String, args: &var List<Expr>, span: Span, ctx: &var TypeCtx): Type {
     // Payloads are typed first so `Option.Some(value)` can infer from them.
-    var ai = 0
-    while ai < args.size() {
-        var arg = *args.at(ai)
-        check_expr(&var arg, ctx)
-        args.set(ai, arg)
-        ai = ai + 1
+    while ai in 0..args.size() {
+        check_expr(args.at_mut(ai), ctx)
     }
     var use_args = clone_type_args(type_args)
     var inferred = false
@@ -290,10 +286,7 @@ fun check_variant_construction(enum_name: String, type_args: &var List<TypeRef>,
             var j = 0
             var saw_error = false
             while j < args.size() && j < v.payloads.size() {
-                var a = *args.at(j)
-                check_expr(&var a, ctx)
-                // Written back, since `.ty` lives on the Expr itself.
-                args.set(j, a)
+                check_expr(args.at_mut(j), ctx)
                 // A payload is a slot like any other: a bare `Option.None`
                 // needs the expectation.
                 if !expect_or_reject(args.at_mut(j), *v.payloads.at(j), ctx) {

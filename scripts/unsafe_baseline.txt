@@ -93,14 +93,14 @@
 5 compiler/kf-lower/src/refcount/rc_guard.kf
 34 compiler/kf-lower/src/refcount/rc_insert.kf
 20 compiler/kf-lower/src/refcount/rc_mark_moved.kf
-17 compiler/kf-lower/src/refcount/rc_place.kf
+5 compiler/kf-lower/src/refcount/rc_place.kf
 2 compiler/kf-lower/src/refcount/rc_return.kf
 28 compiler/kf-lower/src/refcount/rc_stmt.kf
 1 compiler/kf-lower/src/refcount/rc_value_params.kf
 19 compiler/kf-lower/src/refcount/rc_when.kf
 5 compiler/kf-lower/src/trim_binders.kf
 15 compiler/kf-lower/src/when_expr.kf
-13 compiler/kf-lower/src/when_hoist.kf
+14 compiler/kf-lower/src/when_hoist.kf
 43 compiler/kf-mono/src/collect/collect_instances.kf
 15 compiler/kf-mono/src/collect/mono_expr.kf
 12 compiler/kf-mono/src/collect/mono_stmt.kf
@@ -177,7 +177,7 @@
 3 compiler/kf-typecheck/src/check/decl/unused_import.kf
 3 compiler/kf-typecheck/src/check/decl/wildcard_import.kf
 8 compiler/kf-typecheck/src/check/extension_bounds.kf
-14 compiler/kf-typecheck/src/check/extension_call.kf
+13 compiler/kf-typecheck/src/check/extension_call.kf
 25 compiler/kf-typecheck/src/check/foreach.kf
 20 compiler/kf-typecheck/src/check/foreach_counted.kf
 18 compiler/kf-typecheck/src/check/foreach_ref.kf
