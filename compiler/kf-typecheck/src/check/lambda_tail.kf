@@ -50,7 +50,7 @@ fun Stmt.returned_value_stmt(span: Span): Stmt {
     var repls = List.new<TypeRef>()
     when (self.kind) {
         Expression(expr_ptr) => {
-            val operand: Ptr<Expr>? = clone_expr_ptr(expr_ptr, &var names, &var repls)
+            val operand: Box<Expr>? = clone_expr_ptr(expr_ptr, &var names, &var repls)
             return new_stmt(span, StmtKind.Return(operand))
         }
         If(cond, then_body, else_body) => {
@@ -62,7 +62,7 @@ fun Stmt.returned_value_stmt(span: Span): Stmt {
         When(subject, arms) => {
             var narms = List.new<Arm>()
             while arm in &arms {
-                val guard = clone_expr_ptr_opt(arm.guard, &var names, &var repls)
+                val guard = clone_expr_ptr_opt(arm.guard.view(), &var names, &var repls)
                 narms.push(new_arm(arm.span, fresh_pattern_box(arm.pattern), guard, returned_tail(&arm.body, span)))
             }
             return new_stmt(self.span, StmtKind.When(clone_expr_ptr(subject, &var names, &var repls), narms))
