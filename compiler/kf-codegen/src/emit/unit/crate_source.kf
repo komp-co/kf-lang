@@ -109,19 +109,19 @@ fun InstanceSupport.support_layout_view(): Module {
 // An instance whose layout is in the public header still gets its glue and
 // constructors here, without its layout.
 fun support_glue_view(sview: Module, support: &InstanceSupport): Module {
-    var decls = sview.decls
+    var view = sview
     while td in &support.instances.decls {
         when (td.kind) {
-            Struct(_f, _p) => decls.push(td.deep_clone_top_decl())
-            EnumDecl(_v, _p) => decls.push(td.deep_clone_top_decl())
-            ImplBlock(_m) => decls.push(td.deep_clone_top_decl())
+            Struct(_f, _p) => view.decls.push(td.deep_clone_top_decl())
+            EnumDecl(_v, _p) => view.decls.push(td.deep_clone_top_decl())
+            ImplBlock(_m) => view.decls.push(td.deep_clone_top_decl())
             _ => {}
         }
     }
     while decl in &support.private_types.decls {
-        decls.push(decl.deep_clone_top_decl())
+        view.decls.push(decl.deep_clone_top_decl())
     }
-    return Module { crate: sview.crate, path: List.new<String>(), decls: decls, imports: List.new<Import>() }
+    return view
 }
 
 // Implementation-only types plus the instance and private dependency layouts

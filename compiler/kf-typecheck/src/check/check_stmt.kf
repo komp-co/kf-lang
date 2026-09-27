@@ -155,9 +155,10 @@ fun check_let(name: String, ann: Ptr<TypeRef>?, init_ptr: Ptr<Expr>, mutable: bo
     // Read before check_expr clears it.
     val written = unsafe { init_ptr.coerce }
     check_local_initializer(unsafe { &var *init_ptr }, ctx)
-    val init = unsafe { *init_ptr }
+    // The live node: the rewrites below replace what a copy would still hold.
+    val init: &Expr = unsafe { &*init_ptr }
 
-    var ty = init.ty
+    var ty = init.ty.clone()
     when (ann) {
         Some(ty_ref_ptr) => {
             val tr = unsafe { *ty_ref_ptr }
@@ -178,7 +179,7 @@ fun check_let(name: String, ann: Ptr<TypeRef>?, init_ptr: Ptr<Expr>, mutable: bo
         None => {
             // An unannotated literal defaults to String through the same
             // `From<str>` rewrite.
-            val is_lit_str: bool = is_lit_str_expr(init) && ctx.string_is_visible()
+            val is_lit_str: bool = is_lit_str_expr(*init) && ctx.string_is_visible()
             if is_lit_str {
                 if apply_expected(unsafe { &var *init_ptr }, ctx.string_name().lang_struct_ty(init.span), ctx) {
                     ty = ctx.string_name().lang_struct_ty(init.span)
@@ -201,7 +202,7 @@ fun check_let(name: String, ann: Ptr<TypeRef>?, init_ptr: Ptr<Expr>, mutable: bo
     }
     // Its first use may choose a literal's width, an open call's type
     // arguments, or what a `null` is absent from.
-    val flexible = is_numeric_literal(init) || open_call_pending(init.span, ctx) || init.is_bare_null()
+    val flexible = is_numeric_literal(*init) || open_call_pending(init.span, ctx) || init.is_bare_null()
     if ann.is_none() && flexible {
         ctx.declare_flexible(name, ty, mutable, init_ptr)
         return

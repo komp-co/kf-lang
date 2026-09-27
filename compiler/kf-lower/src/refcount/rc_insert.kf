@@ -7,41 +7,42 @@ import kf_core.ast.*
 import kf_lower.ownership.*
 pub mutating fun Module.rc_insert_module(list_name: Sym): void {
     val names = self.compute_move_only_names(list_name)
-    val tp: Ptr<List<ParamEntry>> = unsafe { alloc<List<ParamEntry>>() }
-    unsafe { *tp = self.build_param_table() }
-    val vp: Ptr<VariantPayloads> = unsafe { alloc<VariantPayloads>() }
-    unsafe { *vp = self.variant_payloads_of() }
+    var param_table = self.build_param_table()
+    var payloads = self.variant_payloads_of()
     val string_name = self.lang_type_name(lang_string_key())
+    val free = self.borrow_free_names(string_name, list_name)
     while i in 0..self.decls.size() {
-        rc_insert_top_decl_pv(self.decls.at_mut(i), names, tp, vp, string_name)
+        rc_insert_top_decl_pv(self.decls.at_mut(i), names, &var param_table, &var payloads, string_name, &free)
     }
 }
 
 /// `vp` says which payloads each enum variant owns, so a `when` arm can take
 /// responsibility for those it binds.
 pub fun rc_insert_top_decl_pv(td: &var TopDecl, names: List<String>, tp: Ptr<List<ParamEntry>>, vp: Ptr<VariantPayloads>,
-                              string_name: Sym): void {
+                              string_name: Sym, free: &List<String>): void {
     when (td.kind) {
         Function(params, ret, body, p, u, m, s) => {
             val fn_name_a = td.name.as_string()
             var ctx = new_rc_ctx(fn_name_a)
             // Deep-cloned: `names` is shared across decls and RcCtx frees it.
             ctx.move_only_names = clone_str_list(&names)
+            ctx.borrow_free = clone_str_list(free)
             ctx.ptable = tp
             ctx.variants = vp
             ctx.string_name = string_name
             val _idx = ctx.push_frame(false)
             track_value_params(&params, &var ctx)
-            val new_body = rc_insert_stmt_list(body, &var ctx)
-            val releases = ctx.pop_frame()
-            val final_body = append_releases(new_body, releases)
-            td.kind = TopDeclKind.Function(params, ret, final_body, p, u, m, s)
+            rc_insert_stmts(&var body, &var ctx)
+            append_releases(&var body, ctx.pop_frame())
+            // CONSTRAINT: a binder is a copy of the payload, so the grown body
+            // is moved back into place.
+            td.kind = TopDeclKind.Function(take<List<Param>>(params), take<Box<TypeRef>>(ret), take<List<Stmt>>(body),
+                p, u, m, s)
         }
         ImplBlock(methods) => {
             while i in 0..methods.size() {
-                rc_insert_top_decl_pv(methods.at_mut(i), names, tp, vp, string_name)
+                rc_insert_top_decl_pv(methods.at_mut(i), names, tp, vp, string_name, free)
             }
-            td.kind = TopDeclKind.ImplBlock(methods)
         }
         Struct(_, _) => return
         EnumDecl(_, _) => return
@@ -54,12 +55,6 @@ pub fun rc_insert_top_decl_pv(td: &var TopDecl, names: List<String>, tp: Ptr<Lis
     }
 }
 
-
-fun push_stmts(out: &var List<Stmt>, items: List<Stmt>): void {
-    while item in &items {
-        out.push(item)
-    }
-}
 
 enum BorrowMode { Value, Borrow }
 
@@ -145,7 +140,7 @@ fun Expr.collect_var_names_in_expr(out: &var List<String>): void {
         Unary(_op, ip) => collect_var_names_in_expr(unsafe { *ip }, out)
         Deref(ip) => collect_var_names_in_expr(unsafe { *ip }, out)
         MethodCall(recv_ptr, _m, args) => {
-            if !self.is_static_call { collect_var_names_in_expr(unsafe { *recv_ptr }, out) }
+            if !self.is_static_call && !self.is_variant_ctor { collect_var_names_in_expr(unsafe { *recv_ptr }, out) }
             collect_var_names_in_list(args, out)
         }
         FieldAccess(obj_ptr, _f) => collect_var_names_in_expr(unsafe { *obj_ptr }, out)
@@ -177,13 +172,13 @@ fun collect_var_names_in_list(args: List<Expr>, out: &var List<String>): void {
 }
 
 /// For a primitive return only escaping names are excluded; for a heap
-/// return every named local is, since the value may alias one.
-fun returned_var_names(expr_ptr: Ptr<Expr>?): List<String> {
+/// return every named local the value may still read is.
+fun returned_var_names(expr_ptr: Ptr<Expr>?, ctx: &var RcCtx): List<String> {
     var out = List.new<String>()
     val ep = expr_ptr ?: return out
     val re = unsafe { *ep }
     if is_heap_ty_rc(re.ty) {
-        re.collect_var_names_in_expr(&var out)
+        re.collect_escaping_names(ctx, &var out)
     } else {
         re.collect_moved_names(BorrowMode.Value, &var out)
     }
@@ -216,19 +211,20 @@ fun ty_is_struct_value(t: Type): bool {
 }
 
 /// `return <expr>` that must drop locals after evaluating the value, which
-/// may read through them: capture, drop, return the temp.
-fun lower_return_drop_after_eval(value: Box<Expr>?, rels: List<Stmt>, ctx: &var RcCtx, out: &var List<Stmt>): void {
-    val rp = value.view() ?: return
-    val re = unsafe { *rp }
+/// may read through them: this becomes `val __retval_N = <expr>`, and the
+/// answer is the `return __retval_N` to follow the drops.
+mutating fun Stmt.bind_return_value(ctx: &var RcCtx): Stmt {
     val tmp_id = ctx.block_counter
     ctx.block_counter = tmp_id + 1
-    val tmp_name = "__retval_${u64_to_str(tmp_id)}"
-    out.push(new_stmt(re.span, StmtKind.LetVal(intern(tmp_name.as_str()), null, value)))
-    push_stmts(out, rels)
-    var v = new_expr(re.span, ExprKind.Variable(intern(tmp_name.as_str())))
-    v.ty = re.ty.clone()
-    val vp: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *vp = v }
-    val operand: Box<Expr>? = vp
-    out.push(new_stmt(re.span, StmtKind.Return(operand)))
+    val tmp_name = intern("__retval_${u64_to_str(tmp_id)}")
+    var v = new_expr(self.span, ExprKind.Variable(tmp_name))
+    when (self.kind) {
+        Return(value) => {
+            val rp = value.view() ?: return new_stmt(self.span, StmtKind.Return(null))
+            v.ty = unsafe { &*rp }.ty.clone()
+            self.kind = StmtKind.LetVal(tmp_name, null, take<Box<Expr>?>(value))
+        }
+        _ => { }
+    }
+    return new_stmt(self.span, StmtKind.Return(Box.new(v)))
 }

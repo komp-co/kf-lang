@@ -139,13 +139,38 @@ fun hoist_operator_operands(ep: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>
     }
 }
 
-// Hoisting is safe only when the statement's output cannot carry a borrow
-// of the temp: a non-heap, non-view result. `val v = make().as_str()` is left
-// to leak.
-fun stmt_output_is_hoist_safe(e: Expr): bool {
-    if is_heap_ty_rc(e.ty) { return false }
-    if ty_is_view(e.ty) { return false }
-    return true
+/// Hoists the temporaries below every subexpression whose value cannot hold
+/// a borrow: they are consumed there, so none outlives the statement.
+/// `val v = make().as_str()` keeps its temporary, and leaks it.
+fun hoist_bounded_temps(ep: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>): void {
+    val e = unsafe { &*ep }
+    if e.coerce != coerce_addr_of() && e.ty.holds_no_borrow(ctx) {
+        hoist_borrowed_temps(ep, ctx, out)
+        return
+    }
+    when (e.kind) {
+        Binary(_l, _op, _r) => hoist_operator_operands(ep, ctx, out)
+        Call(_n, args) => {
+            while i in 0..args.size() {
+                hoist_bounded_temps(args.at_mut(i), ctx, out)
+            }
+        }
+        MethodCall(recv_ptr, _m, args) => {
+            hoist_bounded_temps(recv_ptr, ctx, out)
+            while i in 0..args.size() {
+                hoist_bounded_temps(args.at_mut(i), ctx, out)
+            }
+        }
+        StructLit(_n, finits) => {
+            while finit in &finits {
+                hoist_bounded_temps(finit.value, ctx, out)
+            }
+        }
+        FieldAccess(obj_ptr, _f) => hoist_bounded_temps(obj_ptr, ctx, out)
+        Unary(_op, inner) => hoist_bounded_temps(inner, ctx, out)
+        Cast(inner, _t) => hoist_bounded_temps(inner, ctx, out)
+        _ => { }
+    }
 }
 
 // An Expression statement discards its result, so it is always hoist-safe.
@@ -155,24 +180,18 @@ pub mutating fun Stmt.collect_stmt_hoists(ctx: &var RcCtx): List<Stmt> {
         Expression(ep) => hoist_borrowed_temps(ep, ctx, &var out)
         LetVal(_n, _ty, ep) => {
             val p = ep ?: return out
-            if stmt_output_is_hoist_safe(unsafe { *p }) { hoist_borrowed_temps(p, ctx, &var out) }
-            else { hoist_operator_operands(p, ctx, &var out) }
+            hoist_bounded_temps(p, ctx, &var out)
         }
         // No initializer, nothing to hoist.
         LetVar(_n, _ty, ep) => {
             val p = ep ?: return out
-            if stmt_output_is_hoist_safe(unsafe { *p }) { hoist_borrowed_temps(p, ctx, &var out) }
-            else { hoist_operator_operands(p, ctx, &var out) }
+            hoist_bounded_temps(p, ctx, &var out)
         }
-        Assign(_n, ep) => {
-            if stmt_output_is_hoist_safe(unsafe { *ep }) { hoist_borrowed_temps(ep, ctx, &var out) }
-            else { hoist_operator_operands(ep, ctx, &var out) }
-        }
-        AssignTo(_place, ep) => hoist_operator_operands(ep, ctx, &var out)
+        Assign(_n, ep) => hoist_bounded_temps(ep, ctx, &var out)
+        AssignTo(_place, ep) => hoist_bounded_temps(ep, ctx, &var out)
         Return(ep) => {
             val rp = ep ?: return out
-            if stmt_output_is_hoist_safe(unsafe { *rp }) { hoist_borrowed_temps(rp, ctx, &var out) }
-            else { hoist_operator_operands(rp, ctx, &var out) }
+            hoist_bounded_temps(rp, ctx, &var out)
         }
         // An `if` condition is a bool, so its temporaries can always be
         // hoisted ahead of the statement. Bodies hoist in their own scope.
@@ -185,131 +204,125 @@ pub mutating fun Stmt.collect_stmt_hoists(ctx: &var RcCtx): List<Stmt> {
     return out
 }
 
-pub fun rc_insert_stmt(s: Stmt, ctx: &var RcCtx): Stmt {
-    when (s.kind) {
-        LetVal(name, ty_ref_ptr, init_ptr) => {
-            val ip = init_ptr ?: return s
+/// Rewrites one statement in place: marks what it consumes and rewrites the
+/// scopes it opens.
+pub mutating fun Stmt.rc_insert_stmt(ctx: &var RcCtx): void {
+    when (self.kind) {
+        LetVal(name, _ty, init_ptr) => {
+            val ip = init_ptr ?: return
             val init = unsafe { *ip }
             if is_heap_ty_rc(init.ty) {
                 val mode = classify_binding(init, ctx)
                 apply_binding_mode(mode, name.as_string(), ip, ctx)
             }
             init.mark_consumed_moves(ctx)
-            return s
         }
-        LetVar(name, ty_ref_ptr, init_ptr) => {
-            val ip = init_ptr ?: return s
+        LetVar(name, _ty, init_ptr) => {
+            val ip = init_ptr ?: return
             val init = unsafe { *ip }
             if is_heap_ty_rc(init.ty) {
                 val mode = classify_binding(init, ctx)
                 apply_binding_mode(mode, name.as_string(), ip, ctx)
             }
             init.mark_consumed_moves(ctx)
-            return s
         }
         If(cond_ptr, then_body, else_body) => {
             // The condition can consume (`if !consume(a)`).
             mark_consumed_moves(unsafe { *cond_ptr }, ctx)
-            val _ti = ctx.push_frame(false)
-            val rewritten_then = rc_insert_stmt_list(then_body, ctx)
-            val then_releases = ctx.pop_frame()
-            val new_then = append_releases(rewritten_then, then_releases)
-            val _ei = ctx.push_frame(false)
-            val rewritten_else = rc_insert_stmt_list(else_body, ctx)
-            val else_releases = ctx.pop_frame()
-            val new_else = append_releases(rewritten_else, else_releases)
-            return new_stmt(s.span, StmtKind.If(cond_ptr, new_then, new_else))
+            rc_insert_scope(&var then_body, ctx)
+            rc_insert_scope(&var else_body, ctx)
+            // CONSTRAINT: a binder is a copy of the payload, so a list that
+            // grew is moved back into place.
+            self.kind = StmtKind.If(take<Box<Expr>>(cond_ptr), take<List<Stmt>>(then_body),
+                take<List<Stmt>>(else_body))
         }
         // Desugar runs first; passed through if the order ever changes.
-        ForEach(_b, _s, _bd) => return s
+        ForEach(_b, _s, _bd) => { }
         While(cond_ptr, body) => {
             val _wi = ctx.push_frame(true)
             // Marked inside the loop frame: the condition re-runs on the
             // back-edge.
             mark_consumed_moves(unsafe { *cond_ptr }, ctx)
-            val rewritten_body = rc_insert_stmt_list(body, ctx)
-            val body_releases = ctx.pop_frame()
-            val new_body = append_releases(rewritten_body, body_releases)
-            return new_stmt(s.span, StmtKind.While(cond_ptr, new_body))
+            rc_insert_stmts(&var body, ctx)
+            append_releases(&var body, ctx.pop_frame())
+            self.kind = StmtKind.While(take<Box<Expr>>(cond_ptr), take<List<Stmt>>(body))
         }
-        Switch(subj_ptr, arms) => {
-            mark_consumed_moves(unsafe { *subj_ptr }, ctx)
-            // Marked moved before the arm frames are pushed, so a non-binding
-            // arm can re-register it as its own.
-            val subj_e = unsafe { *subj_ptr }
-            val subj_name = subj_e.when_subject_var()
-            val subj_enum = subj_e.when_subject_enum()
-            // Declined owning payloads get generated names first, so the arm
-            // frame drops them like any binder.
-            val named_arms = name_declined_payloads(&arms, subj_enum.as_str(), ctx)
-            val consumes = subj_e.when_consumes_subject(&named_arms, ctx)
-            if consumes { ctx.rc_mark_moved(subj_name.clone()) }
-            var out_arms = List.new<SwitchArm>()
-            while arm in &named_arms {
-                val _i2 = ctx.push_frame(false)
-                var owned = List.new<String>()
-                if consumes {
-                    owned = arm.arm_owned_names(subj_enum.as_str(), subj_name.as_str(), ctx)
-                    while item in &owned {
-                        ctx.add_heap_local(item)
-                    }
-                }
-                arm.rc_add_binder_views(&owned, ctx)
-                // A guard can consume what the body would; it is marked in the
-                // arm's frame.
-                when (arm.guard) {
-                    Some(g) => mark_consumed_moves(unsafe { *g }, ctx)
-                    None => { }
-                }
-                val prelude = guard_temporaries(arm.guard.view(), ctx)
-                val rest = rc_insert_stmt_list(arm.body, ctx)
-                val arm_releases = ctx.pop_frame()
-                val new_body = append_releases(rest, arm_releases)
-                out_arms.push(new_guarded_switch_arm(arm.span, arm.tag, arm.binders, arm.guard.duplicate(),
-                    prelude, new_body))
-            }
-            return new_stmt(s.span, StmtKind.Switch(subj_ptr, out_arms))
-        }
+        Switch(subj_ptr, arms) => rc_insert_switch(unsafe { &*subj_ptr }, &var arms, ctx)
         Assign(_name, rhs_ptr) => {
             mark_assign_rhs_moved(rhs_ptr, ctx)
             mark_consumed_moves(unsafe { *rhs_ptr }, ctx)
-            return s
         }
         AssignTo(_place_ptr, rhs_ptr) => {
             mark_assign_rhs_moved(rhs_ptr, ctx)
             mark_consumed_moves(unsafe { *rhs_ptr }, ctx)
-            return s
         }
         Return(expr_ptr) => {
-            val ep = expr_ptr ?: return s
+            val ep = expr_ptr ?: return
             mark_consumed_moves(unsafe { *ep }, ctx)
-            return s
         }
         Expression(expr_ptr) => {
             mark_consumed_moves(unsafe { *expr_ptr }, ctx)
             // A discarded fresh result (`render(x);`) is bound to a local so
             // it is dropped. Only OwnedFresh; a borrowed result is not.
             val e = unsafe { *expr_ptr }
-            if e.ty.is_move_only(ctx) {
-                val mode = classify_binding(e, ctx)
-                when (mode) {
-                    OwnedFresh => {
-                        val tmp_id = ctx.block_counter
-                        ctx.block_counter = tmp_id + 1
-                        val tmp_name = "__discard_${u64_to_str(tmp_id)}"
-                        ctx.add_heap_local(tmp_name.clone())
-                        return new_stmt(s.span, StmtKind.LetVal(intern(tmp_name.as_str()), null, expr_ptr))
-                    }
-                    _ => { }
+            if !e.ty.is_move_only(ctx) { return }
+            when (classify_binding(e, ctx)) {
+                OwnedFresh => {
+                    val tmp_id = ctx.block_counter
+                    ctx.block_counter = tmp_id + 1
+                    val tmp_name = "__discard_${u64_to_str(tmp_id)}"
+                    ctx.add_heap_local(tmp_name.clone())
+                    self.kind = StmtKind.LetVal(intern(tmp_name.as_str()), null, take<Box<Expr>>(expr_ptr))
                 }
+                _ => { }
             }
-            return s
         }
-        When(_, _) => return s
-        Drop(_) => return s
-        Release(_) => return s
-        Break => return s
-        Continue => return s
-        Poison => return s
+        When(_, _) => { }
+        Drop(_) => { }
+        Release(_) => { }
+        Break => { }
+        Continue => { }
+        Poison => { }
+    }
+}
+
+/// A nested scope, closed by the releases of what it still owns.
+fun rc_insert_scope(body: &var List<Stmt>, ctx: &var RcCtx): void {
+    val _i = ctx.push_frame(false)
+    rc_insert_stmts(body, ctx)
+    append_releases(body, ctx.pop_frame())
+}
+
+fun rc_insert_switch(subject: &Expr, arms: &var List<SwitchArm>, ctx: &var RcCtx): void {
+    mark_consumed_moves(*subject, ctx)
+    // Marked moved before the arm frames are pushed, so a non-binding arm can
+    // re-register it as its own.
+    val subj_name = subject.when_subject_var()
+    val subj_enum = subject.when_subject_enum()
+    // Declined owning payloads get generated names first, so the arm frame
+    // drops them like any binder.
+    name_declined_payloads(arms, subj_enum.as_str(), ctx)
+    val consumes = subject.when_consumes_subject(arms, ctx)
+    if consumes { ctx.rc_mark_moved(subj_name.clone()) }
+    while ai in 0..arms.size() {
+        val arm = arms.at_mut(ai)
+        val _i = ctx.push_frame(false)
+        var owned = List.new<String>()
+        if consumes {
+            owned = arm.arm_owned_names(subj_enum.as_str(), subj_name.as_str(), ctx)
+            while item in &owned {
+                ctx.add_heap_local(item)
+            }
+        }
+        arm.rc_add_binder_views(&owned, ctx)
+        // A guard can consume what the body would; it is marked in the arm's
+        // frame.
+        when (arm.guard) {
+            Some(g) => mark_consumed_moves(unsafe { *g }, ctx)
+            None => { }
+        }
+        arm.guard_prelude = guard_temporaries(arm.guard.view(), ctx)
+        rc_insert_stmts(&var arm.body, ctx)
+        append_releases(&var arm.body, ctx.pop_frame())
     }
 }

@@ -103,20 +103,22 @@ fun check_struct_lit(struct_name: str, fields: &var List<FieldInit>, span: Span,
 /// `first`. Runs after every field matched, so a lookup cannot miss; a miss
 /// would leave the field in place.
 fun reorder_field_inits(fields: &var List<FieldInit>, layout: &StructLayout): void {
-    if fields.size() < 2 { return }
+    if fields.size() < 2 || fields.size() != layout.fields.size() { return }
+    while field in &layout.fields {
+        if field_init_index(fields, field.name.as_str()) >= fields.size() { return }
+    }
     var out = List.new<FieldInit>()
     while field in &layout.fields {
-        val want = field.name
-        var i = 0
-        while i < fields.size() {
-            val fi = *fields.at(i)
-            if fi.name.as_str().equals(want.as_str()) {
-                out.push(fi)
-                i = fields.size()
-            } else {
-                i = i + 1
-            }
-        }
+        val moved = fields.remove(field_init_index(fields, field.name.as_str())) ?: return
+        out.push(moved)
     }
-    if out.size() == fields.size() { *fields = out }
+    *fields = out
+}
+
+/// `fields.size()` when no init names `name`.
+fun field_init_index(fields: &List<FieldInit>, name: str): uint64 {
+    while i in 0..fields.size() {
+        if fields.at(i).name.as_str().equals(name) { return i }
+    }
+    return fields.size()
 }

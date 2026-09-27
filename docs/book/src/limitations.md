@@ -101,9 +101,10 @@ src/main.kf:3:13: error: lambda parameter `x` needs a type annotation (its type 
 ## std is thin, and not implicit
 
 `core` and `alloc` are injected automatically; `std` must be declared in
-`[dependencies]`. What it does not have: directory walking, writing to
-standard error, networking, threads ([#58]). It does have standard input, and `std.time` — a
-clock, a sleep, and a monotonic `Instant`. The process's arguments are in core
+`[dependencies]`. What it does not have: directory walking, networking,
+threads ([#58]). It does have standard input and error, pipes to a child
+process with a single-threaded `Poll` over them, and `std.time`: a clock, a
+sleep, and a monotonic `Instant`. The process's arguments are in core
 (`arg_count()`, `arg_at(i)`).
 
 ## Trait objects are borrowed, and cannot be collected
@@ -149,12 +150,11 @@ reaches two declarations ([#21]).
 
 ## Tooling
 
-The [VS Code extension](https://github.com/komp-co/kf-extensions) and the
-[language server](https://github.com/komp-co/kf-lsp) are subprocess bridges:
-each answers by running the compiler per save or per request, so answers cost
-a process launch and a re-check. A KFlat-native server that links the compiler
-in-process is [kf-lsp#1](https://github.com/komp-co/kf-lsp/issues/1). There is
-no formatter ([#15]).
+The [VS Code extension](https://github.com/komp-co/kf-extensions) runs
+`komp check` per save and offers nothing beyond its diagnostics, quick fixes
+and highlighting until it is rebuilt on the
+[language server](https://github.com/komp-co/kf-lsp). There is no formatter
+([#15]).
 
 A package's feature flags are not read ([#79]).
 

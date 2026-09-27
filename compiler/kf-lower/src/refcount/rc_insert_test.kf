@@ -44,10 +44,10 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     val subj = new_expr(no_span(), ExprKind.Variable(intern("opt")))
     val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *sp = subj }
-    val s = new_stmt(no_span(), StmtKind.Switch(sp, arms))
-    val rewritten = rc_insert_stmt(s, &var ctx)
+    var s = new_stmt(no_span(), StmtKind.Switch(sp, arms))
+    s.rc_insert_stmt(&var ctx)
 
-    when (rewritten.kind) {
+    when (s.kind) {
         Switch(_, out_arms) => {
             val a = *out_arms.at(0)
             assert_eq(a.body.size() == 0, true, "binder has no retain or release")
@@ -68,10 +68,10 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     call.ty = intern("String").lang_struct_ty(no_span())
     val cp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *cp = call }
-    val s = new_stmt(no_span(), StmtKind.LetVal(intern("y"), null, cp))
-    val rewritten = rc_insert_stmt(s, &var ctx)
+    var s = new_stmt(no_span(), StmtKind.LetVal(intern("y"), null, cp))
+    s.rc_insert_stmt(&var ctx)
 
-    when (rewritten.kind) {
+    when (s.kind) {
         LetVal(_, _, init_ptr) => {
             val init = unsafe { *(init_ptr!!) }
             when (init.kind) {
@@ -85,16 +85,18 @@ fun binding_mode_tag(m: BindingMode): uint64 {
 }
 
 @test fun returned_var_names_extracts_bare_var(): void {
+    var ctx = rc_ctx_for_test("f")
     // return x  → ["x"]
     val xv = new_expr(no_span(), ExprKind.Variable(intern("x")))
     val xp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *xp = xv }
-    val names = returned_var_names(xp)
+    val names = returned_var_names(xp, &var ctx)
     assert_eq(names.size() == 1, true, "bare Variable return → one name")
     assert_eq(names.at(0).as_str(), "x", "bare Variable return → its name")
 }
 
 @test fun returned_var_names_call_collects_arg_vars(): void {
+    var ctx = rc_ctx_for_test("f")
     // return f(l1, post)  -> ["l1", "post"]
     var args = List.new<Expr>()
     args.push(new_expr(no_span(), ExprKind.Variable(intern("l1"))))
@@ -102,25 +104,27 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     val cv = new_expr(no_span(), ExprKind.Call(intern("concat"), args))
     val cp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *cp = cv }
-    val names = returned_var_names(cp)
+    val names = returned_var_names(cp, &var ctx)
     assert_eq(names.size() == 2, true, "call args → both var names collected")
     assert_eq(names.at(0).as_str(), "l1", "first arg var")
     assert_eq(names.at(1).as_str(), "post", "second arg var")
 }
 
 @test fun returned_var_names_non_var_is_empty(): void {
+    var ctx = rc_ctx_for_test("f")
     // return 5  → []  (LitInt is not a tracked local)
     val lv = new_expr(no_span(), ExprKind.LitInt(5))
     val lp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *lp = lv }
-    val names = returned_var_names(lp)
+    val names = returned_var_names(lp, &var ctx)
     assert_eq(names.size() == 0, true, "non-Variable return → empty (excludes nothing)")
 }
 
 @test fun returned_var_names_absent_operand_is_empty(): void {
+    var ctx = rc_ctx_for_test("f")
     // bare `return` (no operand) → []
     val absent: Ptr<Expr>? = null
-    val names = returned_var_names(absent)
+    val names = returned_var_names(absent, &var ctx)
     assert_eq(names.size() == 0, true, "bare return → empty")
 }
 
@@ -132,7 +136,7 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     ctx.add_heap_local(String.from("b"))
     var excl = List.new<String>()
     excl.push(String.from("a"))
-    val rels = ctx.exit_releases(false, excl)
+    val rels = ctx.exit_releases(false, &excl)
     assert_eq(rels.size() == 1, true, "one release (b), a excluded")
     val r0 = *rels.at(0)
     when (r0.kind) {
@@ -148,7 +152,7 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     ctx.add_heap_local(String.from("outer"))
     val _w = ctx.push_frame(true)
     ctx.add_heap_local(String.from("x"))
-    val rels = ctx.exit_releases(true, List.new<String>())
+    val rels = ctx.exit_releases(true, &List.new<String>())
     assert_eq(rels.size() == 1, true, "only loop-body local x drops, not outer")
     val r0 = *rels.at(0)
     when (r0.kind) {
@@ -170,7 +174,8 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     unsafe { *ap = av }
     var body = List.new<Stmt>()
     body.push(new_stmt(no_span(), StmtKind.Return(ret_op(ap))))
-    val out = rc_insert_stmt_list(body, &var ctx)
+    var out = body
+    rc_insert_stmts(&var out, &var ctx)
     assert_eq(out.size() == 2, true, "Release(b) spliced before Return")
     val first = *out.at(0)
     when (first.kind) {
@@ -186,7 +191,8 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     ctx.add_heap_local(String.from("x"))
     var body = List.new<Stmt>()
     body.push(new_stmt(no_span(), StmtKind.Break))
-    val out = rc_insert_stmt_list(body, &var ctx)
+    var out = body
+    rc_insert_stmts(&var out, &var ctx)
     assert_eq(out.size() == 2, true, "Release(x) spliced before Break")
     val first = *out.at(0)
     when (first.kind) {
@@ -202,7 +208,8 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     ctx.add_heap_local(String.from("x"))
     var body = List.new<Stmt>()
     body.push(new_stmt(no_span(), StmtKind.Continue))
-    val out = rc_insert_stmt_list(body, &var ctx)
+    var out = body
+    rc_insert_stmts(&var out, &var ctx)
     assert_eq(out.size() == 2, true, "Release(x) spliced before Continue")
     val first = *out.at(0)
     when (first.kind) {
@@ -221,8 +228,8 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     val subj = new_expr(no_span(), ExprKind.LitBool(true))
     val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *sp = subj }
-    val s = new_stmt(no_span(), StmtKind.Switch(sp, arms))
-    val rewritten = rc_insert_stmt(s, &var ctx)
+    var s = new_stmt(no_span(), StmtKind.Switch(sp, arms))
+    s.rc_insert_stmt(&var ctx)
     assert_eq(true, true, "switch with no binders survives")
 }
 
@@ -232,9 +239,9 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     val _i = ctx.push_frame(false)
     val yp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *yp = mk_string_var_expr(String.from("y")) }
-    val s = new_stmt(no_span(), StmtKind.LetVal(intern("x"), null, yp))
-    val rewritten = rc_insert_stmt(s, &var ctx)
-    when (rewritten.kind) {
+    var s = new_stmt(no_span(), StmtKind.LetVal(intern("x"), null, yp))
+    s.rc_insert_stmt(&var ctx)
+    when (s.kind) {
         LetVal(_, _, init_ptr) => {
             val init = unsafe { *(init_ptr!!) }
             when (init.kind) {
@@ -254,8 +261,8 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     ctx.add_heap_local(String.from("y"))     // simulate `val y = String.from(...)`
     val yp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *yp = mk_string_var_expr(String.from("y")) }
-    val s = new_stmt(no_span(), StmtKind.LetVal(intern("x"), null, yp))
-    val _r = rc_insert_stmt(s, &var ctx)
+    var s = new_stmt(no_span(), StmtKind.LetVal(intern("x"), null, yp))
+    s.rc_insert_stmt(&var ctx)
     val rels = ctx.pop_frame()
     assert_eq(rels.size() == 1, true, "only x released; y moved out")
     val r0 = *rels.at(0)
@@ -275,9 +282,9 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     fa.ty = intern("String").lang_struct_ty(no_span())
     val fap: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *fap = fa }
-    val s = new_stmt(no_span(), StmtKind.LetVal(intern("x"), null, fap))
-    val rewritten = rc_insert_stmt(s, &var ctx)
-    when (rewritten.kind) {
+    var s = new_stmt(no_span(), StmtKind.LetVal(intern("x"), null, fap))
+    s.rc_insert_stmt(&var ctx)
+    when (s.kind) {
         LetVal(_, _, init_ptr) => {
             val init = unsafe { *(init_ptr!!) }
             when (init.kind) {
@@ -299,9 +306,9 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     deref.ty = intern("String").lang_struct_ty(no_span())
     val ip: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *ip = deref }
-    val s = new_stmt(no_span(), StmtKind.LetVal(intern("v"), null, ip))
-    val rewritten = rc_insert_stmt(s, &var ctx)
-    when (rewritten.kind) {
+    var s = new_stmt(no_span(), StmtKind.LetVal(intern("v"), null, ip))
+    s.rc_insert_stmt(&var ctx)
+    when (s.kind) {
         LetVal(_, _, init_ptr) => {
             val init = unsafe { *(init_ptr!!) }
             when (init.kind) {
@@ -371,7 +378,8 @@ fun mk_ref_string_param(name: str): Param {
     unsafe { *rp = bin }
     var body = List.new<Stmt>()
     body.push(new_stmt(no_span(), StmtKind.Return(ret_op(rp))))
-    val out = rc_insert_stmt_list(&body, &var ctx)
+    var out = body
+    rc_insert_stmts(&var out, &var ctx)
     assert_eq(out.size() == 3, true, "temp + release + return")
     when (out.at(0).kind) {
         LetVal(_, _, _) => assert_eq(true, true, "first stmt is the retval temp")
@@ -394,7 +402,8 @@ fun mk_ref_string_param(name: str): Param {
     unsafe { *rp = lv }
     var body = List.new<Stmt>()
     body.push(new_stmt(no_span(), StmtKind.Return(ret_op(rp))))
-    val out = rc_insert_stmt_list(&body, &var ctx)
+    var out = body
+    rc_insert_stmts(&var out, &var ctx)
     assert_eq(out.size() == 3, true, "temp + release + return")
     when (out.at(0).kind) {
         LetVal(_, _, _) => assert_eq(true, true, "the clone is evaluated first")
@@ -416,9 +425,9 @@ fun mk_ref_string_param(name: str): Param {
     call.ty = intern("String").lang_struct_ty(no_span())
     val cp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *cp = call }
-    val s = new_stmt(no_span(), StmtKind.Expression(cp))
-    val rewritten = rc_insert_stmt(s, &var ctx)
-    when (rewritten.kind) {
+    var s = new_stmt(no_span(), StmtKind.Expression(cp))
+    s.rc_insert_stmt(&var ctx)
+    when (s.kind) {
         LetVal(_, _, _) => assert_eq(true, true, "discarded result bound to a temp")
         _ => assert_eq(false, true, "expected LetVal rewrite")
     }

@@ -19,7 +19,7 @@ pub struct Stmt {
 pub struct SwitchArm {
     pub val span:    Span
     pub val tag:     SwitchTag
-    pub val binders: List<Sym>
+    pub var binders: List<Sym>
     /// Null when unguarded. Any guard makes codegen emit the whole `Switch`
     /// as an if/else-if chain.
     pub val guard:   Box<Expr>?

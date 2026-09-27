@@ -194,28 +194,18 @@ pub fun parse_test_main(src: str, smap: Ptr<SourceMap>): Module {
 
 /// Renames any `fun main` to `__user_main`, clear of the generated main.
 pub fun rename_main_decls(modules: &var List<Module>): void {
-    var mi = 0
-    while mi < modules.size() {
-        var m = *modules.at(mi)
-        var di = 0
-        while di < m.decls.size() {
-            var td = *m.decls.at(di)
-            if is_fn_named_main(td) {
-                td.name = intern("__user_main")
-                m.decls.set(di, td)
-            }
-            di = di + 1
+    while mi in 0..modules.size() {
+        val m = modules.at_mut(mi)
+        while di in 0..m.decls.size() {
+            val td = m.decls.at_mut(di)
+            if td.is_fn_named_main() { td.name = intern("__user_main") }
         }
-        modules.set(mi, m)
-        mi = mi + 1
     }
 }
 
-fun is_fn_named_main(td: TopDecl): bool {
-    val nm = td.name.as_str()
-    val is_main = nm.equals("main")
-    if !is_main { return false }
-    return when (td.kind) {
+fun TopDecl.is_fn_named_main(): bool {
+    if !self.name.as_str().equals("main") { return false }
+    return when (self.kind) {
         Function(_, _, _, _, _, _, _) => true
         _ => false
     }

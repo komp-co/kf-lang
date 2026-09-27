@@ -554,46 +554,108 @@ if ! grep -q '"severity":"error"' "$WORK/implicit-bad.json"; then
 fi
 echo "  PASS  cold and json checks resolve core/alloc, and still catch errors"
 
-# `--overlay` supplies the editor's buffer while `--file` keeps the document
-# in its crate, which a typed query needs to resolve anything.
-phase "cli query answers about a staged buffer"
-mkdir -p "$WORK/overlay-project/src"
+# `kflatc serve` is a stable protocol for other tools (docs/book/src/tools/
+# serve.md). A scripted session pins the shape of every answer, so a compiler
+# change that would break a client fails here, not in the client.
+phase "cli kflatc serve keeps its protocol"
+serve_root="$WORK/serve-project"
+mkdir -p "$serve_root/src"
 {
     echo '[project]'
-    echo 'name = "overlay_project"'
+    echo 'name = "serve_project"'
     echo 'version = "0.1.0"'
-} > "$WORK/overlay-project/kf.toml"
-echo 'pub fun saved(): int32 { return 1 }' > "$WORK/overlay-project/src/main.kf"
+    echo 'kind = "bin"'
+} > "$serve_root/kf.toml"
+printf 'fun main(): int32 {\n    val x: int32 = "text"\n    return x\n}\n' > "$serve_root/src/main.kf"
+"$WORK/komp" check "$serve_root" > /dev/null 2>&1 || true
+serve_crate="{\"name\":\"serve_project\",\"root\":\"$serve_root\",\"loads\":[\"core\",\"alloc\"],\"lints\":[],\"kind\":\"bin\"}"
+serve_check="{\"target_dir\":\"$serve_root/target/kflat\",\"crate\":$serve_crate}"
+serve_file="$serve_root/src/main.kf"
+serve_crates="[{\"name\":\"core\",\"root\":\"$ROOT/libs/core\"},{\"name\":\"alloc\",\"root\":\"$ROOT/libs/alloc\"},{\"name\":\"serve_project\",\"root\":\"$serve_root\"}]"
 {
-    echo 'pub fun saved(): int32 { return 1 }'
-    echo 'pub fun unsaved(): int32 { return 2 }'
-} > "$WORK/overlay-buffer.kf"
-
-"$WORK/komp" query symbols --file "$WORK/overlay-project/src/main.kf" \
-    --overlay "$WORK/overlay-buffer.kf" > "$WORK/overlay-symbols.json"
-if ! grep -q 'unsaved' "$WORK/overlay-symbols.json"; then
-    echo "  FAIL  --overlay did not reach a parse-only answer:" >&2
-    head -3 "$WORK/overlay-symbols.json" >&2
+    echo '{"id":1,"method":"check"}'
+    echo '{"id":2,"method":"hello","params":{"protocol":1}}'
+    echo "{\"id\":3,\"method\":\"check\",\"params\":$serve_check}"
+    # printf, not echo: dash's echo would turn the `\n` into a line break.
+    printf '%s\n' "{\"id\":\"s\",\"method\":\"stage\",\"params\":{\"path\":\"$serve_file\",\"text\":\"fun main(): int32 { return 4 }\\n\"}}"
+    echo "{\"id\":5,\"method\":\"check\",\"params\":$serve_check}"
+    # Offset 27 is the staged `4`; on disk it is a space inside `val x`.
+    echo "{\"id\":\"hs\",\"method\":\"hover\",\"params\":{\"path\":\"$serve_file\",\"offset\":27,\"crates\":$serve_crates}}"
+    echo "{\"id\":6,\"method\":\"unstage\",\"params\":{\"path\":\"$serve_file\"}}"
+    echo "{\"id\":7,\"method\":\"check\",\"params\":$serve_check}"
+    echo "{\"id\":\"sym\",\"method\":\"symbols\",\"params\":{\"path\":\"$serve_file\"}}"
+    echo "{\"id\":\"fold\",\"method\":\"folding\",\"params\":{\"path\":\"$serve_file\"}}"
+    echo "{\"id\":\"sel\",\"method\":\"selection\",\"params\":{\"path\":\"$serve_file\",\"offset\":40}}"
+    echo "{\"id\":\"gone\",\"method\":\"symbols\",\"params\":{\"path\":\"$serve_root/src/gone.kf\"}}"
+    echo "{\"id\":\"hov\",\"method\":\"hover\",\"params\":{\"path\":\"$serve_file\",\"offset\":39,\"crates\":$serve_crates}}"
+    echo "{\"id\":\"far\",\"method\":\"hover\",\"params\":{\"path\":\"$serve_root/src/gone.kf\",\"offset\":0,\"crates\":$serve_crates}}"
+    serve_typed="\"path\":\"$serve_file\",\"crates\":$serve_crates"
+    echo "{\"id\":\"sig\",\"method\":\"signature\",\"params\":{$serve_typed,\"offset\":39}}"
+    echo "{\"id\":\"refs\",\"method\":\"references\",\"params\":{$serve_typed,\"offset\":4}}"
+    echo "{\"id\":\"comp\",\"method\":\"completion\",\"params\":{$serve_typed,\"offset\":57}}"
+    echo "{\"id\":\"ren\",\"method\":\"rename\",\"params\":{$serve_typed,\"offset\":4,\"new_name\":\"start\"}}"
+    echo "{\"id\":\"inl\",\"method\":\"inlays\",\"params\":{$serve_typed}}"
+    echo "{\"id\":\"tok\",\"method\":\"tokens\",\"params\":{$serve_typed}}"
+    echo "{\"id\":\"nooff\",\"method\":\"references\",\"params\":{$serve_typed}}"
+    echo "{\"id\":8,\"method\":\"check\",\"params\":{\"target_dir\":\"$serve_root/target/kflat\",\"crate\":{\"name\":\"serve_project\",\"root\":\"$serve_root\",\"loads\":[\"missing\"],\"lints\":[]}}}"
+    echo '{"id":9,"method":"stage","params":{"text":""}}'
+    echo '{"id":10,"method":"compile"}'
+    echo 'not json'
+    echo ''
+    echo '{"id":12,"method":"hello","params":{"protocol":999}}'
+    echo '{"id":13,"method":"shutdown"}'
+    echo '{"id":14,"method":"hello","params":{"protocol":1}}'
+} > "$WORK/serve-session.in"
+serve_status=0
+"$WORK/kflatc" serve < "$WORK/serve-session.in" > "$WORK/serve-session.out" || serve_status=$?
+serve_diagnostic='{"schema_version":3,"severity":"error","code":null,"message":"[^"]*","byte_start":[0-9]*,"byte_end":[0-9]*,"file":"'"$serve_file"'","line":2,"column":[0-9]*,"secondary":\[\],"fix":null}'
+{
+    echo '{"id":1,"error":{"code":"not_ready","message":"[^"]*"}}'
+    echo '{"id":2,"result":{"protocol":1,"compiler":"[^"]*"}}'
+    echo '{"id":3,"result":{"errors":1,"diagnostics":\['"$serve_diagnostic"'\]}}'
+    echo '{"id":"s","result":null}'
+    echo '{"id":5,"result":{"errors":0,"diagnostics":\[\]}}'
+    echo '{"id":"hs","result":{"schema_version":2,"file":"'"$serve_file"'","offset":27,"type":"int32","signature":null,"documentation":null,"byte_start":27,"byte_end":28}}'
+    echo '{"id":6,"result":null}'
+    echo '{"id":7,"result":{"errors":1,"diagnostics":\['"$serve_diagnostic"'\]}}'
+    echo '{"id":"sym","result":{"schema_version":1,"file":"'"$serve_file"'","symbols":\[{"name":"main","kind":"function","detail":"(): int32","byte_start":0,"byte_end":[0-9]*,"children":\[\]}\]}}'
+    echo '{"id":"fold","result":{"schema_version":1,"file":"'"$serve_file"'","ranges":\[{"byte_start":0,"byte_end":[0-9]*,"kind":"region"}\]}}'
+    echo '{"id":"sel","result":{"schema_version":1,"file":"'"$serve_file"'","offset":40,"ranges":\[{"byte_start":39,"byte_end":45},{"byte_start":0,"byte_end":[0-9]*}\]}}'
+    echo '{"id":"gone","error":{"code":"no_such_file","message":"[^"]*"}}'
+    echo '{"id":"hov","result":{"schema_version":2,"file":"'"$serve_file"'","offset":39,"type":"[^"]*","signature":null,"documentation":null,"byte_start":39,"byte_end":45}}'
+    echo '{"id":"far","error":{"code":"not_in_crate","message":"[^"]*"}}'
+    serve_name_span='{"file":"'"$serve_file"'","byte_start":4,"byte_end":8}'
+    echo '{"id":"sig","result":{"schema_version":1,"file":"'"$serve_file"'","offset":39,"label":null,"parameters":\[\],"active_parameter":0}}'
+    echo '{"id":"refs","result":{"schema_version":1,"file":"'"$serve_file"'","offset":4,"declaration":'"$serve_name_span"',"references":\[\]}}'
+    echo '{"id":"comp","result":{"schema_version":2,"file":"'"$serve_file"'","offset":57,"receiver_type":null,"prefix":"","items":\[.*{"label":"x","kind":"local","detail":"[^"]*"}.*\]}}'
+    echo '{"id":"ren","result":{"schema_version":1,"file":"'"$serve_file"'","offset":4,"new_name":"start","ok":true,"error":null,"range":'"$serve_name_span"',"edits":\['"$serve_name_span"'\]}}'
+    echo '{"id":"inl","result":{"schema_version":1,"file":"'"$serve_file"'","inlays":\[\]}}'
+    echo '{"id":"tok","result":{"schema_version":1,"file":"'"$serve_file"'","tokens":\[{"byte_start":4,"byte_end":8,"type":"function"},{"byte_start":57,"byte_end":58,"type":"variable"}\]}}'
+    echo '{"id":"nooff","error":{"code":"invalid_params","message":"[^"]*"}}'
+    echo '{"id":8,"error":{"code":"check_failed","message":"[^"]*"}}'
+    echo '{"id":9,"error":{"code":"invalid_params","message":"[^"]*"}}'
+    echo '{"id":10,"error":{"code":"unknown_method","message":"[^"]*"}}'
+    echo '{"id":null,"error":{"code":"parse_error","message":"[^"]*"}}'
+    echo '{"id":12,"error":{"code":"unsupported_protocol","message":"[^"]*"}}'
+    echo '{"id":13,"result":null}'
+} > "$WORK/serve-session.expected"
+serve_ok=1
+[ "$serve_status" -eq 0 ] || serve_ok=0
+[ "$(wc -l < "$WORK/serve-session.out")" -eq "$(wc -l < "$WORK/serve-session.expected")" ] || serve_ok=0
+serve_line=0
+while IFS= read -r serve_pattern; do
+    serve_line=$((serve_line + 1))
+    sed -n "${serve_line}p" "$WORK/serve-session.out" | grep -qx -- "$serve_pattern" || {
+        echo "  FAIL  answer $serve_line does not match: $serve_pattern" >&2
+        serve_ok=0
+    }
+done < "$WORK/serve-session.expected"
+if [ "$serve_ok" -ne 1 ]; then
+    echo "  FAIL  kflatc serve exited $serve_status and answered:" >&2
+    cat "$WORK/serve-session.out" >&2
     exit 1
 fi
-
-# Offset 70 is inside `return 2` in the buffer and past the end of the 36-byte
-# file on disk, so the answer can only come from the staged text.
-"$WORK/komp" query hover --file "$WORK/overlay-project/src/main.kf" --offset 70 \
-    --overlay "$WORK/overlay-buffer.kf" > "$WORK/overlay-hover.json"
-if ! grep -q 'int32' "$WORK/overlay-hover.json"; then
-    echo "  FAIL  a typed query still answered about the file on disk:" >&2
-    head -3 "$WORK/overlay-hover.json" >&2
-    exit 1
-fi
-# A path that does not resolve is an error, not an empty buffer.
-if "$WORK/komp" query symbols --file "$WORK/overlay-project/src/main.kf" \
-    --overlay "$WORK/no-such-buffer.kf" > "$WORK/overlay-missing.json" 2>&1; then
-    echo "  FAIL  an unreadable overlay answered as an empty document:" >&2
-    head -3 "$WORK/overlay-missing.json" >&2
-    exit 1
-fi
-echo "  PASS  parse-only and typed queries both read the staged buffer"
+echo "  PASS  every answer keeps its shape, and the server stops at shutdown"
 
 # `core.ptr` turns a C function's null into absence, with the generic argument
 # inferred at a user struct, the type an FFI wrapper points at.
