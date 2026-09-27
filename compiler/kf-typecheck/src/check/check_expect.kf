@@ -111,7 +111,7 @@ pub mutating fun Expr.apply_expected(expected: Type, ctx: &var TypeCtx): bool {
         // constructors in an Option slot.
         if ip.inst_is_option(ctx) {
             val cur2 = *self
-            if is_null_var(cur2) {
+            if is_null_var(&cur2) {
                 self.rewrite_null_to_none(&ip, ctx)
                 return true
             }

@@ -43,6 +43,14 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
             deref_borrowed_operands(lhs_ptr, rhs_ptr, ctx)
             val checked_lhs = unsafe { *lhs_ptr }
             val checked_rhs = unsafe { *rhs_ptr }
+            val tag_test = op.null_comparison_method()
+            if tag_test != "" && is_null_var(&checked_rhs) && checked_lhs.ty.type_is_option(ctx) {
+                note_null_typed(checked_rhs.span, ctx)
+                e.kind = ExprKind.MethodCall(lhs_ptr, intern(tag_test), List.new<Expr>())
+                var no_args = List.new<Expr>()
+                e.ty = check_method_call(checked_lhs.ty, String.from(tag_test), &var no_args, e.span, ctx, e)
+                return
+            }
             if op.binary_uses_same_type_rhs() && !op.is_pointer_offset(checked_lhs.ty, checked_rhs.ty) {
                 if checked_lhs.operand_takes_other_type(ctx) && !checked_rhs.operand_takes_other_type(ctx) {
                     apply_expected(unsafe { &var *lhs_ptr }, checked_rhs.ty.clone(), ctx)
