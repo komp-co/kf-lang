@@ -26,10 +26,9 @@ pub mutating fun MoveCtx.declare_borrowed(name: Sym): void {
 }
 
 
-pub fun move_check_args_borrow(args: &List<Expr>, ctx: &var MoveCtx): void {
+pub fun move_check_args_borrow(args: &var List<Expr>, ctx: &var MoveCtx): void {
     while i in 0..args.size() {
-        var a = *args.at(i)
-        a.move_check_expr_borrow(ctx)
+        args.at_mut(i).move_check_expr_borrow(ctx)
     }
 }
 

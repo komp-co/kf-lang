@@ -75,12 +75,11 @@ fun qualify_expr_ptr_opt(p_opt: Ptr<Expr>?, names: &var List<String>, repls: &va
 fun qualify_expr_ptr(ep: Ptr<Expr>, names: &var List<String>, repls: &var List<TypeRef>, rename_types: bool): void {
     val e = unsafe { *ep }
     unsafe { ep.ty = qualify_type(e.ty, names, repls) }
+    qualify_type_args(unsafe { &var ep.type_args }, names, repls)
     if e.is_dynamic_call {
         val layout = subst_mangled_name(e.dynamic_layout.as_str(), names, repls)
         unsafe { ep.dynamic_layout = intern(layout.as_str()) }
     }
-    var ta = e.type_args
-    qualify_type_args(&var ta, names, repls)
     when (e.kind) {
         Variable(vn) => {
             if !rename_types { return }

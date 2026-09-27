@@ -111,7 +111,7 @@ fun check_template(td: &TopDecl, outer: &List<TypeParam>, bounds: &TemplateBound
             unsafe { (*warn).clone_names = copyable }
             var ctx = new_move_ctx(diags, owning, table, mob, td.name.as_string(), smap, warn)
             declare_owned_value_params(params, &var ctx)
-            move_check_stmt_list(body, &var ctx)
+            move_check_stmt_list(&var body, &var ctx)
         }
         ImplBlock(methods) => {
             while method in &methods {

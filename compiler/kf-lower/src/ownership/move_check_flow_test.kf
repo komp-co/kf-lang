@@ -320,3 +320,4 @@ fun return_of_binder_copies(subject: Expr): bool {
 @test fun a_binder_over_a_named_value_is_a_view(): void {
     assert_eq(return_of_binder_copies(mk_str_var(String.from("opt"))), true, "`opt` still owns its payload")
 }
+

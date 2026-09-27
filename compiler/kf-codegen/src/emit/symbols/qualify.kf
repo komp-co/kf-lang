@@ -53,7 +53,7 @@ mutating fun TopDecl.qualify_decl(names: &var List<String>, repls: &var List<Typ
         }
         EnumDecl(variants, _pub) => {
             if rename_types { self.rename_decl_if_mapped(names, repls) }
-            qualify_variant_list(variants, names, repls)
+            qualify_variant_list(&var variants, names, repls)
         }
         Function(params, ret, body, _pub, _u, _mut, _st) => {
             if !rename_types { self.rename_decl_if_mapped(names, repls) }
@@ -112,11 +112,11 @@ fun qualify_field_list(fields: &List<Field>, names: &var List<String>, repls: &v
     }
 }
 
-fun qualify_variant_list(variants: &List<Variant>, names: &var List<String>, repls: &var List<TypeRef>): void {
-    while v in &variants {
-        var payloads = v.payloads
-        while j in 0..payloads.size() {
-            val pp: Ptr<TypeRef> = unsafe { payloads.at_mut(j) as Ptr<TypeRef> }
+fun qualify_variant_list(variants: &var List<Variant>, names: &var List<String>, repls: &var List<TypeRef>): void {
+    while vi in 0..variants.size() {
+        val v = variants.at_mut(vi)
+        while j in 0..v.payloads.size() {
+            val pp: Ptr<TypeRef> = unsafe { v.payloads.at_mut(j) as Ptr<TypeRef> }
             qualify_tyref_ptr(pp, names, repls)
         }
     }
