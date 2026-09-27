@@ -267,8 +267,8 @@ pub fun register_sigs(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: Ptr<List<
             val struct_name = td.name.as_string()
             reject_duplicate_methods(&methods, struct_name.as_str(), td.linkage, diags)
             while i in 0..methods.size() {
-                var m = *methods.at(i)
-                register_impl_method(struct_name.clone(), td.generics, &var m, "", "", "", sig_ptr, diags, table)
+                register_impl_method(struct_name.clone(), td.generics, methods.at_mut(i), "", "", "", sig_ptr, diags,
+                    table)
             }
         }
         TraitImpl(tref, methods) => {
@@ -279,8 +279,8 @@ pub fun register_sigs(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: Ptr<List<
             val trait_name = trait_ref_head_name(unsafe { *tref })
             val trait_args = trait_ref_args_key(unsafe { *tref })
             while i in 0..methods.size() {
-                var m = *methods.at(i)
-                register_impl_method(struct_name.clone(), td.generics, &var m, suffix.clone(), trait_name.clone(), trait_args.clone(), sig_ptr, diags, table)
+                register_impl_method(struct_name.clone(), td.generics, methods.at_mut(i), suffix.clone(), trait_name.clone(),
+                    trait_args.clone(), sig_ptr, diags, table)
             }
             register_omitted_defaults(struct_name, &methods, suffix, trait_name, &td, sig_ptr)
         }

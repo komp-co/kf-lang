@@ -240,3 +240,112 @@ mutating fun MoveCtx.register_move_sink(callee: str): void {
         _ => assert_eq(false, true, "expected Return")
     }
 }
+
+fun first_init_copies(body: &List<Stmt>): bool {
+    return when (body.at(0).kind) {
+        LetVal(_n, _t, init) => (unsafe { (init!!).coerce }) == coerce_clone()
+        _ => false
+    }
+}
+
+fun branches_moving_x(): Stmt {
+    var then_body = List.new<Stmt>()
+    then_body.push(mk_letval(String.from("y"), mk_str_var(String.from("x"))))
+    var else_body = List.new<Stmt>()
+    else_body.push(mk_letval(String.from("z"), mk_str_var(String.from("x"))))
+    return mk_if_stmt(then_body, else_body)
+}
+
+@test fun a_move_on_both_branches_copies_neither(): void {
+    val dp = fresh_diag_ptr()
+    var ctx = fresh_ctx(dp)
+    ctx.declare_owned(intern("x"))
+    var s = branches_moving_x()
+    s.move_check_stmt(&var ctx)
+    val copies = when (s.kind) {
+        If(_c, t, e) => first_init_copies(&t) || first_init_copies(&e)
+        _ => true
+    }
+    assert_eq(copies, false, "only one branch runs, so each moves `x`")
+}
+
+@test fun a_use_after_both_branches_copies_each(): void {
+    val dp = fresh_diag_ptr()
+    var ctx = fresh_ctx(dp)
+    ctx.declare_owned(intern("x"))
+    var s = branches_moving_x()
+    s.move_check_stmt(&var ctx)
+    var after = mk_letval(String.from("w"), mk_str_var(String.from("x")))
+    after.move_check_stmt(&var ctx)
+    val copies = when (s.kind) {
+        If(_c, t, e) => first_init_copies(&t) && first_init_copies(&e)
+        _ => false
+    }
+    assert_eq(copies, true, "`x` is read after the `if`, so both branch moves become copies")
+}
+
+/// `when (<subject>) { Some(x) => { return x } None => {} }`, checked; whether
+/// the returned `x` became a copy.
+fun return_of_binder_copies(subject: Expr): bool {
+    val dp = fresh_diag_ptr()
+    var ctx = fresh_ctx(dp)
+    ctx.declare_owned(intern("opt"))
+    var payloads = List.new<Pattern>()
+    payloads.push(new_pattern(no_span(), PatternKind.Identifier(intern("x"))))
+    val pp: Ptr<Pattern> = unsafe { alloc<Pattern>() }
+    unsafe { *pp = new_pattern(no_span(), PatternKind.Variant(intern("Some"), payloads)) }
+    var body = List.new<Stmt>()
+    body.push(mk_return(mk_str_var(String.from("x"))))
+    var arms = List.new<Arm>()
+    arms.push(new_arm(no_span(), pp, null, body))
+    val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *sp = subject }
+    var w = new_stmt(no_span(), StmtKind.When(sp, arms))
+    w.move_check_stmt(&var ctx)
+    return when (w.kind) {
+        When(_s, checked) => when (checked.at(0).body.at(0).kind) {
+            Return(value) => (unsafe { (value!!).coerce }) == coerce_clone()
+            _ => false
+        }
+        _ => false
+    }
+}
+
+@test fun a_binder_over_a_fresh_value_moves_out(): void {
+    var made = new_expr(no_span(), ExprKind.Call(intern("make"), List.new<Expr>()))
+    made.ty = intern("String").lang_struct_ty(no_span())
+    assert_eq(return_of_binder_copies(made), false, "nothing else owns the call's result")
+}
+
+@test fun a_binder_over_a_named_value_is_a_view(): void {
+    assert_eq(return_of_binder_copies(mk_str_var(String.from("opt"))), true, "`opt` still owns its payload")
+}
+
+/// `var v = *p` with `p` of the given pointer kind; whether `*p` became a copy.
+fun var_through_copies(pointer_kind: TypeKind): bool {
+    val dp = fresh_diag_ptr()
+    var ctx = fresh_ctx(dp)
+    var p = new_expr(no_span(), ExprKind.Variable(intern("p")))
+    p.ty = Type { kind: pointer_kind, provenance: Provenance.Inferred(no_span()) }
+    var read = new_expr(no_span(), ExprKind.Deref(Box.new(p)))
+    read.ty = intern("String").lang_struct_ty(no_span())
+    val ip: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *ip = read }
+    var s = new_stmt(no_span(), StmtKind.LetVar(intern("v"), null, ip))
+    s.move_check_stmt(&var ctx)
+    return (unsafe { ip.coerce }) == coerce_clone()
+}
+
+fun string_pointee(): Ptr<Type> {
+    val t: Ptr<Type> = unsafe { alloc<Type>() }
+    unsafe { *t = intern("String").lang_struct_ty(no_span()) }
+    return t
+}
+
+@test fun a_var_bound_through_a_borrow_owns_a_copy(): void {
+    assert_eq(var_through_copies(TypeKind.RefTo(false, string_pointee())), true, "the list still owns the element")
+}
+
+@test fun a_var_bound_through_a_raw_pointer_is_the_unsafe_codes_own(): void {
+    assert_eq(var_through_copies(TypeKind.PtrTo(string_pointee())), false, "no copy through a raw pointer")
+}

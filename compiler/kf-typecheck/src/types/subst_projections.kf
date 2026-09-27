@@ -149,9 +149,8 @@ mutating fun Stmt.subst_proj_stmt(self_name: str, trait_name: str, trait_args: s
 fun subst_proj_expr_ptr_opt(p_opt: Ptr<Expr>?, self_name: str, trait_name: str, trait_args: str, sigs: Ptr<SigTable>): void {
     val p = p_opt ?: return
     val e = unsafe { *p }
-    var ta = e.type_args
-    while i in 0..ta.size() {
-        subst_proj_tref_ptr(unsafe { ta.at_mut(i) as Ptr<TypeRef> }, self_name, trait_name, trait_args, sigs)
+    while i in 0..e.type_args.size() {
+        subst_proj_tref_ptr(unsafe { p.type_args.at_mut(i) as Ptr<TypeRef> }, self_name, trait_name, trait_args, sigs)
     }
     // The expression's inferred type, which has no TypeRef: `c.make()` through
     // `C: Producer` is typed `C.Out`.

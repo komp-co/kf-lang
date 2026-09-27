@@ -41,13 +41,13 @@ fun stmt_list_diverges(body: &List<Stmt>): bool {
 }
 
 fun check_branch_divergence(then_set: List<MovedEntry>, else_set: List<MovedEntry>, if_span: Span, ctx: &var MoveCtx): void {
-    while e in &then_set {
+    while e in &distinct_moved(&then_set) {
         val in_else = moved_contains(else_set, e.name)
         if !in_else {
             emit_branch_divergence(e.name.as_string(), e.site, if_span, ctx)
         }
     }
-    while e in &else_set {
+    while e in &distinct_moved(&else_set) {
         val in_then = moved_contains(then_set, e.name)
         if !in_then {
             emit_branch_divergence(e.name.as_string(), e.site, if_span, ctx)
@@ -109,52 +109,36 @@ mutating fun MoveCtx.restore_borrowed(snap: List<Sym>): void {
     self.borrowed = fresh
 }
 
-fun union_moved(a: List<MovedEntry>, b: List<MovedEntry>): List<MovedEntry> {
-    var fresh = List.new<MovedEntry>()
-    while item in &a {
-        fresh.push(item)
-    }
-    while e in &b {
-        val dup = moved_contains(fresh, e.name)
-        if !dup { fresh.push(e) }
-    }
-    return fresh
-}
-
-fun moved_node_of(set: List<MovedEntry>, name: Sym): Ptr<Expr> {
+fun moved_has_consume(set: &List<MovedEntry>, name: Sym, node: Ptr<Expr>): bool {
+    val raw: uint64 = unsafe { node as uint64 }
     while e in &set {
-        if e.name.id == name.id { return e.last_consume }
+        if e.name.id == name.id && unsafe { e.last_consume as uint64 } == raw { return true }
     }
-    return 0 as Ptr<Expr>
+    return false
 }
 
-// Also clones b's node when a name was consumed in both branches by different
-// nodes. The same node in both is one move carried through, and is left alone.
-fun union_moved_marking(a: List<MovedEntry>, b: List<MovedEntry>, ctx: &var MoveCtx): List<MovedEntry> {
+/// The names moved on either side. A name moved on both keeps each side's
+/// consume: only one side runs, so neither copies unless a later use reads
+/// the name, which then copies both.
+fun union_moved_consumes(a: List<MovedEntry>, b: List<MovedEntry>): List<MovedEntry> {
     var fresh = List.new<MovedEntry>()
     while item in &a {
         fresh.push(item)
     }
     while e in &b {
-        val existing: Ptr<Expr> = moved_node_of(fresh, e.name)
-        val ex_raw: uint64 = unsafe { existing as uint64 }
-        val dup = moved_contains(fresh, e.name)
-        if !dup {
-            fresh.push(e)
-        } else {
-            val node: Ptr<Expr> = e.last_consume
-            val raw: uint64 = unsafe { node as uint64 }
-            if raw != 0 {
-                if raw != ex_raw {
-                    if unsafe { node.coerce } == coerce_none() {
-                        unsafe { node.coerce = coerce_clone() }
-                        warn_use_after_move(e.site, e.name.as_string(), ctx)
-                    }
-                }
-            }
-        }
+        if !moved_has_consume(&fresh, e.name, e.last_consume) { fresh.push(e) }
     }
     return fresh
+}
+
+/// The first entry of each moved name, so a name moved on several paths is
+/// reported once.
+fun distinct_moved(set: &List<MovedEntry>): List<MovedEntry> {
+    var out = List.new<MovedEntry>()
+    while e in &set {
+        if !moved_contains(out, e.name) { out.push(e) }
+    }
+    return out
 }
 
 fun declare_pattern_binds(pp: Ptr<Pattern>, ctx: &var MoveCtx): void {

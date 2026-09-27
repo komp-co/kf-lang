@@ -33,6 +33,41 @@ The auto-clone is deep: every field and nested structure is copied with its
 own independent buffer. A warning tells you where the clone was inserted, so
 you can add a `move` keyword or restructure the code to avoid the copy.
 
+## Moves on branches and in matches
+
+Only one branch of an `if` or `when` runs, so each branch may move the same
+value. Nothing is copied unless the value is read after the branches join:
+
+```kflat
+struct Ticket { pub var id: String }
+
+fun file(t: Ticket): void { }
+fun archive(t: Ticket): void { }
+
+fun route(t: Ticket, urgent: bool): void {
+    if urgent {
+        file(t)
+    } else {
+        archive(t)       // moves `t` too; no copy
+    }
+}
+```
+
+A `when` over a fresh value, such as a call's result, hands the payload to
+its binder, which owns it. So `?:` moves an element out of a list:
+
+```kflat
+fun drain(queue: &var List<Ticket>, done: &var List<Ticket>): void {
+    while !queue.is_empty() {
+        val t = queue.take_last() ?: return
+        done.push(t)     // `t` owns the ticket; no copy
+    }
+}
+```
+
+A `when` over a named value only views its payload: the value still owns
+it, and moving a binder out copies it.
+
 ## The copy the compiler inserts for you
 
 The same thing happens when a value is read *through a borrow* and handed to
@@ -58,6 +93,16 @@ main.kf:10:22: warning: auto-inserted a copy in `first_length` (arg 0 of `length
         return length_of(*tags.at(0))
                          ^
 ```
+
+A `var` bound through a borrow is a copy for the same reason: it owns what
+it holds, so changing it leaves the original alone.
+
+```kflat
+var f = *frames.at(0)              // a copy of the element
+f.names.push(String.from("new"))   // frames[0] is unchanged
+```
+
+A `val` bound that way is a view instead, copied only where it is consumed.
 
 ## A copy needs your permission
 
