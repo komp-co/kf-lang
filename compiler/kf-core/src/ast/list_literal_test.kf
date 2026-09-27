@@ -1,0 +1,54 @@
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.span.Span
+
+fun at(start: uint32): Span { return Span { file_id: 1, start: start, end: start + 1 } }
+
+fun ints(values: List<int64>): List<Expr> {
+    var out = List.new<Expr>()
+    while v in &values {
+        out.push(new_expr(at(v as uint32), ExprKind.LitInt(v)))
+    }
+    return out
+}
+
+fun literal_of(values: List<int64>): Expr {
+    return list_literal_expr(at(40), &ints(values))
+}
+
+@test fun an_empty_literal_is_a_bare_new_call(): void {
+    val receiver_name = when (literal_of(List.new<int64>()).kind) {
+        MethodCall(receiver, _method, _args) => {
+            when (receiver.kind) {
+                Variable(name) => name.as_string()
+                _ => String.from("")
+            }
+        }
+        _ => String.from("")
+    }
+    assert_eq(receiver_name.as_str(), empty_list_literal_receiver(), "the checker names its type")
+}
+
+@test fun a_literal_binds_a_name_from_its_offset(): void {
+    var values = List.new<int64>()
+    values.push(1)
+    assert_eq(literal_of(values).list_literal_binder().as_str(), "__list_literal_40", "one binder per literal")
+}
+
+@test fun a_block_that_is_not_a_literal_has_no_binder(): void {
+    val block = new_expr(at(0), ExprKind.Block(List.new<Stmt>()))
+    assert_eq(block.list_literal_binder().byte_len(), 0, "an ordinary block")
+}
+
+@test fun a_literal_gives_back_its_elements_in_order(): void {
+    var values = List.new<int64>()
+    values.push(3)
+    values.push(9)
+    val elements = literal_of(values).list_literal_elements()
+    val second = when (elements.at(1).kind) {
+        LitInt(n) => n
+        _ => 0
+    }
+    assert_eq(second, 9, "the second push passes 9")
+}

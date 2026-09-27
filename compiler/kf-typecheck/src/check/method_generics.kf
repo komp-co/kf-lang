@@ -36,10 +36,14 @@ fun check_recv_bounds(sname: String, method_name: String, recv: &RecvBinding, sp
 fun FnSignature.check_method_generics(recv: &RecvBinding, sname: String, method_name: String, args: &var List<Expr>, arg_tys: &List<Type>, call: &var Expr, _span: Span, ctx: &var TypeCtx): Type {
     check_recv_bounds(sname.clone(), method_name.clone(), recv, _span, ctx)
     // Registered generics are the impl's then the method's; the impl's half is
-    // pinned, so only the rest is open.
+    // pinned, so only the rest is open. Positionally as well as by name: a
+    // self-call inside the impl has the template as its receiver, which binds
+    // nothing, and its `T` is still the impl's.
+    val impl_arity = sname.static_recv_arity(ctx)
     var mgnames = List.new<String>()
-    while gn in &self.generics {
-        var pinned = false
+    while gi in 0..self.generics.size() {
+        val gn = *self.generics.at(gi)
+        var pinned = gi < impl_arity
         while name in &recv.names {
             if name.as_str().equals(gn.as_str()) { pinned = true }
         }

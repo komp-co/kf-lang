@@ -67,12 +67,24 @@ fun index_accessor(src: str): String {
     assert_eq(read.as_str(), "index", "as a read is")
 }
 
-// A `[` opening a line does not subscript the line above.
+fun statements_in_first_fn(src: str): uint64 {
+    val p = parser_for(src)
+    val m = p.parse_module(List.new<String>())
+    return when (m.decls.at(0).kind) {
+        Function(_params, _ret, body, _pub, _unsafe, _mutating, _static) => body.size()
+        _ => 0
+    }
+}
+
+// A `[` opening a line does not subscript the line above: it starts a list
+// literal of its own.
 @test fun a_bracket_opening_a_line_does_not_subscript(): void {
-    assert_eq(index_diags("fun f(): void {\nval a = ys\n[0]\n}") > 0, true,
-        "the `[` starts a statement of its own, which is not an expression")
-    assert_eq(index_diags("fun f(): void {\nval a = ys[0]\n}"), 0,
-        "on the same line it is a subscript")
+    assert_eq(statements_in_first_fn("fun f(): void {\nval a = ys\n[0]\n}"), 2,
+        "the binding, then the literal as a statement")
+}
+
+@test fun a_bracket_on_the_same_line_subscripts(): void {
+    assert_eq(index_diags("fun f(): void {\nval a = ys[0]\n}"), 0, "on the same line it is a subscript")
 }
 
 @test fun a_subscript_follows_a_wrapped_chain(): void {

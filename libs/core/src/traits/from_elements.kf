@@ -1,0 +1,7 @@
+// A collection a list literal can build: `[a, b, c]` in a slot of this type
+// is `new()`, then one `push` per element, in order. Nothing here allocates,
+// so a fixed-capacity buffer can implement it too.
+pub trait FromElements<T> {
+    static fun new(): Self
+    mutating fun push(item: T): void
+}
