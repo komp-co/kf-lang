@@ -81,15 +81,15 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
         LetVar(var_name, _, init_ptr) => {
             // A null init is `var x: T` with no value yet; nothing is bound.
             val ip = init_ptr ?: return
-            move_check_expr_value(unsafe { &var *ip }, ctx)
-            val init = unsafe { *ip }
+            val init = unsafe { &var *ip }
+            move_check_expr_value(init, ctx)
+            // A `var` owns what it holds, so a value read through a borrow is
+            // copied; one read through a raw pointer is the unsafe code's own.
             val borrow_init = init.ty.mc_is_move_only(ctx.move_only_names) && init.is_borrow_source(ctx)
-            if borrow_init {
-                ctx.declare_borrowed(var_name)
-            } else {
-                val heap = init.ty.is_heap_ty()
-                if heap { ctx.declare_owned(var_name) }
+            if borrow_init && !init.reads_through_a_raw_pointer() {
+                init.mark_auto_clone(String.from("<var binding>"), 0, ctx)
             }
+            if init.ty.is_heap_ty() { ctx.declare_owned(var_name) }
         }
         Assign(asn_name, expr_ptr) => {
             move_check_expr_value(unsafe { &var *expr_ptr }, ctx)
@@ -280,3 +280,14 @@ fun Pattern.is_flat_variant(): bool {
     }
 }
 
+/// `*p`, or a field reached from one, where `p` is a raw pointer.
+fun Expr.reads_through_a_raw_pointer(): bool {
+    return when (self.kind) {
+        Deref(inner) => when (inner.ty.kind) {
+            PtrTo(_p) => true
+            _ => false
+        }
+        FieldAccess(base, _f) => base.reads_through_a_raw_pointer()
+        _ => false
+    }
+}

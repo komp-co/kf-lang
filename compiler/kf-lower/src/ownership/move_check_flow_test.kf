@@ -321,3 +321,31 @@ fun return_of_binder_copies(subject: Expr): bool {
     assert_eq(return_of_binder_copies(mk_str_var(String.from("opt"))), true, "`opt` still owns its payload")
 }
 
+/// `var v = *p` with `p` of the given pointer kind; whether `*p` became a copy.
+fun var_through_copies(pointer_kind: TypeKind): bool {
+    val dp = fresh_diag_ptr()
+    var ctx = fresh_ctx(dp)
+    var p = new_expr(no_span(), ExprKind.Variable(intern("p")))
+    p.ty = Type { kind: pointer_kind, provenance: Provenance.Inferred(no_span()) }
+    var read = new_expr(no_span(), ExprKind.Deref(Box.new(p)))
+    read.ty = intern("String").lang_struct_ty(no_span())
+    val ip: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *ip = read }
+    var s = new_stmt(no_span(), StmtKind.LetVar(intern("v"), null, ip))
+    s.move_check_stmt(&var ctx)
+    return (unsafe { ip.coerce }) == coerce_clone()
+}
+
+fun string_pointee(): Ptr<Type> {
+    val t: Ptr<Type> = unsafe { alloc<Type>() }
+    unsafe { *t = intern("String").lang_struct_ty(no_span()) }
+    return t
+}
+
+@test fun a_var_bound_through_a_borrow_owns_a_copy(): void {
+    assert_eq(var_through_copies(TypeKind.RefTo(false, string_pointee())), true, "the list still owns the element")
+}
+
+@test fun a_var_bound_through_a_raw_pointer_is_the_unsafe_codes_own(): void {
+    assert_eq(var_through_copies(TypeKind.PtrTo(string_pointee())), false, "no copy through a raw pointer")
+}

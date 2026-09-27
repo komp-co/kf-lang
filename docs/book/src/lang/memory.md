@@ -94,6 +94,16 @@ main.kf:10:22: warning: auto-inserted a copy in `first_length` (arg 0 of `length
                          ^
 ```
 
+A `var` bound through a borrow is a copy for the same reason: it owns what
+it holds, so changing it leaves the original alone.
+
+```kflat
+var f = *frames.at(0)              // a copy of the element
+f.names.push(String.from("new"))   // frames[0] is unchanged
+```
+
+A `val` bound that way is a view instead, copied only where it is consumed.
+
 ## A copy needs your permission
 
 That copy is correct, and it is also a decision nobody made. The type never

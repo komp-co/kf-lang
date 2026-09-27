@@ -76,7 +76,7 @@
 24 compiler/kf-lower/src/ownership/derive_clone_check.kf
 6 compiler/kf-lower/src/ownership/generic_copy.kf
 6 compiler/kf-lower/src/ownership/move_accessors.kf
-19 compiler/kf-lower/src/ownership/move_check.kf
+18 compiler/kf-lower/src/ownership/move_check.kf
 26 compiler/kf-lower/src/ownership/move_check_expr.kf
 13 compiler/kf-lower/src/ownership/move_consume.kf
 9 compiler/kf-lower/src/ownership/move_ctx.kf
