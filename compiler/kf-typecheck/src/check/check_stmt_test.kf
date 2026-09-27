@@ -525,3 +525,20 @@ fun let_with_tag(tag: uint8): TypeCtx {
     }
     assert_eq(node.coerce, coerce_addr_of(), "and codegen is told to take the address")
 }
+
+@test fun a_field_place_is_named_by_its_path(): void {
+    val holder = Box.new(new_expr(no_span(), ExprKind.Variable(intern("h"))))
+    val place = new_expr(no_span(), ExprKind.FieldAccess(holder, intern("item")))
+    assert_eq(place.place_text().as_str(), "h.item", "a field reads as its path")
+}
+
+@test fun a_deref_place_is_named_with_its_star(): void {
+    val pointer = Box.new(new_expr(no_span(), ExprKind.Variable(intern("p"))))
+    val place = new_expr(no_span(), ExprKind.Deref(pointer))
+    assert_eq(place.place_text().as_str(), "*p", "a deref reads as `*p`")
+}
+
+@test fun an_unnamed_place_is_this_place(): void {
+    val place = new_expr(no_span(), ExprKind.LitInt(1))
+    assert_eq(place.place_text().as_str(), "this place", "anything else is unnamed")
+}

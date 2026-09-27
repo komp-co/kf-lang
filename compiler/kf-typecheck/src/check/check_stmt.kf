@@ -32,10 +32,9 @@ pub mutating fun Stmt.check_stmt(ctx: &var TypeCtx): void {
             reject_stored_lambda_transfer(unsafe { &*expr_ptr }, "an assignment", ctx)
             // A place is a slot: `s.f = 5` against `var f: int32?` becomes
             // `Option.Some(5)`, or codegen stores an int into a tagged union.
-            // Mismatches are still not reported here.
             val want = unsafe { (*place_ptr).ty }
-            if !want.is_poison() {
-                expect_or_reject(unsafe { &var *expr_ptr }, want, ctx)
+            if !want.is_poison() && !expect_or_reject(unsafe { &var *expr_ptr }, want.clone(), ctx) {
+                emit_assign_mismatch((&*place_ptr).place_text(), want, expr_ptr.ty.clone(), self.span, ctx)
             }
             // The place must be writable. Raw pointer derefs are allowed.
             if !writable_place(place_ptr, ctx) {
@@ -243,6 +242,16 @@ fun check_assign(name: String, expr_ptr: Ptr<Expr>, span: Span, ctx: &var TypeCt
     val want = target.clone()
     if !expect_or_reject(unsafe { &var *expr_ptr }, target, ctx) {
         emit_assign_mismatch(name.clone(), want, unsafe { expr_ptr.ty }, span, ctx)
+    }
+}
+
+/// How a diagnostic names a store's place: `h.item`, `*p`.
+fun Expr.place_text(): String {
+    return when (self.kind) {
+        Variable(name) => name.as_string()
+        FieldAccess(obj, field) => "${obj.place_text()}.${field.as_string()}"
+        Deref(inner) => "*${inner.place_text()}"
+        _ => String.from("this place")
     }
 }
 
