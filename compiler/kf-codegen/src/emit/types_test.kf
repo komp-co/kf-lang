@@ -153,6 +153,19 @@ fun empty_module(): Module {
     assert_eq(ty_needs_drop_deep(named("Foo"), &m), true, "user struct with an owned field needs its glue called")
 }
 
+@test fun needs_drop_deep_looks_past_an_impl_named_like_the_struct(): void {
+    var decls = List.new<TopDecl>()
+    decls.push(new_top_decl(no_span(), String.from("Foo"), TopDeclKind.ImplBlock(List.new<TopDecl>())))
+    val owning = string_field_struct_module()
+    while td in &owning.decls {
+        decls.push(td.deep_clone_top_decl())
+    }
+    val m = Module {
+        crate: new_crate_id("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>()
+    }
+    assert_eq(ty_needs_drop_deep(named("Foo"), &m), true, "the struct's own fields decide, not its impl block")
+}
+
 @test fun needs_drop_owned_user_struct_stays_shallow_false(): void {
     // Unity emission keeps the shallow classification.
     val m = string_field_struct_module()
