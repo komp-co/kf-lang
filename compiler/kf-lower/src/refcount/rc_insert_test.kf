@@ -85,16 +85,18 @@ fun binding_mode_tag(m: BindingMode): uint64 {
 }
 
 @test fun returned_var_names_extracts_bare_var(): void {
+    var ctx = rc_ctx_for_test("f")
     // return x  → ["x"]
     val xv = new_expr(no_span(), ExprKind.Variable(intern("x")))
     val xp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *xp = xv }
-    val names = returned_var_names(xp)
+    val names = returned_var_names(xp, &var ctx)
     assert_eq(names.size() == 1, true, "bare Variable return → one name")
     assert_eq(names.at(0).as_str(), "x", "bare Variable return → its name")
 }
 
 @test fun returned_var_names_call_collects_arg_vars(): void {
+    var ctx = rc_ctx_for_test("f")
     // return f(l1, post)  -> ["l1", "post"]
     var args = List.new<Expr>()
     args.push(new_expr(no_span(), ExprKind.Variable(intern("l1"))))
@@ -102,25 +104,27 @@ fun binding_mode_tag(m: BindingMode): uint64 {
     val cv = new_expr(no_span(), ExprKind.Call(intern("concat"), args))
     val cp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *cp = cv }
-    val names = returned_var_names(cp)
+    val names = returned_var_names(cp, &var ctx)
     assert_eq(names.size() == 2, true, "call args → both var names collected")
     assert_eq(names.at(0).as_str(), "l1", "first arg var")
     assert_eq(names.at(1).as_str(), "post", "second arg var")
 }
 
 @test fun returned_var_names_non_var_is_empty(): void {
+    var ctx = rc_ctx_for_test("f")
     // return 5  → []  (LitInt is not a tracked local)
     val lv = new_expr(no_span(), ExprKind.LitInt(5))
     val lp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *lp = lv }
-    val names = returned_var_names(lp)
+    val names = returned_var_names(lp, &var ctx)
     assert_eq(names.size() == 0, true, "non-Variable return → empty (excludes nothing)")
 }
 
 @test fun returned_var_names_absent_operand_is_empty(): void {
+    var ctx = rc_ctx_for_test("f")
     // bare `return` (no operand) → []
     val absent: Ptr<Expr>? = null
-    val names = returned_var_names(absent)
+    val names = returned_var_names(absent, &var ctx)
     assert_eq(names.size() == 0, true, "bare return → empty")
 }
 

@@ -77,7 +77,7 @@ mutating fun Stmt.rc_insert_in_list(before: &var List<Stmt>, after: &var List<St
     val span = self.span
     when (self.kind) {
         Return(ep) => {
-            var exclude = returned_var_names(ep.view())
+            var exclude = returned_var_names(ep.view(), ctx)
             refine_return_exclusions(ep.view(), ctx, &var exclude)
             val rel_count = ctx.exit_releases(false, &exclude).size()
             if return_drops_after_eval(ep.view(), rel_count, ctx) {

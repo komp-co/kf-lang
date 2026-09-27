@@ -12,7 +12,7 @@ pub mutating fun Module.rc_insert_module(list_name: Sym): void {
     val vp: Ptr<VariantPayloads> = unsafe { alloc<VariantPayloads>() }
     unsafe { *vp = self.variant_payloads_of() }
     val string_name = self.lang_type_name(lang_string_key())
-    val free = self.borrow_free_names(string_name)
+    val free = self.borrow_free_names(string_name, list_name)
     while i in 0..self.decls.size() {
         rc_insert_top_decl_pv(self.decls.at_mut(i), names, tp, vp, string_name, &free)
     }
@@ -174,13 +174,13 @@ fun collect_var_names_in_list(args: List<Expr>, out: &var List<String>): void {
 }
 
 /// For a primitive return only escaping names are excluded; for a heap
-/// return every named local is, since the value may alias one.
-fun returned_var_names(expr_ptr: Ptr<Expr>?): List<String> {
+/// return every named local the value may still read is.
+fun returned_var_names(expr_ptr: Ptr<Expr>?, ctx: &var RcCtx): List<String> {
     var out = List.new<String>()
     val ep = expr_ptr ?: return out
     val re = unsafe { *ep }
     if is_heap_ty_rc(re.ty) {
-        re.collect_var_names_in_expr(&var out)
+        re.collect_escaping_names(ctx, &var out)
     } else {
         re.collect_moved_names(BorrowMode.Value, &var out)
     }
