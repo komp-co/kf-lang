@@ -257,4 +257,6 @@ library:
 | `CallMut0` through `CallMut3` | `mutating call(...)` | Callable values with mutable or owned captures |
 
 Implementing any of these gives your type the corresponding operator or
-standard-library integration.
+standard-library integration. An impl with bounds, such as
+`impl Equal for Wrap<T: Equal>`, gives the operator only where they hold, as
+it gives the method: `==` on a `Wrap<T>` whose `T` has no `Equal` is an error.

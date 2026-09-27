@@ -19,10 +19,23 @@ pub fun BinOp.check_binary_operands(lhs_ptr: Ptr<Expr>, rhs_ptr: Ptr<Expr>, span
     val ty = self.check_binary(lhs, rhs, span, ctx)
     if ty.is_poison() { return ty }
     if !lhs.ty.operand_dispatches_to_its_trait() { return ty }
+    lhs.ty.check_operator_impl_bounds(binop_method(*self), span, ctx)
     if rhs.coerce != coerce_none() { return ty }
     if !self.operator_trait_borrows_operand(ctx) { return ty }
     unsafe { (*rhs_ptr).coerce = coerce_addr_of() }
     return ty
+}
+
+/// The operator's impl has the bounds its method call would: `==` on
+/// `Option<T>` needs `T: Equal`, as `.equals()` does.
+fun Type.check_operator_impl_bounds(method: str, span: Span, ctx: &var TypeCtx): void {
+    val nominal = when (self.kind) {
+        Struct(_) => true
+        EnumTy(_) => true
+        _ => false
+    }
+    if !nominal || method == "" { return }
+    val _binding = bound_checked_recv_bindings(self.kind.trait_impl_owner_name(), String.from(method), span, ctx)
 }
 
 // Raw strings, pointers and borrows compare by representation; a pointer
