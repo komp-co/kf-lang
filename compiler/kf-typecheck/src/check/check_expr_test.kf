@@ -94,7 +94,7 @@ pub fun mk_ctx(): TypeCtx {
 @test fun call_known_fn_returns_sig_ret(): void {
     var ctx = mk_ctx()
     val params = List.new<Type>()
-    val sig = FnSignature { name: String.from("answer"), params: params, ret: int32_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false }
+    val sig = FnSignature { name: String.from("answer"), params: params, ret: int32_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }
     // Through a local: `(*ctx.sigs)` parses as `ctx.sigs`.
     val sp = ctx.sigs
     unsafe { sp.insert(sig) }
@@ -308,7 +308,7 @@ pub fun mk_ctx(): TypeCtx {
     var params = List.new<Type>()
     params.push(Type { kind: TypeKind.Generic(intern("T")), provenance: Provenance.Declared(no_span()) })
     val ret_ty = Type { kind: TypeKind.Generic(intern("T")), provenance: Provenance.Declared(no_span()) }
-    val sig = FnSignature { name: String.from("identity"), params: params, ret: ret_ty, generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false }
+    val sig = FnSignature { name: String.from("identity"), params: params, ret: ret_ty, generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }
     unsafe { sp.insert(sig) }
     // identity(42): T binds to int32
     var args = List.new<Expr>()
@@ -384,7 +384,7 @@ pub fun mk_ctx(): TypeCtx {
     unsafe { sp.insert_struct(StructLayout { name: String.from("Foo"), fields: fs, is_refcounted: false, owner_crate: crate_id_poison() }) }
     var params = List.new<Type>()
     params.push(Type { kind: TypeKind.Struct(intern("Foo")), provenance: Provenance.Declared(no_span()) })
-    val sig = FnSignature { name: String.from("Foo_area"), params: params, ret: int32_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false }
+    val sig = FnSignature { name: String.from("Foo_area"), params: params, ret: int32_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }
     unsafe { sp.insert(sig) }
     ctx.declare(String.from("x"), Type { kind: TypeKind.Struct(intern("Foo")), provenance: Provenance.Declared(no_span()) })
     val recv_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
@@ -404,7 +404,7 @@ pub fun mk_ctx(): TypeCtx {
     unsafe { sp.insert_struct(StructLayout { name: String.from("Foo"), fields: List.new<StructFieldInfo>(), is_refcounted: false, owner_crate: crate_id_poison() }) }
     var params = List.new<Type>()
     params.push(Type { kind: TypeKind.Struct(intern("Foo")), provenance: Provenance.Declared(no_span()) })
-    unsafe { sp.insert(FnSignature { name: String.from("Foo_area"), params: params, ret: int32_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false }) }
+    unsafe { sp.insert(FnSignature { name: String.from("Foo_area"), params: params, ret: int32_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }) }
     ctx.declare(String.from("x"), Type { kind: TypeKind.Struct(intern("Foo")), provenance: Provenance.Declared(no_span()) })
     val recv_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *recv_ptr = new_expr(no_span(), ExprKind.Variable(intern("x"))) }
@@ -466,7 +466,7 @@ pub fun mk_ctx(): TypeCtx {
     var params = List.new<Type>()
     params.push(intern("String").lang_struct_ty(no_span()))
     params.push(intern("String").lang_struct_ty(no_span()))
-    unsafe { (*ctx.sigs).insert(FnSignature { name: String.from("String_equals"), params: params, ret: bool_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false }) }
+    unsafe { (*ctx.sigs).insert(FnSignature { name: String.from("String_equals"), params: params, ret: bool_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }) }
     ctx.declare(String.from("s"), intern("String").lang_struct_ty(no_span()))
     val recv_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *recv_ptr = new_expr(no_span(), ExprKind.Variable(intern("s"))) }

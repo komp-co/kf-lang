@@ -28,6 +28,8 @@ pub struct FnSignature {
     pub val borrows: int32
     /// `@prelude`: usable without an import.
     pub val is_prelude: bool
+    /// Linked by its foreign name, not its crate-prefixed one.
+    pub val is_extern: bool
 }
 
 pub struct StructFieldInfo {

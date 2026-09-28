@@ -62,6 +62,7 @@ fun Import.unused_import_warning(): Diagnostic {
     var msg = String.from("unused import `")
     msg.append(import_path_text(&self.path).as_str())
     if self.wildcard { msg.append(".*") }
+    if self.alias.as_str() != "" { msg.append(" as ${self.alias.as_str()}") }
     msg.append("`: nothing in this file names anything it declares")
     val d = lint_at("unused_import", self.span, msg)
     return with_fix_applic(d, delete_line_span(self.span), "",
