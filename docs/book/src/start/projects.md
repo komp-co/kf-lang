@@ -29,6 +29,17 @@ The name is derived from the directory's own name, the last component of the
 path you give: hyphens become underscores (`komp new work/my-project` →
 `my_project`), because the crate name becomes a C identifier.
 
+A library published to an index can say what it is in one line, which
+[`komp search`](../tools/cli.md#komp-search-and-komp-info) shows beside it:
+
+```toml
+[project]
+name = "json"
+version = "0.2.0"
+kind = "lib"
+description = "JSON reading and writing"
+```
+
 ### kind: library vs binary
 
 | `kind` | Entry point | Output |
@@ -121,6 +132,10 @@ one; see [komp publish](../tools/cli.md#komp-publish).
 The index is read only to choose a version. What was chosen is fetched like
 any other remote dependency and pinned in `kf.lock`, which also records the
 index, so a build with a lock never reads the index at all.
+
+`komp add json` writes such a row for you, at the newest version, and fetches
+it; [`komp search`](../tools/cli.md#komp-search-and-komp-info) finds what an
+index offers. See [komp add](../tools/cli.md#komp-add).
 
 ### Fetched dependencies
 

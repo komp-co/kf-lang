@@ -15,6 +15,9 @@ pub fun command_usage(command: str): str {
         "update" => "komp update [-p <crate>] [--manifest-path <path>] [<project-dir>] | --installed [<name>...]"
         "install" => "komp install [<name>[@<requirement>]] [--index <url>]"
         "uninstall" => "komp uninstall <name>"
+        "add" => "komp add <name>[@<requirement>] [--index <name>] [-p <crate>] [--manifest-path <path>]"
+        "search" => "komp search [<query>] [--index <url>]"
+        "info" => "komp info <name> [--index <url>]"
         "self" => "komp self update [<version>]"
         "metadata" => "komp metadata [--locked] [--offline] [--manifest-path <path>] [<project-dir>]"
         "new" => "komp new <name>"
@@ -82,6 +85,23 @@ komp-<command>, so installing komp_fmt gives `komp fmt`.
                     without one, the highest published
   --index <url>     the index to look in, instead of the default"""
         "uninstall" => """Remove a program `komp install` put in ~/.kflat/bin, and its record."""
+        "add" => """Add a library from a package index to the project's [dependencies],
+replacing an entry of that name, then fetch it and update kf.lock. Without a
+requirement, the newest version is written, which allows its compatible
+successors. A program is refused: `komp install` installs one.
+
+  <name>@<req>        write this requirement instead
+  --index <name>      an index kf.toml declares under [indexes]
+  -p, --package <c>   add it to this workspace member
+  --manifest-path <p> the project's kf.toml, or its directory"""
+        "search" => """List the packages a package index offers whose names contain <query>,
+each with its newest version; with no query, every package.
+
+  --index <url>     the index to look in, instead of the default"""
+        "info" => """List every version of a package in a package index, marking the newest
+and any yanked.
+
+  --index <url>     the index to look in, instead of the default"""
         "self" => """Install the newest komp release, or the version named, from its
 release archive, checked against the sha256 published beside it. It goes in
 ~/.kflat/toolchains/<version> ($KFLAT_HOME when set) and ~/.kflat/bin/komp
@@ -142,8 +162,11 @@ pub fun print_usage(): void {
     runtime_println("  lint      report the project's lints, as lint.toml sets them")
     runtime_println("  fix       apply the repairs the checker suggests")
     runtime_println("  update    re-resolve fetched dependencies and rewrite kf.lock")
+    runtime_println("  add       add a library from a package index to [dependencies]")
     runtime_println("  install   build a program from a package index into ~/.kflat/bin")
     runtime_println("  uninstall remove an installed program")
+    runtime_println("  search    list the packages an index offers")
+    runtime_println("  info      list a package's versions in an index")
     runtime_println("  self      update komp itself: komp self update")
     runtime_println("  publish   add this library's version to a package index")
     runtime_println("  metadata  print the resolved crate graph as JSON")

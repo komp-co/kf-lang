@@ -18,8 +18,11 @@ points, and then compiles and links the C with cc.
 | `komp test <dir>` | Run `@test` functions in the crate |
 | `komp update <dir>` | Resolve fetched dependencies again and rewrite `kf.lock` |
 | `komp update --installed [<name>...]` | Update installed programs within the requirements they were installed with |
+| `komp add <name>[@<req>]` | Add a library from a package index to `[dependencies]` |
 | `komp install [<name>[@<req>]]` | Build a program from a package index into `~/.kflat/bin`, or list what is installed |
 | `komp uninstall <name>` | Remove an installed program |
+| `komp search [<query>]` | List the packages an index offers, with their newest versions |
+| `komp info <name>` | List every version of a package in an index |
 | `komp <command>` | Run the installed `komp-<command>` |
 | `komp self update [<version>]` | Install the newest komp release, or the one named |
 | `komp metadata <dir>` | Print the resolved crate graph as JSON, for tools |
@@ -119,6 +122,8 @@ opened   https://github.com/komp-co/index/pull/12
 ```
 
 The version is `kf.toml`'s, and the commit is the one its `vX.Y.Z` tag names.
+`kf.toml`'s `description`, when it has one, becomes the package's description
+in the index, replacing the one an earlier version gave.
 komp refuses, and says what to do, when the crate is a `bin`, its name is not
 lowercase `snake_case`, the working tree has uncommitted changes, the tag is
 missing, names another commit or is not pushed, the crate does not pass
@@ -218,6 +223,24 @@ $ komp metadata
 
 A graph that does not resolve prints `{"schema": 1, "error": "..."}` and exits 1.
 
+### komp add
+
+`komp add <name>` adds a library from a package index to the crate's
+`[dependencies]`, then fetches it and updates `kf.lock` as a build would. The
+row it writes is the newest version, which allows that version's compatible
+successors; `<name>@<req>` writes that requirement instead. An entry of the
+same name is replaced, and the rest of `kf.toml` is left as written.
+`--index <name>` looks in an index `kf.toml` declares under `[indexes]`, and
+writes the row with that `index`. At a workspace, `-p <crate>` picks the
+member.
+
+```console
+$ komp add json
+added `json` "0.2.0" to ./kf.toml, resolving to 0.2.0
+$ komp add komp_fmt
+error: `komp_fmt` is a program, not a library: `komp install komp_fmt` installs it
+```
+
 ### komp install
 
 `komp install <name>` builds a program published to a package index and puts
@@ -252,6 +275,31 @@ its row.
 Installing `komp_fmt` is what makes `komp fmt` work, whether or not
 `~/.kflat/bin` is on `PATH`. A built-in command always wins over an installed
 one of the same name.
+
+### komp search and komp info
+
+`komp search` lists the packages a package index offers, each with its newest
+version that is not yanked and its description; `komp search <query>` keeps the ones whose names
+contain it. `komp info <name>` lists every version of one package, marking
+the newest and any yanked. Both read the index's checkout in the cache,
+bringing it up to date first, and take `--index <url>` to look in another
+index than the default.
+
+```console
+$ komp search
+json      0.2.0  JSON reading and writing
+komp_fmt  0.1.0  The KFlat formatter: komp fmt
+$ komp search fmt
+komp_fmt  0.1.0  The KFlat formatter: komp fmt
+$ komp info json
+json, in https://github.com/komp-co/index
+JSON reading and writing
+  0.1.0
+  0.2.0  newest
+```
+
+A package's description is the one `komp publish` took from its `kf.toml`;
+a package published without one shows none.
 
 ### komp self update
 
