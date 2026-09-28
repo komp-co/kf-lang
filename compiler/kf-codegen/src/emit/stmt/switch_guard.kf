@@ -16,9 +16,10 @@ pub fun arms_have_guard(arms: List<SwitchArm>): bool {
     return false
 }
 
-/// `ename` and `through_ref` are unused for a scalar subject.
-pub fun emit_guarded_chain(subj: Expr, ename: String, arms: List<SwitchArm>, is_enum: bool, through_ref: bool, by_address: bool,
-                          indent: uint64, env: &var LocalEnv): String {
+/// `ename` is unused for a scalar subject. `by_address`: see ref_binders.kf.
+pub fun emit_guarded_chain(subj: Expr, ename: String, arms: List<SwitchArm>, is_enum: bool, by_address: bool,
+    indent: uint64, env: &var LocalEnv): String {
+    val through_ref = ty_is_borrow(subj.ty) || by_address
     var parts = List.new<String>()
     parts.push(emit_indent(indent))
     parts.push(String.from("{\n"))
@@ -42,7 +43,7 @@ pub fun emit_guarded_chain(subj: Expr, ename: String, arms: List<SwitchArm>, is_
 }
 
 fun emit_chain_arm(a: SwitchArm, ename: String, through_ref: bool, by_address: bool, chained: bool, indent: uint64,
-                   env: &var LocalEnv): String {
+    env: &var LocalEnv): String {
     var parts = List.new<String>()
     parts.push(emit_indent(indent))
     if chained {

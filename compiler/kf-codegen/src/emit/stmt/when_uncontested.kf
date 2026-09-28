@@ -26,7 +26,7 @@ fun arms_are_all_wildcards(arms: List<SwitchArm>): bool {
 /// via `__auto_type`. Only the first arm is emitted; later ones are
 /// unreachable.
 fun emit_uncontested_arm(subj: Expr, arms: List<SwitchArm>, by_address: bool, indent: uint64,
-                         env: &var LocalEnv): String {
+    env: &var LocalEnv): String {
     val a = *arms.at(0)
     var parts = List.new<String>()
     parts.push(emit_indent(indent))
