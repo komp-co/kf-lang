@@ -6,14 +6,12 @@ pub enum Option<T> {
     None
 }
 
-
 impl Option<T> {
     pub fun is_some(): bool {
         return when (self) {
             Some(_v) => true
             None => false
         }
-        return false
     }
 
     pub fun is_none(): bool {
@@ -21,7 +19,6 @@ impl Option<T> {
             Some(_v) => false
             None => true
         }
-        return true
     }
 
     /// The payload, or a controlled abort. `!!` desugars to this; prefer `?:`

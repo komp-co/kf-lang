@@ -1,7 +1,6 @@
 // Arithmetic needing no C library. The libm functions are in
 // core.math_hosted.
 
-
 /// The lesser of two values, for anything `Compare`.
 @prelude
 pub fun min<T: Compare>(a: T, b: T): T {
@@ -50,7 +49,7 @@ pub fun float64.trunc(): float64 {
 @prelude
 pub fun float64.floor(): float64 {
     val t = self.trunc()
-    if self < 0.0 && t != self { return t - 1.0 }
+    if self < 0.0 && t > self { return t - 1.0 }
     return t
 }
 
@@ -58,7 +57,7 @@ pub fun float64.floor(): float64 {
 @prelude
 pub fun float64.ceil(): float64 {
     val t = self.trunc()
-    if self > 0.0 && t != self { return t + 1.0 }
+    if self > 0.0 && t < self { return t + 1.0 }
     return t
 }
 
