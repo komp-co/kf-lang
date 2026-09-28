@@ -1,0 +1,71 @@
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_core.span.no_span
+
+fun reexport_of(owner: str, target: str, admitted: str): Reexport {
+    val name = if admitted == "" { Sym { id: 0 } } else { intern(admitted) }
+    return Reexport { owner: intern(owner), target: intern(target), admitted: name }
+}
+
+@test fun a_wildcard_import_takes_what_a_named_reexport_offers(): void {
+    val through = forwarded_admission(Sym { id: 0 }, intern("read")) ?: intern("<none>")
+    assert_eq(through.as_str(), "read", "only the re-exported name")
+}
+
+@test fun a_named_import_passes_a_wildcard_reexport(): void {
+    val through = forwarded_admission(intern("read"), Sym { id: 0 }) ?: intern("<none>")
+    assert_eq(through.as_str(), "read", "the imported name, from the re-export's module")
+}
+
+@test fun a_named_import_does_not_pass_another_names_reexport(): void {
+    assert_eq(forwarded_admission(intern("read"), intern("write")).is_none(), true, "a different name is not forwarded")
+}
+
+@test fun an_alias_narrows_to_a_named_reexport(): void {
+    val through = forwarded_admission(alias_admission("lib"), intern("read")) ?: intern("<none>")
+    assert_eq(through.as_str(), "as lib read", "through the alias, only that name")
+}
+
+@test fun a_narrowed_alias_passes_only_its_own_name(): void {
+    val through = forwarded_admission(intern("as lib read"), intern("write"))
+    assert_eq(through.is_none(), true, "another name is not forwarded")
+}
+
+@test fun an_import_is_forwarded_through_a_chain_of_reexports(): void {
+    var reexports = List.new<Reexport>()
+    reexports.push(reexport_of("app", "app.mid", ""))
+    reexports.push(reexport_of("app.mid", "app.deep", ""))
+    var entries = new_import_entries()
+    entries.add(1, intern("app"), Sym { id: 0 })
+    val forwarded = forwarded_entries(&reexports, &entries)
+    assert_eq(forwarded.targets.get(1).as_str(), "app.deep", "the re-export of a re-export")
+}
+
+@test fun a_reexport_cycle_terminates(): void {
+    var reexports = List.new<Reexport>()
+    reexports.push(reexport_of("app.a", "app.b", ""))
+    reexports.push(reexport_of("app.b", "app.a", ""))
+    var entries = new_import_entries()
+    entries.add(1, intern("app.a"), Sym { id: 0 })
+    val forwarded = forwarded_entries(&reexports, &entries)
+    assert_eq(forwarded.files.size(), 2, "each module once")
+}
+
+@test fun a_named_import_of_a_reexported_name_resolves(): void {
+    var decls = List.new<TopDecl>()
+    decls.push(make_decl("read", "app.parse"))
+    var imports = List.new<Import>()
+    var reexported = List.new<String>()
+    reexported.push(String.from("app"))
+    reexported.push(String.from("parse"))
+    reexported.push(String.from("read"))
+    imports.push(new_reexport(no_span(), reexported, false, String.from("app")))
+    var named = List.new<String>()
+    named.push(String.from("app"))
+    named.push(String.from("read"))
+    imports.push(new_import(no_span(), named, false))
+    val diags = crate_module_with(decls, imports).validate_imports(no_files())
+    assert_eq(diags.size(), 0, "`app.read` names what `app` re-exports")
+}

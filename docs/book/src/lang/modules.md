@@ -135,6 +135,32 @@ import my_lib.answer
 import my_lib.text.two
 ```
 
+## Re-exports
+
+`pub import` makes what an import admits part of the importing module's
+own surface: whoever imports that module sees it too. A library can then
+present one module while its code lives in several:
+
+```
+src/
+  lib.kf            # pub import my_lib.emit.*
+                    # pub import my_lib.parse.read
+  emit/emit.kf      # pub fun write_it()
+  parse/parse.kf    # pub fun read(), pub fun other()
+```
+
+```kflat
+import my_lib.*        // write_it and read, but not other
+
+fun main(): int32 { return write_it() + read() }
+```
+
+`import my_lib.read` and `import my_lib as lib` (then `lib.read()`) work the
+same way. Moving `read` to another module then changes only `lib.kf`, not
+the crate's users. A re-export works inside a crate as well, for its other
+modules. Only `pub` functions can be re-exported, and a `pub import` takes
+no `as`.
+
 ## pub
 
 `pub` makes a function visible outside its module — to the other modules of

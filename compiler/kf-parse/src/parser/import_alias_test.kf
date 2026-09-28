@@ -29,3 +29,21 @@ import core.assert.assert_eq
     val _imp = p.parse_import()
     assert_eq(p.diags.size(), 1, "`as` with nothing after it is an error")
 }
+
+@test fun a_pub_import_is_a_reexport(): void {
+    var p = parser_for("pub import kf_core.diagnostic.*\n")
+    val m = p.parse_module(List.new<String>())
+    assert_eq(m.imports.at(0).is_pub, true, "`pub import` marks the import")
+}
+
+@test fun a_pub_import_is_parsed_as_an_import(): void {
+    var p = parser_for("pub import kf_core.diagnostic.error_at\n\nfun f(): void { }\n")
+    val m = p.parse_module(List.new<String>())
+    assert_eq(m.decls.size(), 1, "the import is not taken for a declaration")
+}
+
+@test fun a_pub_import_cannot_take_an_alias(): void {
+    var p = parser_for("pub import kf_core.diagnostic as diag\n")
+    val _m = p.parse_module(List.new<String>())
+    assert_eq(p.diags.size(), 1, "a re-export has no alias")
+}

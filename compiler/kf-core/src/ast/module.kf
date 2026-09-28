@@ -9,14 +9,24 @@ pub struct Import {
     pub val wildcard: bool // true for `.*`, false otherwise
     /// The name after `as`, or "".
     pub val alias: String
+    /// `pub import`: what it admits is part of `owner`'s surface too.
+    pub val is_pub: bool
+    /// The dotted module the import is written in; set for `pub import` once
+    /// the file's module is known.
+    pub var owner: String
 }
 
 pub fun new_import(span: Span, path: List<String>, wildcard: bool): Import {
-    return Import { span: span, path: path, wildcard: wildcard, alias: "" }
+    return Import { span: span, path: path, wildcard: wildcard, alias: "", is_pub: false, owner: "" }
 }
 
 pub fun new_aliased_import(span: Span, path: List<String>, alias: String): Import {
-    return Import { span: span, path: path, wildcard: false, alias: alias }
+    return Import { span: span, path: path, wildcard: false, alias: alias, is_pub: false, owner: "" }
+}
+
+/// `pub import <path>` written in module `owner`.
+pub fun new_reexport(span: Span, path: List<String>, wildcard: bool, owner: String): Import {
+    return Import { span: span, path: path, wildcard: wildcard, alias: "", is_pub: true, owner: owner }
 }
 
 /// What an aliased import admits in the per-file import table: no bare name,

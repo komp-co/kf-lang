@@ -81,7 +81,8 @@ pub struct TypeCtx {
     pub var qualified_callee: String
     /// The link name `check_call` fixed for its callee, or "".
     pub var pinned_callee: String
-    /// The module a call through an alias names, for the next `check_call`.
+    /// The admission of the alias a call goes through, for the next
+    /// `check_call`.
     pub var through_module: Sym
 }
 

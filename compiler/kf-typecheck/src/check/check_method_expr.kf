@@ -9,7 +9,7 @@ import kf_typecheck.note_import_use
 
 fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, args: &var List<Expr>, ctx: &var TypeCtx): void {
     val method_name = method_name_sym.as_string()
-    val through = e.alias_call_module(ctx)
+    val through = e.alias_call_admission(ctx)
     if through.id != 0 {
         e.kind = ExprKind.Call(method_name_sym, args.clone())
         ctx.through_module = through

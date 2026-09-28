@@ -33,6 +33,10 @@ impl Parser {
             if self.at_eof() { break }
             if phase_imports && is_keyword(self.peek(), Keyword.Import) {
                 imports.push(self.parse_import())
+            } else if phase_imports && is_keyword(self.peek(), Keyword.Pub) && is_keyword(self.peek_at(1), Keyword.Import) {
+                val pub_span = self.peek().span
+                self.advance()
+                imports.push(self.parse_reexport(pub_span))
             } else {
                 phase_imports = false
                 decls.push(self.parse_top_decl())
@@ -43,6 +47,17 @@ impl Parser {
             imports.push(new_import(self.module_file_span(), core_range_path(), true))
         }
         return Module { crate: crate_id_poison(), path: path, decls: decls, imports: imports }
+    }
+
+    /// `pub import ...`, after `pub`; an alias cannot be re-exported. Its
+    /// owner is stamped with the file's module.
+    mutating fun parse_reexport(pub_span: Span): Import {
+        val imp = self.parse_import()
+        if imp.alias.as_str() != "" {
+            self.parse_err(imp.span, "`pub import` re-exports names, so it takes no `as`")
+        }
+        val span = Span { file_id: pub_span.file_id, start: pub_span.start, end: imp.span.end }
+        return new_reexport(span, imp.path, imp.wildcard, "")
     }
 
     /// A synthesized import must carry its file id, or import validation

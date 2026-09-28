@@ -115,7 +115,7 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
         return poison_ty()
     }
     val sig = found_sig ?: return poison_ty()
-    if through.id != 0 && !sig.is_pub && through.id != ctx.owner_module.id {
+    if through.id != 0 && !sig.is_pub && sig.owner_module.id != ctx.owner_module.id {
         report_not_in_module(name.as_str(), through, true, span, ctx)
         return poison_ty()
     }

@@ -64,10 +64,11 @@ pub fun report_unknown_callee(name: str, span: Span, ctx: &var TypeCtx): void {
 }
 
 /// A call through a module alias names nothing that module offers; `private`
-/// when it declares the name without `pub`.
-pub fun report_not_in_module(name: str, module: Sym, private: bool, span: Span, ctx: &var TypeCtx): void {
+/// when it declares the name without `pub`. `admission` is the alias's.
+pub fun report_not_in_module(name: str, admission: Sym, private: bool, span: Span, ctx: &var TypeCtx): void {
+    val alias = admission.as_str().substring(3, admission.as_str().byte_len())
     val why = if private { ": it is private" } else { "" }
-    ctx.emit(error_at(span, "module `${module.as_str()}` has no function `${name}`${why}"))
+    ctx.emit(error_at(span, "module alias `${alias}` has no function `${name}`${why}"))
 }
 
 /// The one module declaring a function of that name and visibility; "" for

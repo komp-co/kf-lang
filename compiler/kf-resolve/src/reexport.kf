@@ -1,0 +1,153 @@
+// `pub import`: what a re-export admits is part of the surface of the module
+// it is written in, so importing that module admits it too.
+
+import alloc.list.*
+
+import kf_core.ast.*
+
+/// One resolved `pub import`: `owner` offers what `admitted` names from
+/// `target`. A poison `admitted` is every name.
+struct Reexport {
+    val owner: Sym
+    val target: Sym
+    val admitted: Sym
+}
+
+/// Every `pub import`, resolved against the declared names and against each
+/// other. Each adds the names it admits to its owner's `(module, name)`
+/// pairs, so a named import of a re-exported name resolves like any other.
+fun Module.resolve_reexports(module_paths: &var List<Sym>, decl_names: &var List<Sym>,
+    file_paths: &List<Sym>): List<Reexport> {
+    var out = List.new<Reexport>()
+    var resolved = List.new<uint64>()
+    var progress = true
+    while progress {
+        progress = false
+        while k in 0..self.imports.size() {
+            val imp = self.imports.at(k)
+            if imp.is_pub && !resolved.contains(&k) {
+                val target = if imp.wildcard {
+                    imp.resolve_wildcard(module_paths, file_paths)
+                } else {
+                    imp.resolve_specific(module_paths, decl_names, file_paths)
+                }
+                if target.id != 0 {
+                    val admitted = if imp.wildcard { Sym { id: 0 } } else { import_admitted_name(&imp.path) }
+                    out.push(Reexport { owner: intern(imp.owner.as_str()), target: target, admitted: admitted })
+                    resolved.push(k)
+                    progress = true
+                }
+            }
+        }
+        if spread_reexported_names(&out, module_paths, decl_names) { progress = true }
+    }
+    return out
+}
+
+/// Gives each owner the names its re-exports admit; true when one was added.
+fun spread_reexported_names(reexports: &List<Reexport>, module_paths: &var List<Sym>,
+    decl_names: &var List<Sym>): bool {
+    var added = false
+    while r in &reexports {
+        if r.admitted.id != 0 {
+            if !has_pair(module_paths, decl_names, r.owner, r.admitted) {
+                module_paths.push(r.owner)
+                decl_names.push(r.admitted)
+                added = true
+            }
+        } else {
+            val count = module_paths.size()
+            while i in 0..count {
+                val name = decl_names.get(i)
+                if module_paths.get(i).id == r.target.id && !has_pair(module_paths, decl_names, r.owner, name) {
+                    module_paths.push(r.owner)
+                    decl_names.push(name)
+                    added = true
+                }
+            }
+        }
+    }
+    return added
+}
+
+/// Import-table entries: parallel lists of file, target module and admitted
+/// name.
+struct ImportEntries {
+    var files: List<uint32>
+    var targets: List<Sym>
+    var names: List<Sym>
+}
+
+fun new_import_entries(): ImportEntries {
+    return ImportEntries { files: List.new<uint32>(), targets: List.new<Sym>(), names: List.new<Sym>() }
+}
+
+mutating fun ImportEntries.add(file: uint32, target: Sym, name: Sym): void {
+    self.files.push(file)
+    self.targets.push(target)
+    self.names.push(name)
+}
+
+fun ImportEntries.holds(file: uint32, target: Sym, name: Sym): bool {
+    while i in 0..self.files.size() {
+        val same_place = self.files.get(i) == file && self.targets.get(i).id == target.id
+        if same_place && self.names.get(i).id == name.id { return true }
+    }
+    return false
+}
+
+/// One entry per module an import reaches through re-exports, admitting
+/// what the import admits there, for the imports' own `entries`.
+fun forwarded_entries(reexports: &List<Reexport>, entries: &ImportEntries): ImportEntries {
+    var out = new_import_entries()
+    if reexports.size() == 0 { return out }
+    while i in 0..entries.files.size() {
+        val target = entries.targets.get(i)
+        if target.id != 0 {
+            forward_from(reexports, entries.files.get(i), target, entries.names.get(i), &var out, 0)
+        }
+    }
+    return out
+}
+
+fun forward_from(reexports: &List<Reexport>, file: uint32, module: Sym, admitted: Sym, out: &var ImportEntries,
+    depth: uint64): void {
+    if depth > 16 { return }
+    while r in &reexports {
+        if r.owner.id == module.id {
+            when (forwarded_admission(admitted, r.admitted)) {
+                Some(name) => {
+                    if !out.holds(file, r.target, name) {
+                        out.add(file, r.target, name)
+                        forward_from(reexports, file, r.target, name, out, depth + 1)
+                    }
+                }
+                None => { }
+            }
+        }
+    }
+}
+
+/// What an import admitting `admitted` admits through a re-export offering
+/// `offered`, or None. Poison is every name; `as x` is every name through the
+/// alias `x`, and `as x n` only `n` through it.
+fun forwarded_admission(admitted: Sym, offered: Sym): Sym? {
+    if offered.id == 0 { return Option.Some(admitted) }
+    if admitted.id == 0 { return Option.Some(offered) }
+    val text = admitted.as_str()
+    if text.starts_with("as ") {
+        if space_count(text) == 1 { return Option.Some(intern("${text} ${offered.as_str()}")) }
+        if text.ends_with(" ${offered.as_str()}") { return Option.Some(admitted) }
+        return Option.None
+    }
+    if admitted.id == offered.id { return Option.Some(admitted) }
+    return Option.None
+}
+
+fun space_count(text: str): uint64 {
+    var n: uint64 = 0
+    while i in 0..text.byte_len() {
+        if text.byte_at(i) == 32 { n = n + 1 }
+    }
+    return n
+}
