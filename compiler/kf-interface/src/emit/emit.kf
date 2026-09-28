@@ -26,7 +26,7 @@ pub fun Module.emit_interface_hashed(crate_name: String, deps: &List<String>, ha
 
 pub fun Module.emit_interface_full(crate_name: String, deps: &List<String>, hashes: &List<String>, smap: Ptr<SourceMap>): String {
     val crate = new_crate_id(crate_name.as_str())
-    val doc = JsonWriter.object()
+    var doc = JsonWriter.object()
     doc.field_int64("kfi", interface_format_version())
     doc.field_string("crate", crate_name.as_str())
     doc.field_string("compiler_abi", interface_compiler_abi())
@@ -41,9 +41,9 @@ pub fun Module.emit_interface_full(crate_name: String, deps: &List<String>, hash
 }
 
 fun emit_deps(deps: &List<String>, hashes: &List<String>): String {
-    val arr = JsonWriter.array()
+    var arr = JsonWriter.array()
     while i in 0..deps.size() {
-        val d = JsonWriter.object()
+        var d = JsonWriter.object()
         d.field_string("name", deps.at(i).as_str())
         if i < hashes.size() {
             d.field_string("hash", hashes.at(i).as_str())
@@ -57,9 +57,9 @@ fun emit_deps(deps: &List<String>, hashes: &List<String>): String {
 
 fun Module.emit_ownership_glue(crate: CrateId): String {
     val glue = self.collect_public_glue(crate)
-    val arr = JsonWriter.array()
+    var arr = JsonWriter.array()
     while item in &glue {
-        val object = JsonWriter.object()
+        var object = JsonWriter.object()
         object.field_string("type", item.type_name.as_str())
         object.field_string("retain", item.retain.as_str())
         object.field_string("drop", item.drop.as_str())
@@ -81,9 +81,9 @@ fun Module.emit_modules(crate: CrateId, smap: Ptr<SourceMap>): String {
             }
         }
     }
-    val arr = JsonWriter.array()
+    var arr = JsonWriter.array()
     while item in &paths {
-        val mod_obj = JsonWriter.object()
+        var mod_obj = JsonWriter.object()
         mod_obj.field_string("path", item.as_str())
         mod_obj.field_raw("files", self.emit_module_files(crate, item.as_str(), smap).as_str())
         mod_obj.field_raw("decls", self.emit_module_decls(crate, item.as_str(), &hidden, smap).as_str())
@@ -112,7 +112,7 @@ fun Module.emit_module_files(crate: CrateId, path: str, smap: Ptr<SourceMap>): S
             }
         }
     }
-    val arr = JsonWriter.array()
+    var arr = JsonWriter.array()
     while item in &stems {
         arr.write_string(item.as_str())
     }

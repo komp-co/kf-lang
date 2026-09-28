@@ -6,14 +6,14 @@ import alloc.list.*
 import kf_core.ast.*
 
 fun lambda_diags(src: str): uint64 {
-    val p = parser_for(src)
+    var p = parser_for(src)
     val _m = p.parse_module(List.new<String>())
     return p.diags.size()
 }
 
 /// The payload is matched with `_`: binding a List out would double-free.
 fun first_init_is_lambda(src: str): bool {
-    val p = parser_for(src)
+    var p = parser_for(src)
     val td = p.parse_top_decl()
     when (td.kind) {
         Function(_params, _r, body, _pb, _u, _mv, _s) => {

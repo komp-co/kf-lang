@@ -10,7 +10,7 @@ fun mono_dyn_generic(): Type {
 }
 
 fun mono_dyn_object(): Type {
-    val args = new_type_vec()
+    var args = new_type_vec()
     args.push(mono_dyn_generic())
     return dyn_trait_type(intern("Sink"), args, no_span())
 }

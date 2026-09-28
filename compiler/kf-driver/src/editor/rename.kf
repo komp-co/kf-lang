@@ -16,7 +16,7 @@ import kf_shared.starts_with_path
 /// only whether a rename is possible, and answers with `range`, the name
 /// under the cursor.
 pub fun render_rename_json(path: str, offset: uint32, new_name: str, crate: &TypedCrate): String {
-    val out = JsonWriter.object()
+    var out = JsonWriter.object()
     out.field_uint32("schema_version", 1)
     out.field_string("file", path)
     out.field_uint32("offset", offset)
@@ -50,7 +50,6 @@ pub fun render_rename_json(path: str, offset: uint32, new_name: str, crate: &Typ
     out.field_raw("edits", crate.module.edits_json(target, crate.smap).as_str())
     return out.finish()
 }
-
 
 /// Why this rename must not happen, or "". The reader's own input is checked
 /// before the program.
@@ -165,7 +164,7 @@ fun Module.name_span_at(file_id: uint32, offset: uint32): Span {
 }
 
 fun Module.edits_json(decl: DeclId, smap: Ptr<SourceMap>): String {
-    val arr = JsonWriter.array()
+    var arr = JsonWriter.array()
     val home = self.declaration_span(decl)
     if !home.is_none() {
         arr.write_raw(home.span_object(smap).as_str())

@@ -151,6 +151,27 @@ pub mutating fun TypeCtx.report_untyped_nulls(): void {
     }
 }
 
+/// An integer literal `int32` cannot hold, which only a slot may still size.
+pub fun note_wide_literal_seen(span: Span, ctx: &var TypeCtx): void {
+    if span_list_contains(&ctx.wide_literals_seen, span) { return }
+    ctx.wide_literals_seen.push(span)
+}
+
+/// Given a type, converted by a cast, or already reported.
+pub fun note_literal_sized(span: Span, ctx: &var TypeCtx): void {
+    if span_list_contains(&ctx.wide_literals_sized, span) { return }
+    ctx.wide_literals_sized.push(span)
+}
+
+/// Once, at the end of the body: a wide literal nothing sized is an `int32`.
+pub mutating fun TypeCtx.report_unsized_wide_literals(): void {
+    while span in &self.wide_literals_seen {
+        if !span_list_contains(&self.wide_literals_sized, span) {
+            self.emit(error_at(span, String.from("integer literal is out of range for `int32`")))
+        }
+    }
+}
+
 fun span_list_contains(spans: &List<Span>, span: Span): bool {
     while s in &spans {
         if s.file_id == span.file_id && s.start == span.start && s.end == span.end { return true }
@@ -163,8 +184,8 @@ fun span_list_contains(spans: &List<Span>, span: Span): bool {
 // unsubstituted `List__T`.
 
 pub struct OpenGenericCall {
-    pub var span:   Span
-    pub var base:   String
+    pub var span: Span
+    pub var base: String
     pub var method: String
 }
 

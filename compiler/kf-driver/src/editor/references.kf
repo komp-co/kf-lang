@@ -10,7 +10,7 @@ import json.writer.*
 ///
 /// Every entry names its own file.
 pub fun render_references_json(path: str, offset: uint32, crate: &TypedCrate): String {
-    val out = JsonWriter.object()
+    var out = JsonWriter.object()
     out.field_uint32("schema_version", 1)
     out.field_string("file", path)
     out.field_uint32("offset", offset)
@@ -28,7 +28,7 @@ pub fun render_references_json(path: str, offset: uint32, crate: &TypedCrate): S
     }
     val names = crate.module.all_name_spans()
     val spans = spans_for_decl(&names, target)
-    val arr = JsonWriter.array()
+    var arr = JsonWriter.array()
     while s in &spans {
         arr.write_raw(s.span_object(crate.smap).as_str())
     }
@@ -36,9 +36,8 @@ pub fun render_references_json(path: str, offset: uint32, crate: &TypedCrate): S
     return out.finish()
 }
 
-
 pub fun Span.span_object(smap: Ptr<SourceMap>): String {
-    val o = JsonWriter.object()
+    var o = JsonWriter.object()
     o.field_string("file", path_for_file_id(smap, self.file_id).as_str())
     o.field_uint32("byte_start", self.start)
     o.field_uint32("byte_end", self.end)

@@ -10,9 +10,9 @@ import kf_core.span.*
 /// bounds.
 @derive(Clone)
 pub struct TypeParam {
-    pub val span:   Span
-    pub val name:   Sym
-    pub val bounds: List<TypeRef>
+    pub val span: Span
+    pub val name: Sym
+    pub var bounds: List<TypeRef>
 }
 
 pub fun new_type_param(span: Span, name: String): TypeParam {
@@ -21,9 +21,9 @@ pub fun new_type_param(span: Span, name: String): TypeParam {
 
 @derive(Clone)
 pub struct Param {
-    pub val span:    Span
-    pub val name:    Sym
-    pub val ty:      Box<TypeRef>
+    pub val span: Span
+    pub val name: Sym
+    pub val ty: Box<TypeRef>
 }
 
 pub fun new_param(span: Span, name: String, ty: Ptr<TypeRef>): Param {
@@ -31,9 +31,9 @@ pub fun new_param(span: Span, name: String, ty: Ptr<TypeRef>): Param {
 }
 
 pub struct Field {
-    pub val span:   Span
-    pub val name:   Sym
-    pub val ty:     Box<TypeRef>
+    pub val span: Span
+    pub val name: Sym
+    pub val ty: Box<TypeRef>
     pub val is_var: bool
     pub val is_pub: bool
 }
@@ -43,8 +43,8 @@ pub fun new_field(span: Span, name: String, ty: Ptr<TypeRef>, is_var: bool, is_p
 }
 
 pub struct Variant {
-    pub val span:     Span
-    pub val name:     Sym
+    pub val span: Span
+    pub val name: Sym
     pub var payloads: List<TypeRef>
 }
 
@@ -59,7 +59,7 @@ pub fun new_variant(span: Span, name: String, payloads: List<TypeRef>): Variant 
 pub struct TopDecl {
     pub val span: Span
     pub var name: Sym
-    pub val kind: TopDeclKind
+    pub var kind: TopDeclKind
     pub var crate: CrateId
     pub var module_path: Sym
     pub var decl: DeclId?

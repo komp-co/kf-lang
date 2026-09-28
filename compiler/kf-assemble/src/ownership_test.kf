@@ -5,9 +5,13 @@ import kf_core.ast.*
 import kf_core.span.no_span
 
 fun module_with_nested_decl(): Module {
+    return module_at_path_with_nested_decl(List.new<String>())
+}
+
+fun module_at_path_with_nested_decl(path: List<String>): Module {
     var methods = List.new<TopDecl>()
     methods.push(new_top_decl(no_span(), String.from("nested"), TopDeclKind.Poison))
-    var module = new_module(List.new<String>())
+    var module = new_module(path)
     module.decls.push(new_top_decl(no_span(), String.from("Thing"), TopDeclKind.ImplBlock(methods)))
     return module
 }
@@ -48,10 +52,11 @@ fun stamp_module_owner_preserves_impl_methods(): void {
 
 @test
 fun stamp_module_owner_sets_decl_module_path(): void {
-    var module = module_with_nested_decl()
-    module.path.push(String.from("json"))
-    module.path.push(String.from("model"))
-    module.path.push(String.from("point"))
+    var path = List.new<String>()
+    path.push(String.from("json"))
+    path.push(String.from("model"))
+    path.push(String.from("point"))
+    var module = module_at_path_with_nested_decl(path)
     stamp_module_owner(&var module, new_crate_id("json"))
     assert_eq(module.decls.at(0).module_path.as_str(), "json.model", "top declaration retains its module path")
 }

@@ -37,10 +37,10 @@ import kf_shared.join_path
 
 /// One source string to C, without assembly. Assumes well-typed input.
 pub fun compile_source(src: str): String {
-    val smap = fresh_source_map()
+    var smap = fresh_source_map()
     val fid = unsafe { smap.add_file(new_source_file(String.from("<input>"), String.from(src))) }
     val toks = tokenize(src, fid)
-    val p = new_parser(toks)
+    var p = new_parser(toks)
     val source_module = p.parse_module(List.new<String>())
     while diag in &p.diags {
         val text = render(diag, smap)
@@ -119,7 +119,7 @@ pub fun assemble_project(root_dir: str, smap: Ptr<SourceMap>, pdiags: Ptr<List<D
 pub fun Manifest.lint_config_from_manifest(diags: &var List<Diagnostic>): LintConfig {
     var cfg = new_lint_config()
     while i in 0..self.lint_names.size() {
-        cfg.apply_table_lint(self.lint_names.at(i).as_str(), self.lint_levels.at(i).as_str(), diags)
+        cfg.apply_table_lint("kf.toml [lint]", self.lint_names.at(i).as_str(), self.lint_levels.at(i).as_str(), diags)
     }
     return cfg
 }
@@ -139,7 +139,7 @@ pub fun BuildGraph.compile_graph_outputs(errp: Ptr<ErrCount>): List<CrateCodegen
 }
 
 fun BuildGraph.compile_graph_outputs_with_interfaces(errp: Ptr<ErrCount>,
-                                                     interfaces: Ptr<List<String>>): List<CrateCodegenOutput> {
+    interfaces: Ptr<List<String>>): List<CrateCodegenOutput> {
     var out = List.new<CrateCodegenOutput>()
     if self.error.as_str() != "" {
         runtime_println(self.error.as_str())
@@ -190,7 +190,7 @@ fun BuildGraph.compile_graph_outputs_with_interfaces(errp: Ptr<ErrCount>,
             unsafe { errp.n = errp.n + 1 }
         }
         val encoded = emit_interface_full(&merged, String.from(interface_crate.name.as_str()), &interface_crate.deps,
-                                          &dependency_hashes, smap)
+            &dependency_hashes, smap)
         emitted_names.push(String.from(interface_crate.name.as_str()))
         emitted_hashes.push(content_hash(encoded.as_str()))
         unsafe { interfaces.push(encoded) }
@@ -205,7 +205,7 @@ fun BuildGraph.compile_graph_outputs_with_interfaces(errp: Ptr<ErrCount>,
 }
 
 fun dependency_interface_hashes(dependencies: &List<String>, names: &List<String>,
-                                hashes: &List<String>): List<String> {
+    hashes: &List<String>): List<String> {
     var out = List.new<String>()
     while dependency in &dependencies {
         out.push(interface_hash_lookup(dependency.as_str(), names, hashes))

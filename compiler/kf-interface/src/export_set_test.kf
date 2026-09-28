@@ -9,7 +9,7 @@ import kf_interface.*
 
 fun stamped_module(src: str, crate_name: str): Module {
     val toks = tokenize(src, 0)
-    val p = new_parser(toks)
+    var p = new_parser(toks)
     val parsed = p.parse_module(List.new<String>())
     val crate = new_crate_id(crate_name)
     var decls = List.new<TopDecl>()

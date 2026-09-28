@@ -23,7 +23,7 @@ pub fun subst_arm_list(arms: &List<Arm>, names: &var List<String>, repls: &var L
     while a in &arms {
         val ng = clone_expr_ptr_opt(a.guard.view(), names, repls)
         val nbody = subst_stmt_list(a.body, names, repls)
-        narms.push(new_arm(a.span, fresh_pattern_box(a.pattern), ng, nbody))
+        narms.push(a.rebuilt(fresh_pattern_box(a.pattern), ng, nbody))
     }
     return narms
 }
@@ -103,7 +103,9 @@ fun Stmt.subst_stmt_kinded(names: &var List<String>, repls: &var List<TypeRef>):
                 val nbody = subst_stmt_list(sa.body, names, repls)
                 val nguard = clone_expr_ptr_opt(sa.guard.view(), names, repls)
                 val nprelude = subst_stmt_list(sa.guard_prelude, names, repls)
-                narms.push(new_guarded_switch_arm(sa.span, sa.tag, clone_sym_list(sa.binders), nguard, nprelude, nbody))
+                var narm = new_guarded_switch_arm(sa.span, sa.tag, clone_sym_list(sa.binders), nguard, nprelude, nbody)
+                narm.ref_binders = clone_sym_list(sa.ref_binders)
+                narms.push(narm)
             }
             return new_stmt(self.span, StmtKind.Switch(ns, narms))
         }
@@ -122,10 +124,10 @@ pub fun Type.subst_type(names: &var List<String>, repls: &var List<TypeRef>): Ty
             if r.found { return r.ty }
             return unsafe { *self }
         }
-        Struct(n)  => return subst_named_type(n.as_string(), self, names, repls, true)
-        EnumTy(n)  => return subst_named_type(n.as_string(), self, names, repls, false)
+        Struct(n) => return subst_named_type(n.as_string(), self, names, repls, true)
+        EnumTy(n) => return subst_named_type(n.as_string(), self, names, repls, false)
         DynTraitTy(object) => {
-            val args = new_type_vec()
+            var args = new_type_vec()
             val source_args = unsafe { object.args }
             var i = 0
             while i < unsafe { source_args.size() } {
@@ -176,7 +178,7 @@ fun subst_named_type(n: String, orig: &Type, names: &var List<String>, repls: &v
     return Type { kind: TypeKind.EnumTy(intern(nn.as_str())), provenance: orig.provenance }
 }
 
-struct ReplLookup { pub val found: bool  pub val ty: Type }
+struct ReplLookup { pub val found: bool pub val ty: Type }
 
 fun lookup_repl_type(n: String, names: &var List<String>, repls: &var List<TypeRef>): ReplLookup {
     while i in 0..names.size() {

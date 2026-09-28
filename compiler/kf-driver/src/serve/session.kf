@@ -76,7 +76,7 @@ impl ServeSession {
             return error_line(id, "unsupported_protocol", message.as_str())
         }
         self.greeted = true
-        val writer = JsonWriter.object()
+        var writer = JsonWriter.object()
         writer.field_int64("protocol", serve_protocol())
         writer.field_string("compiler", kflat_version())
         return result_line(id, writer.finish().as_str())
@@ -120,15 +120,16 @@ impl ServeSession {
             val eq = row.index_of("=") ?: 0
             val name = row.substring(0, eq)
             val level = row.substring(eq + 1, row.byte_len())
-            cfg.apply_table_lint(name.as_str(), level.as_str(), &var config_diags)
+            cfg.apply_table_lint("lint configuration", name.as_str(), level.as_str(), &var config_diags)
         }
+        while row in &params.lint_options { cfg.apply_option_row(row.as_str(), &var config_diags) }
         val unit = CompileUnit {
             name: params.name.clone(), root: params.root.clone(), deps: List.new<String>(),
             dep_hashes: List.new<String>(), loads: params.loads.clone()
         }
         val checked = unit.check_crate(params.target_dir.as_str(), &self.buffers, &cfg)
         if checked.failure.byte_len() > 0 { return error_line(id, "check_failed", checked.failure.as_str()) }
-        val writer = JsonWriter.object()
+        var writer = JsonWriter.object()
         writer.field_int64("errors", (config_diags.size() + count_errors(&checked.diagnostics) as uint64) as int64)
         writer.key("diagnostics")
         writer.begin_array()

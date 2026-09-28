@@ -8,7 +8,6 @@ import kf_core.ast.*
 import kf_parse.lexer.tokenize
 import kf_parse.parser.new_parser
 
-
 /// In discovery order.
 pub fun collect_test_names(modules: List<Module>): List<String> {
     var out = List.new<String>()
@@ -186,7 +185,7 @@ fun join_parts(parts: List<String>): String {
 pub fun parse_test_main(src: str, smap: Ptr<SourceMap>): Module {
     val fid = unsafe { smap.add_file(new_source_file(String.from("<test-main>"), String.from(src))) }
     val toks = tokenize(src, fid)
-    val p = new_parser(toks)
+    var p = new_parser(toks)
     var path = List.new<String>()
     path.push(String.from("test_main"))
     return p.parse_module(path)

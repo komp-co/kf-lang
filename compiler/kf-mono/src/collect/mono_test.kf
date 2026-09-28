@@ -171,7 +171,6 @@ fun mk_wrap_decl(): TopDecl {
 
 @test fun mono_unannotated_let_does_not_deref_null_annotation(): void {
     val init = mep(ExprKind.LitInt(1))
-    val null_ty: Ptr<TypeRef> = unsafe { 0 as Ptr<TypeRef> }
     var body = List.new<Stmt>()
     body.push(new_stmt(no_span(), StmtKind.LetVal(intern("value"), null, init)))
     val main_td = new_top_decl(no_span(), String.from("main"), TopDeclKind.Function(List.new<Param>(), mtr_p("int32"), body, true, false, false, false))
@@ -192,7 +191,6 @@ fun mk_wrap_decl(): TopDecl {
     val slit_p: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *slit_p = slit }
     var body = List.new<Stmt>()
-    val null_ty: Ptr<TypeRef> = unsafe { 0 as Ptr<TypeRef> }
     body.push(new_stmt(no_span(), StmtKind.LetVal(intern("b"), null, slit_p)))
     val bv = mep(ExprKind.FieldAccess(mep(ExprKind.Variable(intern("b"))), intern("v")))
     body.push(new_stmt(no_span(), StmtKind.Return(ret_op(bv))))
@@ -271,7 +269,6 @@ fun mk_show_impl_mono(): TopDecl {
     val slit_p: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *slit_p = slit }
     var body = List.new<Stmt>()
-    val null_ty: Ptr<TypeRef> = unsafe { 0 as Ptr<TypeRef> }
     body.push(new_stmt(no_span(), StmtKind.LetVal(intern("b"), null, slit_p)))
     val bv = mep(ExprKind.FieldAccess(mep(ExprKind.Variable(intern("b"))), intern("v")))
     body.push(new_stmt(no_span(), StmtKind.Return(ret_op(bv))))
@@ -299,7 +296,6 @@ fun mk_show_impl_mono(): TopDecl {
     val call_p: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *call_p = call }
     var body = List.new<Stmt>()
-    val null_ty: Ptr<TypeRef> = unsafe { 0 as Ptr<TypeRef> }
     body.push(new_stmt(no_span(), StmtKind.LetVal(intern("b"), null, call_p)))
     val bv = mep(ExprKind.FieldAccess(mep(ExprKind.Variable(intern("b"))), intern("v")))
     body.push(new_stmt(no_span(), StmtKind.Return(ret_op(bv))))
@@ -480,18 +476,18 @@ pub fun ret_op(p: Ptr<Expr>): Box<Expr>? {
 
 @test fun retarget_rewrites_only_the_template_half(): void {
     assert_eq(retarget_callee_owner("Wrap_peek", "Wrap__int32").as_str(),
-              "Wrap__int32_peek", "a self-call names the instance the body sits in")
+        "Wrap__int32_peek", "a self-call names the instance the body sits in")
     assert_eq(retarget_callee_owner("Wrap_next__Iterator__int32", "Wrap__int32").as_str(),
-              "Wrap__int32_next__Iterator__int32", "the method tail keeps its trait identity")
+        "Wrap__int32_next__Iterator__int32", "the method tail keeps its trait identity")
 }
 
 @test fun retarget_leaves_a_foreign_or_settled_callee_alone(): void {
     assert_eq(retarget_callee_owner("String_clone", "Wrap__int32").as_str(),
-              "String_clone", "another receiver's callee is already correct")
+        "String_clone", "another receiver's callee is already correct")
     assert_eq(retarget_callee_owner("Wrap__int32_peek", "Wrap__int32").as_str(),
-              "Wrap__int32_peek", "an already-concrete callee is not rewritten twice")
+        "Wrap__int32_peek", "an already-concrete callee is not rewritten twice")
     assert_eq(retarget_callee_owner("", "Wrap__int32").as_str(),
-              "", "an unstamped callee is left for the receiver's type to name")
+        "", "an unstamped callee is left for the receiver's type to name")
     assert_eq(retarget_callee_owner("bare", "Wrap__int32").as_str(),
-              "bare", "a callee with no receiver half has nothing to retarget")
+        "bare", "a callee with no receiver half has nothing to retarget")
 }

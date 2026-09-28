@@ -3,10 +3,9 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-
 @test
 fun expected_identifier_name_survives_temporary_token_drop(): void {
-    val parser = parser_for("stable_name")
+    var parser = parser_for("stable_name")
     val name = parser.expect_name("test")
     var churn = List.new<String>()
     var i: uint64 = 0
@@ -19,7 +18,7 @@ fun expected_identifier_name_survives_temporary_token_drop(): void {
 
 @test
 fun annotation_name_survives_temporary_token_drop(): void {
-    val parser = parser_for("@stable_name\nfun run(): void { }")
+    var parser = parser_for("@stable_name\nfun run(): void { }")
     val declaration = parser.parse_top_decl()
     var churn = List.new<String>()
     var i: uint64 = 0
@@ -32,7 +31,7 @@ fun annotation_name_survives_temporary_token_drop(): void {
 
 @test
 fun a_run_of_annotations_is_kept_in_source_order(): void {
-    val parser = parser_for("@test\n@allow(unused_import)\nfun run(): void { }")
+    var parser = parser_for("@test\n@allow(unused_import)\nfun run(): void { }")
     val td = parser.parse_top_decl()
     assert_eq(td.annotations.size(), 2, "both are recorded, not just the first")
     assert_eq(td.annotations.at(0).as_str(), "test", "source order, so a reader can match what they wrote")
@@ -42,7 +41,7 @@ fun a_run_of_annotations_is_kept_in_source_order(): void {
 @test
 fun the_order_written_does_not_decide_which_survives(): void {
     // `@allow(...)` above `@test` must not unregister the test.
-    val parser = parser_for("@allow(unused_import)\n@test\nfun run(): void { }")
+    var parser = parser_for("@allow(unused_import)\n@test\nfun run(): void { }")
     val td = parser.parse_top_decl()
     assert_eq((&td).has_annotation("test"), true, "the test still registers")
     assert_eq((&td).has_annotation("allow"), true, "and the suppression is still there")
@@ -50,7 +49,7 @@ fun the_order_written_does_not_decide_which_survives(): void {
 
 @test
 fun an_annotation_with_arguments_answers_to_its_name(): void {
-    val parser = parser_for("@derive(Clone,Equal)\nstruct P { val a: int32 }")
+    var parser = parser_for("@derive(Clone,Equal)\nstruct P { val a: int32 }")
     val td = parser.parse_top_decl()
     assert_eq((&td).has_annotation("derive"), true, "`derive(...)` is a `derive`")
     assert_eq((&td).has_annotation("deriv"), false, "a prefix of the name is not the name")
@@ -59,7 +58,7 @@ fun an_annotation_with_arguments_answers_to_its_name(): void {
 
 @test
 fun a_decl_with_no_annotations_has_an_empty_list(): void {
-    val parser = parser_for("fun run(): void { }")
+    var parser = parser_for("fun run(): void { }")
     val td = parser.parse_top_decl()
     assert_eq(td.annotations.size(), 0, "not one empty string")
     assert_eq((&td).has_annotation("test"), false, "and nothing answers")
@@ -67,7 +66,7 @@ fun a_decl_with_no_annotations_has_an_empty_list(): void {
 
 @test
 fun a_string_literal_annotation_argument_is_kept(): void {
-    val parser = parser_for("@lang(\"string\")\nstruct Text { val a: int32 }")
+    var parser = parser_for("@lang(\"string\")\nstruct Text { val a: int32 }")
     val td = parser.parse_top_decl()
     assert_eq((&td).annotation_text("lang").as_str(), "lang(string)", "the literal's contents are the argument")
     assert_eq((&td).lang_key_of().as_str(), "string", "and read back as the lang key")

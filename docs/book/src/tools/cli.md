@@ -14,6 +14,7 @@ points, and then compiles and links the C with cc.
 | `komp build <dir>` | Compile to C, then compile and link with cc |
 | `komp run <dir>` | Build and run the resulting binary |
 | `komp check <dir>` | Type-check only; no binary produced |
+| `komp lint <dir>` | Check and report lints, with a tally; see [Linting](lint.md) |
 | `komp test <dir>` | Run `@test` functions in the crate |
 | `komp update <dir>` | Resolve fetched dependencies again and rewrite `kf.lock` |
 | `komp install [<name>[@<req>]]` | Build a program from a package index into `~/.kflat/bin`, or list what is installed |
@@ -168,14 +169,17 @@ $ komp metadata
   "members": ["/tmp/work/hello"],
   "crates": [
     {"name": "core", "version": "0.1.0", "kind": "lib", "root": "/home/user/komp/libs/core",
-     "source": "bundled", "member": false, "deps": [], "loads": [], "lints": []},
+     "source": "bundled", "member": false, "deps": [], "loads": [], "lints": [],
+     "lint_options": []},
     {"name": "alloc", "version": "0.1.0", "kind": "lib", "root": "/home/user/komp/libs/alloc",
-     "source": "bundled", "member": false, "deps": ["core"], "loads": ["core"], "lints": []},
+     "source": "bundled", "member": false, "deps": ["core"], "loads": ["core"], "lints": [],
+     "lint_options": []},
     {"name": "greet", "version": "0.3.0", "kind": "lib", "root": "/tmp/work/greet",
-     "source": "path", "member": false, "deps": ["core", "alloc"], "loads": ["core", "alloc"], "lints": []},
+     "source": "path", "member": false, "deps": ["core", "alloc"], "loads": ["core", "alloc"], "lints": [],
+     "lint_options": []},
     {"name": "hello", "version": "0.1.0", "kind": "bin", "root": "/tmp/work/hello",
      "source": "path", "member": true, "deps": ["greet"], "loads": ["core", "alloc", "greet"],
-     "lints": [{"name": "dead_code", "level": "allow"}]}
+     "lints": [{"name": "dead_code", "level": "allow"}], "lint_options": []}
   ]
 }
 ```
@@ -191,7 +195,8 @@ $ komp metadata
 | `deps` | The crate's direct dependencies by crate name; kflatc's `--dep` |
 | `loads` | Every crate `deps` reach, in order; kflatc's `--load` |
 | `source` | `bundled` (comes with komp), `fetched` (from the cache) or `path` |
-| `lints` | The crate's `[lint]` rows; kflatc's `--lint` |
+| `lints` | The crate's lint levels in the order they apply: its `lint.toml` rows, groups first, then its `[lint]` rows; kflatc's `--lint-toml` and `--lint` |
+| `lint_options` | The crate's `lint.toml` options as `{"name", "key", "value"}`, the value as `lint.toml` writes it; kflatc's `--lint-toml-option` |
 
 A graph that does not resolve prints `{"schema": 1, "error": "..."}` and exits 1.
 
@@ -269,10 +274,12 @@ direct dependency and the interface hash it was built against, and each
 `--load NAME` an interface to read, dependencies first, covering everything
 the direct ones reach. `--project DIR` names
 the project being built: warnings about files outside it are hidden. kflatc
-never reads `kf.toml`: komp passes each row of the `[lint]` table as
-`--lint NAME=LEVEL`, reported as the table's own row when it is wrong. `-q`,
-`--deny-warnings` and `-A/-W/-D <lint>` mean what they mean to komp, which
-passes its own along.
+never reads `kf.toml` or `lint.toml`: komp passes each row of
+[`lint.toml`](lint.md#linttoml) as `--lint-toml NAME=LEVEL`, groups first,
+each lint option as `--lint-toml-option NAME.KEY=VALUE`, anything wrong with the file's shape as `--lint-toml-error MESSAGE`, and each
+row of the `[lint]` table as `--lint NAME=LEVEL`; a wrong row is reported as a
+row of its file. `-q`, `--deny-warnings` and `-A/-W/-D <lint>` mean what they
+mean to komp, which passes its own along.
 
 With `--tests` in place of `--bin`, `kflatc compile` instead compiles the crate
 with its `_test.kf` files and a generated test main, and writes
@@ -280,8 +287,8 @@ with its `_test.kf` files and a generated test main, and writes
 the translation unit `komp test` compiles and links into the test binary.
 
 `kflatc check` takes the same arguments, plus `--json` for newline-delimited
-JSON diagnostics, and type-checks the crate with its `_test.kf` files, writing
-nothing. `komp check` first brings each dependency's interface up to date with
+JSON diagnostics or `--summary` for the tally `komp lint` prints, and
+type-checks the crate with its `_test.kf` files, writing nothing. `komp check` first brings each dependency's interface up to date with
 `kflatc compile`, marking it with a `.kfi.stamp` so the next check reuses it,
 then runs `kflatc check` on the root.
 
@@ -290,6 +297,9 @@ one C file, as `komp build --unity` needs: each `--crate` names a crate and its
 source root, dependencies first and the root last. `--bin` and `--tests` mean
 what they do to `compile`. The crates' own C sources are left out; komp
 appends them.
+
+`kflatc lints` prints every lint at the level the lint flags on its command
+line give it, as `komp lint --list` shows.
 
 `kflatc version` prints what komp needs to know about the compiler it runs, one
 `key value` line each after the first: its interface `abi`, `runtime` and

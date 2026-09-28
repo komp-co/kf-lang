@@ -9,7 +9,7 @@ import kf_core.ast.*
 }
 
 @test fun insert_returns_id_1_first(): void {
-    val t = new_decl_table()
+    var t = new_decl_table()
     val id = t.insert(String.from("foo"))
     assert_eq(id.raw, 1, "first insert returns id 1")
     assert_eq(t.next_id, 2, "next_id incremented")
@@ -17,7 +17,7 @@ import kf_core.ast.*
 }
 
 @test fun insert_assigns_monotonic_ids(): void {
-    val t = new_decl_table()
+    var t = new_decl_table()
     val a = t.insert(String.from("foo"))
     val b = t.insert(String.from("bar"))
     val c = t.insert(String.from("baz"))
@@ -34,7 +34,7 @@ import kf_core.ast.*
 }
 
 @test fun lookup_finds_inserted(): void {
-    val t = new_decl_table()
+    var t = new_decl_table()
     val expected = t.insert(String.from("add"))
     val found = t.lookup("add") ?: {
         assert(false, "lookup found nothing")
@@ -44,7 +44,7 @@ import kf_core.ast.*
 }
 
 @test fun lookup_finds_specific_match_among_many(): void {
-    val t = new_decl_table()
+    var t = new_decl_table()
     t.insert(String.from("a"))
     val target = t.insert(String.from("b"))
     t.insert(String.from("c"))
@@ -56,7 +56,7 @@ import kf_core.ast.*
 }
 
 @test fun lookup_distinguishes_similar_names(): void {
-    val t = new_decl_table()
+    var t = new_decl_table()
     t.insert(String.from("foo"))
     t.insert(String.from("foobar"))
     assert_eq(t.lookup("foo").is_some(), true, "foo found")

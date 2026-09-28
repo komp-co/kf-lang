@@ -5,7 +5,7 @@ import json.writer.*
 
 /// For an error with no source span.
 pub fun render_json_error(message: str): String {
-    val writer = JsonWriter.object()
+    var writer = JsonWriter.object()
     writer.field_uint32("schema_version", 3)
     writer.field_string("severity", "error")
     writer.field_null("code")

@@ -8,7 +8,7 @@ import std.process.*
 import kf_integration.harness.compile_source
 
 pub fun run(cmd: str, args: List<str>): int32 {
-    val command = Command.new(cmd)
+    var command = Command.new(cmd)
     while item in &args {
         command.arg(item)
     }

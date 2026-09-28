@@ -37,7 +37,7 @@ mutating fun JsonReader.load_generic(crate: CrateId, crate_name: str, path: str,
     fragment_path.append(path)
     val fid = unsafe { smap.add_file(new_source_file(fragment_path, src.clone())) }
     val tokens = tokenize(src.as_str(), fid)
-    val parser = new_parser(tokens)
+    var parser = new_parser(tokens)
     val fragment = parser.parse_module(List.new<String>())
     if parser.diags.size() > 0 || fragment.decls.size() != 1 { return poison_decl() }
     var td = fragment.decls.at(0).clone()
@@ -108,7 +108,7 @@ fun poison_decl(): TopDecl { return new_top_decl(no_span(), "", TopDeclKind.Pois
 
 fun parse_type_ptr(source: str): Ptr<TypeRef> {
     val tokens = tokenize(source, 0)
-    val parser = new_parser(tokens)
+    var parser = new_parser(tokens)
     val parsed = parser.parse_type_ref_ptr()
     return parsed
 }

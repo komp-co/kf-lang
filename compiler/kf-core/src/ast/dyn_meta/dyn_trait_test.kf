@@ -3,7 +3,7 @@ import core.assert.assert_eq
 import kf_core.span.no_span
 
 fun test_dynamic_sink(argument: Type): Type {
-    val args = new_type_vec()
+    var args = new_type_vec()
     args.push(argument)
     return dyn_trait_type(intern("sample::api::Sink"), args, no_span())
 }

@@ -14,6 +14,7 @@ import kf_typecheck.traits.try_dyn_coerce
 
 /// True when the node was transformed or coerced.
 pub mutating fun Expr.apply_expected(expected: Type, ctx: &var TypeCtx): bool {
+    if self.yield_ref_binder_value(&expected, ctx) { return true }
     if self.pin_at_first_use(expected.clone(), ctx) { return true }
     if self.retarget_list_literal(expected.clone(), ctx) { return true }
     val _typed_by_slot = self.pin_open_binding(expected.clone(), ctx)
@@ -69,6 +70,7 @@ pub mutating fun Expr.apply_expected(expected: Type, ctx: &var TypeCtx): bool {
     when (self.kind) {
         LitInt(value) => {
             if is_numeric(expected) {
+                note_literal_sized(self.span, ctx)
                 if positive_integer_literal_fits(value, expected) {
                     self.ty = expected
                     return true
@@ -88,6 +90,10 @@ pub mutating fun Expr.apply_expected(expected: Type, ctx: &var TypeCtx): bool {
     }
     val negative_magnitude = negative_integer_literal_magnitude(*self)
     if negative_magnitude >= 0 && is_numeric(expected) {
+        when (self.kind) {
+            Unary(_, inner) => note_literal_sized(inner.span, ctx)
+            _ => { }
+        }
         if negative_integer_literal_fits(negative_magnitude, expected) {
             when (self.kind) {
                 Unary(_, inner) => unsafe { inner.ty = expected.clone() }

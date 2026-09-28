@@ -9,13 +9,17 @@ import kf_shared.ensure_dir
 import kf_shared.render_json_error
 import std.fs.exists
 
-
-
 /// Returns 0 when the project checks clean. `as_json` prints diagnostics as
 /// newline-delimited JSON.
 pub fun check_project_with_kflatc(root_dir: str, as_json: bool): int32 {
     val root = prepare_check(root_dir, as_json) ?: return 1
     return root.invoke_kflatc_check(root_dir, target_dir(root_dir).as_str(), as_json)
+}
+
+/// As `check_project_with_kflatc`, kflatc tallying the lints it found.
+pub fun lint_project_with_kflatc(root_dir: str, as_json: bool): int32 {
+    val root = prepare_check(root_dir, as_json) ?: return 1
+    return root.invoke_kflatc_lint(root_dir, target_dir(root_dir).as_str(), as_json)
 }
 
 /// The root crate, once every dependency's interface is current, or None

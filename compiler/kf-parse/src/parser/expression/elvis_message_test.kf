@@ -7,7 +7,7 @@ import alloc.list.*
 import kf_parse.parser.parser_for
 
 fun elvis_msg(src: str): String {
-    val p = parser_for(src)
+    var p = parser_for(src)
     val _m = p.parse_module(List.new<String>())
     if p.diags.size() == 0 { return String.from("") }
     return p.diags.at(0).primary.message.clone()

@@ -1,7 +1,8 @@
 //! run: exit 0
 //! deps: core, alloc
 // `== null` and `!= null` test the tag, so the payload needs no `Equal`: a
-// borrowed optional, a field, a call result and a generic `T?` all compare.
+// borrowed optional, a field, a call result and a generic `T?` all compare,
+// with `null` on either side.
 
 struct Message {
     val id: String?
@@ -26,6 +27,8 @@ fun main(): int32 {
     val m = Message { id: null }
     if m.id != null { return 6 }
     if !absent(parse("")) { return 7 }
+    if null == found { return 10 }
+    if null != parse("") { return 11 }
     val n: int32? = 4
     if n == null { return 8 }
     if n != 4 { return 9 }

@@ -249,7 +249,7 @@ library:
 | `Drop` | `drop(): void` | Destructor — runs when value goes out of scope |
 | `Equal` | `equals(other: Self): bool` | Equality (`==`, `!=`) |
 | `Compare` | `compare(other: Self): int32` | Ordering (`<`, `>`, `<=`, `>=`) |
-| `Display` | `display(): String` | Conversion to string (`println`, interpolation) |
+| `Display` | `display(out: &var dyn Write): void` | Rendering (`println`, interpolation, `v.display(): String`) |
 | `From<T>` | `static from(value: T): Self` | Explicit value conversion |
 | `Default` | `default(): Self` | Default value |
 | `Add` / `Sub` / `Mul` / `Div` / `Mod` | `add(...)`, etc. | Arithmetic operators |
@@ -257,4 +257,6 @@ library:
 | `CallMut0` through `CallMut3` | `mutating call(...)` | Callable values with mutable or owned captures |
 
 Implementing any of these gives your type the corresponding operator or
-standard-library integration.
+standard-library integration. An impl with bounds, such as
+`impl Equal for Wrap<T: Equal>`, gives the operator only where they hold, as
+it gives the method: `==` on a `Wrap<T>` whose `T` has no `Equal` is an error.

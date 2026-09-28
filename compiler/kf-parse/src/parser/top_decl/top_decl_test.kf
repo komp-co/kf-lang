@@ -6,7 +6,7 @@ import kf_core.ast.*
 import kf_parse.parser.*
 
 @test fun parse_generic_struct_records_type_params(): void {
-    val p = parser_for("struct Pair<A, B> { val a: A val b: B }")
+    var p = parser_for("struct Pair<A, B> { val a: A val b: B }")
     val td = p.parse_top_decl()
     assert_eq(td.name.as_str(), "Pair", "struct name")
     assert_eq(td.generics.size(), 2, "two type params")
@@ -17,7 +17,7 @@ import kf_parse.parser.*
 }
 
 @test fun parse_generic_fn_records_type_params(): void {
-    val p = parser_for("fun id<T>(x: T): T { return x }")
+    var p = parser_for("fun id<T>(x: T): T { return x }")
     val td = p.parse_top_decl()
     assert_eq(td.name.as_str(), "id", "fn name")
     assert_eq(td.generics.size(), 1, "one type param")
@@ -26,37 +26,37 @@ import kf_parse.parser.*
 }
 
 @test fun parse_non_generic_struct_has_no_type_params(): void {
-    val p = parser_for("struct Foo { val a: int32 }")
+    var p = parser_for("struct Foo { val a: int32 }")
     val td = p.parse_top_decl()
     assert_eq(td.generics.size(), 0, "no <> → empty generics")
 }
 
 @test fun parse_use_site_generic_call_records_type_args(): void {
-    val p = parser_for("id<int32>(5)")
+    var p = parser_for("id<int32>(5)")
     val e = p.parse_expr()
     assert_eq(e.type_args.size(), 1, "id<int32> → one type arg")
 }
 
 @test fun parse_use_site_generic_struct_lit_records_type_args(): void {
-    val p = parser_for("Pair<int32, int32> { a: 1, b: 2 }")
+    var p = parser_for("Pair<int32, int32> { a: 1, b: 2 }")
     val e = p.parse_expr()
     assert_eq(e.type_args.size(), 2, "Pair<int32,int32> → two type args")
 }
 
 @test fun parse_projection_type_arg_is_a_type_arg_list(): void {
-    val p = parser_for("List.new<F.Out>()")
+    var p = parser_for("List.new<F.Out>()")
     val e = p.parse_expr()
     assert_eq(e.type_args.size(), 1, "List.new<F.Out> → one type arg, not a comparison")
 }
 
 @test fun parse_comparison_not_treated_as_generic(): void {
-    val p = parser_for("a < b")
+    var p = parser_for("a < b")
     val e = p.parse_expr()
     assert_eq(e.type_args.size(), 0, "a < b → comparison, no type args")
 }
 
 @test fun parse_break_stmt(): void {
-    val p = parser_for("break")
+    var p = parser_for("break")
     val s = p.parse_stmt()
     var is_break: bool = false
     when (s.kind) {
@@ -67,7 +67,7 @@ import kf_parse.parser.*
 }
 
 @test fun parse_continue_stmt(): void {
-    val p = parser_for("continue")
+    var p = parser_for("continue")
     val s = p.parse_stmt()
     var is_cont: bool = false
     when (s.kind) {
@@ -79,7 +79,7 @@ import kf_parse.parser.*
 
 // `..` is an ordinary binary operator, valid anywhere an expression is.
 @test fun parse_range_expression(): void {
-    val p = parser_for("0..3")
+    var p = parser_for("0..3")
     val e = p.parse_expr()
     var is_range_call: bool = false
     var argc: uint64 = 0
@@ -95,7 +95,7 @@ import kf_parse.parser.*
 }
 
 @test fun a_range_endpoint_takes_a_whole_expression(): void {
-    val p = parser_for("1 + 1..2 * 3")
+    var p = parser_for("1 + 1..2 * 3")
     val e = p.parse_expr()
     when (e.kind) {
         Call(n, args) => {
@@ -110,7 +110,7 @@ import kf_parse.parser.*
 }
 
 @test fun parse_if_as_expression(): void {
-    val p = parser_for("if c { 1 } else { 2 }")
+    var p = parser_for("if c { 1 } else { 2 }")
     val e = p.parse_expr()
     var is_ifexpr: bool = false
     when (e.kind) {
@@ -122,7 +122,7 @@ import kf_parse.parser.*
 
 @test fun parse_if_else_if_chain_nests(): void {
     // `else if` nests as another IfExpr.
-    val p = parser_for("if a { 1 } else if b { 2 } else { 3 }")
+    var p = parser_for("if a { 1 } else if b { 2 } else { 3 }")
     val e = p.parse_expr()
     var ok: bool = false
     when (e.kind) {
@@ -140,81 +140,81 @@ import kf_parse.parser.*
 
 // Two block-body `when` arms once hung the parser.
 @test fun parse_when_with_block_body_arms(): void {
-    val p = parser_for("fun f(): int32 { when (1) { 1 => { return 10 } 2 => { return 20 } } return 0 }")
+    var p = parser_for("fun f(): int32 { when (1) { 1 => { return 10 } 2 => { return 20 } } return 0 }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
 }
 
 @test fun parse_method_call(): void {
-    val p = parser_for("fun f(): int32 { val x = a.b(c) return x }")
+    var p = parser_for("fun f(): int32 { val x = a.b(c) return x }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
 }
 
 // A method call as a `when` subject once hung the parser.
 @test fun parse_when_method_call_subject(): void {
-    val p = parser_for("fun f(): int32 { when (a.b(c)) { 1 => { return 1 } 2 => { return 2 } } return 0 }")
+    var p = parser_for("fun f(): int32 { when (a.b(c)) { 1 => { return 1 } 2 => { return 2 } } return 0 }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
 }
 
 @test fun parse_reference_argument(): void {
-    val p = parser_for("fun f(): void { g(&var out, x) }")
+    var p = parser_for("fun f(): void { g(&var out, x) }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
 }
 
 @test fun parse_import_simple_dotted(): void {
-    val p = parser_for("import std.io")
+    var p = parser_for("import std.io")
     val imp = p.parse_import()
     assert_eq(imp.path.size(), 2, "two segments")
     assert_eq(imp.wildcard, false, "no wildcard")
 }
 
 @test fun parse_import_wildcard(): void {
-    val p = parser_for("import std.io.*")
+    var p = parser_for("import std.io.*")
     val imp = p.parse_import()
     assert_eq(imp.path.size(), 2, "two segments before .*")
     assert_eq(imp.wildcard, true, "wildcard flag set")
 }
 
 @test fun parse_import_single_segment(): void {
-    val p = parser_for("import std")
+    var p = parser_for("import std")
     val imp = p.parse_import()
     assert_eq(imp.path.size(), 1, "one segment")
     assert_eq(imp.wildcard, false, "no wildcard")
 }
 
 @test fun parse_import_three_segments(): void {
-    val p = parser_for("import kf_core.ast.expression")
+    var p = parser_for("import kf_core.ast.expression")
     val imp = p.parse_import()
     assert_eq(imp.path.size(), 3, "three segments")
     assert_eq(imp.wildcard, false, "no wildcard")
 }
 
 @test fun parse_module_empty_input(): void {
-    val p = parser_for("")
+    var p = parser_for("")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.imports.size(), 0, "no imports")
     assert_eq(m.decls.size(), 0, "no decls")
 }
 
 @test fun parse_module_only_imports(): void {
-    val p = parser_for("import std.io.*\nimport core.option.*")
+    var p = parser_for("import std.io.*\nimport core.option.*")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.imports.size(), 2, "two imports")
     assert_eq(m.decls.size(), 0, "no decls")
 }
 
 @test fun parse_module_imports_then_fun(): void {
-    val p = parser_for("import std.io.*\nfun f(): int32 { return 1 }")
+    var p = parser_for("import std.io.*\nfun f(): int32 { return 1 }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.imports.size(), 1, "one import")
     assert_eq(m.decls.size(), 1, "one decl")
 }
 
 @test fun parse_module_multiple_funs(): void {
-    val p = parser_for("fun a(): int32 { return 1 } fun b(): int32 { return 2 } fun c(): int32 { return 3 }")
+    var p = parser_for("fun a(): int32 { return 1 } fun b(): int32 { return 2 } fun c(): int32 { return 3 }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.imports.size(), 0, "no imports")
     assert_eq(m.decls.size(), 3, "three decls")
@@ -222,7 +222,7 @@ import kf_parse.parser.*
 
 // `import` once hung parse_module.
 @test fun parse_module_import_does_not_hang(): void {
-    val p = parser_for("import x.y")
+    var p = parser_for("import x.y")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.imports.size(), 1, "import recognized as Import keyword")
     assert_eq(m.decls.size(), 0, "no decls — import not misrouted to parse_top_decl")
@@ -240,34 +240,34 @@ fun is_struct_kind(td: TopDecl): bool {
 }
 
 @test fun parse_module_struct_empty_body(): void {
-    val p = parser_for("struct Empty {}")
+    var p = parser_for("struct Empty {}")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
     assert_eq(is_struct_kind(first_decl(m)), true, "kind is Struct")
 }
 
 @test fun parse_module_struct_one_field(): void {
-    val p = parser_for("struct Point { val x: int32 }")
+    var p = parser_for("struct Point { val x: int32 }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
     assert_eq(is_struct_kind(first_decl(m)), true, "kind is Struct")
 }
 
 @test fun parse_module_struct_multiple_fields(): void {
-    val p = parser_for("struct Point { val x: int32 val y: int32 val z: int32 }")
+    var p = parser_for("struct Point { val x: int32 val y: int32 val z: int32 }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
 }
 
 @test fun parse_module_pub_struct(): void {
-    val p = parser_for("pub struct Span { val file_id: uint32 val start: uint32 val end: uint32 }")
+    var p = parser_for("pub struct Span { val file_id: uint32 val start: uint32 val end: uint32 }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
     assert_eq(is_struct_kind(first_decl(m)), true, "kind is Struct")
 }
 
 @test fun parse_module_struct_then_fun(): void {
-    val p = parser_for("struct Point { val x: int32 } fun len(): int32 { return 1 }")
+    var p = parser_for("struct Point { val x: int32 } fun len(): int32 { return 1 }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 2, "two decls")
 }
@@ -280,28 +280,28 @@ fun is_enum_kind(td: TopDecl): bool {
 }
 
 @test fun parse_module_enum_simple_variants(): void {
-    val p = parser_for("enum Color { Red, Green, Blue }")
+    var p = parser_for("enum Color { Red, Green, Blue }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
     assert_eq(is_enum_kind(first_decl(m)), true, "kind is EnumDecl")
 }
 
 @test fun parse_module_enum_with_payload(): void {
-    val p = parser_for("enum Tok { Ident(int32), Eof }")
+    var p = parser_for("enum Tok { Ident(int32), Eof }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
     assert_eq(is_enum_kind(first_decl(m)), true, "kind is EnumDecl")
 }
 
 @test fun parse_module_pub_enum(): void {
-    val p = parser_for("pub enum Severity { Error, Warning, Note }")
+    var p = parser_for("pub enum Severity { Error, Warning, Note }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
     assert_eq(is_enum_kind(first_decl(m)), true, "kind is EnumDecl")
 }
 
 @test fun parse_module_mixed_struct_enum_fun(): void {
-    val p = parser_for("struct A { val x: int32 } enum B { Foo } fun c(): int32 { return 0 }")
+    var p = parser_for("struct A { val x: int32 } enum B { Foo } fun c(): int32 { return 0 }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 3, "three decls")
 }
@@ -320,24 +320,23 @@ fun impl_method_count(td: TopDecl): uint64 {
     }
 }
 
-
 @test fun parse_fun_records_source_extent(): void {
     val src = "fun id<T>(x: T): T { return x }"
-    val p = parser_for(src)
+    var p = parser_for(src)
     val td = p.parse_top_decl()
     assert_eq(td.decl_end, 31 as uint32, "decl_end lands just past the closing brace")
 }
 
 @test fun parse_pub_struct_extent_starts_at_pub(): void {
     val src = "pub struct Pair<A> { val a: A }"
-    val p = parser_for(src)
+    var p = parser_for(src)
     val td = p.parse_top_decl()
     assert_eq(td.span.start, 0 as uint32, "span starts at `pub`")
 }
 
 @test fun parse_second_decl_extent_is_its_own(): void {
     val src = "fun a(): void { }\nfun b(): void { }"
-    val p = parser_for(src)
+    var p = parser_for(src)
     val _first = p.parse_top_decl()
     p.skip_newlines()
     val second = p.parse_top_decl()
@@ -346,27 +345,27 @@ fun impl_method_count(td: TopDecl): uint64 {
 
 @test fun parse_annotated_decl_extent_covers_the_decl(): void {
     val src = "@test\nfun t(): void { }"
-    val p = parser_for(src)
+    var p = parser_for(src)
     val td = p.parse_top_decl()
     assert_eq(td.decl_end, 23 as uint32, "annotation body ends at the decl's brace")
 }
 
 @test fun a_decl_diagnostic_points_at_the_name_not_the_keyword(): void {
     // `td.span` opens at `pub`; the diagnostic points at `take`.
-    val p = parser_for("pub fun take(): void { }")
+    var p = parser_for("pub fun take(): void { }")
     val td = p.parse_top_decl()
     assert_eq(td.span.start, 0 as uint32, "the decl still starts at `pub`")
     assert_eq(td.decl_name_span().start, 8 as uint32, "but a diagnostic about it points at `take`")
 }
 
 @test fun an_impl_diagnostic_points_at_the_target_type(): void {
-    val p = parser_for("impl Pair { fun a(): void { } }")
+    var p = parser_for("impl Pair { fun a(): void { } }")
     val td = p.parse_top_decl()
     assert_eq(td.decl_name_span().start, 5 as uint32, "past `impl `")
 }
 
 @test fun a_trait_impl_points_at_what_it_implements_for(): void {
-    val p = parser_for("impl Clone for Pair { fun a(): void { } }")
+    var p = parser_for("impl Clone for Pair { fun a(): void { } }")
     val td = p.parse_top_decl()
     assert_eq(td.decl_name_span().start, 15 as uint32, "past `impl Clone for `")
 }

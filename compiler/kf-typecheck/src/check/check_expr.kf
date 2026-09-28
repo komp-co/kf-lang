@@ -20,8 +20,9 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
     if e.coerce == coerce_written_amp() { e.coerce = coerce_none() }
     if e.coerce == coerce_written_amp_var() { e.coerce = coerce_none() }
     when (e.kind) {
-        LitInt(_) => {
+        LitInt(value) => {
             e.ty = int32_ty(e.span)
+            if value > 2147483647 { note_wide_literal_seen(e.span, ctx) }
         }
         LitStr(_) => {
             e.ty = str_ty(e.span)
@@ -38,8 +39,8 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
         Binary(lhs_ptr, op, rhs_ptr) => {
             check_expr(unsafe { &var *lhs_ptr }, ctx)
             check_expr(unsafe { &var *rhs_ptr }, ctx)
-    // Before literal coercion, which would give `7` in `n == 7` the borrow's
-    // type.
+            // Before literal coercion, which would give `7` in `n == 7` the borrow's
+            // type.
             deref_borrowed_operands(lhs_ptr, rhs_ptr, ctx)
             val checked_lhs = unsafe { *lhs_ptr }
             val checked_rhs = unsafe { *rhs_ptr }
@@ -49,6 +50,13 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
                 e.kind = ExprKind.MethodCall(lhs_ptr, intern(tag_test), List.new<Expr>())
                 var no_args = List.new<Expr>()
                 e.ty = check_method_call(checked_lhs.ty, String.from(tag_test), &var no_args, e.span, ctx, e)
+                return
+            }
+            if tag_test != "" && is_null_var(&checked_lhs) && checked_rhs.ty.type_is_option(ctx) {
+                note_null_typed(checked_lhs.span, ctx)
+                e.kind = ExprKind.MethodCall(rhs_ptr, intern(tag_test), List.new<Expr>())
+                var no_args = List.new<Expr>()
+                e.ty = check_method_call(checked_rhs.ty, String.from(tag_test), &var no_args, e.span, ctx, e)
                 return
             }
             if op.binary_uses_same_type_rhs() && !op.is_pointer_offset(checked_lhs.ty, checked_rhs.ty) {
@@ -63,6 +71,8 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
         Unary(op, inner_ptr) => {
             check_expr(unsafe { &var *inner_ptr }, ctx)
             val inner = unsafe { *inner_ptr }
+            // `-2147483648` fits `int32` though its magnitude does not.
+            if negative_integer_literal_magnitude(*e) == 2147483648 { note_literal_sized(inner.span, ctx) }
             e.ty = check_unary(op, inner, e.span, ctx)
         }
         Deref(inner_ptr) => {
@@ -123,7 +133,7 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
             val subj = unsafe { *subj_ptr }
             // Arms are checked as for the statement form; only the value is
             // extra.
-            check_when_arms(subj.ty, &var arms, e.span, ctx)
+            check_when_arms(&subj, &var arms, e.span, ctx)
             // Decided before the arms are reconciled: it settles the type the
             // absent arm's `null` is expected against.
             wrap_safe_call_value(subj.ty, &var arms, e.span, ctx)
@@ -146,7 +156,10 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
             check_expr(unsafe { &var *inner_ptr }, ctx)
             val tr = unsafe { *ty_ptr }
             e.ty = tr.resolve_type_ref(ctx)
-            reject_enum_to_number_cast(unsafe { (*inner_ptr).ty }, e.ty.clone(), e.span, ctx)
+            val operand = unsafe { &*inner_ptr }
+            // The cast converts a literal of any width.
+            if is_integer_literal(operand) { note_literal_sized(operand.span, ctx) }
+            reject_enum_to_number_cast(operand.ty.clone(), e.ty.clone(), e.span, ctx)
         }
         DynCoerce(inner_ptr, _) => {
             check_expr(unsafe { &var *inner_ptr }, ctx)
@@ -347,7 +360,6 @@ fun operator_type_implements(ty: Type, trait_name: str, ctx: &var TypeCtx): bool
     return unsafe { (*ctx.sigs).type_implements(base.as_str(), trait_name, "") }
 }
 
-
 fun comparison_op(lhs: &Expr, rhs: &Expr, span: Span, ctx: &var TypeCtx): Type {
     val equal = ctx.lang_trait_name(lang_equal_key()).as_str()
     if !lhs.ty.type_eq(rhs.ty) {
@@ -409,7 +421,6 @@ fun relational_op(lhs: &Expr, rhs: &Expr, span: Span, ctx: &var TypeCtx): Type {
     return bool_ty(span)
 }
 
-
 fun logical_op(lhs: &Expr, rhs: &Expr, span: Span, ctx: &var TypeCtx): Type {
     val bool_ty_val = bool_ty(no_span())
     val is_bool_l = lhs.ty.type_eq(bool_ty_val)
@@ -424,8 +435,8 @@ fun logical_op(lhs: &Expr, rhs: &Expr, span: Span, ctx: &var TypeCtx): Type {
 /// against the pointee, repeatedly.
 pub fun autoderef_ty(t: Type): Type {
     return when (t.kind) {
-        PtrTo(p)    => autoderef_ty(unsafe { *p })
-        BoxOf(p)    => autoderef_ty(unsafe { *p })
+        PtrTo(p) => autoderef_ty(unsafe { *p })
+        BoxOf(p) => autoderef_ty(unsafe { *p })
         RefTo(_, p) => autoderef_ty(unsafe { *p })
         _ => t
     }

@@ -145,7 +145,7 @@ mutating fun JsonReader.load_dyn_symbols(): DynSymbolLoad {
 
 pub fun parse_dyn_metadata_type(source: str): Type {
     val tokens = tokenize(source, 0)
-    val parser = new_parser(tokens)
+    var parser = new_parser(tokens)
     val parsed = parser.parse_type_ref_ptr()
     if parser.diags.size() > 0 { return poison_ty() }
     return dyn_type_from_ref(unsafe { *parsed })
@@ -155,7 +155,7 @@ fun dyn_type_from_ref(reference: TypeRef): Type {
     when (reference.kind) {
         Named(name, args) => return name.dyn_named_type(&args)
         DynTrait(principal, args) => {
-            val resolved = new_type_vec()
+            var resolved = new_type_vec()
             while arg in &args {
                 val argument = dyn_type_from_ref(arg)
                 if argument.is_poison() { return poison_ty() }

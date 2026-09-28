@@ -15,11 +15,13 @@ import kf_driver.testing.*
 import kf_codegen.emit.glue.deep_clone_module
 import kf_shared.crate_interface_path
 import kf_shared.render_json_error
+import kf_lint.lint_module
+import kf_lint.lint_typed_module
 
 /// kflatc's `check`: the crate, its tests included, type-checked against its
 /// dependencies' interfaces in `tdir`. Nothing is written. Returns the number
 /// of errors.
-pub fun CompileUnit.check_against_interfaces(tdir: str, as_json: bool): int32 {
+pub fun CompileUnit.check_against_interfaces(tdir: str, as_json: bool, summary: bool): int32 {
     var cfg_diags = List.new<Diagnostic>()
     val cfg = project_lint_config(&var cfg_diags)
     val checked = self.check_crate(tdir, &no_overlay(), &cfg)
@@ -31,6 +33,11 @@ pub fun CompileUnit.check_against_interfaces(tdir: str, as_json: bool): int32 {
     val cfg_errors = report_config_diags(&cfg_diags, checked.smap, as_json)
     while d in &checked.diagnostics {
         if as_json { d.print_json_diag(checked.smap) } else { d.print_diag(checked.smap) }
+    }
+    if summary && !as_json {
+        var found = cfg_diags.clone()
+        while d in &checked.diagnostics { found.push(d.clone()) }
+        print_lint_summary(&found)
     }
     return cfg_errors + count_errors(&checked.diagnostics)
 }
@@ -67,7 +74,13 @@ pub fun CompileUnit.check_crate(tdir: str, overlay: &Overlay, cfg: &LintConfig):
     var merged = merge_module_list(modules)
     // The checked crate, or every "is this file mine?" lint returns nothing.
     merged.crate = new_crate_id(self.name.as_str())
-    val diagnostics = merged.checked_diagnostics(smap, cfg)
+    val source_lints = apply_lint_levels(lint_module(&merged, &*smap, &cfg.options), &merged, cfg)
+    var diagnostics = merged.checked_diagnostics(smap, cfg)
+    while d in &source_lints { diagnostics.push(d.clone()) }
+    if count_errors(&diagnostics) == 0 {
+        val typed_lints = apply_lint_levels(lint_typed_module(&merged), &merged, cfg)
+        while d in &typed_lints { diagnostics.push(d.clone()) }
+    }
     return CrateCheck { failure: "", diagnostics: diagnostics, smap: smap }
 }
 
@@ -86,7 +99,7 @@ pub struct CrateCompileResult {
 /// The loaded interfaces stand in for the dependencies; the crate's own
 /// `.kfi` is emitted between TypeCheck and Mono, as on the source path.
 pub fun CompileUnit.compile_crate_against_interfaces(artifacts: str, is_bin_root: bool,
-                                                     errp: Ptr<ErrCount>): CrateCompileResult {
+    errp: Ptr<ErrCount>): CrateCompileResult {
     return self.compile_crate_mode(artifacts, is_bin_root, false, errp)
 }
 
@@ -97,7 +110,7 @@ pub fun CompileUnit.compile_test_crate_against_interfaces(artifacts: str, errp: 
 }
 
 fun CompileUnit.compile_crate_mode(artifacts: str, is_bin_root: bool, include_tests: bool,
-                                   errp: Ptr<ErrCount>): CrateCompileResult {
+    errp: Ptr<ErrCount>): CrateCompileResult {
     val smap = fresh_source_map()
     val diagnostics = fresh_diag_list()
     var modules = List.new<Module>()

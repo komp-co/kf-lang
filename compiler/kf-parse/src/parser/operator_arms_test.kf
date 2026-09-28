@@ -3,7 +3,6 @@
 
 import core.assert.*
 
-
 @test fun op_to_binop_at_is_not_a_binary_operator(): void {
     assert_eq(op_to_binop(Operator.At).is_none(), true, "`@` is an annotation marker, never infix")
 }
@@ -23,19 +22,19 @@ import core.assert.*
 // A whole body, since the bad Expr once survived every pass to crash codegen.
 
 @test fun at_in_expression_position_is_a_parse_error(): void {
-    val p = parser_for("fun f(): int32 { val b = 1 @ 2\nreturn b }")
+    var p = parser_for("fun f(): int32 { val b = 1 @ 2\nreturn b }")
     val _td = p.parse_top_decl()
     assert_eq(p.diags.size() > 0, true, "`@` in expression position reports a diagnostic")
 }
 
 @test fun elvis_in_primary_position_is_a_parse_error(): void {
-    val p = parser_for("fun f(): int32 { val b = ?: 1\nreturn b }")
+    var p = parser_for("fun f(): int32 { val b = ?: 1\nreturn b }")
     val _td = p.parse_top_decl()
     assert_eq(p.diags.size() > 0, true, "`?:` cannot open an expression")
 }
 
 @test fun valid_elvis_binding_still_parses_clean(): void {
-    val p = parser_for("fun f(o: int32?): int32 { val v = o ?: return 0\nreturn v }")
+    var p = parser_for("fun f(o: int32?): int32 { val v = o ?: return 0\nreturn v }")
     val _td = p.parse_top_decl()
     assert_eq(p.diags.size(), 0, "the diverging form is unaffected")
 }
@@ -44,51 +43,51 @@ import core.assert.*
 // with parse_let.
 
 @test fun elvis_defaulting_binding_parses_clean(): void {
-    val p = parser_for("fun f(o: int32?): int32 { val v = o ?: 0\nreturn v }")
+    var p = parser_for("fun f(o: int32?): int32 { val v = o ?: 0\nreturn v }")
     val _td = p.parse_top_decl()
     assert_eq(p.diags.size(), 0, "a value right-hand side no longer has to diverge")
 }
 
 @test fun elvis_bailing_binds_with_var(): void {
-    val p = parser_for("fun f(o: int32?): int32 { var v = o ?: return 0\nv = v + 1\nreturn v }")
+    var p = parser_for("fun f(o: int32?): int32 { var v = o ?: return 0\nv = v + 1\nreturn v }")
     val _td = p.parse_top_decl()
     assert_eq(p.diags.size(), 0, "the bailing form rebinds through a temp, so `var` is a real local")
 }
 
 @test fun elvis_defaulting_binds_with_var(): void {
-    val p = parser_for("fun f(o: int32?): int32 { var v = o ?: 0\nreturn v }")
+    var p = parser_for("fun f(o: int32?): int32 { var v = o ?: 0\nreturn v }")
     val _td = p.parse_top_decl()
     assert_eq(p.diags.size(), 0, "the defaulting binding is an ordinary local, so `var` is fine")
 }
 
 @test fun elvis_defaulting_works_in_argument_position(): void {
-    val p = parser_for("fun g(n: int32): int32 { return n }\nfun f(o: int32?): int32 { return g(o ?: 0) }")
+    var p = parser_for("fun g(n: int32): int32 { return n }\nfun f(o: int32?): int32 { return g(o ?: 0) }")
     val _td = p.parse_top_decl()
     assert_eq(p.diags.size(), 0, "an expression-level `?:` reaches a call argument")
 }
 
 @test fun elvis_defaulting_works_inside_parens(): void {
-    val p = parser_for("fun f(o: int32?): int32 { return (o ?: 0) + 1 }")
+    var p = parser_for("fun f(o: int32?): int32 { return (o ?: 0) + 1 }")
     val _td = p.parse_top_decl()
     assert_eq(p.diags.size(), 0, "`(a ?: 0) + 1` no longer stops at the `?:`")
 }
 
 @test fun elvis_defaulting_chains_to_the_right(): void {
-    val p = parser_for("fun f(a: int32?, b: int32?): int32 { return a ?: b ?: 0 }")
+    var p = parser_for("fun f(a: int32?, b: int32?): int32 { return a ?: b ?: 0 }")
     val _td = p.parse_top_decl()
     assert_eq(p.diags.size(), 0, "`a ?: b ?: 0` is `a ?: (b ?: 0)`")
 }
 
 @test fun elvis_binds_looser_than_arithmetic(): void {
     // `a ?: b + 1` defaults to the whole sum.
-    val p = parser_for("fun f(o: int32?): int32 { val v = o ?: 2 + 3\nreturn v }")
+    var p = parser_for("fun f(o: int32?): int32 { val v = o ?: 2 + 3\nreturn v }")
     val _td = p.parse_top_decl()
     assert_eq(p.diags.size(), 0, "the right-hand side takes the whole expression")
 }
 
 @test fun elvis_before_a_brace_stays_with_the_bail(): void {
     // A braced right-hand side is still a bail, not a block value.
-    val p = parser_for("fun f(o: int32?): int32 { val v = o ?: { return 0 }\nreturn v }")
+    var p = parser_for("fun f(o: int32?): int32 { val v = o ?: { return 0 }\nreturn v }")
     val _td = p.parse_top_decl()
     assert_eq(p.diags.size(), 0, "a braced diverging bail is unchanged")
 }
@@ -102,14 +101,14 @@ import core.assert.*
 }
 
 @test fun bangbang_in_primary_position_is_a_parse_error(): void {
-    val p = parser_for("fun f(): int32 { val b = !! 1\nreturn b }")
+    var p = parser_for("fun f(): int32 { val b = !! 1\nreturn b }")
     val _td = p.parse_top_decl()
     assert_eq(p.diags.size() > 0, true, "`!!` needs a value on its left")
 }
 
 // `a!!=b` is `a!! = b`, written without spaces on purpose.
 @test fun force_unwrap_before_an_assignment_is_two_tokens(): void {
-    val l = new_lexer("!!=", 0)
+    var l = new_lexer("!!=", 0)
     when (l.read_operator()) {
         Some(first) => {
             assert_eq(op_str(first), "!!", "`!!=` opens with the force-unwrap")
@@ -123,7 +122,7 @@ import core.assert.*
 }
 
 @test fun not_equals_still_lexes_as_itself(): void {
-    val l = new_lexer("!=", 0)
+    var l = new_lexer("!=", 0)
     when (l.read_operator()) {
         Some(o) => assert_eq(op_str(o), "!=", "`!=` is unaffected by the `!!` arm above it")
         None => fail("`!=` did not lex")
@@ -131,7 +130,7 @@ import core.assert.*
 }
 
 @test fun force_unwrap_parses_as_a_postfix_unwrap(): void {
-    val p = parser_for("fun f(o: int32?): int32 { return o!! }")
+    var p = parser_for("fun f(o: int32?): int32 { return o!! }")
     val _td = p.parse_top_decl()
     assert_eq(p.diags.size(), 0, "`o!!` parses clean")
 }
@@ -145,14 +144,14 @@ import core.assert.*
 }
 
 @test fun safe_call_in_primary_position_is_a_parse_error(): void {
-    val p = parser_for("fun f(): int32 { val b = ?. n\nreturn b }")
+    var p = parser_for("fun f(): int32 { val b = ?. n\nreturn b }")
     val _td = p.parse_top_decl()
     assert_eq(p.diags.size() > 0, true, "`?.` needs a receiver on its left")
 }
 
 // `?.` is read before `?`; `a? .b` is a postfix try and a field.
 @test fun safe_call_lexes_as_one_token(): void {
-    val l = new_lexer("?.", 0)
+    var l = new_lexer("?.", 0)
     when (l.read_operator()) {
         Some(o) => assert_eq(op_str(o), "?.", "`?.` is one operator, not `?` then `.`")
         None => fail("`?.` did not lex")
@@ -160,7 +159,7 @@ import core.assert.*
 }
 
 @test fun elvis_still_lexes_as_itself(): void {
-    val l = new_lexer("?:", 0)
+    var l = new_lexer("?:", 0)
     when (l.read_operator()) {
         Some(o) => assert_eq(op_str(o), "?:", "`?:` is unaffected by the `?.` arm beside it")
         None => fail("`?:` did not lex")
@@ -168,7 +167,7 @@ import core.assert.*
 }
 
 @test fun a_bare_question_still_lexes_as_itself(): void {
-    val l = new_lexer("?", 0)
+    var l = new_lexer("?", 0)
     when (l.read_operator()) {
         Some(o) => assert_eq(op_str(o), "?", "a suffix `?` is untouched")
         None => fail("`?` did not lex")
@@ -176,20 +175,20 @@ import core.assert.*
 }
 
 @test fun safe_call_parses_a_field_and_a_method(): void {
-    val p = parser_for("fun f(o: int32?): int32? { return o?.count() }")
+    var p = parser_for("fun f(o: int32?): int32? { return o?.count() }")
     val _td = p.parse_top_decl()
     assert_eq(p.diags.size(), 0, "`o?.count()` parses clean")
 }
 
 @test fun safe_call_chains(): void {
-    val p = parser_for("fun f(o: int32?): int32? { return o?.a?.b }")
+    var p = parser_for("fun f(o: int32?): int32? { return o?.a?.b }")
     val _td = p.parse_top_decl()
     assert_eq(p.diags.size(), 0, "`o?.a?.b` parses clean — the chain nests in the subject")
 }
 
 // A try then a field read, spelled with parentheses.
 @test fun a_parenthesized_try_then_a_field_still_parses(): void {
-    val p = parser_for("fun f(o: int32?): int32 { return (o?).n }")
+    var p = parser_for("fun f(o: int32?): int32 { return (o?).n }")
     val _td = p.parse_top_decl()
     assert_eq(p.diags.size(), 0, "`(o?).n` spells try-then-field")
 }

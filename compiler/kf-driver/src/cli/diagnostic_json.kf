@@ -9,7 +9,7 @@ import kf_core.span.*
 /// or null; 3 added `secondary`, the supporting labels with their own spans,
 /// always an array.
 pub fun Diagnostic.render_json_diag(smap: Ptr<SourceMap>): String {
-    val writer = JsonWriter.object()
+    var writer = JsonWriter.object()
     writer.field_uint32("schema_version", 3)
     writer.field_string("severity", json_severity(self.severity))
     // The lint, or null; clients filter and suppress on it.
@@ -46,7 +46,7 @@ pub fun Diagnostic.render_json_diag(smap: Ptr<SourceMap>): String {
 /// The supporting labels, in order; each has its own span, often in another
 /// file.
 fun Diagnostic.render_secondary_labels(smap: Ptr<SourceMap>): String {
-    val arr = JsonWriter.array()
+    var arr = JsonWriter.array()
     while item in &self.secondary {
         arr.write_raw(item.render_label(smap).as_str())
     }
@@ -54,7 +54,7 @@ fun Diagnostic.render_secondary_labels(smap: Ptr<SourceMap>): String {
 }
 
 fun Label.render_label(smap: Ptr<SourceMap>): String {
-    val w = JsonWriter.object()
+    var w = JsonWriter.object()
     w.field_string("message", self.message.as_str())
     w.field_uint32("byte_start", self.span.start)
     w.field_uint32("byte_end", self.span.end)
@@ -76,7 +76,7 @@ fun Label.render_label(smap: Ptr<SourceMap>): String {
 /// `{"title":"..","replacement":"..","byte_start":N,"byte_end":N,"file":..}`.
 /// The exact bytes to overwrite; a fix names its own file.
 fun Fix.render_fix(smap: Ptr<SourceMap>): String {
-    val w = JsonWriter.object()
+    var w = JsonWriter.object()
     w.field_string("title", self.title.as_str())
     w.field_string("replacement", self.replacement.as_str())
     w.field_string("applicability", json_applicability(self.applicability))

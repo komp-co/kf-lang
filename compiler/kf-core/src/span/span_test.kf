@@ -54,7 +54,7 @@ import core.assert.assert
 }
 
 @test fun source_map_add_file_returns_id_1(): void {
-    val sm = new_source_map()
+    var sm = new_source_map()
     val sf = new_source_file(String.from("a.kf"), String.from("content"))
     val id = sm.add_file(sf)
     assert_eq(id, 1, "first id is 1, not 0")
@@ -78,7 +78,7 @@ import core.assert.assert
 }
 
 @test fun source_map_span_to_location_first_line(): void {
-    val sm = new_source_map()
+    var sm = new_source_map()
     val sf = new_source_file(String.from("x.kf"), String.from("abcdef"))
     val id = sm.add_file(sf)
     val s = Span { file_id: id, start: 3, end: 4 }
@@ -102,9 +102,8 @@ fun check_loc(loc: Location, expected_line: uint32, expected_col: uint32): void 
     assert_eq(loc.col, expected_col, "col")
 }
 
-
 fun three_line_map(): SourceMap {
-    val sm = new_source_map()
+    var sm = new_source_map()
     // "one\ntwo\nthree\n" — lines start at 0, 4, 8; the file is 14 bytes.
     val _id = sm.add_file(new_source_file(String.from("m.kf"), String.from("one\ntwo\nthree\n")))
     return sm
@@ -161,7 +160,7 @@ fun three_line_map(): SourceMap {
 }
 
 @test fun each_file_indexes_its_own_lines(): void {
-    val sm = new_source_map()
+    var sm = new_source_map()
     val _a = sm.add_file(new_source_file(String.from("a.kf"), String.from("aaaa\nbbbb\n")))
     val b = sm.add_file(new_source_file(String.from("b.kf"), String.from("x\ny\nz\n")))
     assert_eq(b, 2, "the second file is id 2")
@@ -175,7 +174,7 @@ fun three_line_map(): SourceMap {
 }
 
 @test fun a_file_with_no_newlines_is_one_line(): void {
-    val sm = new_source_map()
+    var sm = new_source_map()
     val id = sm.add_file(new_source_file(String.from("one.kf"), String.from("abcdef")))
     when (sm.span_to_location(Span { file_id: id, start: 5, end: 6 })) {
         Some(loc) => check_loc(loc, 1, 6)
@@ -184,7 +183,7 @@ fun three_line_map(): SourceMap {
 }
 
 @test fun an_empty_file_still_answers_for_offset_zero(): void {
-    val sm = new_source_map()
+    var sm = new_source_map()
     val id = sm.add_file(new_source_file(String.from("e.kf"), ""))
     when (sm.span_to_location(Span { file_id: id, start: 0, end: 0 })) {
         Some(loc) => check_loc(loc, 1, 1)

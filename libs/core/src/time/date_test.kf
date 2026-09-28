@@ -17,7 +17,6 @@ fun padded_as(value: int64, width: uint64, expected: str): bool {
 
 @test fun civil_and_days_are_inverses(): void {
     // Across a leap day, a century, and a pre-epoch date.
-    val samples = 0
     assert_eq(renders_as(&(civil_from_days(days_from_civil(2024, 2, 29))), "2024-02-29"), true, "leap day")
     assert_eq(renders_as(&(civil_from_days(days_from_civil(1900, 3, 1))), "1900-03-01"), true, "non-leap century")
     assert_eq(renders_as(&(civil_from_days(days_from_civil(2000, 2, 29))), "2000-02-29"), true, "leap century")
@@ -93,7 +92,7 @@ fun padded_as(value: int64, width: uint64, expected: str): bool {
 
 @test fun formatting_is_iso_8601_with_the_zone(): void {
     assert_eq(renders_as(&(DateTime.of(Date.of(2026, 8, 21), 12, 34, 56)),
-              "2026-08-21T12:34:56Z"), true, "full timestamp")
+        "2026-08-21T12:34:56Z"), true, "full timestamp")
     assert_eq(renders_as(&(Date.of(2026, 1, 2)), "2026-01-02"), true, "fields are padded")
     assert_eq(padded_as(7, 3, "007"), true, "padding")
     assert_eq(padded_as(-7, 3, "-007"), true, "the sign stays outside the padding")

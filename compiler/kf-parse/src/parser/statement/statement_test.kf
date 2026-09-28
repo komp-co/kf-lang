@@ -9,25 +9,25 @@ import kf_core.ast.*
 import kf_parse.parser.parser_for
 
 @test fun a_string_pattern_parses_clean(): void {
-    val p = parser_for("fun f(s: str): int32 { when (s) { \"a\" => return 1  _ => return 0 } }")
+    var p = parser_for("fun f(s: str): int32 { when (s) { \"a\" => return 1  _ => return 0 } }")
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size(), 0, "a string literal is a supported pattern")
 }
 
 @test fun an_interpolated_string_pattern_is_reported(): void {
-    val p = parser_for("fun f(s: str): int32 { when (s) { \"a\${s}\" => return 1  _ => return 0 } }")
+    var p = parser_for("fun f(s: str): int32 { when (s) { \"a\${s}\" => return 1  _ => return 0 } }")
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size() > 0, true, "an interpolated string is not a pattern")
 }
 
 @test fun an_integer_pattern_still_parses_clean(): void {
-    val p = parser_for("fun f(i: uint64): int32 { when (i) { 0 => return 1  _ => return 0 } }")
+    var p = parser_for("fun f(i: uint64): int32 { when (i) { 0 => return 1  _ => return 0 } }")
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size(), 0, "an integer literal is a supported pattern")
 }
 
 @test fun a_bool_pattern_still_parses_clean(): void {
-    val p = parser_for("fun f(b: bool): int32 { when (b) { true => return 1  false => return 0 } }")
+    var p = parser_for("fun f(b: bool): int32 { when (b) { true => return 1  false => return 0 } }")
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size(), 0, "a bool literal is a supported pattern")
 }
@@ -35,31 +35,31 @@ import kf_parse.parser.parser_for
 // `while` is the only loop keyword; a name followed by `in` selects iteration.
 
 @test fun a_while_condition_still_parses_clean(): void {
-    val p = parser_for("fun f(n: int32): int32 {\nvar i = 0\nwhile i < n { i = i + 1 }\nreturn i }")
+    var p = parser_for("fun f(n: int32): int32 {\nvar i = 0\nwhile i < n { i = i + 1 }\nreturn i }")
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size(), 0, "the condition form is unchanged")
 }
 
 @test fun a_while_range_parses_clean(): void {
-    val p = parser_for("fun f(n: int32): int32 {\nvar s = 0\nwhile i in 0..n { s = s + i }\nreturn s }")
+    var p = parser_for("fun f(n: int32): int32 {\nvar s = 0\nwhile i in 0..n { s = s + i }\nreturn s }")
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size(), 0, "the range form takes an iteration header")
 }
 
 @test fun a_while_collection_parses_clean(): void {
-    val p = parser_for("fun f(xs: List<int32>): int32 {\nvar s = 0\nwhile x in xs { s = s + x }\nreturn s }")
+    var p = parser_for("fun f(xs: List<int32>): int32 {\nvar s = 0\nwhile x in xs { s = s + x }\nreturn s }")
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size(), 0, "the collection form takes an iteration header")
 }
 
 @test fun a_bare_name_condition_is_not_an_iteration_header(): void {
-    val p = parser_for("fun f(b: bool): int32 {\nwhile b { return 1 }\nreturn 0 }")
+    var p = parser_for("fun f(b: bool): int32 {\nwhile b { return 1 }\nreturn 0 }")
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size(), 0, "`while b {` is a condition, not a header")
 }
 
 @test fun the_for_loop_is_reported(): void {
-    val p = parser_for("fun f(n: int32): int32 {\nvar s = 0\nfor i in 0..n { s = s + i }\nreturn s }")
+    var p = parser_for("fun f(n: int32): int32 {\nvar s = 0\nfor i in 0..n { s = s + i }\nreturn s }")
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size(), 1, "the `for` loop is gone, and costs one diagnostic")
 }
@@ -74,32 +74,32 @@ impl T for S { fun m(): int32 { return 1 } }""")
 
 // `-1` is two tokens; a pattern folds the sign into the literal.
 @test fun a_negative_integer_pattern_parses_clean(): void {
-    val p = parser_for("fun f(i: int32): int32 { when (i) { -1 => return 1  _ => return 0 } }")
+    var p = parser_for("fun f(i: int32): int32 { when (i) { -1 => return 1  _ => return 0 } }")
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size(), 0, "a negative integer literal is a supported pattern")
 }
 
 @test fun a_char_pattern_parses_clean(): void {
-    val p = parser_for("fun f(c: char): int32 { when (c) { 'a' => return 1  _ => return 0 } }")
+    var p = parser_for("fun f(c: char): int32 { when (c) { 'a' => return 1  _ => return 0 } }")
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size(), 0, "a char literal is a supported pattern")
 }
 
 // One bad pattern is one diagnostic.
 @test fun a_rejected_pattern_costs_one_diagnostic(): void {
-    val p = parser_for("fun f(i: int32): int32 { when (i) { *y => return 1  _ => return 0 } }")
+    var p = parser_for("fun f(i: int32): int32 { when (i) { *y => return 1  _ => return 0 } }")
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size(), 1, "the arm resyncs on `=>` instead of cascading")
 }
 
 @test fun an_unparenthesized_subject_parses_clean(): void {
-    val p = parser_for("fun f(i: uint64): int32 { when i { 0 => return 1  _ => return 0 } }")
+    var p = parser_for("fun f(i: uint64): int32 { when i { 0 => return 1  _ => return 0 } }")
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size(), 0, "the subject needs no parens")
 }
 
 @test fun a_parenthesized_subject_still_parses_clean(): void {
-    val p = parser_for("fun f(i: uint64): int32 { when (i) { 0 => return 1  _ => return 0 } }")
+    var p = parser_for("fun f(i: uint64): int32 { when (i) { 0 => return 1  _ => return 0 } }")
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size(), 0, "parens around the subject are still accepted")
 }
@@ -108,7 +108,7 @@ impl T for S { fun m(): int32 { return 1 } }""")
 // the inner expression carries it (see coerce_written_amp).
 
 fun first_let_init_coerce(src: str): uint8 {
-    val p = parser_for(src)
+    var p = parser_for(src)
     val td = p.parse_top_decl()
     when (td.kind) {
         Function(_params, _r, body, _pb, _u, _mv, _s) => {
@@ -147,7 +147,7 @@ fun first_let_init_coerce(src: str): uint8 {
 
 /// `no_span()` when that statement binds nothing.
 fun first_binder_span(src: str): Span {
-    val p = parser_for(src)
+    var p = parser_for(src)
     val td = p.parse_top_decl()
     // Assigned into a local declared before the `when`: returning it from the
     // arm comes back with a garbage `file_id`.
@@ -188,26 +188,26 @@ fun first_binder_span(src: str): Span {
 }
 
 @test fun alternatives_parse_clean(): void {
-    val p = parser_for("fun f(i: int32): int32 { when (i) { 1 | 2 | 3 => return 1  _ => return 0 } }")
+    var p = parser_for("fun f(i: int32): int32 { when (i) { 1 | 2 | 3 => return 1  _ => return 0 } }")
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size(), 0, "`|` separates alternatives")
 }
 
 @test fun a_range_and_an_alternative_parse_clean(): void {
     val source = "fun f(i: int32): int32 { when (i) { -5..5 | 9 => return 1  'a'..='z' => return 2  _ => return 0 } }"
-    val p = parser_for(source)
+    var p = parser_for(source)
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size(), 0, "`..` binds tighter than `|`")
 }
 
 @test fun an_empty_range_is_reported(): void {
-    val p = parser_for("fun f(i: int32): int32 { when (i) { 5..5 => return 1  _ => return 0 } }")
+    var p = parser_for("fun f(i: int32): int32 { when (i) { 5..5 => return 1  _ => return 0 } }")
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size(), 1, "5..5 matches nothing")
 }
 
 @test fun a_range_bound_of_another_kind_is_reported(): void {
-    val p = parser_for("fun f(i: int32): int32 { when (i) { 1..'z' => return 1  _ => return 0 } }")
+    var p = parser_for("fun f(i: int32): int32 { when (i) { 1..'z' => return 1  _ => return 0 } }")
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size() > 0, true, "an integer range needs an integer upper bound")
 }

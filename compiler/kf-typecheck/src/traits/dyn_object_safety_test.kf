@@ -40,7 +40,7 @@ fun safety_validate(info: TraitInfo, args: List<Type>): DynTraitLayout? {
     unsafe { *signatures = new_sig_table() }
     unsafe { signatures.insert_trait(info) }
     var ctx = new_type_ctx(void_ty(no_span()), diagnostics, Option.None, signatures)
-    val object_args = new_type_vec()
+    var object_args = new_type_vec()
     while arg in &args {
         object_args.push(arg)
     }

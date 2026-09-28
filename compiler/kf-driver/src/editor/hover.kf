@@ -14,7 +14,7 @@ import json.writer.*
 /// `documentation` are null off a declaration; `documentation` also when it
 /// has no `///` run.
 pub fun render_hover_json(path: str, offset: uint32, crate: &TypedCrate): String {
-    val out = JsonWriter.object()
+    var out = JsonWriter.object()
     out.field_uint32("schema_version", 2)
     out.field_string("file", path)
     out.field_uint32("offset", offset)
@@ -48,4 +48,3 @@ pub fun render_hover_json(path: str, offset: uint32, crate: &TypedCrate): String
     }
     return out.finish()
 }
-
