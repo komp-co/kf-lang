@@ -1,13 +1,13 @@
 # Editor support
 
 The editor tooling lives in two repositories beside the compiler.
-[kf-lsp](https://github.com/komp-co/kf-lsp) holds `kflat_lsp`, the language
-server, written in KFlat. [kf-extensions](https://github.com/komp-co/kf-extensions)
+[kf-lsp](https://github.com/komp-co/kf-lsp) holds the language server, written
+in KFlat and published to the package index as `komp_lsp`. [kf-extensions](https://github.com/komp-co/kf-extensions)
 holds the VS Code extension and the TextMate grammar.
 
 ## The language server
 
-`kflat_lsp` speaks the Language Server Protocol over standard input and
+The server speaks the Language Server Protocol over standard input and
 output, so any editor with an LSP client can use it. It never parses KFlat
 itself: it keeps one [`kflatc serve`](serve.md) running and passes it the
 editor's unsaved text, so every answer is about the buffer on screen, not
@@ -36,9 +36,18 @@ Go-to-definition, references and rename reach top-level declarations only: a
 parameter or a local answers with nothing, since the resolver stamps only
 top-level names.
 
-It is built with a komp from this tree, checked out beside kf-lsp; kf-lsp's
-README has the steps. It asks `komp` on `PATH` about the project, or the one
-`KOMP_BIN` names. In Neovim, start it from an autocmd:
+Install it once, and every editor starts it the same way:
+
+```sh
+komp install komp_lsp
+```
+
+An editor runs `komp lsp` in the project's directory. komp runs the
+version the project's [`[tools]`](../start/projects.md#pinning-tools) table
+pins, else the installed one, and replaces itself with it, so stopping the
+server leaves nothing behind. komp hands the server its own path as
+`KOMP_BIN`, and the server asks that komp about the project. In Neovim, start
+it from an autocmd:
 
 ```lua
 vim.filetype.add({ extension = { kf = "kflat" } })
@@ -46,12 +55,8 @@ vim.filetype.add({ extension = { kf = "kflat" } })
 vim.api.nvim_create_autocmd("FileType", {
   pattern = "kflat",
   callback = function(args)
-    vim.lsp.start({
-      name = "kflat-lsp",
-      cmd = { vim.fn.expand("~/path/to/kf-lsp/target/kflat/kflat_lsp") },
-      root_dir = vim.fs.root(args.buf, "kf.toml"),
-      cmd_env = { KOMP_BIN = vim.fn.expand("~/path/to/komp/.build/komp") },
-    })
+    local root = vim.fs.root(args.buf, "kf.toml")
+    vim.lsp.start({ name = "komp-lsp", cmd = { "komp", "lsp" }, cmd_cwd = root, root_dir = root })
   end,
 })
 ```
@@ -61,8 +66,9 @@ UTF-16 code units otherwise.
 
 ## VS Code
 
-`vscode/` in kf-extensions is the extension: the grammar, diagnostics from
-`komp check`, and quick fixes. Its other features ran `komp query`, which
+`vscode/` in kf-extensions is the extension: the grammar, file icons for
+`.kf` files, tests and komp's manifests, diagnostics from `komp check`, and
+quick fixes. Its other features ran `komp query`, which
 komp no longer has; they come back when the extension is rebuilt on the
 language server.
 
@@ -70,8 +76,9 @@ language server.
 
 The grammar is generated, not written. `scripts/generate-grammar.js` reads the
 keyword spellings out of `kw_str`, the operator spellings out of `op_str`, and
-the builtin type names out of `is_runtime_type_name` — the same tables the
-compiler lexes and diagnoses with — and emits
+the builtin type names out of `is_runtime_type_name` and the library types
+marked `@lang` — the same tables the compiler lexes and diagnoses with — and
+emits
 `syntaxes/kflat.tmLanguage.json`. Regenerate it after changing any of them.
 The generator reads a komp checkout beside kf-extensions, or the one
 `KOMP_REPO` names:
