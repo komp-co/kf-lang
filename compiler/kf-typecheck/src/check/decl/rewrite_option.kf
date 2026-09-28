@@ -167,6 +167,11 @@ fun rewrite_option_expr(p_opt: Ptr<Expr>?, option_name: Sym): void {
         Unary(_op, ip) => rewrite_option_expr(ip, option_name)
         Deref(ip) => rewrite_option_expr(ip, option_name)
         Call(_nm, args) => rewrite_option_expr_list(&args, option_name)
+        FnRef(_) => {}
+        CallValue(callee_ptr, args) => {
+            rewrite_option_expr(callee_ptr, option_name)
+            rewrite_option_expr_list(&args, option_name)
+        }
         MethodCall(recv_ptr, _m, args) => {
             rewrite_option_expr(recv_ptr, option_name)
             rewrite_option_expr_list(&args, option_name)

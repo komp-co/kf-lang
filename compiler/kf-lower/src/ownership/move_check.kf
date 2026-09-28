@@ -258,6 +258,7 @@ fun Expr.is_fresh_move_only_value(ctx: &var MoveCtx): bool {
     if !self.ty.mc_is_move_only(ctx.move_only_names) { return false }
     return when (self.kind) {
         Call(_n, _a) => true
+        CallValue(_callee, _a) => true
         MethodCall(_r, _m, _a) => true
         _ => false
     }

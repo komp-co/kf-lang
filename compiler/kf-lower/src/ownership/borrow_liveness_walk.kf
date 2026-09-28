@@ -77,6 +77,7 @@ fun init_moves(init_opt: Ptr<Expr>?, origin: str, ptable: Ptr<List<ParamEntry>>)
 fun expr_moves(e: &Expr, origin: str, ptable: Ptr<List<ParamEntry>>): bool {
     when (e.kind) {
         Call(name, args) => return args_move(&args, origin, name.as_string(), 0, ptable)
+        CallValue(_callee, args) => return args_move(&args, origin, String.from(""), 0, ptable)
         MethodCall(receiver, _m, args) => {
             if expr_moves(unsafe { &*receiver }, origin, ptable) { return true }
             // ParamEntry omits `self`, so arg i is param i.
@@ -146,6 +147,7 @@ fun Expr.expr_mutates(origin: str, muts: &List<MutatingMethod>): bool {
             return list_mutates(&args, origin, muts)
         }
         Call(_name, args) => return list_mutates(&args, origin, muts)
+        CallValue(_callee, args) => return list_mutates(&args, origin, muts)
         Binary(l, _op, r) => {
             if expr_mutates(unsafe { &*l }, origin, muts) { return true }
             return expr_mutates(unsafe { &*r }, origin, muts)
@@ -261,6 +263,7 @@ fun Expr.expr_mentions(name: str): bool {
             return exprs_mention(&args, name)
         }
         Call(_n, args) => return exprs_mention(&args, name)
+        CallValue(callee, args) => return expr_mentions(&*callee, name) || exprs_mention(&args, name)
         Binary(l, _op, r) => {
             if expr_mentions(unsafe { &*l }, name) { return true }
             return expr_mentions(unsafe { &*r }, name)
@@ -297,6 +300,7 @@ fun Expr.expr_mentions(name: str): bool {
         LitFloat(_v) => return false
         LitChar(_v) => return false
         LitStr(_v) => return false
+        FnRef(_) => return false
         LitBool(_v) => return false
         Poison => return false
     }

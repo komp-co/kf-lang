@@ -135,6 +135,10 @@ fun Expr.name_expr(found: &var List<NameSpan>): void {
     self.record_name(found)
     when (self.kind) {
         Call(_name, args) => name_expr_list(&args, found)
+        CallValue(callee, args) => {
+            name_expr_ptr(callee, found)
+            name_expr_list(&args, found)
+        }
         MethodCall(recv, _m, args) => {
             name_expr_ptr(recv, found)
             name_expr_list(&args, found)
@@ -192,6 +196,7 @@ fun Expr.record_name(found: &var List<NameSpan>): void {
     val role = when (self.kind) {
         Variable(_n) => "variable"
         Call(_n, _args) => "function"
+        FnRef(_n) => "function"
         MethodCall(_r, _m, _args) => "method"
         FieldAccess(_o, _f) => "field"
         StructLit(_n, _f) => "type"

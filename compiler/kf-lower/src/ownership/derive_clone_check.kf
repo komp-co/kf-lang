@@ -129,6 +129,12 @@ fun Expr.collect_freed_in_expr(out: &var List<String>): void {
                 arg.collect_freed_in_expr(out)
             }
         }
+        CallValue(rp, args) => {
+            collect_freed_in_expr(&*rp, out)
+            while arg in &args {
+                arg.collect_freed_in_expr(out)
+            }
+        }
         MethodCall(rp, _mn, args) => {
             collect_freed_in_expr(unsafe { &*rp }, out)
             while arg in &args {

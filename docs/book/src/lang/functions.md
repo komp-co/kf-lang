@@ -119,6 +119,97 @@ impl Counter {
 A non-`mutating` method sees `self` as immutable. Attempting to write
 `self.field` in a plain `fun` method produces a compile error.
 
+## Functions as values
+
+A function's name, written where a value is expected, is a *function value*:
+the function's address, with nothing captured. Its type lists the parameter
+types in parentheses and the result after `->`:
+
+```kflat
+fun double(x: int32): int32 { return x * 2 }
+fun inc(x: int32): int32 { return x + 1 }
+
+fun apply(f: (int32) -> int32, x: int32): int32 {
+    return f(x)
+}
+
+fun main(): int32 {
+    val step: (int32) -> int32 = double
+    println(apply(step, 4))   // 8
+    println(apply(inc, 4))    // 5
+    return 0
+}
+```
+
+A function that takes nothing is `() -> void`, and a parameter keeps its
+passing mode: `(&String) -> uint64` borrows its argument, `(String) -> String`
+takes it over. `(T)` with no arrow is just `T`, which is how an optional one is
+written: `((int32) -> int32)?`.
+
+A function value is `Copy`: it owns no heap and has nothing to drop. It can be
+kept in a local, a field or a `List`, returned, and called through any of them.
+A field holding one is called like a method, and the result of a call can be
+called again (`pick(true)(5)`):
+
+```kflat
+import alloc.list.*
+
+struct Button {
+    val label: String
+    val on_click: (int32) -> void
+}
+
+fun log_click(times: int32): void { println("clicked ${times}") }
+
+fun main(): int32 {
+    val ok = Button { label: String.from("OK"), on_click: log_click }
+    ok.on_click(1)                        // clicked 1
+
+    var steps = List.new<(int32) -> int32>()
+    steps.push(double)
+    steps.push(inc)
+    var value = 3
+    while i in 0..steps.size() {
+        val step = steps.get(i)
+        value = step(value)
+    }
+    println(value)                        // 7
+    return 0
+}
+
+fun double(x: int32): int32 { return x * 2 }
+fun inc(x: int32): int32 { return x + 1 }
+```
+
+A method of the same name wins over the field.
+
+A generic function's type parameters are inferred through a function type:
+
+```kflat
+fun double(x: int32): int32 { return x * 2 }
+
+fun twice<T>(f: (T) -> T, x: T): T {
+    return f(f(x))
+}
+
+fun main(): int32 {
+    println(twice(double, 3))   // 12
+    return 0
+}
+```
+
+A generic function itself is not a value, since a value has one type:
+
+```console
+$ komp check .
+src/main.kf:4:13: error: generic function `id` cannot be used as a value: a function value has one type
+```
+
+Only free functions are values; a method, an extension function or a lambda
+is not. A lambda is a struct of its own, passed to a `Call` bound (see
+[Lambdas](lambdas.md)); to hand a function value to one, wrap it:
+`xs.map(|x| double(x))`. Function values cannot be compared with `==`.
+
 ## Extension functions
 
 A function declared as `fun Type.name()` is called like a method of `Type`,

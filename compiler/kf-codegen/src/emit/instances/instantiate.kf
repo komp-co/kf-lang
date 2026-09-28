@@ -6,6 +6,7 @@
 import kf_core.ast.*
 
 import kf_core.ast.dyn_meta.dyn_trait_identity
+import kf_codegen.emit.c_type_name
 
 /// A mangled element name's C type: primitives map (`int32` -> `int32_t`);
 /// everything else is its own C name.
@@ -28,6 +29,7 @@ pub fun cname_of_mangle(elem: str): String {
     // A borrow's C type is `X*`, with no release or clone, so a container of
     // borrows does not own the pointees. Mutability lives in the fragment, not
     // in C.
+    if fn_frag_parts(elem) != null { return c_type_name(String.from(elem)) }
     val borrowed = borrow_frag_inner(elem)
     if borrowed.as_str().byte_len() > 0 {
         var out = cname_of_mangle(borrowed.as_str())
@@ -84,7 +86,14 @@ pub fun type_mangle(t: Type): String {
             val inner = type_mangle(borrowed)
             return borrow_frag(is_mut, inner.as_str())
         }
-        FnTy(_s) => return String.from("fn")
+        FnTy(_s) => {
+            val parts = t.fn_parts() ?: return String.from("poison")
+            var params = List.new<String>()
+            while param in &parts.params {
+                params.push(type_mangle(param))
+            }
+            return fn_frag(&params, type_mangle(parts.ret).as_str())
+        }
         Projection(owner, member) => {
             val inner = type_mangle(unsafe { *owner })
             return projection_mangle_frag(inner.as_str(), member.as_str())

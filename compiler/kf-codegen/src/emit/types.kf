@@ -20,7 +20,13 @@ pub fun TypeRef.c_type(): String {
             val inner_c = inner.c_type()
             return concat(inner_c, String.from("*"))
         }
-        Function(_p, _r) => return String.from("/* fn ptr */ void*")
+        Function(params, ret) => {
+            var c_params = List.new<String>()
+            while param in &params {
+                c_params.push(param.c_type())
+            }
+            return fn_pointer_c_type(&c_params, ret.c_type().as_str())
+        }
         Array(_e, _n) => return String.from("/* array */ void*")
         // Unresolved: emitted like poison.
         Projection(_owner, _member) => return String.from("/* poison */ void")
@@ -76,6 +82,19 @@ fun c_type_named(name: String, args: List<TypeRef>): String {
         }
     }
 
+    // A function type flattened to its fragment, as a generic argument.
+    if args.size() == 0 {
+        val function = fn_frag_parts(s)
+        if function != null {
+            val parts = function!!
+            var c_params = List.new<String>()
+            while param in &parts.params {
+                c_params.push(frag_c_type(param.as_str()))
+            }
+            return fn_pointer_c_type(&c_params, frag_c_type(parts.ret.as_str()).as_str())
+        }
+    }
+
     // A generic in type position is still `Named("List", [Expr])` and is
     // mangled to match the container body and call sites (`List__Expr`).
     if args.size() > 0 {
@@ -116,7 +135,13 @@ pub fun TypeRef.tyref_mangle(): String {
             }
             return borrow_frag(is_mut, inner.tyref_mangle().as_str())
         }
-        Function(_p, _r) => return String.from("fn")
+        Function(params, ret) => {
+            var frags = List.new<String>()
+            while param in &params {
+                frags.push(param.tyref_mangle())
+            }
+            return fn_frag(&frags, ret.tyref_mangle().as_str())
+        }
         Array(_e, _n) => return String.from("array")
         // Unresolved: emitted like poison.
         Projection(_owner, _member) => return String.from("poison")
@@ -159,7 +184,14 @@ pub fun Type.c_type_of_type(): String {
                 _ => return concat(inner.c_type_of_type(), String.from("*"))
             }
         }
-        FnTy(_s) => return String.from("void*")
+        FnTy(_s) => {
+            val parts = self.fn_parts() ?: return String.from("void")
+            var c_params = List.new<String>()
+            while param in &parts.params {
+                c_params.push(param.c_type_of_type())
+            }
+            return fn_pointer_c_type(&c_params, parts.ret.c_type_of_type().as_str())
+        }
         // Emitted like poison so cc rejects it; Mono resolves projections.
         Projection(_, _) => return String.from("/* projection */ void")
         Poison => return String.from("void")
@@ -338,4 +370,25 @@ fun mangle_has_prefix(name: str, prefix: str): bool {
         i = i + 1
     }
     return true
+}
+
+/// A function pointer as one type specifier, so it reads like any other C
+/// type in a declaration, a field or a cast.
+fun fn_pointer_c_type(params: &List<String>, ret: str): String {
+    var out = "__typeof__(${ret} (*)("
+    if params.size() == 0 { out.append("void") }
+    while i in 0..params.size() {
+        if i > 0 { out.append(", ") }
+        out.append(params.at(i).as_str())
+    }
+    out.append("))")
+    return out
+}
+
+/// A fragment inside a function fragment, where a borrow is spelled
+/// structurally.
+fun frag_c_type(frag: str): String {
+    val borrowed = borrow_frag_inner(frag)
+    if borrowed.byte_len() > 0 { return concat(frag_c_type(borrowed.as_str()), String.from("*")) }
+    return c_type_name(String.from(frag))
 }

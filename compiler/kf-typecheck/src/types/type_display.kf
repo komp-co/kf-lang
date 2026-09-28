@@ -51,7 +51,17 @@ pub fun Type.display_type(ctx: &TypeCtx): String {
             }
             return display_wrapped_type("&", unsafe { &*inner }, "", ctx)
         }
-        FnTy(_) => return String.from("fn")
+        FnTy(_) => {
+            val parts = self.fn_parts() ?: return String.from("<error>")
+            var result = String.from("(")
+            while i in 0..parts.params.size() {
+                if i > 0 { result.append(", ") }
+                result.append(parts.params.at(i).display_type(ctx).as_str())
+            }
+            result.append(") -> ")
+            result.append(parts.ret.display_type(ctx).as_str())
+            return result
+        }
         Projection(owner, member) => {
             var result = display_type(unsafe { &*owner }, ctx)
             result.append(".")

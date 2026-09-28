@@ -215,6 +215,11 @@ fun Expr.collect_expr_names(out: &var List<String>): void {
             out.push(name.as_string())
             collect_expr_list_names(args, out)
         }
+        FnRef(name) => out.push(name.as_string())
+        CallValue(callee, args) => {
+            collect_expr_names(&*callee, out)
+            collect_expr_list_names(args, out)
+        }
         StructLit(name, finits) => {
             out.push(name.as_string())
             while fi in &finits {

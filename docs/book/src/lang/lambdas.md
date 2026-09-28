@@ -59,7 +59,8 @@ A lambda like `|x: int32| x * 2` becomes:
 
 Because the compiler knows the concrete type of every lambda at the point it
 is written, the call is monomorphized — no function pointer, no heap
-allocation.
+allocation. A plain function passed around as a value is the other shape: see
+[Functions as values](functions.md#functions-as-values).
 
 ## Passing a lambda to a generic function
 

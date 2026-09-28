@@ -251,6 +251,7 @@ impl Parser {
             // malformed.
             Elvis => return self.advance_and_poison_expr(span)
             SafeCall => return self.advance_and_poison_expr(span)
+            ThinArrow => return self.advance_and_poison_expr(span)
             At => return self.advance_and_poison_expr(span)
             // `!!` needs a value on its left.
             BangBang => return self.advance_and_poison_expr(span)

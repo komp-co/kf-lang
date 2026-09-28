@@ -48,6 +48,8 @@ pub enum Operator {
     BangBang
     /// `opt?.field`, `opt?.method(args)`. One token, unlike `(a?).b`.
     SafeCall
+    /// `(int32) -> bool`: a function type's result.
+    ThinArrow
 }
 
 /// The one place an operator's spelling is written. The editor-grammar
@@ -91,6 +93,7 @@ pub fun op_str(o: Operator): str {
         At => "@"
         BangBang => "!!"
         SafeCall => "?."
+        ThinArrow => "->"
     }
 }
 
@@ -135,6 +138,7 @@ pub fun operator_at(i: uint64): Operator? {
         34 => Operator.At
         35 => Operator.BangBang
         36 => Operator.SafeCall
+        37 => Operator.ThinArrow
         _ => null
     }
 }
@@ -208,6 +212,12 @@ impl Lexer {
             return Operator.DotDot
         }
 
+        // `->` before `-`.
+        if b == 45 && b2 == 62 {
+            unsafe { self.advance() }
+            unsafe { self.advance() }
+            return Operator.ThinArrow
+        }
         if b == 43 {
             unsafe { self.advance() }
             return Operator.Plus

@@ -232,6 +232,8 @@ fun is_fresh_alloc(e: Expr): bool {
             return false
         }
         Retain(_) => return true
+        FnRef(_) => return false
+        CallValue(_, _) => return false
         LitInt(_) => return false
         LitStr(_) => return false
         LitFloat(_) => return false

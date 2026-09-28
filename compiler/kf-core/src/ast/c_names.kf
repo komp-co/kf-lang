@@ -164,6 +164,64 @@ pub fun borrow_frag(is_mut: bool, inner: str): String {
     return out
 }
 
+/// A function type's fragment: `kf__fn__`, the parameters separated by
+/// `__kf__and__`, `__kf__to__` and the result, then `__kf__nf`. The markers are
+/// reserved, so the fragment splits back apart even when nested.
+pub fun fn_frag(params: &List<String>, ret: str): String {
+    var out = String.from("kf__fn__")
+    while i in 0..params.size() {
+        if i > 0 { out.append("__kf__and__") }
+        out.append(params.at(i).as_str())
+    }
+    out.append("__kf__to__")
+    out.append(ret)
+    out.append("__kf__nf")
+    return out
+}
+
+/// A function fragment's parameter and result fragments, the inverse of
+/// `fn_frag`.
+pub struct FnFragParts {
+    pub val params: List<String>
+    pub val ret: String
+}
+
+/// None when `frag` is not exactly one function fragment.
+pub fun fn_frag_parts(frag: str): FnFragParts? {
+    if !frag.starts_with("kf__fn__") || !frag.ends_with("__kf__nf") { return null }
+    val body = frag.substring(8, frag.byte_len() - 8)
+    var params = List.new<String>()
+    var depth = 0
+    var start: uint64 = 0
+    var i: uint64 = 0
+    var ret = String.from("")
+    var seen_to = false
+    while i < body.byte_len() {
+        val rest = body.as_str().substring(i, body.byte_len())
+        if rest.starts_with("kf__fn__") {
+            depth = depth + 1
+            i = i + 8
+        } else if rest.starts_with("__kf__nf") {
+            depth = depth - 1
+            i = i + 8
+        } else if depth == 0 && rest.starts_with("__kf__and__") {
+            params.push(body.as_str().substring(start, i))
+            i = i + 11
+            start = i
+        } else if depth == 0 && rest.starts_with("__kf__to__") {
+            if i > start { params.push(body.as_str().substring(start, i)) }
+            i = i + 10
+            start = i
+            seen_to = true
+        } else {
+            i = i + 1
+        }
+    }
+    if !seen_to || depth != 0 { return null }
+    ret = body.as_str().substring(start, body.byte_len())
+    return FnFragParts { params: params, ret: ret }
+}
+
 /// What `frag` borrows, or "" when it is not a borrow. The inverse of
 /// `borrow_frag`.
 pub fun borrow_frag_inner(frag: str): String {

@@ -6,7 +6,7 @@ import core.assert.fail
 import core.assert.assert
 
 // Bump in the same commit that adds or removes an operator.
-fun expected_operator_count(): uint64 { return 37 }
+fun expected_operator_count(): uint64 { return 38 }
 
 fun reachable_operator_count(): uint64 {
     var i: uint64 = 0

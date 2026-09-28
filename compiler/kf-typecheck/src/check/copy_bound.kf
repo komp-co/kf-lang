@@ -15,7 +15,7 @@ pub fun Type.type_is_copy(ctx: &var TypeCtx): bool {
         PtrTo(_) => true
         RefTo(mutable, _) => !mutable
         BoxOf(_) => false
-        FnTy(_) => false
+        FnTy(_) => true
         TraitTy(_) => false
         DynTraitTy(_) => false
         Void => true
