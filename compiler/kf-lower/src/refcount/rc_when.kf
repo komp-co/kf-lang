@@ -60,6 +60,7 @@ fun Expr.expr_moves_out(name: str): bool {
     if self.expr_is_move_of(name) { return true }
     when (self.kind) {
         Call(_n, args) => return any_arg_moves_out(&args, name)
+        CallValue(_callee, args) => return any_arg_moves_out(&args, name)
         // The receiver is borrowed; only arguments are searched.
         MethodCall(_recv, _m, args) => return any_arg_moves_out(&args, name)
         IfExpr(_c, t, el) => {

@@ -212,6 +212,10 @@ fun Expr.visit(walk: &var LintWalk): void {
             val shield = name.as_str() == "range" || name.as_str() == "range_inclusive"
             walk.visit_arguments(&args, shield)
         }
+        CallValue(callee, args) => {
+            callee.visit(walk)
+            walk.visit_arguments(&args, false)
+        }
         MethodCall(receiver, name, args) => {
             // Conservatively a change: which methods mutate is the type's to say.
             walk.locals.change(receiver.root_variable())

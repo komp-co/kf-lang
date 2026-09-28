@@ -52,6 +52,7 @@ pub fun Expr.place_is_mutable(ctx: &var TypeCtx): bool {
         }
         MethodCall(_, _, _) => return self.ty.result_is_mutable_place()
         Call(_, _) => return self.ty.result_is_mutable_place()
+        CallValue(_callee, _) => return self.ty.result_is_mutable_place()
         DynCoerce(_, _) => return self.ty.result_is_mutable_place()
         _ => return false
     }

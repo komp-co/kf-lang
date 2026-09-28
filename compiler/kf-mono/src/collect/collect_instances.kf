@@ -213,6 +213,11 @@ fun Expr.collect_insts_in_expr(gps: &List<String>, marities: &List<MethodArity>,
         }
         Unary(_op, ip) => { collect_insts_in_expr(unsafe { &*ip }, gps, marities, work) }
         Deref(ip) => { collect_insts_in_expr(unsafe { &*ip }, gps, marities, work) }
+        FnRef(_) => { }
+        CallValue(callee_ptr, args) => {
+            collect_insts_in_expr(&*callee_ptr, gps, marities, work)
+            collect_insts_in_expr_list(args, gps, marities, work)
+        }
         MethodCall(recv_ptr, method_sym, args) => {
             // CONSTRAINT: the receiver is walked first, so an instance it
             // mints (`Bag<int32> { .. }`) is queued ahead of the method's.

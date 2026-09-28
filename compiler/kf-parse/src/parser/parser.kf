@@ -346,6 +346,7 @@ fun op_tag(o: Operator): int32 {
         Elvis => 34
         BangBang => 35
         SafeCall => 36
+        ThinArrow => 38
         At => 28
         Pipe => 30
         Caret => 31

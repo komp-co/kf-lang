@@ -93,6 +93,10 @@ mutating fun Expr.resolve_expr(table: &var DeclTable): void {
             resolve_expr_ptr(recv, table)
             resolve_expr_list(&var args, table)
         }
+        CallValue(callee, args) => {
+            resolve_expr_ptr(callee, table)
+            resolve_expr_list(&var args, table)
+        }
         FieldAccess(obj, _f) => resolve_expr_ptr(obj, table)
         Binary(l, _op, r) => {
             resolve_expr_ptr(l, table)

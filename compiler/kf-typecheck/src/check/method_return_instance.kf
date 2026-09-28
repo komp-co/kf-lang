@@ -58,6 +58,8 @@ fun Type.register_returned_instance(span: Span, ctx: &var TypeCtx): void {
 /// The marker is reserved-prefixed and carries mutability, so `&var T` reads
 /// back as one. `Ptr__X` and `Box__X` resolve as builtins.
 fun String.tref_from_frag(span: Span, ctx: &var TypeCtx): TypeRef {
+    val function = ctx.fn_type_for(self.as_str())
+    if function != null { return function!!.type_to_type_ref(span) }
     val named = new_type_ref(span, TypeRefKind.Named(intern(self.as_str()), List.new<TypeRef>()))
     if unsafe { (*ctx.sigs).find_struct(self.as_str(), ctx.owner_crate) }.is_some() { return named }
     if unsafe { (*ctx.sigs).find_enum(self.as_str(), ctx.owner_crate) }.is_some() { return named }
@@ -72,6 +74,7 @@ fun String.tref_from_frag(span: Span, ctx: &var TypeCtx): TypeRef {
 /// A fragment naming a concrete type. An unpinned parameter (`T`) spells
 /// itself, and an instance around it would claim arguments nobody supplied.
 fun String.frag_names_a_type(ctx: &var TypeCtx): bool {
+    if ctx.fn_type_for(self.as_str()) != null { return true }
     val t = ty_from_mangle_frag(self.clone(), no_span(), ctx.string_name())
     if t.kind.kind_tag() != TAG_STRUCT() { return true }
     val as_struct = unsafe { (*ctx.sigs).find_struct(self.as_str(), ctx.owner_crate) }

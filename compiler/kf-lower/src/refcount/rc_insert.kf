@@ -74,6 +74,10 @@ fun Expr.collect_moved_names(mode: BorrowMode, out: &var List<String>): void {
             when (mode) { Value => out.push(name.as_string()) Borrow => {} }
         }
         Call(_n, args) => collect_moved_names_list(args, BorrowMode.Value, out)
+        CallValue(callee, args) => {
+            collect_moved_names(*callee, BorrowMode.Borrow, out)
+            collect_moved_names_list(args, BorrowMode.Value, out)
+        }
         StructLit(_n, finits) => {
             while fi in &finits {
                 val vp: Ptr<Expr> = fi.value
@@ -105,6 +109,7 @@ fun Expr.collect_moved_names(mode: BorrowMode, out: &var List<String>): void {
         LitStr(_s) => return
         LitFloat(_) => return
         LitChar(_) => return
+        FnRef(_) => return
         LitBool(_b) => return
         Lambda(_, _) => return
         Block(_) => return
@@ -126,6 +131,10 @@ fun Expr.collect_var_names_in_expr(out: &var List<String>): void {
         Variable(name) => out.push(name.as_string())
         Release(name) => out.push(name.as_string())
         Call(_n, args) => collect_var_names_in_list(args, out)
+        CallValue(callee, args) => {
+            collect_var_names_in_expr(*callee, out)
+            collect_var_names_in_list(args, out)
+        }
         StructLit(_n, finits) => {
             while fi in &finits {
                 val vp: Ptr<Expr> = fi.value
@@ -157,6 +166,7 @@ fun Expr.collect_var_names_in_expr(out: &var List<String>): void {
         LitStr(_s) => return
         LitFloat(_) => return
         LitChar(_) => return
+        FnRef(_) => return
         LitBool(_b) => return
         Lambda(_, _) => return
         Block(_) => return

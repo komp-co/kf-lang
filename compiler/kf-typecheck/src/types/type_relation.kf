@@ -1,6 +1,7 @@
 // Type equality (structural) and tags.
 
 import kf_core.ast.*
+import kf_core.span.no_span
 
 fun TAG_INT8(): uint64 { return 0 }
 fun TAG_INT16(): uint64 { return 1 }
@@ -82,6 +83,7 @@ fun TypeKind.kind_eq_flat(b: TypeKind): bool {
         val bi: Type = b.box_inner()
         return ai.type_eq(bi)
     }
+    if tag == TAG_FN() { return fn_types_eq(*self, b) }
     if tag == TAG_REF() {
         val am: bool = self.ref_mut()
         val bm: bool = b.ref_mut()
@@ -90,6 +92,17 @@ fun TypeKind.kind_eq_flat(b: TypeKind): bool {
         return am == bm && ai.type_eq(bi)
     }
     return true
+}
+
+/// Same parameter types in order, and the same result.
+fun fn_types_eq(a: TypeKind, b: TypeKind): bool {
+    val left = Type { kind: a, provenance: Provenance.Inferred(no_span()) }.fn_parts() ?: return false
+    val right = Type { kind: b, provenance: Provenance.Inferred(no_span()) }.fn_parts() ?: return false
+    if left.params.size() != right.params.size() { return false }
+    while i in 0..left.params.size() {
+        if !left.params.at(i).type_eq(right.params.at(i)) { return false }
+    }
+    return left.ret.type_eq(&right.ret)
 }
 
 pub fun TypeKind.kind_tag(): uint64 {

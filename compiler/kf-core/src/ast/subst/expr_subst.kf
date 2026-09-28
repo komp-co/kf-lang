@@ -95,6 +95,11 @@ pub fun Expr.subst_expr(names: &var List<String>, repls: &var List<TypeRef>): Ex
             }
             return mc
         }
+        FnRef(nm) => return self.rebuild_expr(ExprKind.FnRef(nm), names, repls)
+        CallValue(callee_ptr, args) => {
+            val callee = clone_expr_ptr(callee_ptr, names, repls)
+            return self.rebuild_expr(ExprKind.CallValue(callee, subst_expr_list(args, names, repls)), names, repls)
+        }
         FieldAccess(obj_ptr, f) => {
             val no = clone_expr_ptr(obj_ptr, names, repls)
             return self.rebuild_expr(ExprKind.FieldAccess(no, f), names, repls)

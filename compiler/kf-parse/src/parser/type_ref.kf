@@ -79,6 +79,7 @@ impl Parser {
                         val inner_ptr = self.parse_type_ref_ptr()
                         unsafe { *ptr = new_type_ref(t.span, TypeRefKind.Reference(mutable, inner_ptr)) }
                     }
+                    LParen => unsafe { *ptr = self.parse_function_type_ref() }
                     _ => {
                         self.parse_err(t.span, "expected a type here, found `${op_str(op)}`")
                         unsafe { *ptr = type_ref_poison(t.span) }
@@ -148,5 +149,34 @@ impl Parser {
             if self.pos == before { break }
         }
         return args
+    }
+
+    /// `(A, B) -> R`, at the `(`. `(T)` with no arrow is `T`, grouped, so
+    /// `((int32) -> bool)?` can be written.
+    mutating fun parse_function_type_ref(): TypeRef {
+        val span = self.peek().span
+        unsafe { self.advance() } // consume `(`
+        var params = List.new<TypeRef>()
+        while !is_op(self.peek(), Operator.RParen) && !self.at_eof() {
+            val before: uint64 = self.pos
+            val param_ptr = self.parse_type_ref_ptr()
+            val param: TypeRef = unsafe { *param_ptr }
+            unsafe { dealloc<TypeRef>(param_ptr) }
+            params.push(param)
+            if is_op(self.peek(), Operator.Comma) { unsafe { self.advance() } } else if self.pos == before { break }
+        }
+        if !is_op(self.peek(), Operator.RParen) {
+            self.parse_err(self.peek().span, String.from("unclosed function type: missing `)`"))
+            return type_ref_poison(span)
+        }
+        unsafe { self.advance() } // consume `)`
+        if !is_op(self.peek(), Operator.ThinArrow) {
+            if params.size() == 1 { return params.remove(0) ?: type_ref_poison(span) }
+            self.parse_err(self.peek().span, String.from("expected `->` and a result type after a function type's parameters"))
+            return type_ref_poison(span)
+        }
+        unsafe { self.advance() } // consume `->`
+        val ret = self.parse_type_ref_ptr()
+        return new_type_ref(span, TypeRefKind.Function(params, ret))
     }
 }

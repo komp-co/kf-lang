@@ -241,3 +241,16 @@ fun string_drop_impl(): TopDecl {
     methods.push(new_top_decl(no_span(), String.from("drop"), drop_kind))
     return new_top_decl(no_span(), String.from("String"), TopDeclKind.ImplBlock(methods))
 }
+
+@test fun a_function_type_is_one_c_type_specifier(): void {
+    var params = new_type_vec()
+    params.push(int32_ty(no_span()))
+    val function = fn_ty(params, bool_ty(no_span()), Provenance.Inferred(no_span()))
+    assert_eq(function.c_type_of_type().as_str(), "__typeof__(bool (*)(int32_t))", "a pointer to the function")
+}
+
+@test fun a_function_of_nothing_takes_void_in_c(): void {
+    val function = fn_ty(new_type_vec(), bool_ty(no_span()), Provenance.Inferred(no_span()))
+    val expected = "__typeof__(bool (*)(void))"
+    assert_eq(function.c_type_of_type().as_str(), expected, "an empty C list would mean any arguments")
+}

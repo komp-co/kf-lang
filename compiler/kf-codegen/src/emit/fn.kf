@@ -35,6 +35,10 @@ fun deref_self_expr_ptr(ep: Ptr<Expr>, owner: str): void {
         Unary(_o, ip) => deref_self_expr_ptr(ip, owner)
         Deref(ip) => deref_self_expr_ptr(ip, owner)
         Call(_n, args) => deref_self_args(args, owner)
+        CallValue(callee, args) => {
+            deref_self_expr_ptr(callee, owner)
+            deref_self_args(args, owner)
+        }
         MethodCall(rp, _m, args) => {
             deref_self_expr_ptr(rp, owner)
             deref_self_args(args, owner)

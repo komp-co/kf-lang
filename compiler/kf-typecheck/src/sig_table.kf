@@ -248,6 +248,8 @@ pub struct SigTable {
     /// else.
     pub var untyped_recv_spans: List<Span>
     pub var untyped_recv_methods: List<Sym>
+    /// Function types met so far, so a mangle fragment naming one reads back.
+    pub var fn_types: List<Type>
 }
 
 pub fun new_sig_table(): SigTable {
@@ -287,7 +289,8 @@ pub fun new_sig_table(): SigTable {
         ext_links: List.new<Sym>(),
         ext_trait_params: List.new<Sym>(),
         untyped_recv_spans: List.new<Span>(),
-        untyped_recv_methods: List.new<Sym>()
+        untyped_recv_methods: List.new<Sym>(),
+        fn_types: List.new<Type>()
     }
 }
 

@@ -45,6 +45,7 @@ pub fun Type.bind_generic_from_param(arg: &Type, gname: str, ctx: &var TypeCtx):
         val ainner = ak.box_inner()
         return pinner.bind_generic_from_param(&ainner, gname, ctx)
     }
+    if ptag == TAG_FN() && atag == TAG_FN() { return self.bind_generic_through_fn(arg, gname, ctx) }
     // `List__T` against `List__int32` binds T. Otherwise one unbound self
     // voids check_call's all-or-nothing write-back.
     if ptag == TAG_STRUCT() || ptag == TAG_ENUM() {
@@ -53,6 +54,19 @@ pub fun Type.bind_generic_from_param(arg: &Type, gname: str, ctx: &var TypeCtx):
         }
     }
     return poison_ty()
+}
+
+/// `(T) -> T` against `(int32) -> int32`: the first parameter, then the
+/// result, that binds.
+fun Type.bind_generic_through_fn(arg: &Type, gname: str, ctx: &var TypeCtx): Type {
+    val want = self.fn_parts() ?: return poison_ty()
+    val have = arg.fn_parts() ?: return poison_ty()
+    if want.params.size() != have.params.size() { return poison_ty() }
+    while i in 0..want.params.size() {
+        val bound = want.params.at(i).bind_generic_from_param(have.params.at(i), gname, ctx)
+        if !bound.is_poison() { return bound }
+    }
+    return want.ret.bind_generic_from_param(&have.ret, gname, ctx)
 }
 
 /// Two same-shape instances of one template, segment by segment. A nested
@@ -125,6 +139,14 @@ pub fun Type.subst_generic(name: String, with_ty: Type): Type {
             val np: Ptr<Type> = unsafe { alloc<Type>() }
             unsafe { *np = inner }
             return Type { kind: TypeKind.RefTo(m, np), provenance: self.provenance }
+        }
+        FnTy(_) => {
+            val parts = self.fn_parts() ?: return (*self)
+            var params = new_type_vec()
+            while param in &parts.params {
+                params.push(param.subst_generic(name.clone(), with_ty.clone()))
+            }
+            return fn_ty(params, parts.ret.subst_generic(name, with_ty), self.provenance)
         }
         // `Self.Out` read through `C: Producer` means `C.Out` here.
         Projection(owner, member) => {

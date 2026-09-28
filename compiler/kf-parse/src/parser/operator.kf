@@ -56,6 +56,8 @@ pub fun op_to_binop(o: Operator): BinOpInfo? {
         BangBang => null
         // Postfix, consumed by parse_postfix.
         SafeCall => null
+        // Only in a function type.
+        ThinArrow => null
     }
 }
 
@@ -98,6 +100,7 @@ pub fun is_op_rbrace(o: Operator): bool {
         At => false
         BangBang => false
         SafeCall => false
+        ThinArrow => false
     }
 }
 

@@ -76,6 +76,13 @@ src/main.kf:3:13: error: lambda parameter `x` needs a type annotation (its type 
 ```
 
 
+## Function values
+
+- **A borrowing loop over a list of them fails in cc.** `while f in &handlers`
+  names an `iter` the C file never defines, because a function type's mangled
+  name spans several segments ([#216]; `List<&T>` hits the same bug). Loop by
+  index instead: `while i in 0..handlers.size() { val f = handlers.get(i) }`.
+
 ## Generics
 
 - A generic struct literal typed only by its binding
@@ -190,3 +197,4 @@ not agree with it in every case.
 [#79]: https://github.com/komp-co/komp/issues/79
 [#190]: https://github.com/komp-co/komp/issues/190
 [#194]: https://github.com/komp-co/komp/issues/194
+[#216]: https://github.com/komp-co/komp/issues/216

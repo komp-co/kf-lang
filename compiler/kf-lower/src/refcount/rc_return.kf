@@ -52,6 +52,7 @@ fun Expr.collect_escaping_names(ctx: &var RcCtx, out: &var List<String>): void {
         Variable(name) => out.push(name.as_string())
         Release(name) => out.push(name.as_string())
         Call(_n, args) => escaping_names_in_list(&args, ctx, out)
+        CallValue(_callee, args) => escaping_names_in_list(&args, ctx, out)
         StructLit(_n, finits) => {
             while fi in &finits {
                 fi.value.collect_escaping_names(ctx, out)
@@ -82,6 +83,7 @@ fun Expr.collect_escaping_names(ctx: &var RcCtx, out: &var List<String>): void {
         LitStr(_s) => { }
         LitFloat(_) => { }
         LitChar(_) => { }
+        FnRef(_) => { }
         LitBool(_b) => { }
         Lambda(_, _) => { }
         Block(_) => { }
