@@ -31,7 +31,8 @@ fun range_signature(): FnSignature {
         owner_crate: new_crate_id("core"),
         is_pub: true,
         borrows: 0 - 1,
-        is_prelude: false
+        is_prelude: false,
+        is_extern: false
     }
 }
 

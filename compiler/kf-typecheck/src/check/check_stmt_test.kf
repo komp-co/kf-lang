@@ -28,7 +28,7 @@ pub fun mk_stmt_ctx(): TypeCtx {
     unsafe { *sig_ptr = sigs }
     unsafe { (*sig_ptr).insert_struct(StructLayout { name: String.from("String"), fields: List.new<StructFieldInfo>(), is_refcounted: false, owner_crate: crate_id_poison() }) }
     unsafe { (*sig_ptr).lang_string = intern("String") }
-    unsafe { (*sig_ptr).insert(FnSignature { name: String.from("String_from"), params: str_type_list(), ret: intern("String").lang_struct_ty(no_span()), generics: List.new<String>(), is_static: true, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: -1, is_prelude: false }) }
+    unsafe { (*sig_ptr).insert(FnSignature { name: String.from("String_from"), params: str_type_list(), ret: intern("String").lang_struct_ty(no_span()), generics: List.new<String>(), is_static: true, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: -1, is_prelude: false, is_extern: false }) }
     return new_type_ctx(void_ty(no_span()), diag_ptr, Option.Some(tab_ptr), sig_ptr)
 }
 
@@ -391,7 +391,7 @@ fun TypeCtx.diag_count_of(): uint64 {
     val sp = ctx.sigs
     var params = List.new<Type>()
     params.push(Type { kind: TypeKind.Struct(intern("Foo")), provenance: Provenance.Declared(no_span()) })
-    unsafe { sp.insert(FnSignature { name: String.from("Foo_bump"), params: params, ret: void_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: true, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false }) }
+    unsafe { sp.insert(FnSignature { name: String.from("Foo_bump"), params: params, ret: void_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: true, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }) }
     ctx.declare_val(String.from("f"), Type { kind: TypeKind.Struct(intern("Foo")), provenance: Provenance.Declared(no_span()) })
     val recv: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *recv = new_expr(no_span(), ExprKind.Variable(intern("f"))) }
@@ -403,7 +403,7 @@ fun TypeCtx.diag_count_of(): uint64 {
     val sp2 = ctx2.sigs
     var params2 = List.new<Type>()
     params2.push(Type { kind: TypeKind.Struct(intern("Foo")), provenance: Provenance.Declared(no_span()) })
-    unsafe { sp2.insert(FnSignature { name: String.from("Foo_bump"), params: params2, ret: void_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: true, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false }) }
+    unsafe { sp2.insert(FnSignature { name: String.from("Foo_bump"), params: params2, ret: void_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: true, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }) }
     val inner: Ptr<Type> = unsafe { alloc<Type>() }
     unsafe { *inner = Type { kind: TypeKind.Struct(intern("Foo")), provenance: Provenance.Declared(no_span()) } }
     ctx2.declare_val(String.from("f"), Type { kind: TypeKind.RefTo(true, inner), provenance: Provenance.Declared(no_span()) })

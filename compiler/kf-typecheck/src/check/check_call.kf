@@ -109,11 +109,15 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
         return poison_ty()
     }
     val sig = found_sig ?: return poison_ty()
-    ctx.qualified_callee = if unsafe { (*ctx.sigs).has_generic_twin(&sig) } {
+    val sigs = unsafe { &*ctx.sigs }
+    val qualified = if sigs.has_generic_twin(&sig) {
         crate_qualified_generic(sig.owner_crate, name.as_str())
     } else {
         String.from("")
     }
+    val pinned = sigs.pinned_link_name(&sig)
+    ctx.qualified_callee = qualified
+    ctx.pinned_callee = pinned
     // Marks the import used, outside the lookup so the lookup stays pure. The
     // written name lets the import be suggested narrower.
     val written_name = callee_surface_name(name.as_str(), ctx.sigs)

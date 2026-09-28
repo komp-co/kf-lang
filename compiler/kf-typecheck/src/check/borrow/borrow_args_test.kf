@@ -118,7 +118,7 @@ fun borrow_test_apply(e: Expr, to: Type, ctx: &var TypeCtx): ArgCoerceResult {
     val value_ty = Type { kind: TypeKind.Struct(intern("Value")), provenance: Provenance.Inferred(no_span()) }
     var params = List.new<Type>()
     params.push(borrow_test_ref(value_ty.clone(), false))
-    val sig = FnSignature { name: String.from("copy_value"), params: params, ret: value_ty.clone(), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false }
+    val sig = FnSignature { name: String.from("copy_value"), params: params, ret: value_ty.clone(), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }
     val signatures = ctx.sigs
     unsafe { signatures.insert(sig) }
     val raw: Ptr<Type> = unsafe { alloc<Type>() }
@@ -174,7 +174,7 @@ fun borrow_test_register_method(owner: str, name: str, expected: Type, is_static
         params.push(Type { kind: TypeKind.Struct(intern(owner)), provenance: Provenance.Inferred(no_span()) })
     }
     params.push(expected)
-    val signature = FnSignature { name: String.from(owner) + String.from("_") + String.from(name), params: params, ret: void_ty(no_span()), generics: List.new<String>(), is_static: is_static, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false }
+    val signature = FnSignature { name: String.from(owner) + String.from("_") + String.from(name), params: params, ret: void_ty(no_span()), generics: List.new<String>(), is_static: is_static, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }
     val signatures = ctx.sigs
     unsafe { signatures.insert(signature) }
 }
@@ -182,7 +182,7 @@ fun borrow_test_register_method(owner: str, name: str, expected: Type, is_static
 /// A declared zero-arg function returning int32, standing in for a temporary;
 /// an unresolved callee would add its own diagnostic.
 fun borrow_test_register_free_fn(name: str, ctx: &var TypeCtx): void {
-    val signature = FnSignature { name: String.from(name), params: List.new<Type>(), ret: int32_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false }
+    val signature = FnSignature { name: String.from(name), params: List.new<Type>(), ret: int32_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }
     val signatures = ctx.sigs
     unsafe { signatures.insert(signature) }
 }

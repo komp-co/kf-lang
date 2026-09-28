@@ -15,7 +15,7 @@ fun ambient_clamp(crate: str, module: str, is_pub: bool, is_prelude: bool, arity
         params.push(int32_ty(no_span()))
         i = i + 1
     }
-    return FnSignature { name: String.from("clamp"), params: params, ret: int32_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(module), owner_crate: new_crate_id(crate), is_pub: is_pub, borrows: 0 - 1, is_prelude: is_prelude }
+    return FnSignature { name: String.from("clamp"), params: params, ret: int32_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(module), owner_crate: new_crate_id(crate), is_pub: is_pub, borrows: 0 - 1, is_prelude: is_prelude, is_extern: false }
 }
 
 /// Visibility checked for file 7, which imports `imports` or nothing.

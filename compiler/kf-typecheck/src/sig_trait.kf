@@ -111,6 +111,19 @@ impl SigTable {
         return self.file_admits(caller_file, sig.owner_module, self.surface_name(sig.name.as_str()).as_str())
     }
 
+    /// The link name a call to `sig` keeps when another crate declares a
+    /// function of the same name, which a rename by bare name could pick
+    /// instead; "" when the bare name is unambiguous.
+    pub fun pinned_link_name(sig: &FnSignature): String {
+        if sig.is_extern || sig.generics.size() > 0 { return "" }
+        while other in &self.sigs {
+            if other.owner_crate.raw != sig.owner_crate.raw && other.name.as_str().equals(sig.name.as_str()) {
+                return "${sig.owner_crate.symbol_prefix().as_str()}${sig.name.as_str()}"
+            }
+        }
+        return ""
+    }
+
     /// The file's own imports admit `name` from `target`; a sibling's do not.
     /// CONSTRAINT: keep scanning on a miss, since one file may name several
     /// imports of one module.

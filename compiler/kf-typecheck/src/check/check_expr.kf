@@ -104,6 +104,10 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
                     e.kind = ExprKind.Call(intern(ctx.qualified_callee.as_str()), kept)
                     ctx.qualified_callee = String.from("")
                 }
+                if ctx.pinned_callee.byte_len() > 0 {
+                    e.mangled_callee = intern(ctx.pinned_callee.as_str())
+                    ctx.pinned_callee = String.from("")
+                }
             }
         }
         MethodCall(recv_ptr, method_name_sym, args) => {

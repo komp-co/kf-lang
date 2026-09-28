@@ -79,6 +79,8 @@ pub struct TypeCtx {
     /// Set by `check_call` when the callee is a generic whose name another
     /// crate's generic shares: the crate-qualified name the call must carry.
     pub var qualified_callee: String
+    /// The link name `check_call` fixed for its callee, or "".
+    pub var pinned_callee: String
 }
 
 pub fun new_type_ctx(return_ty: Type, diags: Ptr<List<Diagnostic>>, table: Ptr<DeclTable>?, sigs: Ptr<SigTable>): TypeCtx {
@@ -111,7 +113,8 @@ pub fun new_type_ctx(return_ty: Type, diags: Ptr<List<Diagnostic>>, table: Ptr<D
         open_typed: List.new<Span>(),
         list_literals: List.new<Span>(),
         pretyped_args: 0,
-        qualified_callee: String.from("")
+        qualified_callee: String.from(""),
+        pinned_callee: String.from("")
     }
 }
 

@@ -17,5 +17,5 @@ pub fun register_string_with_equal_and_from(sp: Ptr<SigTable>): void {
     val from_name = String.from("String_from__From__str")
     unsafe { sp.insert(FnSignature { name: from_name, params: params, ret: intern("String").lang_struct_ty(no_span()),
         generics: List.new<String>(), is_static: true, is_mutating: false, owner_module: intern(""),
-        owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false }) }
+        owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }) }
 }
