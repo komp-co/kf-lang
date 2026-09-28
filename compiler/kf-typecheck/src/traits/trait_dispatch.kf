@@ -4,6 +4,7 @@ import kf_core.ast.*
 import kf_typecheck.types.*
 import kf_typecheck.check.*
 import kf_core.span.no_span
+import kf_typecheck.note_import_use
 
 /// Selected by the typed value arguments: `From<int32>` and `From<bool>` on
 /// one target are different symbols.

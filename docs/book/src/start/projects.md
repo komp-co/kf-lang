@@ -29,6 +29,17 @@ The name is derived from the directory's own name, the last component of the
 path you give: hyphens become underscores (`komp new work/my-project` →
 `my_project`), because the crate name becomes a C identifier.
 
+A library published to an index can say what it is in one line, which
+[`komp search`](../tools/cli.md#komp-search-and-komp-info) shows beside it:
+
+```toml
+[project]
+name = "json"
+version = "0.2.0"
+kind = "lib"
+description = "JSON reading and writing"
+```
+
 ### kind: library vs binary
 
 | `kind` | Entry point | Output |
@@ -52,22 +63,22 @@ fun main(): int32 {
 
 ## The src/ layout
 
-Every `.kf` file under `src/` is part of the crate. A subdirectory becomes a
-module:
+Every `.kf` file under `src/` is part of the crate. Each directory is a
+module, and the files of one directory share one scope:
 
 ```
 src/
-  main.kf          # crate root
-  data.kf          # accessible as `data` from main.kf
+  main.kf          # module `app`, the crate root
+  data.kf          # module `app`: shares main.kf's scope
   util/
-    format.kf      # accessible as `util.format` from main.kf
+    format.kf      # module `app.util`
 ```
 
-A file `src/util/format.kf` is the module `util.format`. You import it like
-this:
+A module's name is the crate's name followed by its directories. A function
+from another module must be `pub`, and is imported by that name:
 
 ```kflat
-import util.format.*
+import app.util.*
 ```
 
 Imports are always `import`, never `use`. They appear before any declarations.
@@ -121,6 +132,10 @@ one; see [komp publish](../tools/cli.md#komp-publish).
 The index is read only to choose a version. What was chosen is fetched like
 any other remote dependency and pinned in `kf.lock`, which also records the
 index, so a build with a lock never reads the index at all.
+
+`komp add json` writes such a row for you, at the newest version, and fetches
+it; [`komp search`](../tools/cli.md#komp-search-and-komp-info) finds what an
+index offers. See [komp add](../tools/cli.md#komp-add).
 
 ### Fetched dependencies
 
@@ -245,6 +260,67 @@ Several komp processes can build into the same target at the same time, for
 example an editor's `komp check` while a build runs in a terminal. komp writes
 each artifact under a temporary name and renames it into place, so a reader
 never sees a half-written file.
+
+## Pinning the toolchain
+
+`kflat` in `[project]` pins the release a project builds with, as a version
+requirement read the way a dependency's is:
+
+```toml
+[project]
+name = "app"
+version = "0.1.0"
+kflat = "0.4"
+```
+
+komp builds with its own compiler when the requirement allows komp's version.
+Otherwise it builds with the highest toolchain under `~/.kflat/toolchains`
+that the requirement allows, with that toolchain's `core`, `alloc` and `std`.
+`komp metadata` names the compiler it chose, so tools that ask komp use it
+too.
+
+When none installed fits, komp installs one before building: the newest
+release when the requirement allows it, else the version the requirement
+writes. It goes into `~/.kflat/toolchains` beside the others, and the `komp`
+on `PATH` stays the one it was. With `--offline` komp installs nothing and
+stops instead:
+
+```console
+$ komp build --offline
+error: kf.toml pins kflat 0.6: this komp is 0.5.3 and no installed toolchain fits; --offline installs none
+```
+
+komp drives kflatc 0.5.3 and newer, the releases whose command line matches
+its own. A requirement that allows none of them stops the build, whatever is
+installed:
+
+```console
+$ komp build
+error: kf.toml pins kflat 0.4, older than the oldest kflatc this komp drives (0.5.3); pin a newer release, or build with a komp from that one
+```
+
+A `KFLATC` older than that is refused the same way, by name.
+
+In a workspace, `kflat` goes in `[workspace]` and pins every member; a
+member's own is not read. `KFLATC`, when set, wins over any pin.
+
+## Pinning tools
+
+`[tools]` pins the programs a project runs through komp, such as the
+formatter, written as dependencies are:
+
+```toml
+[tools]
+komp_fmt = "0.1"
+komp_doc = { version = "0.3", index = "work" }
+```
+
+Inside the project, `komp fmt` runs the highest version of `komp_fmt` that
+`"0.1"` allows among those installed, and installs one the first time none
+does; elsewhere it runs the default [`komp install`](../tools/cli.md#komp-install)
+made. Versions sit side by side in `~/.kflat/tools`, each built once, so a
+project on 0.1 and a default of 0.2 each run their own. In a workspace,
+`[tools]` goes in the root `kf.toml` and pins every member.
 
 ## Native C sources
 

@@ -14,6 +14,10 @@ import kf_driver.cli.render_json_diag
 import kf_driver.count_errors
 import kf_driver.new_lint_config
 import kf_shared.kflat_version
+import kf_driver.apply_option_row
+import kf_driver.apply_table_lint
+import kf_driver.build.check_crate
+import kf_driver.editor.focus
 
 /// The protocol versions this compiler speaks.
 pub fun serve_protocol(): int64 {

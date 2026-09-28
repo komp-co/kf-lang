@@ -8,6 +8,7 @@ import kf_typecheck.types.*
 import kf_typecheck.traits.validate_dyn_placement
 import kf_typecheck.check.borrow.check_returned_borrow
 import kf_typecheck.check.control.check_when_arms
+import kf_typecheck.check.control.yields_only_numeric_literals
 
 pub mutating fun Stmt.check_stmt(ctx: &var TypeCtx): void {
     when (self.kind) {

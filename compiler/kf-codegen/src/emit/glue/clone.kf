@@ -28,7 +28,8 @@ pub fun Import.deep_clone_import(): Import {
     while item in &self.path {
         path.push(item.clone())
     }
-    return new_import(self.span, path, self.wildcard)
+    return Import { span: self.span, path: path, wildcard: self.wildcard, alias: self.alias.clone(),
+        is_pub: self.is_pub, owner: self.owner.clone(), exposed: self.exposed.clone() }
 }
 
 pub fun TopDecl.deep_clone_top_decl(): TopDecl {

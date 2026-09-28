@@ -3,6 +3,7 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.intern
+import kf_typecheck.new_sig_table
 
 fun closure_trait(name: str, supers: List<SuperTraitReq>): TraitInfo {
     return TraitInfo {

@@ -4,6 +4,9 @@ import alloc.list.*
 import kf_core.span.no_span
 import kf_core.ast.*
 import kf_core.diagnostic.*
+import kf_typecheck.check.check_expr
+import kf_typecheck.check.mk_ctx
+import kf_typecheck.check.control.check_pattern
 
 mutating fun Expr.unresolved_check(ctx: &var TypeCtx): uint64 {
     check_expr(self, ctx)
@@ -19,7 +22,7 @@ fun call_expr(name: str): Expr {
 }
 
 fun unresolved_register_fn(name: str, ctx: &var TypeCtx): void {
-    val signature = FnSignature { name: String.from(name), params: List.new<Type>(), ret: int32_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false }
+    val signature = FnSignature { name: String.from(name), params: List.new<Type>(), ret: int32_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false, is_extern: false }
     val signatures = ctx.sigs
     unsafe { signatures.insert(signature) }
 }

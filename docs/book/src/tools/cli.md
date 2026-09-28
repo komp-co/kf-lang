@@ -17,10 +17,16 @@ points, and then compiles and links the C with cc.
 | `komp lint <dir>` | Check and report lints, with a tally; see [Linting](lint.md) |
 | `komp test <dir>` | Run `@test` functions in the crate |
 | `komp update <dir>` | Resolve fetched dependencies again and rewrite `kf.lock` |
+| `komp update --installed [<name>...]` | Update installed programs within the requirements they were installed with |
+| `komp add <name>[@<req>]` | Add a library from a package index to `[dependencies]` |
 | `komp install [<name>[@<req>]]` | Build a program from a package index into `~/.kflat/bin`, or list what is installed |
-| `komp uninstall <name>` | Remove an installed program |
+| `komp uninstall <name>[@<version>]` | Remove an installed program, or one version of it |
+| `komp search [<query>]` | List the packages an index offers, with their newest versions |
+| `komp info <name>` | List every version of a package in an index |
+| `komp cache list \| remove \| clean \| verify` | Look after the sources komp has downloaded |
 | `komp <command>` | Run the installed `komp-<command>` |
 | `komp self update [<version>]` | Install the newest komp release, or the one named |
+| `komp self list`, `komp self uninstall <version>` | List installed toolchains, or remove one |
 | `komp metadata <dir>` | Print the resolved crate graph as JSON, for tools |
 | `komp publish <dir>` | Add a library's version to a package index by pull request |
 | `komp new <name>` | Scaffold a new project directory |
@@ -118,6 +124,8 @@ opened   https://github.com/komp-co/index/pull/12
 ```
 
 The version is `kf.toml`'s, and the commit is the one its `vX.Y.Z` tag names.
+`kf.toml`'s `description`, when it has one, becomes the package's description
+in the index, replacing the one an earlier version gave.
 komp refuses, and says what to do, when the crate is a `bin`, its name is not
 lowercase `snake_case`, the working tree has uncommitted changes, the tag is
 missing, names another commit or is not pushed, the crate does not pass
@@ -145,6 +153,23 @@ now has, and a tag or branch to the commit it names now. It fetches what is
 new and rewrites `kf.lock`. Every other command fetches only what the lock
 does not already pin. See
 [Fetched dependencies](../start/projects.md#fetched-dependencies).
+
+`komp update --installed` updates the programs [`komp install`](#komp-install)
+put in `~/.kflat/bin` instead. Each is resolved again against the requirement
+and index it was installed with, and rebuilt only when that finds a newer
+version. Names pick some; none means every one.
+
+```console
+$ komp install komp_hello@0.1
+installed `komp_hello` 0.1.0 as /home/me/.kflat/bin/komp-hello
+$ komp update --installed
+updated `komp_hello` 0.1.0 -> 0.1.1
+$ komp update --installed komp_hello
+`komp_hello` 0.1.1 is the newest its requirement allows
+```
+
+Here 0.2.0 is published too, but `0.1` does not allow it; `komp install
+komp_hello@0.2` moves to it, and records that requirement instead.
 
 ### komp metadata
 
@@ -187,7 +212,7 @@ $ komp metadata
 | Field | Meaning |
 |---|---|
 | `schema` | Raised when a field changes meaning or goes away; a new field leaves it as it is |
-| `kflatc` | The compiler komp would run |
+| `kflatc` | The compiler komp would run: the one the project's `kflat` pin picks, when it has one |
 | `workspace_root` | The directory holding `[workspace]`, or `null` |
 | `target_dir` | Where compiled crates' `.kfi`, `.h` and `.c` land; kflatc's `--out` |
 | `members` | The crates the command was about, as roots |
@@ -200,38 +225,139 @@ $ komp metadata
 
 A graph that does not resolve prints `{"schema": 1, "error": "..."}` and exits 1.
 
+### komp add
+
+`komp add <name>` adds a library from a package index to the crate's
+`[dependencies]`, then fetches it and updates `kf.lock` as a build would. The
+row it writes is the newest version, which allows that version's compatible
+successors; `<name>@<req>` writes that requirement instead. An entry of the
+same name is replaced, and the rest of `kf.toml` is left as written.
+`--index <name>` looks in an index `kf.toml` declares under `[indexes]`, and
+writes the row with that `index`. At a workspace, `-p <crate>` picks the
+member.
+
+```console
+$ komp add json
+added `json` "0.2.0" to ./kf.toml, resolving to 0.2.0
+$ komp add komp_fmt
+error: `komp_fmt` is a program, not a library: `komp install komp_fmt` installs it
+```
+
 ### komp install
 
-`komp install <name>` builds a program published to a package index and puts
-its binary in `~/.kflat/bin`, or in `bin/` under `$KFLAT_HOME` when that is
-set. The package is resolved as a dependency would be: `<name>@0.2` takes the
-highest version `0.2` allows, as the same requirement in `kf.toml` would, and
-a bare name the highest version published. `--index <url>` looks in another
-index than the default. A package that ships a `kf.lock` is built with the
-dependencies it pins.
+`komp install <name>` builds a program published to a package index and makes
+it the default: `~/.kflat/bin/<binary>` points at it, or `bin/` under
+`$KFLAT_HOME` when that is set. The package is resolved as a dependency would
+be: `<name>@0.2` takes the highest version `0.2` allows, as the same
+requirement in `kf.toml` would, and a bare name the highest version published.
+`--index <url>` looks in another index than the default. A package that ships
+a `kf.lock` is built with the dependencies it pins.
 
 ```console
 $ komp install komp_fmt
-installed `komp_fmt` 0.1.0 as /home/me/.kflat/bin/komp-fmt
+installed `komp_fmt` 0.2.0 as /home/me/.kflat/bin/komp-fmt
 $ komp install
-komp_fmt 0.1.0  /home/me/.kflat/bin/komp-fmt
-$ komp uninstall komp_fmt
-uninstalled `komp_fmt`
+komp_fmt 0.2.0  /home/me/.kflat/bin/komp-fmt; also 0.1.0
+$ komp uninstall komp_fmt@0.1.0
+uninstalled `komp_fmt` 0.1.0
 ```
 
-A binary is named after its package with `_` spelled `-`. Installing a
-package again replaces it, at whatever version it now resolves to. Only a
-`kind = "bin"` package installs; a library is a dependency, and belongs in
-`[dependencies]`. Each install is recorded in `installed.toml` beside
-`bin/`, in `kf.lock`'s format, so the exact source of every program is
-known; `komp install` with no package lists it, and `komp uninstall` removes
-a program and its row.
+Every version komp builds goes in `~/.kflat/tools/<package>/<version>`, once:
+a version already there is not built again, and installing another version
+makes it the default while the earlier one stays, for the projects that
+[pin](../start/projects.md#pinning-tools) it. `komp install` with no package
+lists each default and the other versions beside it. `komp uninstall
+<name>@<version>` removes one version, and `komp uninstall <name>` every one
+and the default.
 
-`komp <command>`, for a command komp does not have, runs an installed
-`komp-<command>` with the arguments that follow it and exits with its status.
-Installing `komp_fmt` is what makes `komp fmt` work, whether or not
-`~/.kflat/bin` is on `PATH`. A built-in command always wins over an installed
-one of the same name.
+A binary is named after its package with `_` spelled `-`. Only a
+`kind = "bin"` package installs; a library is a dependency, and belongs in
+`[dependencies]`. Each default is recorded in `installed.toml` beside `bin/`,
+in `kf.lock`'s format with the requirement it was installed with added, so
+the exact source of every program is known and
+[`komp update --installed`](#komp-update) can resolve it again.
+
+`komp <command>`, for a command komp does not have, runs `komp-<command>`
+with the arguments that follow it and exits with its status: the version the
+current project's `[tools]` pins, else the default. Installing `komp_fmt` is
+what makes `komp fmt` work, whether or not `~/.kflat/bin` is on `PATH`. A
+built-in command always wins over an installed one of the same name.
+
+### komp search and komp info
+
+`komp search` lists the packages a package index offers, each with its newest
+version that is not yanked and its description; `komp search <query>` keeps the ones whose names
+contain it. `komp info <name>` lists every version of one package, marking
+the newest and any yanked. Both read the index's checkout in the cache,
+bringing it up to date first, and take `--index <url>` to look in another
+index than the default.
+
+```console
+$ komp search
+json      0.2.0  JSON reading and writing
+komp_fmt  0.1.0  The KFlat formatter: komp fmt
+$ komp search fmt
+komp_fmt  0.1.0  The KFlat formatter: komp fmt
+$ komp info json
+json, in https://github.com/komp-co/index
+JSON reading and writing
+  0.1.0
+  0.2.0  newest
+```
+
+A package's description is the one `komp publish` took from its `kf.toml`;
+a package published without one shows none.
+
+### komp cache
+
+Fetched sources live in komp's cache, `$KFLAT_CACHE` or else
+`~/.cache/kflat`: each under `git/<commit>` or `tarball/<sha256>`, never
+changed once written, with the package index checkouts under `index/`.
+
+```console
+$ komp cache list
+json 0.2.0  git 44a09fc77681  /home/me/.cache/kflat/git/44a09fc776814a7aa1871619f1c1b5786a9d5b43
+index  /home/me/.cache/kflat/index/github.com_komp-co_index
+$ komp cache verify
+ok       json 0.2.0 (git 44a09fc77681)
+1 checked, 0 damaged
+```
+
+When komp fetches a source it records a digest of its files beside it.
+`komp cache verify` hashes each source again: one that no longer matches is
+reported, removed and fetched again by the next command that needs it, and
+the exit status is 1. A source fetched before digests were kept has its
+digest recorded the first time it is verified.
+
+`komp cache remove <name>[@<version>]` removes the sources of that package,
+or of that one version; `komp cache clean` removes everything komp
+downloaded, and keeps the bootstrap seeds that `bootstrap/build.sh` stores
+in the same directory. Nothing is lost either way: a build fetches what its
+`kf.lock` pins again.
+
+### JSON output
+
+The listing commands take `--format=json` and print one JSON object on one
+line, for editors and scripts; a failure prints `{"error": "..."}` and exits
+1. A value that is absent is `null`, never `""`.
+
+| Command | Object |
+|---|---|
+| `komp search` | `{"index", "packages": [{"name", "newest", "description"}]}` |
+| `komp info <name>` | `{"index", "name", "description", "newest", "versions": [{"version", "yanked"}]}` |
+| `komp install` | `{"programs": [{"name", "default", "binary", "requirement", "versions"}]}`; `default`, `binary` and `requirement` are `null` for a version stored only for a project's pin |
+| `komp cache list` | `{"cache", "sources": [{"name", "version", "kind", "key", "root"}], "indexes"}` |
+| `komp cache verify` | `{"sources": [{"name", "version", "kind", "key", "state"}], "checked", "damaged"}`, each state `ok`, `damaged` or `recorded` |
+| `komp self list` | `{"running", "default", "toolchains": [{"version", "path", "default", "running"}]}` |
+
+```console
+$ komp info json --format=json
+{"index":"https://github.com/komp-co/index","name":"json","description":null,"newest":"0.2.0","versions":[{"version":"0.1.0","yanked":false},{"version":"0.2.0","yanked":false}]}
+```
+
+`komp check` and `komp lint` take `--diagnostic-format=json` instead, one
+object per diagnostic (see [Structured fixes](#structured-fixes)), and
+[`komp metadata`](#komp-metadata) always prints JSON.
 
 ### komp self update
 
@@ -240,7 +366,8 @@ one of the same name.
 `kflat-<version>.tar.gz`, checks it against the sha256 published beside it,
 builds komp and kflatc with `cc`, and puts them in
 `~/.kflat/toolchains/<version>/`, where `~/.kflat/bin/komp` then points.
-Toolchains already installed stay where they are. `komp self update 0.5.1`
+Toolchains already installed stay where they are, for the projects that
+[pin](../start/projects.md#pinning-the-toolchain) them. `komp self update 0.5.1`
 installs that release instead of the newest, which also goes back to an
 earlier one.
 
@@ -253,6 +380,24 @@ installed komp 0.5.1; /home/me/.kflat/bin/komp now runs it
 $ komp self update
 komp 0.5.1 is the newest release
 ```
+
+`komp self list` shows every installed toolchain, marking the default, the
+one `~/.kflat/bin/komp` runs, and the komp running the command; `komp self
+uninstall <version>` removes one, but neither of those two:
+
+```console
+$ komp self list
+0.5.2  /home/me/.kflat/toolchains/0.5.2
+0.5.3  running  /home/me/.kflat/toolchains/0.5.3
+0.5.4  default  /home/me/.kflat/toolchains/0.5.4
+$ komp self uninstall 0.5.4
+error: kflat 0.5.4 is the default; `komp self update` to another one first
+$ komp self uninstall 0.5.2
+uninstalled kflat 0.5.2
+```
+
+A project whose [`kflat` pin](../start/projects.md#pinning-the-toolchain)
+needs a removed toolchain installs it again the next time it builds.
 
 It needs `curl`, `tar` and a C compiler. `KFLAT_RELEASES` names another
 place to take releases from, laid out as GitHub lays them out.
@@ -323,7 +468,7 @@ usual), and 2 on a malformed command line.
 | `--diagnostic-format=json` (on `check`) | Output diagnostics as JSON lines |
 | `--unity` (on `build`/`run`/`test`) | Emit a single merged C unit |
 | `--locked` | Fail rather than change `kf.lock` |
-| `--offline` | Fail rather than fetch a dependency |
+| `--offline` | Fail rather than fetch a dependency or install a [pinned toolchain](../start/projects.md#pinning-the-toolchain) |
 
 ### Colored output
 

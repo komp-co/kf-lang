@@ -1,6 +1,6 @@
 import core.assert.assert_eq
 import kf_codegen.runtime.emit_runtime_header
-import kf_codegen.runtime.runtime_header_declares
+import kf_core.runtime.runtime_header_declares
 
 // `String` is defined once, in core, beside the prototypes that pass it by
 // value.

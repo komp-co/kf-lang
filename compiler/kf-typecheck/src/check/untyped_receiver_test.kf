@@ -3,6 +3,7 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.diagnostic.*
+import kf_typecheck.new_sig_table
 
 fun table_with_one_untyped_call(): Ptr<SigTable> {
     val sigs: Ptr<SigTable> = unsafe { alloc<SigTable>() }

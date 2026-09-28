@@ -81,15 +81,52 @@ fun Module.emit_modules(crate: CrateId, smap: Ptr<SourceMap>): String {
             }
         }
     }
+    // A module may hold nothing but exports.
+    while imp in &self.imports {
+        if imp.is_pub && owner_is_in_crate(imp.owner.as_str(), crate) {
+            add_unique_path(&var paths, imp.owner.as_str())
+        }
+    }
     var arr = JsonWriter.array()
     while item in &paths {
         var mod_obj = JsonWriter.object()
         mod_obj.field_string("path", item.as_str())
         mod_obj.field_raw("files", self.emit_module_files(crate, item.as_str(), smap).as_str())
         mod_obj.field_raw("decls", self.emit_module_decls(crate, item.as_str(), &hidden, smap).as_str())
+        mod_obj.field_raw("reexports", self.emit_module_reexports(item.as_str()).as_str())
         arr.write_raw(mod_obj.finish().as_str())
     }
     return arr.finish()
+}
+
+/// The module's exports, one per name as written, so a consumer resolves
+/// them.
+fun Module.emit_module_reexports(path: str): String {
+    var arr = JsonWriter.array()
+    while imp in &self.imports {
+        if imp.is_pub && imp.owner.as_str() == path {
+            var object = JsonWriter.object()
+            object.field_string("path", import_dotted_path(&imp.path).as_str())
+            object.field_bool("wildcard", imp.wildcard)
+            object.field_string("as", imp.exposed.as_str())
+            arr.write_raw(object.finish().as_str())
+        }
+    }
+    return arr.finish()
+}
+
+fun owner_is_in_crate(owner: str, crate: CrateId): bool {
+    val name = Sym { id: crate.raw }.as_str()
+    return owner == name || owner.starts_with("${name}.")
+}
+
+fun import_dotted_path(path: &List<String>): String {
+    var out = ""
+    while i in 0..path.size() {
+        if i > 0 { out.append(".") }
+        out.append(path.at(i).as_str())
+    }
+    return out
 }
 
 fun module_decl_crosses(td: &TopDecl, m: &Module, crate: CrateId, hidden: &List<String>): bool {

@@ -7,6 +7,8 @@ import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.*
 import kf_typecheck.traits.str_list_has
 import kf_typecheck.check.borrow.coerce_call_arg
+import kf_typecheck.note_import_use_named
+import kf_typecheck.check.control.yield_ref_binder_value
 
 /// `alloc<T>()`, `sizeof<T>()`, `take<T>(x)` and friends, the type folded into
 /// the callee name. Only reached with `Expr.is_intrinsic` set.
@@ -78,13 +80,16 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
     // CONSTRAINT: gated on the parser's flag, not the shape, which a
     // crate-qualified free function in `alloc` shares.
     if is_intrinsic { return intrinsic_call_type(name, args, type_args, span, ctx) }
+    // Taken before the arguments, whose own calls are not through the alias.
+    val through = ctx.through_module
+    ctx.through_module = Sym { id: 0 }
     // Arguments first, in place: a nested receiver needs its type even when
     // the callee does not resolve.
     report_annotated_lambda_call_args(String.from(name.as_str()), args, span, ctx)
     var arg_tys = type_call_arguments(args, ctx)
     // Runtime intrinsics are not in the sig table.
     val rt = runtime_intrinsic_ret(name, span, ctx.string_name())
-    val rt_poison = rt.is_poison()
+    val rt_poison = rt.is_poison() || through.id != 0
     if !rt_poison {
         // `read_file(path: str)` is often given a String; coerced here since the
         // sig-table path is skipped.
@@ -100,18 +105,33 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
         }
         return rt
     }
-    val found_sig = unsafe { (*ctx.sigs).find_imported_signature(name.as_str(), ctx.owner_file, ctx.owner_crate, ctx.owner_module) }
+    val found_sig = unsafe { (*ctx.sigs).lookup_callee(name.as_str(), through, ctx.owner_file, ctx.owner_crate, ctx.owner_module) }
     if found_sig.is_none() {
-        // A genuinely unknown name.
-        report_unknown_callee(name.as_str(), span, ctx)
+        if through.id != 0 {
+            report_not_in_module(name.as_str(), through, false, span, ctx)
+        } else {
+            report_unknown_callee(name.as_str(), span, ctx)
+        }
         return poison_ty()
     }
     val sig = found_sig ?: return poison_ty()
-    ctx.qualified_callee = if unsafe { (*ctx.sigs).has_generic_twin(&sig) } {
-        crate_qualified_generic(sig.owner_crate, name.as_str())
+    if through.id != 0 && !sig.is_pub && sig.owner_module.id != ctx.owner_module.id {
+        report_not_in_module(name.as_str(), through, true, span, ctx)
+        return poison_ty()
+    }
+    val sigs = unsafe { &*ctx.sigs }
+    // A renamed export is called by the name its file writes; the call
+    // names the function itself.
+    val qualified = if sigs.has_generic_twin(&sig) {
+        crate_qualified_generic(sig.owner_crate, sig.name.as_str())
+    } else if !sig.name.as_str().equals(name.as_str()) {
+        sig.name.clone()
     } else {
         String.from("")
     }
+    val pinned = sigs.pinned_link_name(&sig)
+    ctx.qualified_callee = qualified
+    ctx.pinned_callee = pinned
     // Marks the import used, outside the lookup so the lookup stays pure. The
     // written name lets the import be suggested narrower.
     val written_name = callee_surface_name(name.as_str(), ctx.sigs)

@@ -52,7 +52,7 @@ fun bound_blocked_signature(name: str, recv: &Type, ctx: &var TypeCtx): FnSignat
             when (unsafe { (*ctx.sigs).find_signature(links.get(i).as_str()) }) {
                 Some(sig) => {
                     val blocked = sig.first_unmet_bound(&have, ctx).byte_len() > 0
-                    if blocked && sig.extension_visible(name, ctx) { return sig }
+                    if blocked && sig.extension_visible(ctx) { return sig }
                 }
                 None => { }
             }

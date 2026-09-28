@@ -6,6 +6,7 @@ import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.*
 import kf_typecheck.traits.str_list_has
+import kf_core.runtime.runtime_function_returns
 
 fun is_box_new_recv(recv_kind: ExprKind, method_name: String): bool {
     val is_new = method_name.as_str().equals("new")
@@ -201,43 +202,20 @@ pub fun deref_target(t: Type): Type {
     }
 }
 
-// Poison when `name` is not a runtime function.
+// Poison when `name` is not a runtime function the table types; test
+// assertions are declared extern and resolve through the sig table, which
+// coerces literals to `str`.
 fun runtime_intrinsic_ret(name: String, span: Span, string_name: Sym): Type {
-    val s = name.as_str()
-    when s {
-        "kf_str_slice_to_string" => return string_name.lang_struct_ty(span)
-        "kf_str_byte_len" => return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) }
-        "kf_file_hash" => return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) }
-        "kf_str_byte_at" => return Type { kind: TypeKind.UInt8, provenance: Provenance.Inferred(span) }
-        // Runtime free functions, which a crate cannot see in the sig table under
-        // separate compilation.
-        "read_file" => return string_name.lang_struct_ty(span)
-        "write_file" => return void_ty(span)
-        // Never: panic does not return.
-        "panic" => return never_ty(span)
-        "kf_sym_intern" => return Type { kind: TypeKind.UInt32, provenance: Provenance.Inferred(span) }
-        "kf_sym_resolve" => return str_ty(span)
-        "kf_fs_dir_open" => return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) }
-        "kf_fs_dir_next" => return str_ty(span)
-        "kf_fs_dir_close" => return void_ty(span)
-        "str_equals" => return bool_ty(span)
-        "str_as_str" => return str_ty(span)
-        "int64_display" => return string_name.lang_struct_ty(span)
-        "uint64_display" => return string_name.lang_struct_ty(span)
-        "is_dir" => return bool_ty(span)
-        "join" => return string_name.lang_struct_ty(span)
-        "kf_arg_init" => return void_ty(span)
-        "kf_arg_count" => return int32_ty(span)
-        "kf_arg_get" => return str_ty(span)
-        "kf_current_dir" => return string_name.lang_struct_ty(span)
-        "kf_self_dir" => return string_name.lang_struct_ty(span)
-        "kf_create_dir_all" => return int32_ty(span)
-        "kf_temp_dir" => return string_name.lang_struct_ty(span)
-        "kf_remove_dir_all" => return int32_ty(span)
-        "exit" => return void_ty(span)
-        _ => { }
+    return when runtime_function_returns(name.as_str()).as_str() {
+        "String" => string_name.lang_struct_ty(span)
+        "str" => str_ty(span)
+        "bool" => bool_ty(span)
+        "void" => void_ty(span)
+        "never" => never_ty(span)
+        "int32" => int32_ty(span)
+        "uint8" => Type { kind: TypeKind.UInt8, provenance: Provenance.Inferred(span) }
+        "uint32" => Type { kind: TypeKind.UInt32, provenance: Provenance.Inferred(span) }
+        "uint64" => Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) }
+        _ => poison_ty()
     }
-    // Test assertions are declared extern and resolve through the sig table,
-    // which coerces literals to `str`.
-    return poison_ty()
 }

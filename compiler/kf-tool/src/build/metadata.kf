@@ -11,6 +11,7 @@ import kf_tool.project.workspace_member_roots
 import kf_shared.absolutize
 import kf_shared.canonicalize_path
 import kf_shared.kflat_version
+import kf_tool.project.lint_toml_for
 
 /// Bumped when a field changes meaning or goes away; a new field is not a
 /// change.

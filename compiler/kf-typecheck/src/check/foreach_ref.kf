@@ -8,6 +8,8 @@ import kf_core.span.*
 import kf_core.ast.*
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
+import kf_typecheck.types.kind_tag
+import kf_typecheck.types.TAG_GENERIC
 
 /// From the loop's span, so nested loops do not collide.
 pub fun foreach_tag(span: Span): String {

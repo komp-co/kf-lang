@@ -92,11 +92,18 @@ src/main.kf:3:13: error: lambda parameter `x` needs a type annotation (its type 
 - An impl cannot name one instance of a generic type, even one the crate
   declares: `impl Wrap<Point> { ... }` is an error. Write an extension,
   `fun Wrap<Point>.name()`, instead ([#41]).
-- There is no module-qualified call such as `geometry.manhattan(&p)` ([#47]);
-  two imported extensions that tie are separated by importing only one.
+- An extension cannot be called through a module alias
+  (`geometry.manhattan(&p)`), so two imported extensions that tie are
+  separated only by importing just one ([#194]).
 - `Self` cannot be written in an extension to name the receiver's type
   ([#53]). Write the receiver as a parameter, `fun <C: Trait> C.name()`, and
   name `C`.
+
+## Modules
+
+- `pub` is not checked on a struct or a field: a private field can be read
+  and written from any module and any crate, and naming a dependency's
+  private struct passes `komp check` and fails in cc ([#190]).
 
 ## std is thin, and not implicit
 
@@ -177,8 +184,9 @@ not agree with it in every case.
 [#21]: https://github.com/komp-co/komp/issues/21
 [#36]: https://github.com/komp-co/komp/issues/36
 [#41]: https://github.com/komp-co/komp/issues/41
-[#47]: https://github.com/komp-co/komp/issues/47
 [#53]: https://github.com/komp-co/komp/issues/53
 [#58]: https://github.com/komp-co/komp/issues/58
 [#73]: https://github.com/komp-co/komp/issues/73
 [#79]: https://github.com/komp-co/komp/issues/79
+[#190]: https://github.com/komp-co/komp/issues/190
+[#194]: https://github.com/komp-co/komp/issues/194

@@ -25,9 +25,11 @@ pub struct Point {
 }
 ```
 
-A `pub` struct with a private field is visible outside the crate but the
-caller cannot access the private field directly. A struct without `pub` is
-entirely crate-internal — even its public fields are invisible to dependents.
+`pub` on a struct or a field is not checked yet ([#190]): a private field
+can be read from anywhere, and naming a dependency's struct without `pub`
+passes `komp check` and fails when cc compiles it.
+
+[#190]: https://github.com/komp-co/komp/issues/190
 
 ## Construction
 

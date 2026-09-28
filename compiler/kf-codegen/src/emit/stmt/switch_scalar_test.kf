@@ -6,6 +6,7 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_codegen.emit.new_local_env
 
 fun scalar_arm(tag: SwitchTag): SwitchArm {
     return new_switch_arm(no_span(), tag, List.new<Sym>(), null, List.new<Stmt>())

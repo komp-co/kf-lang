@@ -8,6 +8,9 @@ import alloc.list.*
 import kf_core.span.no_span
 import kf_core.ast.*
 import kf_core.diagnostic.*
+import kf_typecheck.new_sig_table
+import kf_typecheck.new_type_ctx
+import kf_typecheck.types.mangle_type
 
 /// `fun range<T>(start: T, end: T, step: T): Range<T>`.
 fun range_signature(): FnSignature {
@@ -28,7 +31,8 @@ fun range_signature(): FnSignature {
         owner_crate: new_crate_id("core"),
         is_pub: true,
         borrows: 0 - 1,
-        is_prelude: false
+        is_prelude: false,
+        is_extern: false
     }
 }
 

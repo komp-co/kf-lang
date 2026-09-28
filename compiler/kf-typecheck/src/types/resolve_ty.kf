@@ -12,6 +12,7 @@ import kf_typecheck.traits.assoc_owner_key
 import kf_typecheck.check.mangle_base_name
 import kf_typecheck.check.check_generic_bounds
 import kf_core.ast.dyn_meta.dyn_trait_type
+import kf_typecheck.note_import_use
 
 // Declared per file: the shim is in every translation unit.
 

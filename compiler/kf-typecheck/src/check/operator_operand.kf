@@ -9,6 +9,7 @@ import kf_typecheck.types.TAG_PTR
 import kf_typecheck.types.TAG_REF
 import kf_typecheck.types.kind_tag
 import kf_typecheck.types.type_eq
+import kf_typecheck.traits.trait_impl_owner_name
 
 /// `check_binary`, then borrowing the right operand when the trait method takes
 /// it by reference. Decided by the trait, since generic code over `T: Equal` is

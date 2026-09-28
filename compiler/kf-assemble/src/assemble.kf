@@ -30,6 +30,10 @@ pub fun stamp_module_owner(module: &var Module, crate: CrateId): void {
     module.crate = crate
     val module_path = module_path_sym(&module.path)
     stamp_decl_list(&var module.decls, crate, module_path)
+    while i in 0..module.imports.size() {
+        val imp = module.imports.at_mut(i)
+        if imp.is_pub { imp.owner = String.from(module_path.as_str()) }
+    }
 }
 
 fun module_path_sym(path: &List<String>): Sym {

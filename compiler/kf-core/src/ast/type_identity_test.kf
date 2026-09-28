@@ -1,5 +1,6 @@
 import core.assert.assert_eq
 import core.assert.fail
+import kf_core.span.no_span
 
 @test
 fun same_display_name_has_distinct_crate_identities(): void {

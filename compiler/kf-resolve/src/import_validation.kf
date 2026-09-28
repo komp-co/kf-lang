@@ -50,17 +50,32 @@ pub fun validate_imports_per_module(m: &Module,
     }
 
     val file_paths = m.collect_importable_files(smap)
+    val reexports = m.resolve_reexports(&var module_paths, &var decl_names, &file_paths, &var diags)
+    var own = new_import_entries()
 
     // CONSTRAINT: an unresolved import is still recorded, with a poison
     // target, so index `i` of every list stays on `m.imports.get(i)`.
+    // Entries past the imports' own are what exports forward.
     while imp in &m.imports {
         val source_file = imp.span.file_id
         var resolved = poison_sym()
         var admitted = poison_sym()
-        if imp.wildcard {
+        if imp.alias.as_str() != "" {
             resolved = imp.resolve_wildcard(&module_paths, &file_paths)
             if resolved.id == 0 {
-                diags.push(error_at(imp.span, wildcard_not_found_message(&imp.path, &module_paths)))
+                diags.push(error_at(imp.span, aliased_module_not_found(&imp, m.crate, &module_paths, &file_paths)))
+            } else {
+                admitted = alias_admission(imp.alias.as_str())
+            }
+        } else if imp.wildcard {
+            resolved = imp.resolve_wildcard(&module_paths, &file_paths)
+            if resolved.id == 0 {
+                var msg = wildcard_not_found_message(&imp.path, &module_paths)
+                val qualified = imp.crate_qualified(m.crate)
+                if qualified.resolve_wildcard(&module_paths, &file_paths).id != 0 {
+                    msg.append(qualified.path_starts_with_crate_hint().as_str())
+                }
+                diags.push(error_at(imp.span, msg))
             }
         } else {
             resolved = imp.resolve_specific(&module_paths, &decl_names, &file_paths)
@@ -68,13 +83,53 @@ pub fun validate_imports_per_module(m: &Module,
             if resolved.id == 0 {
                 val seg_count = imp.path.size()
                 val target_name = if seg_count > 0 { *imp.path.at(seg_count - 1) } else { String.from("") }
-                diags.push(error_at(imp.span, import_name_not_found(target_name, &imp.path)))
+                var msg = import_name_not_found(target_name, &imp.path)
+                val qualified = imp.crate_qualified(m.crate)
+                if qualified.resolve_specific(&module_paths, &decl_names, &file_paths).id != 0 {
+                    msg.append(qualified.path_starts_with_crate_hint().as_str())
+                }
+                diags.push(error_at(imp.span, msg))
             }
         }
+        // An export names what the module offers, not what its file sees.
+        if imp.is_pub && resolved.id != 0 { admitted = export_admission() }
         record_import(caller_files, imported_targets, imported_names, source_file, resolved, admitted)
+        own.add(source_file, resolved, admitted)
+    }
+    val forwarded = forwarded_entries(&reexports, &own)
+    while i in 0..forwarded.files.size() {
+        record_import(caller_files, imported_targets, imported_names, forwarded.files.get(i), forwarded.targets.get(i),
+            forwarded.names.get(i))
     }
 
     return diags
+}
+
+/// The same import with the crate's own name in front: `data.*` written for
+/// `app.data.*`. Unchanged for a crate not yet stamped.
+fun Import.crate_qualified(crate: CrateId): Import {
+    var path = List.new<String>()
+    if !crate.is_poison() { path.push(String.from(Sym { id: crate.raw }.as_str())) }
+    while seg in &self.path { path.push(seg.clone()) }
+    return Import { span: self.span, path: path, wildcard: self.wildcard, alias: self.alias.clone(),
+        is_pub: self.is_pub, owner: self.owner.clone(), exposed: self.exposed.clone() }
+}
+
+fun Import.path_starts_with_crate_hint(): String {
+    val tail = if self.wildcard { ".*" } else { "" }
+    val written = "${format_import_path(&self.path).as_str()}${tail}"
+    return "; a path inside this crate starts with the crate's name: `import ${written.as_str()}`"
+}
+
+/// An alias names a module, so the path is judged as a wildcard's would be.
+fun aliased_module_not_found(imp: &Import, crate: CrateId, module_paths: &List<Sym>, file_paths: &List<Sym>): String {
+    var msg = wildcard_not_found_message(&imp.path, module_paths)
+    val qualified = imp.crate_qualified(crate)
+    if qualified.resolve_wildcard(module_paths, file_paths).id != 0 {
+        msg.append("; a path inside this crate starts with the crate's name: ")
+        msg.append("`import ${format_import_path(&qualified.path).as_str()} as ${imp.alias.as_str()}`")
+    }
+    return msg
 }
 
 fun poison_sym(): Sym {

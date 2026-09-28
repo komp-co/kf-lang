@@ -4,6 +4,7 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_typecheck.new_sig_table
 
 // `Holder` stands in for alloc's `String`, which declares `byte_len` both
 // inherently and through `impl Text`.
@@ -22,7 +23,8 @@ fun insert_size_method(sp: Ptr<SigTable>, name: str, is_static: bool, params: ui
     val ret = Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(no_span()) }
     unsafe { sp.insert(FnSignature { name: String.from(name), params: ps, ret: ret,
         generics: List.new<String>(), is_static: is_static, is_mutating: false,
-        owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false }) }
+        owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false,
+        is_extern: false }) }
 }
 
 /// With the `Text` impl, and its own `size` when `inherent`.

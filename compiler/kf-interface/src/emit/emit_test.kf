@@ -106,14 +106,14 @@ fun repeated_interface_output_is_byte_identical(): void {
 fun interface_carries_version_and_abi_metadata(): void {
     val m = interface_test_module()
     val out = m.emit_interface(String.from("sample"), &List.new<String>())
-    assert_eq(interface_contains(out.as_str(), "\"kfi\":11,\"crate\":\"sample\",\"compiler_abi\":\"komp-1\",\"runtime_abi\":\"kflat-runtime-1\""), true, "interface starts with versioned compiler metadata")
+    assert_eq(interface_contains(out.as_str(), "\"kfi\":13,\"crate\":\"sample\",\"compiler_abi\":\"komp-1\",\"runtime_abi\":\"kflat-runtime-1\""), true, "interface starts with versioned compiler metadata")
 }
 
 @test
-fun interface_emits_version_seven(): void {
+fun interface_emits_the_current_version(): void {
     val m = interface_test_module()
     val out = m.emit_interface(String.from("sample"), &List.new<String>())
-    assert_eq(interface_contains(out.as_str(), "\"kfi\":11"), true, "emitted interfaces carry kfi version 10")
+    assert_eq(interface_contains(out.as_str(), "\"kfi\":13"), true, "emitted interfaces carry kfi version 13")
 }
 
 @test

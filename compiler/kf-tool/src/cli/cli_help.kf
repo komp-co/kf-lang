@@ -12,10 +12,14 @@ pub fun command_usage(command: str): str {
         "fix" => "komp fix [--dry-run] [--manifest-path <path>] [<project-dir>]"
         "lint" => "komp lint [--list] [--fix] [-A|-W|-D <lint|group>] [--deny-warnings] [<project-dir>]"
         "publish" => "komp publish [--status] [--index <url>] [<project-dir>]"
-        "update" => "komp update [-p <crate>] [--manifest-path <path>] [<project-dir>]"
+        "update" => "komp update [-p <crate>] [--manifest-path <path>] [<project-dir>] | --installed [<name>...]"
         "install" => "komp install [<name>[@<requirement>]] [--index <url>]"
-        "uninstall" => "komp uninstall <name>"
-        "self" => "komp self update [<version>]"
+        "uninstall" => "komp uninstall <name>[@<version>]"
+        "add" => "komp add <name>[@<requirement>] [--index <name>] [-p <crate>] [--manifest-path <path>]"
+        "search" => "komp search [<query>] [--index <url>]"
+        "cache" => "komp cache list | remove <name>[@<version>] | clean | verify"
+        "info" => "komp info <name> [--index <url>]"
+        "self" => "komp self update [<version>] | list | uninstall <version>"
         "metadata" => "komp metadata [--locked] [--offline] [--manifest-path <path>] [<project-dir>]"
         "new" => "komp new <name>"
         "init" => "komp init"
@@ -73,26 +77,63 @@ kf.toml's [lint] table, then these flags.
   --dry-run           print what would change and write nothing
   -p, --package <c>   fix this workspace member
   --workspace         fix every workspace member"""
-        "install" => """Build a program from a package index and put it in ~/.kflat/bin
-($KFLAT_HOME/bin when set), replacing any earlier install of it. With no
-package, list what is installed. `komp <command>` runs an installed
-komp-<command>, so installing komp_fmt gives `komp fmt`.
+        "install" => """Build a program from a package index into ~/.kflat/tools, unless that
+version is there already, and make it the default in ~/.kflat/bin
+($KFLAT_HOME when set); earlier versions stay, for projects that pin them.
+With no package, list what is installed. `komp <command>` runs
+komp-<command>, the version the project's [tools] pins or the default, so
+installing komp_fmt gives `komp fmt`.
 
   <name>@<req>      the highest version the requirement allows, as in kf.toml;
                     without one, the highest published
   --index <url>     the index to look in, instead of the default"""
-        "uninstall" => """Remove a program `komp install` put in ~/.kflat/bin, and its record."""
+        "uninstall" => """Remove a program komp installed: every version, and the default in
+~/.kflat/bin; with @<version>, that version only."""
+        "add" => """Add a library from a package index to the project's [dependencies],
+replacing an entry of that name, then fetch it and update kf.lock. Without a
+requirement, the newest version is written, which allows its compatible
+successors. A program is refused: `komp install` installs one.
+
+  <name>@<req>        write this requirement instead
+  --index <name>      an index kf.toml declares under [indexes]
+  -p, --package <c>   add it to this workspace member
+  --manifest-path <p> the project's kf.toml, or its directory"""
+        "cache" => """Look after the sources komp downloads, in $KFLAT_CACHE or ~/.cache/kflat.
+
+  list                       every fetched source and index checkout
+  remove <name>[@<version>]  those sources; the next build fetches them again
+  clean                      everything downloaded; the bootstrap seeds stay
+  verify                     each source against the digest taken when it was
+                             fetched; a damaged one is removed, to be fetched
+                             again, and the exit status is 1"""
+        "search" => """List the packages a package index offers whose names contain <query>,
+each with its newest version; with no query, every package.
+
+  --index <url>     the index to look in, instead of the default"""
+        "info" => """List every version of a package in a package index, marking the newest
+and any yanked.
+
+  --index <url>     the index to look in, instead of the default"""
         "self" => """Install the newest komp release, or the version named, from its
 release archive, checked against the sha256 published beside it. It goes in
 ~/.kflat/toolchains/<version> ($KFLAT_HOME when set) and ~/.kflat/bin/komp
 points at it; earlier toolchains stay. Needs curl, tar and a C compiler.
 
-  <version>   that release, such as 0.5.1, instead of the newest"""
+  <version>   that release, such as 0.5.1, instead of the newest
+
+  list                 every installed toolchain, the default and the running
+                       one marked
+  uninstall <version>  remove that toolchain; not the default or the running one"""
         "update" => """Resolve every version, git and tarball dependency again: a
 requirement moves to the highest version its index now has, a tag or branch
 to the commit it names now. Fetches, and rewrites kf.lock.
 
-  -p, --package <c>   update the workspace holding this member"""
+With --installed, update programs installed with `komp install` instead:
+each to the highest version the requirement it was installed with allows,
+rebuilt only when that is newer. Names pick some; none means all.
+
+  -p, --package <c>   update the workspace holding this member
+  --installed         update installed programs, not a project"""
         "publish" => """Add this library's version to a package index by pull request.
 
 The version is kf.toml's; the commit is the one its tag vX.Y.Z names, which
@@ -137,8 +178,12 @@ pub fun print_usage(): void {
     runtime_println("  lint      report the project's lints, as lint.toml sets them")
     runtime_println("  fix       apply the repairs the checker suggests")
     runtime_println("  update    re-resolve fetched dependencies and rewrite kf.lock")
+    runtime_println("  add       add a library from a package index to [dependencies]")
     runtime_println("  install   build a program from a package index into ~/.kflat/bin")
     runtime_println("  uninstall remove an installed program")
+    runtime_println("  search    list the packages an index offers")
+    runtime_println("  cache     list, remove, clean or verify downloaded sources")
+    runtime_println("  info      list a package's versions in an index")
     runtime_println("  self      update komp itself: komp self update")
     runtime_println("  publish   add this library's version to a package index")
     runtime_println("  metadata  print the resolved crate graph as JSON")

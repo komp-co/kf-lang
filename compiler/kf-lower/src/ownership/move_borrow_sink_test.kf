@@ -4,6 +4,7 @@ import alloc.list.*
 import kf_core.span.*
 import kf_core.diagnostic.*
 import kf_core.ast.*
+import kf_lower.new_reached
 
 fun ctx_with_one_sink(name: String, borrow_sink: bool): MoveCtx {
     val dp = fresh_diag_ptr()

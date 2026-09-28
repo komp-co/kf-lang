@@ -20,7 +20,7 @@ fun path_is_core_range(path: &List<String>): bool {
 }
 
 impl Parser {
-    /// Imports come before the first other top-level item.
+    /// Imports and exports come before the first other top-level item.
     pub mutating fun parse_module(path: List<String>): Module {
         // Every lexer error once, including in code the parser never reaches.
         self.report_lex_errors()
@@ -33,6 +33,12 @@ impl Parser {
             if self.at_eof() { break }
             if phase_imports && is_keyword(self.peek(), Keyword.Import) {
                 imports.push(self.parse_import())
+            } else if phase_imports && self.at_word("export") {
+                val exported = self.parse_export()
+                while imp in &exported { imports.push(imp.clone_import()) }
+            } else if phase_imports && is_keyword(self.peek(), Keyword.Pub) && is_keyword(self.peek_at(1), Keyword.Import) {
+                self.parse_err(self.peek().span, "a re-export is written `export <names> from <module>`")
+                self.sync_to_newline()
             } else {
                 phase_imports = false
                 decls.push(self.parse_top_decl())
@@ -43,6 +49,75 @@ impl Parser {
             imports.push(new_import(self.module_file_span(), core_range_path(), true))
         }
         return Module { crate: crate_id_poison(), path: path, decls: decls, imports: imports }
+    }
+
+    /// `export <names> from <module>`: `*`, or names each optionally `as` a
+    /// new one. One import per name, marked `pub`; its owner is stamped
+    /// with the file's module.
+    mutating fun parse_export(): List<Import> {
+        val start = self.peek().span
+        self.advance()
+        var out = List.new<Import>()
+        var names = List.new<String>()
+        var exposed = List.new<String>()
+        val wildcard = is_op(self.peek(), Operator.Star)
+        if wildcard {
+            self.advance()
+        } else {
+            while true {
+                names.push(self.expect_name("exported"))
+                self.advance()
+                var shown = ""
+                if is_keyword(self.peek(), Keyword.As) {
+                    self.advance()
+                    shown = self.expect_name("exported")
+                    self.advance()
+                }
+                exposed.push(shown)
+                if !is_op(self.peek(), Operator.Comma) { break }
+                self.advance()
+            }
+        }
+        if !self.at_word("from") {
+            val found = tok_str(self.peek())
+            self.parse_err(self.peek().span, "expected `from <module>` after the exported names, found ${found}")
+            self.sync_to_newline()
+            return out
+        }
+        self.advance()
+        val module = self.parse_dotted_path()
+        val span = Span { file_id: start.file_id, start: start.start, end: self.peek().span.start }
+        if wildcard {
+            out.push(new_reexport(span, module, true, ""))
+            return out
+        }
+        while i in 0..names.size() {
+            var path = module.clone()
+            path.push(names.at(i).clone())
+            out.push(new_renaming_reexport(span, path, exposed.at(i).clone()))
+        }
+        return out
+    }
+
+    /// `a.b.c`, stopping at the first token that does not continue it.
+    mutating fun parse_dotted_path(): List<String> {
+        var path = List.new<String>()
+        path.push(self.expect_name("module"))
+        self.advance()
+        while is_op(self.peek(), Operator.Dot) {
+            self.advance()
+            path.push(self.expect_name("module"))
+            self.advance()
+        }
+        return path
+    }
+
+    /// The current token is the identifier `word`.
+    fun at_word(word: str): bool {
+        return when (self.peek().kind) {
+            Identifier(s) => s.as_str() == word
+            _ => false
+        }
     }
 
     /// A synthesized import must carry its file id, or import validation
@@ -122,12 +197,31 @@ impl Parser {
             }
         }
 
+        var alias = ""
+        if is_keyword(self.peek(), Keyword.As) {
+            val as_span = self.peek().span
+            self.advance()
+            alias = when (self.peek().kind) {
+                Identifier(s) => s.as_string()
+                _ => ""
+            }
+            if alias.as_str() == "" {
+                self.parse_err(self.peek().span, "expected a name after `as`, found ${tok_str(self.peek())}")
+            } else {
+                self.advance()
+            }
+            if wildcard {
+                self.parse_err(as_span, "`as` names a module, not its contents: drop the `.*`")
+            }
+        }
+
         val end_pos: uint32 = self.peek().span.start
         val span = Span {
             file_id: start_span.file_id,
             start: start_span.start,
             end: end_pos
         }
+        if alias.as_str() != "" && !wildcard { return new_aliased_import(span, path, alias) }
         return new_import(span, path, wildcard)
     }
 }

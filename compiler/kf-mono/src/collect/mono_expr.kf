@@ -56,14 +56,15 @@ pub fun mono_expr_in(e: &var Expr, owner: str): void {
         Call(name_sym, args) => {
             mono_args(args, owner)
             // `id<int32>(x)` becomes `id__int32`, from the substituted type
-            // args. A non-generic call keeps its bare name.
+            // args. A non-generic call keeps its bare name, or the link name
+            // typecheck pinned.
             val n_ta: uint64 = e.type_args.size()
             if n_ta > 0 {
                 if e.mangled_callee.as_str() == "" {
                     val base = generic_call_base(name_sym.as_str())
                     e.apply_generic_mangle(base.as_str(), false)
                 }
-            } else {
+            } else if e.mangled_callee.as_str() == "" {
                 e.mangled_callee = intern(name_sym.as_str())
             }
         }

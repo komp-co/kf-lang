@@ -11,7 +11,7 @@ fun test_source_map(): Ptr<SourceMap> {
 
 @test
 fun compiled_interface_file_loads_modules(): void {
-    write_file(scratch_path("kf_valid.kfi"), "{\"kfi\":11,\"crate\":\"dep\",\"compiler_abi\":\"komp-1\",\"runtime_abi\":\"kflat-runtime-1\",\"target\":\"x86_64-linux-gnu\",\"deps\":[],\"glue\":[],\"dyn_traits\":[],\"dyn_vtables\":[],\"modules\":[{\"path\":\"dep.api\",\"files\":[],\"decls\":[]}]}")
+    write_file(scratch_path("kf_valid.kfi"), "{\"kfi\":13,\"crate\":\"dep\",\"compiler_abi\":\"komp-1\",\"runtime_abi\":\"kflat-runtime-1\",\"target\":\"x86_64-linux-gnu\",\"deps\":[],\"glue\":[],\"dyn_traits\":[],\"dyn_vtables\":[],\"modules\":[{\"path\":\"dep.api\",\"files\":[],\"decls\":[],\"reexports\":[]}]}")
     val loaded = load_compiled_crate(scratch_path("kf_valid.kfi"), test_source_map())
     assert_eq(loaded.modules.size(), 1, "interface file restores one module")
 }

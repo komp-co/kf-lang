@@ -18,7 +18,8 @@ fun imported_signature(is_pub: bool): FnSignature {
         owner_crate: new_crate_id("library"),
         is_pub: is_pub,
         borrows: 0 - 1,
-        is_prelude: false
+        is_prelude: false,
+        is_extern: false
     }
 }
 
@@ -70,7 +71,7 @@ fun runtime_signature_is_globally_visible(): void {
     sigs.gate_visibility = true
     sigs.caller_files.push(7)
     sigs.imported_targets.push(intern("library"))
-    sigs.insert(FnSignature { name: String.from("runtime_println"), params: List.new<Type>(), ret: void_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern("core.assert"), owner_crate: new_crate_id("core"), is_pub: false, borrows: 0 - 1, is_prelude: false })
+    sigs.insert(FnSignature { name: String.from("runtime_println"), params: List.new<Type>(), ret: void_ty(no_span()), generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern("core.assert"), owner_crate: new_crate_id("core"), is_pub: false, borrows: 0 - 1, is_prelude: false, is_extern: false })
     assert_eq(sigs.find_imported_signature("runtime_println", 7, new_crate_id("application"), intern("application")).is_some(), true, "runtime signatures have no visibility boundary")
 }
 

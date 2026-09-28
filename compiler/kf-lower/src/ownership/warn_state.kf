@@ -6,6 +6,7 @@ import alloc.list.*
 import kf_core.span.*
 import kf_core.ast.*
 import kf_core.diagnostic.*
+import kf_lower.*
 
 pub struct WarnState {
     /// Spans already reported: mono turns one line into many functions.

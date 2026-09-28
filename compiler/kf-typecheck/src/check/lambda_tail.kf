@@ -9,6 +9,8 @@ import kf_core.ast.*
 import kf_core.ast.subst.clone_expr_ptr
 import kf_core.ast.subst.clone_expr_ptr_opt
 import kf_core.ast.subst.fresh_pattern_box
+import kf_typecheck.check.control.apply_list_tail_ty
+import kf_typecheck.check.control.list_tail_ty
 
 /// CONSTRAINT: after the body is checked; each path is adapted to the joined
 /// type, as a block expression's are.

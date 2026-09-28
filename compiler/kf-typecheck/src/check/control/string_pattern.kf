@@ -7,6 +7,7 @@ import kf_core.ast.*
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_core.span.Span
+import kf_typecheck.types.display_type
 
 /// CONSTRAINT: before the arm's pattern and guard are checked, so the
 /// synthesized binder and comparison are typed like written ones.

@@ -6,6 +6,7 @@
 // what `is_none` tests.
 import core.assert.assert_eq
 import alloc.list.*
+import kf_core.span.no_span
 
 fun probe_decl(): TopDecl {
     var body = List.new<Stmt>()

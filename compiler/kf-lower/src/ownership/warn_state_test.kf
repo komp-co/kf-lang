@@ -6,6 +6,7 @@ import alloc.list.*
 import kf_core.span.*
 import kf_core.diagnostic.*
 import kf_core.ast.new_module
+import kf_lower.new_reached
 
 fun at(file: uint32, start: uint32): Span {
     return Span { file_id: file, start: start, end: start + 4 }

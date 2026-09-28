@@ -7,6 +7,7 @@ import core.assert.*
 import kf_shared.walk_kf_files
 import kf_tool.build.build_project_separate_in
 import kf_integration.integration.run
+import kf_integration.harness.*
 
 /// core.string has no `contains`.
 fun case_str_contains(haystack: str, needle: str): bool {

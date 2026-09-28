@@ -153,8 +153,10 @@ mutating fun JsonReader.load_modules(crate: CrateId, crate_name: str, smap: Ptr<
         if !self.load_module_files(path.as_str(), smap) { return modules }
         if !self.expect_key("decls") { return modules }
         val decls = self.load_decls(crate, crate_name, path.as_str(), smap)
+        if !self.expect_key("reexports") { return modules }
+        val reexports = self.load_reexports(path.as_str())
         if self.object_has_next() { return modules }
-        modules.push(Module { crate: crate, path: split_dotted_path(path.as_str()), decls: decls, imports: List.new<Import>() })
+        modules.push(Module { crate: crate, path: split_dotted_path(path.as_str()), decls: decls, imports: reexports })
     }
     return modules
 }
