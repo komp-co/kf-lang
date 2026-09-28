@@ -8,6 +8,7 @@ import kf_typecheck.types.recv_type_bindings
 import kf_typecheck.types.recv_is_instance
 import kf_typecheck.types.mangle_type
 import kf_core.span.no_span
+import kf_typecheck.check.emit_missing_operator_impl
 
 pub fun tref_p(n: str): Ptr<TypeRef> {
     val p: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }

@@ -14,6 +14,7 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_lower.ownership.names_contains
 
 /// "" for a field or deref, which is only borrowed.
 pub fun Expr.when_subject_var(): String {

@@ -1,4 +1,5 @@
 import alloc.list.*
+import kf_core.ast.*
 
 // Generic substitution and monomorphized-name mangling over TypeRef.
 // CONSTRAINT: in kf-core because kf-typecheck, upstream of kf-mono,

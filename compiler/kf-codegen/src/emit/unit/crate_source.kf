@@ -10,6 +10,14 @@ import alloc.list.*
 import kf_core.ast.*
 
 import kf_codegen.*
+import kf_codegen.emit.dyn_traits.*
+import kf_codegen.emit.glue.*
+import kf_codegen.emit.instances.collect_instance_support
+import kf_codegen.emit.stmt.build_arm_payloads
+import kf_codegen.emit.instances.emit_instance_bodies
+import kf_codegen.emit.instances.emit_instance_forwards
+import kf_codegen.emit.instances.emit_support_protos
+import kf_codegen.emit.stmt.add_arm_payloads
 
 /// A view with no merged-module context gets no instance or hidden support.
 pub fun Module.emit_crate_source(crate_name: String, is_bin: bool): String {

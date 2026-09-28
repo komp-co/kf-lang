@@ -6,6 +6,7 @@ import kf_core.ast.*
 import kf_core.diagnostic.*
 import kf_resolve.*
 import kf_typecheck.*
+import kf_typecheck.check.check_expr
 
 fun operator_width_ctx(): TypeCtx {
     val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }

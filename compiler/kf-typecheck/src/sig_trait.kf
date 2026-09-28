@@ -56,8 +56,9 @@ impl SigTable {
     }
 
     /// `find_signature` with visibility when `gate_visibility` is set: visible
-    /// to its own module always, to other modules only if `pub`. The caller's
-    /// own crate shadows imports; `@prelude` functions need no import.
+    /// to its own module always, to any other module, in this crate or
+    /// another, only if `pub` and imported. The caller's own crate shadows
+    /// other crates; `@prelude` functions need no import.
     pub fun find_imported_signature(name: str, caller_file: uint32, caller_crate: CrateId, caller_module: Sym): FnSignature? {
         // The caller's own crate shadows an imported definition, or every
         // library addition could break a program using that name. The runtime
@@ -66,10 +67,10 @@ impl SigTable {
             while mine in &self.sigs {
                 if mine.name.as_str().equals(name) && mine.owner_crate.raw == caller_crate.raw {
                     // Own module: unrestricted. Same crate, other module: only
-                    // `pub`; keep scanning, since a later or imported definition
-                    // may still answer.
+                    // `pub` and imported; keep scanning, since a later or
+                    // imported definition may still answer.
                     if mine.owner_module.id == caller_module.id { return Option.Some(mine) }
-                    if mine.is_pub { return Option.Some(mine) }
+                    if mine.is_pub && self.imports_admit(caller_file, &mine) { return Option.Some(mine) }
                 }
             }
         }
@@ -90,12 +91,9 @@ impl SigTable {
                 }
                 if s.owner_crate.raw == caller_crate.raw {
                     if s.owner_module.id == caller_module.id { return Option.Some(s) }
-                    if s.is_pub { return Option.Some(s) }
-                    return Option.None
+                    if !s.is_pub { return Option.None }
                 }
-                if self.file_admits(caller_file, s.owner_module, self.surface_name(name).as_str()) {
-                    if s.is_pub { return Option.Some(s) }
-                }
+                if s.is_pub && self.imports_admit(caller_file, &s) { return Option.Some(s) }
                 if s.is_pub && s.is_prelude && !has_ambient {
                     ambient = i
                     has_ambient = true
@@ -105,6 +103,12 @@ impl SigTable {
         }
         if has_ambient { return Option.Some(*self.sigs.at(ambient)) }
         return Option.None
+    }
+
+    /// Ungated, everything is admitted; gated, the caller's imports decide.
+    pub fun imports_admit(caller_file: uint32, sig: &FnSignature): bool {
+        if !self.gate_visibility { return true }
+        return self.file_admits(caller_file, sig.owner_module, self.surface_name(sig.name.as_str()).as_str())
     }
 
     /// The file's own imports admit `name` from `target`; a sibling's do not.

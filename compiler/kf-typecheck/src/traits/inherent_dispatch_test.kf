@@ -4,6 +4,7 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_typecheck.new_sig_table
 
 // `Holder` stands in for alloc's `String`, which declares `byte_len` both
 // inherently and through `impl Text`.

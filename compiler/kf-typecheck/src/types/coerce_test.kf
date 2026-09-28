@@ -3,6 +3,8 @@ import core.assert.fail
 import core.assert.assert
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_typecheck.check.autoderef_ty
+import kf_typecheck.check.deref_target
 
 @test fun type_eq_same_int32(): void {
     val a = int32_ty(no_span())

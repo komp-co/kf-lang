@@ -10,7 +10,7 @@ import kf_typecheck.*
 /// the imports say. Free functions are gated per file and across crates: an
 /// unimported one would not compile.
 fun collect_crate_decls(decls: &List<TopDecl>, crate: &TypedCrate, out: &var List<ScopeItem>, seen: &var List<String>): void {
-    val own = own_crate(decls, crate.file_id)
+    val own = own_module(decls, crate.file_id)
     while td in &decls {
         when (td.kind) {
             Function(params, ret, _body, is_pub, _u, _mut, _st) => {
@@ -32,18 +32,18 @@ fun TopDecl.is_a_test(): bool {
 }
 
 /// Poison for a file that declares nothing, which then sees only imports.
-fun own_crate(decls: &List<TopDecl>, file_id: uint32): CrateId {
+fun own_module(decls: &List<TopDecl>, file_id: uint32): Sym {
     while td in &decls {
-        if td.span.file_id == file_id { return td.crate }
+        if td.span.file_id == file_id { return td.module_path }
     }
-    return crate_id_poison()
+    return Sym { id: 0 }
 }
 
-/// Same crate: yes, visibility is crate-scoped. Another crate: `pub` and the
+/// Same module: yes. Any other, in this crate or another: `pub` and the
 /// declaring module imported. Skipped when the checker's own gate is off, so
 /// completion offers exactly what compiles.
-fun TopDecl.function_is_callable_here(is_pub: bool, own: CrateId, crate: &TypedCrate): bool {
-    if self.crate.raw == own.raw { return true }
+fun TopDecl.function_is_callable_here(is_pub: bool, own: Sym, crate: &TypedCrate): bool {
+    if own.id != 0 && self.module_path.id == own.id { return true }
     if !unsafe { &*crate.sigs }.gate_visibility { return true }
     if !is_pub { return false }
     return unsafe { crate.sigs.file_admits(crate.file_id, self.module_path, self.name.as_str()) }

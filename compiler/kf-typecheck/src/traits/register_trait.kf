@@ -6,6 +6,7 @@ import kf_resolve.*
 import kf_typecheck.types.*
 import kf_typecheck.*
 import kf_core.span.no_span
+import kf_typecheck.check.decl.*
 
 pub fun register_struct(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>,
     table: Ptr<DeclTable>?): void {

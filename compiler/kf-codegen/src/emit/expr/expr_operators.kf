@@ -3,6 +3,7 @@ import alloc.list.*
 import kf_core.ast.*
 
 import kf_codegen.concat_all
+import kf_codegen.emit.c_type
 
 fun BinOp.binop_to_c(): String {
     return when (self) {

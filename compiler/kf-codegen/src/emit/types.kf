@@ -4,6 +4,7 @@ import alloc.list.*
 
 import kf_core.ast.*
 import kf_core.ast.dyn_meta.dyn_trait_identity
+import kf_codegen.concat
 
 pub fun TypeRef.c_type(): String {
     val tk = self.kind

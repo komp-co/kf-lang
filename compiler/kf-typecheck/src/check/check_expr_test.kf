@@ -5,6 +5,9 @@ import kf_core.span.no_span
 import kf_core.ast.*
 import kf_core.diagnostic.*
 import kf_resolve.*
+import kf_typecheck.new_sig_table
+import kf_typecheck.new_type_ctx
+import kf_typecheck.types.*
 
 pub fun mk_ctx(): TypeCtx {
     val table = new_decl_table()

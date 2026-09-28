@@ -3,6 +3,7 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_typecheck.types.display_type
 
 fun typed_expr_stmt(kind: ExprKind, ty: Type): Stmt {
     val expr: Ptr<Expr> = unsafe { alloc<Expr>() }

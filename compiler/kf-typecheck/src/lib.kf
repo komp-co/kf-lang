@@ -7,6 +7,7 @@ import kf_core.ast.*
 import kf_resolve.*
 import kf_typecheck.check.unknown_bound_diags
 import kf_typecheck.check.untyped_receiver_diags
+import kf_typecheck.check.decl.*
 
 pub mutating fun Module.typecheck_module(table: &var DeclTable): List<Diagnostic> {
     val null_files: Ptr<List<uint32>> = unsafe { 0 as Ptr<List<uint32>> }

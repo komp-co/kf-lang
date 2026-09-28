@@ -39,9 +39,8 @@ impl Equal for Point {
 
 Free functions marked [`@prelude`](../lang/annotations.md#prelude) need no
 import: `println`, `print`, `assert_eq`, `min`, `max` and `range` are written
-directly, as are alloc's prelude functions. A function your own crate defines,
-or one you import from another crate, takes precedence over a prelude function
-of the same name. Everything else in `core` is `pub` but not ambient — reach
+directly, as are alloc's prelude functions. A function your own module defines,
+or one you import, takes precedence over a prelude function of the same name. Everything else in `core` is `pub` but not ambient — reach
 it by importing its module.
 
 

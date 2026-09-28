@@ -4,6 +4,7 @@ import core.assert.fail
 import alloc.list.*
 
 import kf_core.span.no_span
+import kf_core.ast.*
 
 fun named_tr(n: str): TypeRef {
     return new_type_ref(no_span(), TypeRefKind.Named(intern(n), List.new<TypeRef>()))

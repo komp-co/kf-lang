@@ -8,6 +8,7 @@ import alloc.list.*
 import kf_core.span.*
 import kf_core.ast.*
 import kf_core.diagnostic.*
+import kf_typecheck.import_was_used
 
 /// `caller_files[i]` and `imported_targets[i]` align with `m.imports`.
 pub fun Module.unused_import_diags(sp: Ptr<SigTable>): List<Diagnostic> {

@@ -17,6 +17,7 @@ import kf_shared.crate_interface_path
 import kf_shared.render_json_error
 import kf_lint.lint_module
 import kf_lint.lint_typed_module
+import kf_driver.cli.print_json_diag
 
 /// kflatc's `check`: the crate, its tests included, type-checked against its
 /// dependencies' interfaces in `tdir`. Nothing is written. Returns the number

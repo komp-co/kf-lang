@@ -8,6 +8,9 @@ import kf_core.ast.*
 import kf_core.diagnostic.*
 import kf_resolve.*
 import kf_typecheck.check.control.enum_or_struct_name
+import kf_typecheck.new_sig_table
+import kf_typecheck.new_type_ctx
+import kf_typecheck.ret_op
 
 @test fun enum_or_struct_name_returns_owned_str(): void {
     val name: String = TypeKind.EnumTy(intern("Choice")).enum_or_struct_name()

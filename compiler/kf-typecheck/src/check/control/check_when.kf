@@ -8,6 +8,7 @@ import kf_typecheck.types.join_arm_types
 import kf_typecheck.types.type_eq
 import kf_typecheck.types.mangle_type
 import kf_typecheck.check.*
+import kf_typecheck.types.display_type
 
 pub fun check_when_arms(subject: &Expr, arms: &var List<Arm>, span: Span, ctx: &var TypeCtx): void {
     val subject_ty = subject.ty.clone()

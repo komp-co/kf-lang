@@ -3,6 +3,8 @@ import core.assert.fail
 import alloc.list.*
 
 import kf_core.span.no_span
+import kf_core.ast.*
+import kf_core.ast.subst.subst_type
 
 @test fun dyn_trait_substitution_rewrites_arguments(): void {
     var arguments = new_type_vec()

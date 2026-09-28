@@ -11,6 +11,7 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_lower.ownership.names_contains
 
 /// Everything an assignment needs to know before its RHS is marked.
 pub struct AssignOwnership {

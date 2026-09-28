@@ -4,6 +4,8 @@ import alloc.list.*
 import kf_core.span.no_span
 import kf_core.span.Span
 import kf_core.ast.*
+import kf_typecheck.types.note_open_call
+import kf_typecheck.types.report_open_calls
 
 fun point_ty(): Type {
     return Type { kind: TypeKind.Struct(intern("Point")), provenance: Provenance.Inferred(no_span()) }

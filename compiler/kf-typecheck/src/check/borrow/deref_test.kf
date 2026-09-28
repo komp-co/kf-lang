@@ -6,6 +6,7 @@ import kf_core.ast.*
 import kf_core.diagnostic.*
 import kf_typecheck.check.check_expr
 import kf_typecheck.check.mk_ctx
+import kf_typecheck.types.type_eq
 
 mutating fun TypeCtx.invalid_deref_option_type(): Type {
     var args = List.new<TypeRef>()

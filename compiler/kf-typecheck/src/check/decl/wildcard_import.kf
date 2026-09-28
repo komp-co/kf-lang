@@ -7,6 +7,7 @@ import alloc.list.*
 
 import kf_core.ast.*
 import kf_core.diagnostic.*
+import kf_typecheck.import_uses_of
 
 fun narrow_threshold(): uint64 { return 3 }
 

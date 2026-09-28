@@ -7,6 +7,7 @@ import kf_typecheck.*
 import kf_core.span.no_span
 import kf_core.ast.subst.clone_type_ref
 import kf_core.ast.dyn_meta.*
+import kf_typecheck.check.decl.no_mangle_type_recorded
 
 mutating fun TopDecl.register_trait_impl(trait_ref: &TypeRef, sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): void {
     when (trait_ref.kind) {

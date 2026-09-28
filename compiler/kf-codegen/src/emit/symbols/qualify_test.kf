@@ -4,6 +4,7 @@ import core.assert.fail
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_codegen.ret_op
 
 @test
 fun qualified_method_owner_returns_owned_str(): void {

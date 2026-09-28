@@ -1,4 +1,5 @@
 import kf_core.span.*
+import kf_core.ast.intern
 
 pub fun dyn_trait_type(principal: Sym, args: TypeList, span: Span): Type {
     val args_ptr: Ptr<TypeList> = unsafe { alloc<TypeList>() }

@@ -8,6 +8,7 @@ import kf_core.ast.*
 import kf_core.span.*
 import kf_core.diagnostic.error_at
 import kf_core.diagnostic.with_fix
+import kf_typecheck.import_insert_at
 
 /// Names the generated C declares in every TU, which link with nothing in the
 /// sig table.
@@ -48,26 +49,29 @@ pub fun runtime_prelude_declares(name: str): bool {
 /// typo or a missing import.
 pub fun report_unknown_callee(name: str, span: Span, ctx: &var TypeCtx): void {
     if runtime_prelude_declares(name) { return }
-    var msg = String.from("cannot find function `")
-    msg = msg + String.from(name)
-    msg = msg + String.from("` in this scope")
-    val diag = error_at(span, msg)
-    val home = sole_declaring_module(name, ctx)
+    val home = sole_declaring_module(name, true, ctx)
     if home.as_str() == "" || span.is_none() {
-        ctx.emit(diag)
+        val private_home = sole_declaring_module(name, false, ctx)
+        val why = if private_home.as_str() == "" { "" } else { ": it is private to `${private_home.as_str()}`" }
+        ctx.emit(error_at(span, "cannot find function `${name}` in this scope${why}"))
         return
     }
-    ctx.emit(with_fix(diag, import_insert_span(span.file_id, ctx), import_text(home.as_str(), span.file_id, ctx), import_title(home.as_str())))
+    val path = "${home.as_str()}.${name}"
+    val why = "`${home.as_str()}` declares it, and this file does not import it"
+    val diag = error_at(span, "cannot find function `${name}` in this scope: ${why.as_str()}")
+    val fix_span = import_insert_span(span.file_id, ctx)
+    ctx.emit(with_fix(diag, fix_span, import_text(path.as_str(), span.file_id, ctx), import_title(path.as_str())))
 }
 
-/// "" when none or several declare it: one fix can name only one import, and
-/// guessing may bind the wrong function.
-fun sole_declaring_module(name: str, ctx: &var TypeCtx): String {
+/// The one module declaring a function of that name and visibility; "" for
+/// none or several, since one fix can name only one import and guessing may
+/// bind the wrong function.
+fun sole_declaring_module(name: str, is_pub: bool, ctx: &var TypeCtx): String {
     var found = ""
     var seen = false
     val sigs = unsafe { (*ctx.sigs).sigs }
     while sg in &sigs {
-        if sg.name.as_str().equals(name) {
+        if sg.name.as_str().equals(name) && sg.is_pub == is_pub {
             val owner = String.from(sg.owner_module.as_str())
             if owner.as_str() == "" { return "" }
             if seen {
@@ -89,23 +93,13 @@ fun import_insert_span(file: uint32, ctx: &var TypeCtx): Span {
 
 /// After an existing block it opens with a newline; at the top of a file it
 /// closes with a blank line.
-fun import_text(module_path: str, file: uint32, ctx: &var TypeCtx): String {
-    var out = ""
-    if import_insert_at(ctx.sigs, file) == 0 {
-        out.append("import ")
-        out.append(module_path)
-        out.append(".*\n\n")
-        return out
-    }
-    out.append("\nimport ")
-    out.append(module_path)
-    out.append(".*")
-    return out
+fun import_text(path: str, file: uint32, ctx: &var TypeCtx): String {
+    if import_insert_at(ctx.sigs, file) == 0 { return "import ${path}\n\n" }
+    return "\nimport ${path}"
 }
 
-fun import_title(module_path: str): String {
-    val t = "add `import ${module_path}.*`"
-    return t
+fun import_title(path: str): String {
+    return "add `import ${path}`"
 }
 
 /// Consults only locals (params, bindings, pattern binders). Type-name

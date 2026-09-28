@@ -12,6 +12,7 @@ import kf_tool.project.parse_version
 import std.fs.exists
 import std.fs.is_file
 import std.fs.read_dir
+import kf_tool.project.render
 
 /// The kflatc to run, "" for komp's own, or `error` saying why none fits.
 pub struct ToolchainChoice {

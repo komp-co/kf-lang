@@ -3,6 +3,7 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_codegen.emit.new_local_env
 
 fun guard_expr(name: str): Ptr<Expr> {
     val g: Ptr<Expr> = unsafe { alloc<Expr>() }

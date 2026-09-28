@@ -52,22 +52,22 @@ fun main(): int32 {
 
 ## The src/ layout
 
-Every `.kf` file under `src/` is part of the crate. A subdirectory becomes a
-module:
+Every `.kf` file under `src/` is part of the crate. Each directory is a
+module, and the files of one directory share one scope:
 
 ```
 src/
-  main.kf          # crate root
-  data.kf          # accessible as `data` from main.kf
+  main.kf          # module `app`, the crate root
+  data.kf          # module `app`: shares main.kf's scope
   util/
-    format.kf      # accessible as `util.format` from main.kf
+    format.kf      # module `app.util`
 ```
 
-A file `src/util/format.kf` is the module `util.format`. You import it like
-this:
+A module's name is the crate's name followed by its directories. A function
+from another module must be `pub`, and is imported by that name:
 
 ```kflat
-import util.format.*
+import app.util.*
 ```
 
 Imports are always `import`, never `use`. They appear before any declarations.
