@@ -120,8 +120,12 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
         return poison_ty()
     }
     val sigs = unsafe { &*ctx.sigs }
+    // A renamed export is called by the name its file writes; the call
+    // names the function itself.
     val qualified = if sigs.has_generic_twin(&sig) {
-        crate_qualified_generic(sig.owner_crate, name.as_str())
+        crate_qualified_generic(sig.owner_crate, sig.name.as_str())
+    } else if !sig.name.as_str().equals(name.as_str()) {
+        sig.name.clone()
     } else {
         String.from("")
     }

@@ -135,31 +135,43 @@ import my_lib.answer
 import my_lib.text.two
 ```
 
-## Re-exports
+## Exports
 
-`pub import` makes what an import admits part of the importing module's
-own surface: whoever imports that module sees it too. A library can then
-present one module while its code lives in several:
+`export <names> from <module>` makes functions of another module part of
+this module's surface: whoever imports this module sees them too. A library
+can then present one module while its code lives in several:
 
 ```
 src/
-  lib.kf            # pub import my_lib.emit.*
-                    # pub import my_lib.parse.read
+  lib.kf            # export * from my_lib.emit
+                    # export read, raw as parse_raw from my_lib.parse
   emit/emit.kf      # pub fun write_it()
-  parse/parse.kf    # pub fun read(), pub fun other()
+  parse/parse.kf    # pub fun read(), pub fun raw(), pub fun other()
 ```
 
 ```kflat
-import my_lib.*        // write_it and read, but not other
+import my_lib.*        // write_it, read and parse_raw, but not other
 
-fun main(): int32 { return write_it() + read() }
+fun main(): int32 { return write_it() + read() + parse_raw() }
 ```
 
-`import my_lib.read` and `import my_lib as lib` (then `lib.read()`) work the
-same way. Moving `read` to another module then changes only `lib.kf`, not
-the crate's users. A re-export works inside a crate as well, for its other
-modules. Only `pub` functions can be re-exported, and a `pub import` takes
-no `as`.
+The names come first, so `lib.kf` reads as the list of what the crate
+offers. `*` exports every `pub` function of the module; a list names some,
+each optionally renamed with `as`. A renamed function is known to the
+module's users only by its new name — `raw()` is not offered above — while
+the library keeps calling it by its own.
+
+`import my_lib.parse_raw` and `import my_lib as lib` (then
+`lib.parse_raw()`) work the same way, an export of an export is followed,
+and a crate's own modules see its exports too. Moving `read` to another
+module then changes only `lib.kf`, not the crate's users.
+
+An export only offers: it does not bring the names into its own file, which
+imports them separately if it calls them. Only `pub` functions can be
+exported. Exports appear with the imports, before any declarations. An
+extension is called through its receiver, so it keeps its name: `as` on one
+is an error. `export` and `from` are not reserved words; they are read this
+way only at the start of an export.
 
 ## pub
 
