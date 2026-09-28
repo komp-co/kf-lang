@@ -240,3 +240,40 @@ fun module_with(decls: List<TopDecl>, imports: List<Import>): Module {
     assert_eq(unsafe { callers.size() }, 1, "one entry, for the file that wrote the import")
     assert_eq(unsafe { callers.get(0) }, 1 as uint32, "file 1 wrote it; file 2 did not")
 }
+
+fun crate_module_with(decls: List<TopDecl>, imports: List<Import>): Module {
+    val crate = new_crate_id("my_crate")
+    return Module { crate: crate, path: List.new<String>(), decls: decls, imports: imports }
+}
+
+@test fun a_wildcard_missing_the_crate_name_names_the_path_to_write(): void {
+    var decls = List.new<TopDecl>()
+    decls.push(make_decl("foo", "my_crate.utils"))
+    var imports = List.new<Import>()
+    var path = List.new<String>()
+    path.push(String.from("utils"))
+    imports.push(new_import(no_span(), path, true))
+    val diags = crate_module_with(decls, imports).validate_imports(no_files())
+    val message = diags.at(0).primary.message
+    assert_eq(message.as_str().contains("`import my_crate.utils.*`"), true, "the hint names the crate-qualified path")
+}
+
+@test fun a_named_import_missing_the_crate_name_names_the_path_to_write(): void {
+    var decls = List.new<TopDecl>()
+    decls.push(make_decl("foo", "my_crate.utils"))
+    var imports = List.new<Import>()
+    imports.push(make_import(String.from("utils"), String.from("foo"), false))
+    val diags = crate_module_with(decls, imports).validate_imports(no_files())
+    val message = diags.at(0).primary.message
+    assert_eq(message.as_str().contains("`import my_crate.utils.foo`"), true, "the hint names the crate-qualified path")
+}
+
+@test fun a_path_that_no_crate_qualification_rescues_gets_no_hint(): void {
+    var decls = List.new<TopDecl>()
+    decls.push(make_decl("foo", "my_crate.utils"))
+    var imports = List.new<Import>()
+    imports.push(make_import(String.from("nowhere"), String.from("stuff"), true))
+    val diags = crate_module_with(decls, imports).validate_imports(no_files())
+    val message = diags.at(0).primary.message
+    assert_eq(message.as_str().contains("starts with the crate's name"), false, "no hint without a real target")
+}
