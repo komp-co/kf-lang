@@ -65,3 +65,12 @@ fun an_extern_declared_twice_in_one_module_is_accepted(): void {
     decls.push(dupfn_extern("kf_str_byte_len"))
     assert_eq(dupfn_reported(decls, "is already defined in this module"), false, "each file declares the externs it calls")
 }
+
+@test
+fun a_function_name_repeated_in_another_module_of_the_crate_is_rejected(): void {
+    var decls = List.new<TopDecl>()
+    decls.push(dupfn_function("twice"))
+    decls.push(dupfn_in(dupfn_function("twice"), "sample.other"))
+    val expected = "`twice` is already defined in module `sample.api`; a function name is unique within its crate"
+    assert_eq(dupfn_reported(decls, expected), true, "one crate is one C namespace")
+}
