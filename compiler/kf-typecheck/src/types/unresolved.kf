@@ -8,41 +8,13 @@ import kf_core.ast.*
 import kf_core.span.*
 import kf_core.diagnostic.error_at
 import kf_core.diagnostic.with_fix
+import kf_core.runtime.runtime_name_is_reserved
 import kf_typecheck.import_insert_at
 
-/// Names the generated C declares in every TU, which link with nothing in the
-/// sig table.
-/// CONSTRAINT: mirrors `emit_runtime_header` in kf-codegen, which this crate
-/// cannot import; keep them in sync by hand. `runtime_intrinsic_ret` is the
-/// smaller subset whose result types are modelled.
+/// Taken in every generated translation unit, so no program declaration
+/// shadows it.
 pub fun runtime_prelude_declares(name: str): bool {
-    return when name {
-        "kf_sym_intern" => true
-        "kf_file_hash" => true
-        "kf_sym_resolve" => true
-        "kf_fs_dir_open" => true
-        "kf_fs_dir_next" => true
-        "kf_fs_dir_close" => true
-        "str_equals" => true
-        "str_as_str" => true
-        "int64_display" => true
-        "uint64_display" => true
-        "runtime_print" => true
-        "runtime_println" => true
-        "is_dir" => true
-        "join" => true
-        "kf_arg_init" => true
-        "kf_arg_count" => true
-        "kf_arg_get" => true
-        "kf_current_dir" => true
-        "kf_self_dir" => true
-        "kf_create_dir_all" => true
-        "kf_temp_dir" => true
-        "kf_remove_dir_all" => true
-        "kf_process_status" => true
-        "exit" => true
-        _ => false
-    }
+    return runtime_name_is_reserved(name)
 }
 
 /// Reported apart from undeclared variables: a missing function is usually a
