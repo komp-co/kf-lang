@@ -63,7 +63,7 @@ fun Stmt.returned_value_stmt(span: Span): Stmt {
             var narms = List.new<Arm>()
             while arm in &arms {
                 val guard = clone_expr_ptr_opt(arm.guard.view(), &var names, &var repls)
-                narms.push(new_arm(arm.span, fresh_pattern_box(arm.pattern), guard, returned_tail(&arm.body, span)))
+                narms.push(arm.rebuilt(fresh_pattern_box(arm.pattern), guard, returned_tail(&arm.body, span)))
             }
             return new_stmt(self.span, StmtKind.When(clone_expr_ptr(subject, &var names, &var repls), narms))
         }

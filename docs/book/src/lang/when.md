@@ -161,6 +161,46 @@ area(&c)    // borrow, not move
 
 The subject is not consumed, so the enum remains alive after the `when`.
 
+## Changing a payload in place
+
+When an arm writes through a binder, the binder is the payload itself. A
+write means calling a `mutating` method on it, storing into one of its
+fields, or borrowing it `&var`. The subject must be a place you may write:
+a `var`, a field of one, or a `&var` borrow. The change is then made in the
+subject:
+
+```kflat
+struct Counter {
+    var n: int32
+}
+
+impl Counter {
+    mutating fun bump(): int32 {
+        self.n = self.n + 1
+        return self.n
+    }
+}
+
+struct Holder {
+    var counter: Counter?
+}
+
+impl Holder {
+    mutating fun bump(): int32 {
+        return when (self.counter) {
+            Some(c) => c.bump()
+            None => -1
+        }
+    }
+}
+```
+
+Calling `bump` twice on a `Holder` returns `2` the second time.
+
+A binder the arm only reads is still a copy. So is one of a `val` subject,
+or of a temporary such as a call's result, where there is no place to
+change.
+
 ## when as a value
 
 A `when` produces a value in a binding or a `return`. Each arm's value is the

@@ -63,6 +63,11 @@ fun intrinsic_call_type(name: String, args: &var List<Expr>, type_args: &var Lis
         if args.size() == 0 { return poison_ty() }
         val ta = args.at_mut(0)
         check_expr(ta, ctx)
+        // `take<List<Stmt>>(body)` on a reference binder moves the payload.
+        if type_args.size() == 1 {
+            val wanted = (*type_args.at(0)).resolve_type_ref(ctx)
+            val _read = ta.yield_ref_binder_value(&wanted, ctx)
+        }
         return ta.ty.clone()
     }
     // Every intrinsic is matched above.

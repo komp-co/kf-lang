@@ -75,7 +75,7 @@ pub mutating fun Stmt.check_stmt(ctx: &var TypeCtx): void {
         When(subj_ptr, arms) => {
             check_expr(unsafe { &var *subj_ptr }, ctx)
             val subj = unsafe { *subj_ptr }
-            check_when_arms(subj.ty, &var arms, self.span, ctx)
+            check_when_arms(&subj, &var arms, self.span, ctx)
         }
         Expression(expr_ptr) => {
             check_expr(expr_ptr, ctx)
@@ -143,7 +143,7 @@ fun is_written_borrow(code: uint8): bool {
     return code == coerce_written_amp_var()
 }
 
-fun borrow_of(inner: Type, mutable: bool, span: Span): Type {
+pub fun borrow_of(inner: Type, mutable: bool, span: Span): Type {
     val p: Ptr<Type> = unsafe { alloc<Type>() }
     unsafe { *p = inner }
     return Type { kind: TypeKind.RefTo(mutable, p), provenance: Provenance.Inferred(span) }

@@ -27,6 +27,8 @@ pub struct SwitchArm {
     /// and its value, then drops them. Empty when the guard owns nothing.
     pub var guard_prelude: List<Stmt>
     pub var body: List<Stmt>
+    /// Binders bound to their payload's address; see `Arm.ref_binders`.
+    pub var ref_binders: List<Sym>
 }
 
 @derive(Clone)
@@ -55,7 +57,10 @@ pub fun new_guarded_switch_arm(
     guard_prelude: List<Stmt>,
     body: List<Stmt>
 ): SwitchArm {
-    return SwitchArm { span: span, tag: tag, binders: binders, guard: guard, guard_prelude: guard_prelude, body: body }
+    return SwitchArm {
+        span: span, tag: tag, binders: binders, guard: guard, guard_prelude: guard_prelude, body: body,
+        ref_binders: List.new<Sym>()
+    }
 }
 
 pub fun SwitchArm.switch_arm_has_guard(): bool {

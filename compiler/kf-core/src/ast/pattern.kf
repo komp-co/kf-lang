@@ -46,10 +46,19 @@ pub struct Arm {
     pub val pattern: Box<Pattern>
     pub var guard: Box<Expr>?
     pub var body: List<Stmt>
+    /// Binders the body writes through, over a place subject: each is a
+    /// reference to its payload rather than a copy. Set by TypeCheck.
+    pub var ref_binders: List<Sym>
 }
 
 pub fun new_arm(span: Span, pattern: Box<Pattern>, guard: Box<Expr>?, body: List<Stmt>): Arm {
-    return Arm { span: span, pattern: pattern, guard: guard, body: body }
+    return Arm { span: span, pattern: pattern, guard: guard, body: body, ref_binders: List.new<Sym>() }
+}
+
+/// The same arm with a new pattern, guard and body; its span and reference
+/// binders carry over.
+pub fun Arm.rebuilt(pattern: Box<Pattern>, guard: Box<Expr>?, body: List<Stmt>): Arm {
+    return Arm { span: self.span, pattern: pattern, guard: guard, body: body, ref_binders: self.ref_binders.clone() }
 }
 
 /// The value a `when`-expression arm yields: its body's last statement, if

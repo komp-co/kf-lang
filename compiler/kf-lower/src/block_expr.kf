@@ -133,7 +133,7 @@ fun block_expr_stmt(s: Stmt, temps: &var BlockTemps, out: &var List<Stmt>): void
         When(subj_ptr, arms) => {
             var new_arms = List.new<Arm>()
             while a in &arms {
-                new_arms.push(new_arm(a.span, a.pattern, a.guard.duplicate(), block_expr_stmt_list(&a.body, temps)))
+                new_arms.push(a.rebuilt(a.pattern, a.guard.duplicate(), block_expr_stmt_list(&a.body, temps)))
             }
             out.push(new_stmt(s.span, StmtKind.When(subj_ptr, new_arms)))
         }
@@ -236,7 +236,7 @@ fun value_stmts(ep: Ptr<Expr>, to_return: bool, temp: Sym, temps: &var BlockTemp
             // Only the branching-tail arm reaches here; each arm sinks its tail.
             var new_arms = List.new<Arm>()
             while a in &arms {
-                new_arms.push(new_arm(a.span, a.pattern, a.guard.duplicate(),
+                new_arms.push(a.rebuilt(a.pattern, a.guard.duplicate(),
                     sink_into_list(&a.body, to_return, temp, temps)))
             }
             out.push(new_stmt(unsafe { ep.span }, StmtKind.When(subj_ptr, new_arms)))
@@ -290,7 +290,7 @@ fun Stmt.sink_tail_stmt(to_return: bool, temp: Sym, temps: &var BlockTemps): Lis
         When(subj_ptr, arms) => {
             var new_arms = List.new<Arm>()
             while a in &arms {
-                new_arms.push(new_arm(a.span, a.pattern, a.guard.duplicate(),
+                new_arms.push(a.rebuilt(a.pattern, a.guard.duplicate(),
                     sink_into_list(&a.body, to_return, temp, temps)))
             }
             out.push(new_stmt(self.span, StmtKind.When(subj_ptr, new_arms)))

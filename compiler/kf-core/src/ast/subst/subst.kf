@@ -23,7 +23,7 @@ pub fun subst_arm_list(arms: &List<Arm>, names: &var List<String>, repls: &var L
     while a in &arms {
         val ng = clone_expr_ptr_opt(a.guard.view(), names, repls)
         val nbody = subst_stmt_list(a.body, names, repls)
-        narms.push(new_arm(a.span, fresh_pattern_box(a.pattern), ng, nbody))
+        narms.push(a.rebuilt(fresh_pattern_box(a.pattern), ng, nbody))
     }
     return narms
 }
@@ -103,7 +103,9 @@ fun Stmt.subst_stmt_kinded(names: &var List<String>, repls: &var List<TypeRef>):
                 val nbody = subst_stmt_list(sa.body, names, repls)
                 val nguard = clone_expr_ptr_opt(sa.guard.view(), names, repls)
                 val nprelude = subst_stmt_list(sa.guard_prelude, names, repls)
-                narms.push(new_guarded_switch_arm(sa.span, sa.tag, clone_sym_list(sa.binders), nguard, nprelude, nbody))
+                var narm = new_guarded_switch_arm(sa.span, sa.tag, clone_sym_list(sa.binders), nguard, nprelude, nbody)
+                narm.ref_binders = clone_sym_list(sa.ref_binders)
+                narms.push(narm)
             }
             return new_stmt(self.span, StmtKind.Switch(ns, narms))
         }

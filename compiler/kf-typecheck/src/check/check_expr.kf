@@ -133,7 +133,7 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
             val subj = unsafe { *subj_ptr }
             // Arms are checked as for the statement form; only the value is
             // extra.
-            check_when_arms(subj.ty, &var arms, e.span, ctx)
+            check_when_arms(&subj, &var arms, e.span, ctx)
             // Decided before the arms are reconciled: it settles the type the
             // absent arm's `null` is expected against.
             wrap_safe_call_value(subj.ty, &var arms, e.span, ctx)
