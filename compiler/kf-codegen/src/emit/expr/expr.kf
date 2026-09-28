@@ -3,6 +3,10 @@ import alloc.list.*
 import kf_core.ast.*
 
 import kf_codegen.concat_all
+import kf_codegen.emit.c_type_of_type
+import kf_codegen.emit.clone_fn_for_ctype
+import kf_codegen.emit.dyn_traits.emit_dyn_call
+import kf_codegen.emit.dyn_traits.emit_dyn_coerce
 
 // Converts an integer to the source text codegen emits into C.
 

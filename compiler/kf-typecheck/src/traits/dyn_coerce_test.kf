@@ -5,6 +5,10 @@ import kf_core.span.no_span
 import kf_core.ast.*
 import kf_core.diagnostic.*
 import kf_core.ast.dyn_meta.*
+import kf_typecheck.new_sig_table
+import kf_typecheck.new_type_ctx
+import kf_typecheck.check.apply_expected
+import kf_typecheck.check.check_expr
 
 struct DynCoerceOutcome {
     val converted: bool

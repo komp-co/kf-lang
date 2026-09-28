@@ -22,6 +22,7 @@ import std.fs.exists
 import std.fs.remove_file
 import std.fs.write_text
 import std.process.Command
+import kf_tool.fetch.cached_root
 
 /// What an install did: the row it recorded, or `error` saying why nothing
 /// changed.

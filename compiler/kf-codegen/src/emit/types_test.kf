@@ -5,6 +5,7 @@ import kf_core.span.no_span
 import kf_core.ast.*
 
 import kf_codegen.emit.*
+import kf_codegen.emit.glue.deep_clone_top_decl
 
 fun named(s: str): TypeRef {
     return new_type_ref(no_span(), TypeRefKind.Named(intern(s), List.new<TypeRef>()))

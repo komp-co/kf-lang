@@ -6,6 +6,7 @@ import core.args.arg_count
 import alloc.path.Path
 import std.process.*
 import std.env.env_var
+import kf_tool.project.lint_toml_for
 
 extern "C" fun kf_self_dir(): String
 extern "C" fun access(path: str, mode: int32): int32

@@ -12,6 +12,7 @@ import kf_core.ast.subst.subst_stmt_list
 import kf_lower.alpha_rename_module
 import kf_lower.desugar_block_expr_module
 import kf_lower.desugar_when_expr_module
+import kf_lower.new_reached
 
 /// Adds an `unauthorized_copy` to `lints` for each copy of an under-bounded
 /// type parameter. `m` is not changed: the templates are checked as copies.

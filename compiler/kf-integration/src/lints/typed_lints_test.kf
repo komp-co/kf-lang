@@ -13,6 +13,7 @@ import std.fs.create_dir_all
 import std.fs.remove_dir_all
 import std.fs.scratch_path
 import std.fs.write_text
+import kf_integration.harness.assemble_project
 
 /// The codes the typed lints report over a bin project whose main.kf is
 /// `src`, space-separated; "errors" when it does not type-check.

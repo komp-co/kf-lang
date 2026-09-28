@@ -2,6 +2,8 @@
 // off the end and returns garbage.
 
 import core.assert.*
+import kf_parse.lexer.new_lexer
+import kf_parse.lexer.op_str
 
 @test fun op_to_binop_at_is_not_a_binary_operator(): void {
     assert_eq(op_to_binop(Operator.At).is_none(), true, "`@` is an annotation marker, never infix")

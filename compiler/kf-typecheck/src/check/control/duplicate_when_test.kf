@@ -6,6 +6,7 @@ import kf_core.diagnostic.*
 import kf_core.span.*
 import kf_resolve.new_decl_table
 import kf_resolve.resolve_module
+import kf_typecheck.*
 
 fun coverage_arm(kind: PatternKind, guarded: bool): Arm {
     return coverage_arm_at(kind, guarded, no_span())

@@ -8,6 +8,7 @@ import kf_core.ast.*
 import kf_core.span.*
 import kf_core.diagnostic.error_at
 import kf_core.diagnostic.with_fix
+import kf_typecheck.import_insert_at
 
 /// Names the generated C declares in every TU, which link with nothing in the
 /// sig table.

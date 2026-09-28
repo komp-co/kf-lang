@@ -8,6 +8,8 @@ import alloc.list.*
 import kf_core.span.no_span
 import kf_core.ast.*
 import kf_core.diagnostic.*
+import kf_typecheck.new_sig_table
+import kf_typecheck.new_type_ctx
 
 fun projection_ref(owner_name: str, member: str): TypeRef {
     val owner: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }

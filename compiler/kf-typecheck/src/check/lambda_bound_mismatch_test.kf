@@ -3,6 +3,7 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_typecheck.tref_p
 
 fun lambda_with_param(ty: Ptr<TypeRef>): Expr {
     var params = List.new<Param>()

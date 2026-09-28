@@ -10,6 +10,7 @@ import kf_core.ast.*
 import kf_codegen.concat_all
 import kf_codegen.emit.mangle_named
 import kf_codegen.emit.dyn_traits.*
+import kf_codegen.emit.glue.*
 
 pub fun Module.emit_crate_header(crate_name: String, deps: &List<String>): String {
     return self.emit_crate_header_supported(self, crate_name, deps)

@@ -8,6 +8,9 @@ import kf_typecheck.types.mangle_type
 import kf_typecheck.types.display_type
 import kf_typecheck.check.place_is_mutable
 import kf_core.ast.dyn_meta.*
+import kf_typecheck.check.borrow.borrow_place_is_stable
+import kf_typecheck.check.borrow.emit_immutable_borrow_error
+import kf_typecheck.check.borrow.emit_mutable_borrow_place_error
 
 struct DynCoerceSource {
     val valid: bool

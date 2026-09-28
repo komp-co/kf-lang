@@ -4,6 +4,7 @@ import kf_core.span.no_span
 import kf_core.ast.*
 import kf_resolve.new_decl_table
 import kf_resolve.resolve_module
+import kf_typecheck.*
 
 fun registry_type_ptr(name: str): Ptr<TypeRef> {
     val out: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }

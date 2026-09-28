@@ -3,6 +3,8 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_mono.mono_module
+import kf_mono.materialize.*
 
 fun mtr_p(n: str): Ptr<TypeRef> {
     val p: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }

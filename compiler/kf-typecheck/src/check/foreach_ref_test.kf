@@ -7,6 +7,8 @@ import alloc.list.*
 import kf_core.span.no_span
 import kf_core.ast.*
 import kf_core.diagnostic.*
+import kf_typecheck.new_sig_table
+import kf_typecheck.new_type_ctx
 
 /// `Counter.Iter = CountIter`, with or without `next_ptr`.
 fun mk_iter_ctx(with_next_ptr: bool): TypeCtx {

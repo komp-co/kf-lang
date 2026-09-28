@@ -2,6 +2,9 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
+import kf_core.ast.intern
+import kf_core.ast.new_crate_id
+import kf_core.ast.void_ty
 
 fun metadata_test_slot(name: str, slot: uint64): DynMethodSlot {
     return DynMethodSlot {

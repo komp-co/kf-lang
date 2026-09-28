@@ -3,6 +3,8 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_mono.mono_module
+import kf_mono.collect.has_decl
 
 fun signature_test_ty(name: str, arg: str): Ptr<TypeRef> {
     var args = List.new<TypeRef>()

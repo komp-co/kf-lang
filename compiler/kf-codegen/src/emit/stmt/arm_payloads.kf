@@ -6,6 +6,8 @@ import alloc.list.*
 
 import kf_core.ast.*
 import kf_codegen.emit.glue.is_box_tref
+import kf_codegen.emit.c_type
+import kf_codegen.emit.release_fn_for_ctype
 
 /// `keys` are "<Enum>/<Variant>/<index>", `rels` their release functions ("" for
 /// none). Flat lists: a nested generic does not survive mono.

@@ -13,6 +13,7 @@ import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.*
 import kf_typecheck.traits.check_dyn_method_call
 import kf_typecheck.traits.receiver_declares_trait_method
+import kf_typecheck.note_import_use_named
 
 /// True when either took the call.
 pub fun dyn_or_extension_call(e: &var Expr, recv_ptr: Ptr<Expr>, recv: &Expr, name: Sym, args: &var List<Expr>,

@@ -1,6 +1,9 @@
 import core.assert.assert_eq
 
 import kf_core.span.no_span
+import kf_core.ast.int32_ty
+import kf_core.ast.intern
+import kf_core.ast.new_type_vec
 
 fun test_dynamic_sink(argument: Type): Type {
     var args = new_type_vec()

@@ -4,6 +4,9 @@ import alloc.list.*
 import kf_core.span.no_span
 import kf_core.ast.*
 import kf_core.diagnostic.*
+import kf_typecheck.check.check_expr
+import kf_typecheck.check.mk_ctx
+import kf_typecheck.check.control.check_pattern
 
 mutating fun Expr.unresolved_check(ctx: &var TypeCtx): uint64 {
     check_expr(self, ctx)

@@ -11,6 +11,7 @@ import kf_typecheck.types.*
 import kf_typecheck.check.borrow.check_deref
 import kf_typecheck.check.borrow.lint_deref_through_temporary
 import kf_typecheck.check.control.*
+import kf_typecheck.check.borrow.borrow_written_deref
 
 pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
     e.name_empty_list_literal(ctx)
