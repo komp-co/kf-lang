@@ -2,15 +2,27 @@ import alloc.list.*
 
 import kf_core.span.*
 
-/// `import foo.bar.*` or `import foo.bar.Baz`.
+/// `import foo.bar.*`, `import foo.bar.Baz` or `import foo.bar as fb`.
 pub struct Import {
     pub val span: Span
-    pub val path: List<String> // ["foo", "bar"] for both forms
+    pub val path: List<String> // ["foo", "bar"] for every form
     pub val wildcard: bool // true for `.*`, false otherwise
+    /// The name after `as`, or "".
+    pub val alias: String
 }
 
 pub fun new_import(span: Span, path: List<String>, wildcard: bool): Import {
-    return Import { span: span, path: path, wildcard: wildcard }
+    return Import { span: span, path: path, wildcard: wildcard, alias: "" }
+}
+
+pub fun new_aliased_import(span: Span, path: List<String>, alias: String): Import {
+    return Import { span: span, path: path, wildcard: false, alias: alias }
+}
+
+/// What an aliased import admits in the per-file import table: no bare name,
+/// since none starts with `as `; a qualified call finds its module by it.
+pub fun alias_admission(alias: str): Sym {
+    return intern("as ${alias}")
 }
 
 /// False for an import the parser added itself (the `core.range.*` a `..`

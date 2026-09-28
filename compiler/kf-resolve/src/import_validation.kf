@@ -57,7 +57,14 @@ pub fun validate_imports_per_module(m: &Module,
         val source_file = imp.span.file_id
         var resolved = poison_sym()
         var admitted = poison_sym()
-        if imp.wildcard {
+        if imp.alias.as_str() != "" {
+            resolved = imp.resolve_wildcard(&module_paths, &file_paths)
+            if resolved.id == 0 {
+                diags.push(error_at(imp.span, aliased_module_not_found(&imp, m.crate, &module_paths, &file_paths)))
+            } else {
+                admitted = alias_admission(imp.alias.as_str())
+            }
+        } else if imp.wildcard {
             resolved = imp.resolve_wildcard(&module_paths, &file_paths)
             if resolved.id == 0 {
                 var msg = wildcard_not_found_message(&imp.path, &module_paths)
@@ -93,13 +100,24 @@ fun Import.crate_qualified(crate: CrateId): Import {
     var path = List.new<String>()
     if !crate.is_poison() { path.push(String.from(Sym { id: crate.raw }.as_str())) }
     while seg in &self.path { path.push(seg.clone()) }
-    return new_import(self.span, path, self.wildcard)
+    return Import { span: self.span, path: path, wildcard: self.wildcard, alias: self.alias.clone() }
 }
 
 fun Import.path_starts_with_crate_hint(): String {
     val tail = if self.wildcard { ".*" } else { "" }
     val written = "${format_import_path(&self.path).as_str()}${tail}"
     return "; a path inside this crate starts with the crate's name: `import ${written.as_str()}`"
+}
+
+/// An alias names a module, so the path is judged as a wildcard's would be.
+fun aliased_module_not_found(imp: &Import, crate: CrateId, module_paths: &List<Sym>, file_paths: &List<Sym>): String {
+    var msg = wildcard_not_found_message(&imp.path, module_paths)
+    val qualified = imp.crate_qualified(crate)
+    if qualified.resolve_wildcard(module_paths, file_paths).id != 0 {
+        msg.append("; a path inside this crate starts with the crate's name: ")
+        msg.append("`import ${format_import_path(&qualified.path).as_str()} as ${imp.alias.as_str()}`")
+    }
+    return msg
 }
 
 fun poison_sym(): Sym {

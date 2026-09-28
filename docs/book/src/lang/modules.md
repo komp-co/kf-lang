@@ -99,6 +99,32 @@ above need no import.
 A path always starts with a crate's name, including inside the crate itself;
 `import geometry.*` is an error that names the path to write instead.
 
+## Calling through an alias
+
+`import <module> as <name>` names a module instead of its contents. Its
+functions are then called as `<name>.<function>(...)`, which says at the
+call where the function comes from:
+
+```kflat
+import shapes.geometry as geometry
+
+fun main(): int32 {
+    val p = Point { x: 3, y: 4 }
+    return geometry.manhattan(&p) + helper()   // 7
+}
+```
+
+An aliased import brings in no bare names: `manhattan(&p)` alone is an
+error in this file. The function must still be `pub`, and a call through the
+alias reaches only that module, never a same-named function elsewhere —
+including one this file declares itself. A local variable of the same name
+shadows the alias.
+
+An alias names a module, so `import shapes.geometry.* as g` is an error. An
+extension function cannot be called through an alias yet ([#194]).
+
+[#194]: https://github.com/komp-co/komp/issues/194
+
 ## Dependencies
 
 If `kf.toml` declares a dependency on `my_lib`, its root module is `my_lib`

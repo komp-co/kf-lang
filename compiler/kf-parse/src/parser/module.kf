@@ -122,12 +122,31 @@ impl Parser {
             }
         }
 
+        var alias = ""
+        if is_keyword(self.peek(), Keyword.As) {
+            val as_span = self.peek().span
+            self.advance()
+            alias = when (self.peek().kind) {
+                Identifier(s) => s.as_string()
+                _ => ""
+            }
+            if alias.as_str() == "" {
+                self.parse_err(self.peek().span, "expected a name after `as`, found ${tok_str(self.peek())}")
+            } else {
+                self.advance()
+            }
+            if wildcard {
+                self.parse_err(as_span, "`as` names a module, not its contents: drop the `.*`")
+            }
+        }
+
         val end_pos: uint32 = self.peek().span.start
         val span = Span {
             file_id: start_span.file_id,
             start: start_span.start,
             end: end_pos
         }
+        if alias.as_str() != "" && !wildcard { return new_aliased_import(span, path, alias) }
         return new_import(span, path, wildcard)
     }
 }

@@ -190,6 +190,6 @@ Without the import, `manhattan` is not a method of `Point` in this file.
 
 ## Limitations
 
-- There is no module-qualified form such as `geometry.manhattan(&p)`
-  ([#47](https://github.com/komp-co/komp/issues/47)).
+- An extension cannot be called through a [module alias](modules.md#calling-through-an-alias)
+  such as `geometry.manhattan(&p)` ([#194](https://github.com/komp-co/komp/issues/194)).
   Two imported extensions that tie are separated by importing only one.

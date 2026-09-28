@@ -1,0 +1,31 @@
+import core.assert.assert_eq
+
+@test fun an_import_as_records_its_alias(): void {
+    var p = parser_for("import kf_core.diagnostic as diag")
+    val imp = p.parse_import()
+    assert_eq(imp.alias.as_str(), "diag", "the name after `as`")
+}
+
+@test fun an_import_as_keeps_the_module_path(): void {
+    var p = parser_for("import kf_core.diagnostic as diag")
+    val imp = p.parse_import()
+    assert_eq(imp.path.size(), 2, "the alias is not a path segment")
+}
+
+@test fun an_import_without_as_has_no_alias(): void {
+    var p = parser_for("import kf_core.diagnostic.*")
+    val imp = p.parse_import()
+    assert_eq(imp.alias.as_str(), "", "no alias")
+}
+
+@test fun a_wildcard_import_cannot_take_an_alias(): void {
+    var p = parser_for("import kf_core.diagnostic.* as diag")
+    val _imp = p.parse_import()
+    assert_eq(p.diags.size(), 1, "`as` after `.*` is an error")
+}
+
+@test fun an_import_as_needs_a_name(): void {
+    var p = parser_for("import kf_core.diagnostic as")
+    val _imp = p.parse_import()
+    assert_eq(p.diags.size(), 1, "`as` with nothing after it is an error")
+}

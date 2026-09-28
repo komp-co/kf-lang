@@ -124,6 +124,32 @@ impl SigTable {
         return ""
     }
 
+    /// The callee of a plain call, or of a call through a module alias when
+    /// `through` names that module; the caller judges the latter's `pub`.
+    pub fun lookup_callee(name: str, through: Sym, caller_file: uint32, caller_crate: CrateId, caller_module: Sym): FnSignature? {
+        if through.id != 0 { return self.find_in_module(name, through) }
+        return self.find_imported_signature(name, caller_file, caller_crate, caller_module)
+    }
+
+    /// Declared in `module`, whatever its visibility.
+    pub fun find_in_module(name: str, module: Sym): FnSignature? {
+        while s in &self.sigs {
+            if s.name.as_str().equals(name) && s.owner_module.id == module.id { return Option.Some(s) }
+        }
+        return Option.None
+    }
+
+    /// The module `alias` names in the file's imports, or poison.
+    pub fun alias_target(caller: uint32, alias: str): Sym {
+        val admission = alias_admission(alias)
+        while i in 0..self.caller_files.size() {
+            if self.caller_files.get(i) == caller && i < self.imported_names.size() {
+                if self.imported_names.get(i).id == admission.id { return self.imported_targets.get(i) }
+            }
+        }
+        return Sym { id: 0 }
+    }
+
     /// The file's own imports admit `name` from `target`; a sibling's do not.
     /// CONSTRAINT: keep scanning on a miss, since one file may name several
     /// imports of one module.
