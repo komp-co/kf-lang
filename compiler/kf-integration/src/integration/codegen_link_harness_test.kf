@@ -69,7 +69,7 @@ pub fun gcc_link(source: str, binary: str, asan: bool): int32 {
     if !write_alloc_header_into(link_dir()) { return 1 }
     var include_flag = String.from("-I")
     include_flag.append(link_dir())
-    val compiler = Command.new("gcc")
+    var compiler = Command.new("gcc")
     if asan { compiler.arg("-fsanitize=address") }
     compiler.arg("-D_GNU_SOURCE")
     compiler.arg(include_flag.as_str())
@@ -104,7 +104,7 @@ pub fun run_program(binary: str): int32 {
 }
 
 pub fun run_program_to_file(binary: str, output: str, disable_leaks: bool): int32 {
-    val program = Command.new(binary)
+    var program = Command.new(binary)
     if disable_leaks { program.env("ASAN_OPTIONS", "detect_leaks=0") }
     program.stdout_to(Path.new(output))
     return program.status().exit_code()

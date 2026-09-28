@@ -4,7 +4,7 @@ import json.writer.*
 
 /// `id` and `result` are JSON text.
 pub fun result_line(id: str, result: str): String {
-    val writer = JsonWriter.object()
+    var writer = JsonWriter.object()
     writer.field_raw("id", id)
     writer.field_raw("result", result)
     return writer.finish()
@@ -13,7 +13,7 @@ pub fun result_line(id: str, result: str): String {
 /// `code` is one of the protocol's error names, which clients match on;
 /// `message` is for people.
 pub fun error_line(id: str, code: str, message: str): String {
-    val writer = JsonWriter.object()
+    var writer = JsonWriter.object()
     writer.field_raw("id", id)
     writer.key("error")
     writer.begin_object()

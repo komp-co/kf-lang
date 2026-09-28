@@ -99,7 +99,7 @@ mutating fun TopDecl.register_concrete_dyn_vtable(trait_ref: TypeRef, members: &
                     // visible, or `F` in `impl Iterator<F.Out> for MapIter<I, F>`
                     // resolves as a nominal type.
                     ctx.seed_generics(type_param_names(self.generics))
-                    val args = new_type_vec()
+                    var args = new_type_vec()
                     while argument in &type_refs {
                         args.push(argument.resolve_type_ref(&var ctx))
                     }

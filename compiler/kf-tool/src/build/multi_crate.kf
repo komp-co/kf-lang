@@ -67,7 +67,7 @@ pub fun test_project(root_dir: str): int32 {
     val source = temp.path().join("tests.c")
     val binary = temp.path().join("tests")
     write_file(source.as_str(), c.as_str())
-    val cc = Command.new("cc")
+    var cc = Command.new("cc")
     cc.arg(dialect_flags())
     cc.arg(source.as_str())
     cc.arg("-o")
@@ -77,7 +77,7 @@ pub fun test_project(root_dir: str): int32 {
         runtime_println("komp test: cc failed")
         return cc_status.exit_code()
     }
-    val child = Command.new(binary.as_str())
+    var child = Command.new(binary.as_str())
     child.env("KFLATC", kflatc_path().as_str())
     return child.status().exit_code()
 }

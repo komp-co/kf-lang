@@ -97,7 +97,7 @@ pub fun Type.subst_generic(name: String, with_ty: Type): Type {
             return Type { kind: TypeKind.EnumTy(intern(nn.as_str())), provenance: self.provenance }
         }
         DynTraitTy(object) => {
-            val args = new_type_vec()
+            var args = new_type_vec()
             val source_args = unsafe { object.args }
             var i = 0
             while i < unsafe { source_args.size() } {

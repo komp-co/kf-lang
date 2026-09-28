@@ -127,7 +127,7 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
             return Type { kind: TypeKind.Struct(intern(mangled.as_str())), provenance: Provenance.Declared(self.span) }
         }
         DynTrait(name, args) => {
-            val resolved_args = new_type_vec()
+            var resolved_args = new_type_vec()
             while argument in &args {
                 resolved_args.push(argument.resolve_type_ref(ctx))
             }

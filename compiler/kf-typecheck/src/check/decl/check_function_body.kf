@@ -60,6 +60,8 @@ fun check_fn_body(metadata_owner: Ptr<TopDecl>, owner: String, owner_crate: Crat
     }
     // Every slot has been applied; a `null` still untyped never will be.
     ctx.report_untyped_nulls()
+    // A wide literal no slot sized is left at `int32`, where it does not fit.
+    ctx.report_unsized_wide_literals()
     // Likewise a static call on a generic type only a slot could complete.
     ctx.report_open_calls()
     // Non-void functions must return on every path. `Void`, `Never` and

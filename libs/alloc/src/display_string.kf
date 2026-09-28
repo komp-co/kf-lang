@@ -1,0 +1,9 @@
+import core.display.*
+
+/// The rendering as a `String`: what `"${v}"` holds.
+@prelude
+pub fun <T: Display> T.display(): String {
+    var out = String.from("")
+    self.display(&var out)
+    return out
+}

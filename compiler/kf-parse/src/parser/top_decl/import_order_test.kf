@@ -6,14 +6,14 @@ import alloc.list.*
 import kf_parse.parser.parser_for
 
 fun import_order_first_diag(src: str): String {
-    val p = parser_for(src)
+    var p = parser_for(src)
     val _m = p.parse_module(List.new<String>())
     if p.diags.size() == 0 { return String.from("") }
     return p.diags.at(0).primary.message.clone()
 }
 
 fun import_order_diags(src: str): uint64 {
-    val p = parser_for(src)
+    var p = parser_for(src)
     val _m = p.parse_module(List.new<String>())
     return p.diags.size()
 }

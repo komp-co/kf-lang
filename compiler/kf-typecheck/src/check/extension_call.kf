@@ -19,7 +19,8 @@ pub fun dyn_or_extension_call(e: &var Expr, recv_ptr: Ptr<Expr>, recv: &Expr, na
                               ctx: &var TypeCtx): bool {
     if e.check_dyn_method_call(recv, name, args, ctx) { return true }
     if !has_extension_named(name.as_str(), ctx) || recv.ty.is_poison() { return false }
-    if receiver_has_own_method(recv.ty.clone(), name.as_string(), ctx) { return false }
+    val renders = renders_through_display(recv.ty.clone(), name.as_str(), args.size(), ctx)
+    if !renders && receiver_has_own_method(recv.ty.clone(), name.as_string(), ctx) { return false }
     val link = chosen_extension(name.as_str(), &recv.ty, e.span, ctx)
     if link.byte_len() == 0 { return e.report_blocked_extension(name.as_str(), &recv.ty, ctx) }
     if link.as_str().equals(".") || !extension_arity_fits(link.as_str(), name.as_str(), args.size(), e.span, ctx) {
@@ -90,6 +91,21 @@ fun has_extension_named(name: str, ctx: &var TypeCtx): bool {
         if n.as_str().equals(name) { return true }
     }
     return false
+}
+
+/// `Display.display` takes a sink, so `v.display()` is alloc's rendering as a
+/// `String`, unless the type declares a `display` of its own.
+fun renders_through_display(recv_ty: Type, name: str, arg_count: uint64, ctx: &var TypeCtx): bool {
+    if name != "display" || arg_count != 0 { return false }
+    val recv = autoderef_ty(recv_ty)
+    val tag = recv.kind.kind_tag()
+    if tag != TAG_STRUCT() && tag != TAG_ENUM() { return true }
+    val sname = recv.kind.nominal_name()
+    val base = mangle_base_name(sname.clone())
+    val table = unsafe { &*ctx.sigs }
+    val on_instance = "${sname}_${name}"
+    val on_template = "${base}_${name}"
+    return table.find_signature(on_instance.as_str()).is_none() && table.find_signature(on_template.as_str()).is_none()
 }
 
 /// A type or trait method, or one komp supplies; a type parameter has its

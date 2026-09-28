@@ -5,7 +5,7 @@ import alloc.list.*
 import kf_core.span.no_span
 
 @test fun dyn_trait_substitution_rewrites_arguments(): void {
-    val arguments = new_type_vec()
+    var arguments = new_type_vec()
     arguments.push(generic_ty(String.from("T"), no_span()))
     val source = dyn_trait_type(intern("sample::api::Sink"), arguments, no_span())
     var names = List.new<String>()

@@ -7,7 +7,7 @@ import kf_core.ast.*
 import kf_parse.parser.parser_for
 
 fun continuation_diags(src: str): uint64 {
-    val p = parser_for(src)
+    var p = parser_for(src)
     val _m = p.parse_module(List.new<String>())
     return p.diags.size()
 }
@@ -15,7 +15,7 @@ fun continuation_diags(src: str): uint64 {
 /// A continued expression stays one statement; a bare second line becomes
 /// another.
 fun body_stmt_count(src: str): uint64 {
-    val p = parser_for(src)
+    var p = parser_for(src)
     val td = p.parse_top_decl()
     when (td.kind) {
         Function(_params, _r, body, _pb, _u, _mv, _s) => return body.size()

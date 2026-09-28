@@ -14,7 +14,7 @@ pub struct DynTraitLayout {
     pub val identity: Sym
     pub val principal: Sym
     pub val args: List<Type>
-    pub val methods: List<DynMethodSlot>
+    pub var methods: List<DynMethodSlot>
     pub val owner: CrateId
     pub val imported: bool
 }

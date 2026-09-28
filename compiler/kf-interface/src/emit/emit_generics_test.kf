@@ -17,7 +17,7 @@ fun generics_source_map(): Ptr<SourceMap> {
 fun mapped_module(src: str, crate_name: str, smap: Ptr<SourceMap>): Module {
     val fid = unsafe { smap.add_file(new_source_file(String.from("lib.kf"), String.from(src))) }
     val tokens = tokenize(src, fid)
-    val p = new_parser(tokens)
+    var p = new_parser(tokens)
     val parsed = p.parse_module(List.new<String>())
     val crate = new_crate_id(crate_name)
     var decls = List.new<TopDecl>()

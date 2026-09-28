@@ -524,7 +524,7 @@ pub fun tokenize_with_comments(source: str, file_id: uint32): TokenizeResult {
 }
 
 fun tokenize_inner(source: str, file_id: uint32, comments: &var List<Span>, keep_comments: bool): List<Token> {
-    val l = new_lexer(source, file_id)
+    var l = new_lexer(source, file_id)
     var toks = List.new<Token>()
     var done: bool = false
     while !done {

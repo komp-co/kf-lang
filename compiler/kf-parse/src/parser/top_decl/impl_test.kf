@@ -8,34 +8,34 @@ import kf_core.ast.*
 import kf_parse.parser.parser_for
 
 @test fun parse_module_impl_empty_body(): void {
-    val p = parser_for("impl Foo {}")
+    var p = parser_for("impl Foo {}")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
     assert_eq(is_impl_kind(first_decl(m)), true, "kind is ImplBlock")
 }
 
 @test fun parse_module_impl_one_method(): void {
-    val p = parser_for("impl Foo { fun bar(): int32 { return 1 } }")
+    var p = parser_for("impl Foo { fun bar(): int32 { return 1 } }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
     assert_eq(impl_method_count(first_decl(m)), 1, "one method")
 }
 
 @test fun parse_module_impl_two_methods(): void {
-    val p = parser_for("impl Foo { fun bar(): int32 { return 1 } fun baz(): int32 { return 2 } }")
+    var p = parser_for("impl Foo { fun bar(): int32 { return 1 } fun baz(): int32 { return 2 } }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
     assert_eq(impl_method_count(first_decl(m)), 2, "two methods")
 }
 
 @test fun parse_module_struct_then_impl(): void {
-    val p = parser_for("struct Foo { val x: int32 } impl Foo { fun get_x(): int32 { return 0 } }")
+    var p = parser_for("struct Foo { val x: int32 } impl Foo { fun get_x(): int32 { return 0 } }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 2, "struct + impl")
 }
 
 @test fun parse_module_impl_pub_method(): void {
-    val p = parser_for("impl Foo { pub fun bar(): int32 { return 1 } }")
+    var p = parser_for("impl Foo { pub fun bar(): int32 { return 1 } }")
     val m = p.parse_module(List.new<String>())
     assert_eq(impl_method_count(first_decl(m)), 1, "pub fun counts as method")
 }
@@ -51,7 +51,7 @@ fun first_method_decl_end(td: TopDecl): uint32 {
 }
 
 @test fun parse_impl_method_records_source_extent(): void {
-    val p = parser_for("impl Foo { fun bar(): int32 { return 1 } }")
+    var p = parser_for("impl Foo { fun bar(): int32 { return 1 } }")
     val m = p.parse_module(List.new<String>())
     assert_eq(first_method_decl_end(first_decl(m)), 40 as uint32, "method extent ends at its own brace")
 }
@@ -64,40 +64,40 @@ fun is_extern_kind(td: TopDecl): bool {
 }
 
 @test fun parse_module_extern_c_fun_no_args(): void {
-    val p = parser_for("extern \"C\" fun puts(): int32")
+    var p = parser_for("extern \"C\" fun puts(): int32")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
     assert_eq(is_extern_kind(first_decl(m)), true, "kind is Extern")
 }
 
 @test fun parse_module_extern_c_fun_one_arg(): void {
-    val p = parser_for("extern \"C\" fun puts(s: str): int32")
+    var p = parser_for("extern \"C\" fun puts(s: str): int32")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
     assert_eq(is_extern_kind(first_decl(m)), true, "kind is Extern")
 }
 
 @test fun parse_module_pub_extern(): void {
-    val p = parser_for("pub extern \"C\" fun malloc(size: uint64): int32")
+    var p = parser_for("pub extern \"C\" fun malloc(size: uint64): int32")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
     assert_eq(is_extern_kind(first_decl(m)), true, "pub extern is Extern")
 }
 
 @test fun parse_when_with_wildcard(): void {
-    val p = parser_for("fun f(): int32 { when (1) { _ => return 0 } return 0 }")
+    var p = parser_for("fun f(): int32 { when (1) { _ => return 0 } return 0 }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
 }
 
 @test fun parse_when_with_int_arms(): void {
-    val p = parser_for("fun f(): int32 { when (1) { 1 => return 10, 2 => return 20, _ => return 0 } return 0 }")
+    var p = parser_for("fun f(): int32 { when (1) { 1 => return 10, 2 => return 20, _ => return 0 } return 0 }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
 }
 
 @test fun parse_when_with_bool_arms(): void {
-    val p = parser_for("fun f(): int32 { when (true) { true => return 1, false => return 0 } return 0 }")
+    var p = parser_for("fun f(): int32 { when (true) { true => return 1, false => return 0 } return 0 }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
 }
@@ -105,7 +105,7 @@ fun is_extern_kind(td: TopDecl): bool {
 
 // `&T` / `&var T` in a parameter type.
 @test fun parse_reference_param_type(): void {
-    val p = parser_for("fun f(out: &var String, n: uint32): void { }")
+    var p = parser_for("fun f(out: &var String, n: uint32): void { }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
     val td = *m.decls.at(0)
@@ -126,7 +126,7 @@ fun is_extern_kind(td: TopDecl): bool {
 }
 
 @test fun parse_omitted_return_is_void(): void {
-    val p = parser_for("fun f(n: uint32) { }")
+    var p = parser_for("fun f(n: uint32) { }")
     val m = p.parse_module(List.new<String>())
     val td = *m.decls.at(0)
     val k = td.kind
@@ -144,7 +144,7 @@ fun is_extern_kind(td: TopDecl): bool {
 
 // `List.new<T>()` is a MethodCall with type args on the side channel.
 @test fun parse_new_list_generic_call(): void {
-    val p = parser_for("fun f(): void { val xs = List.new<int32>() }")
+    var p = parser_for("fun f(): void { val xs = List.new<int32>() }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
     val td = *m.decls.at(0)
@@ -176,7 +176,7 @@ fun is_extern_kind(td: TopDecl): bool {
 
 // `unsafe { *p }` is a Deref.
 @test fun parse_unsafe_deref_read(): void {
-    val p = parser_for("fun f(): void { val x = unsafe { *p } }")
+    var p = parser_for("fun f(): void { val x = unsafe { *p } }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
     val td = *m.decls.at(0)
@@ -202,7 +202,7 @@ fun is_extern_kind(td: TopDecl): bool {
 
 // `(*p).field` is a FieldAccess on a Deref.
 @test fun parse_paren_deref_field(): void {
-    val p = parser_for("fun f(): void { val x = (*p).field }")
+    var p = parser_for("fun f(): void { val x = (*p).field }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
     val td = *m.decls.at(0)
@@ -235,7 +235,7 @@ fun is_extern_kind(td: TopDecl): bool {
 
 // `0 as T` as an argument keeps its cast and every argument.
 @test fun parse_literal_cast_arg_keeps_all_args(): void {
-    val p = parser_for("fun f(): void { g(0 as int32, y) }")
+    var p = parser_for("fun f(): void { g(0 as int32, y) }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
     val td = *m.decls.at(0)
@@ -263,7 +263,7 @@ fun is_extern_kind(td: TopDecl): bool {
 
 // `&var *p` stays a dereference, tagged as the borrow the author wrote.
 @test fun parse_amp_deref_keeps_the_deref(): void {
-    val p = parser_for("fun f(): void { g(&var *p) }")
+    var p = parser_for("fun f(): void { g(&var *p) }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
     val td = *m.decls.at(0)
@@ -295,7 +295,7 @@ fun is_extern_kind(td: TopDecl): bool {
 
 // `alloc<Expr>()` folds to the callee `alloc__Expr`.
 @test fun parse_alloc_generic_call(): void {
-    val p = parser_for("fun f(): void { val q = unsafe { alloc<Expr>() } }")
+    var p = parser_for("fun f(): void { val q = unsafe { alloc<Expr>() } }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
     val td = *m.decls.at(0)
@@ -323,7 +323,7 @@ fun is_extern_kind(td: TopDecl): bool {
 
 // `unsafe { *p = rhs }` is an AssignTo on a Deref.
 @test fun parse_unsafe_deref_store(): void {
-    val p = parser_for("fun f(): void { unsafe { *p = x } }")
+    var p = parser_for("fun f(): void { unsafe { *p = x } }")
     val m = p.parse_module(List.new<String>())
     assert_eq(m.decls.size(), 1, "one decl")
     val td = *m.decls.at(0)

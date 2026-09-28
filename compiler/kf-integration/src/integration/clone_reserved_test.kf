@@ -10,10 +10,10 @@ import kf_parse.lexer.tokenize
 import kf_parse.parser.new_parser
 
 fun error_count_for(src: str): int32 {
-    val smap = fresh_source_map()
+    var smap = fresh_source_map()
     val fid = unsafe { smap.add_file(new_source_file(String.from("<test>"), String.from(src))) }
     val toks = tokenize(src, fid)
-    val p = new_parser(toks)
+    var p = new_parser(toks)
     var m = p.parse_module(List.new<String>())
     return m.check_module(smap)
 }

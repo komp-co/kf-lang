@@ -9,7 +9,7 @@ pub struct Stmt {
     /// Where the binder name is written (`x` in `val x = 1`); `no_span()` if
     /// nothing is bound. On the outer struct so no kind's payload changes.
     pub var binder: Span
-    pub val kind: StmtKind
+    pub var kind: StmtKind
 }
 
 /// One arm of a Lower-desugared `Switch`.

@@ -36,7 +36,7 @@ fun coerce_target(mutable: bool): Type {
 }
 
 fun generic_coerce_target(argument: Type): Type {
-    val args = new_type_vec()
+    var args = new_type_vec()
     args.push(argument)
     return coerce_ref_type(dyn_trait_type(intern("Show"), args, no_span()), false)
 }

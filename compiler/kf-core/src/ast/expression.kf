@@ -10,7 +10,7 @@ pub struct Expr {
     /// `push` in `xs.push(1)`. `no_span()` if it names nothing or was
     /// synthesized. `span` covers the whole call.
     pub var name_span: Span
-    pub val kind: ExprKind
+    pub var kind: ExprKind
     pub var decl:           DeclId?
     pub var ty:             Type
     // Set by Mono on calls; empty otherwise.

@@ -325,15 +325,13 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
         val prim_ret = trait_method_ret(recv_ty, method_name.clone(), args, _span, ctx)
         if !prim_ret.is_poison() { return prim_ret }
         recv_ty.borrow_intrinsic_method_operand(method_name.as_str(), args, ctx)
-    }
-    // int64's `display` is a runtime extern.
-    val is_int64 = rtag == TAG_INT64()
-    if is_int64 {
-        if method_name.as_str().equals("display") { return ctx.string_name().lang_struct_ty(_span) }
-        if !primitive_intrinsic_method(method_name.as_str()) {
-            emit_no_such_method(recv_ty.display_type(ctx), method_name.clone(), _span, call.name_span, ctx)
+        // A trait declares it but no impl accepts these arguments.
+        if receiver_declares_trait_method(recv_ty, method_name.clone(), ctx) {
+            val shown = recv_ty.display_type(ctx)
+            val amsg = "no implementation of `${method_name}` for `${shown}` accepts these arguments"
+            ctx.emit(new_diagnostic(Severity.Error, new_label(_span, amsg)))
+            return poison_ty()
         }
-        return poison_ty()
     }
     // Nothing claims this method on a primitive: reported. A `Ptr<T>` arrives
     // here as its pointee.

@@ -10,14 +10,14 @@ import json.writer.*
 /// `{"schema_version":1,"file":..,"offset":N,"ranges":[..]}`, innermost
 /// first; empty outside every declaration.
 pub fun render_selection_json(path: str, offset: uint32, m: &Module): String {
-    val out = JsonWriter.object()
+    var out = JsonWriter.object()
     out.field_uint32("schema_version", 1)
     out.field_string("file", path)
     out.field_uint32("offset", offset)
     val chain = m.selection_chain(1, offset)
-    val arr = JsonWriter.array()
+    var arr = JsonWriter.array()
     while span in &chain {
-        val o = JsonWriter.object()
+        var o = JsonWriter.object()
         o.field_uint32("byte_start", span.start)
         o.field_uint32("byte_end", span.end)
         arr.write_raw(o.finish().as_str())

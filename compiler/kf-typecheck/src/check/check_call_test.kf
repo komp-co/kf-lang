@@ -59,7 +59,7 @@ import kf_core.ast.*
 
 // A generic instance is spelled as its template and arguments.
 @test fun written_ref_spells_an_instance_as_its_template(): void {
-    val ctx = mk_ctx()
+    var ctx = mk_ctx()
     var args = List.new<TypeRef>()
     args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
     val inst = GenericInst { mangled: String.from("Wrap__int32"), base: String.from("Wrap"), args: args }

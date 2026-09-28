@@ -37,7 +37,7 @@ pub fun TopDecl.template_source_slice(smap: Ptr<SourceMap>): String {
 
 /// `{"kind":"generic","hidden":...,"name":...,"src":...}`
 pub fun TopDecl.emit_template_entry(hidden: bool, smap: Ptr<SourceMap>): String {
-    val o = JsonWriter.object()
+    var o = JsonWriter.object()
     o.field_string("kind", "generic")
     o.field_bool("hidden", hidden)
     o.field_string("name", self.name.as_str())

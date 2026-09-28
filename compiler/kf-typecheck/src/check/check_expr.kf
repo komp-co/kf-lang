@@ -20,8 +20,9 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
     if e.coerce == coerce_written_amp() { e.coerce = coerce_none() }
     if e.coerce == coerce_written_amp_var() { e.coerce = coerce_none() }
     when (e.kind) {
-        LitInt(_) => {
+        LitInt(value) => {
             e.ty = int32_ty(e.span)
+            if value > 2147483647 { note_wide_literal_seen(e.span, ctx) }
         }
         LitStr(_) => {
             e.ty = str_ty(e.span)
@@ -51,6 +52,13 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
                 e.ty = check_method_call(checked_lhs.ty, String.from(tag_test), &var no_args, e.span, ctx, e)
                 return
             }
+            if tag_test != "" && is_null_var(&checked_lhs) && checked_rhs.ty.type_is_option(ctx) {
+                note_null_typed(checked_lhs.span, ctx)
+                e.kind = ExprKind.MethodCall(rhs_ptr, intern(tag_test), List.new<Expr>())
+                var no_args = List.new<Expr>()
+                e.ty = check_method_call(checked_rhs.ty, String.from(tag_test), &var no_args, e.span, ctx, e)
+                return
+            }
             if op.binary_uses_same_type_rhs() && !op.is_pointer_offset(checked_lhs.ty, checked_rhs.ty) {
                 if checked_lhs.operand_takes_other_type(ctx) && !checked_rhs.operand_takes_other_type(ctx) {
                     apply_expected(unsafe { &var *lhs_ptr }, checked_rhs.ty.clone(), ctx)
@@ -63,6 +71,8 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
         Unary(op, inner_ptr) => {
             check_expr(unsafe { &var *inner_ptr }, ctx)
             val inner = unsafe { *inner_ptr }
+            // `-2147483648` fits `int32` though its magnitude does not.
+            if negative_integer_literal_magnitude(*e) == 2147483648 { note_literal_sized(inner.span, ctx) }
             e.ty = check_unary(op, inner, e.span, ctx)
         }
         Deref(inner_ptr) => {
@@ -146,7 +156,10 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
             check_expr(unsafe { &var *inner_ptr }, ctx)
             val tr = unsafe { *ty_ptr }
             e.ty = tr.resolve_type_ref(ctx)
-            reject_enum_to_number_cast(unsafe { (*inner_ptr).ty }, e.ty.clone(), e.span, ctx)
+            val operand = unsafe { &*inner_ptr }
+            // The cast converts a literal of any width.
+            if is_integer_literal(operand) { note_literal_sized(operand.span, ctx) }
+            reject_enum_to_number_cast(operand.ty.clone(), e.ty.clone(), e.span, ctx)
         }
         DynCoerce(inner_ptr, _) => {
             check_expr(unsafe { &var *inner_ptr }, ctx)

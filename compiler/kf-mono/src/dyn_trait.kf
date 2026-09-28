@@ -48,7 +48,7 @@ fun normalize_dyn_members(members: &var List<TopDecl>, self_name: str, projectio
 
 fun normalize_dyn_layout(layout: DynTraitLayout, self_name: str, projections: Ptr<SigTable>): DynTraitLayout {
     var args = List.new<Type>()
-    val type_args = new_type_vec()
+    var type_args = new_type_vec()
     while arg in &layout.args {
         val argument = resolved_projection_type(arg, self_name, projections)
         args.push(argument.clone())

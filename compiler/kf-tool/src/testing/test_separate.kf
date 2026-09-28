@@ -52,7 +52,7 @@ pub fun test_project_separate(root_dir: str, case_filter: str, test_filter: str)
     }
     if !link_binary(binary.as_str(), &objects, &archives, "") { return 1 }
     // Command.status(), not system(): a wait status of 256 truncates to 0.
-    val run = Command.new(binary.as_str())
+    var run = Command.new(binary.as_str())
     // A test that builds a project runs the compiler this komp would.
     run.env("KFLATC", kflatc_path().as_str())
     if case_filter.byte_len() > 0 {

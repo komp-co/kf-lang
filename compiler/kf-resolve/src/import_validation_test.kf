@@ -6,8 +6,12 @@ import kf_core.diagnostic.*
 import kf_core.span.*
 
 fun make_decl(name: str, module_path: str): TopDecl {
+    return make_decl_at(no_span(), name, module_path)
+}
+
+fun make_decl_at(span: Span, name: str, module_path: str): TopDecl {
     val kind = TopDeclKind.Function(List.new<Param>(), null_type_ref_ptr(), List.new<Stmt>(), false, false, false, false)
-    var decl = new_top_decl(no_span(), String.from(name), kind)
+    var decl = new_top_decl(span, String.from(name), kind)
     decl.module_path = intern(module_path.as_str())
     return decl
 }
@@ -58,9 +62,7 @@ fun map_with_file(path: str): Ptr<SourceMap> {
 /// A declaration that came from a real file, so its module reports that file
 /// as importable. `make_decl` leaves `no_span()`, which names no file at all.
 fun make_decl_in_file(name: str, module_path: str, file_id: uint32): TopDecl {
-    var decl = make_decl(name, module_path)
-    decl.span = Span { file_id: file_id, start: 0, end: 0 }
-    return decl
+    return make_decl_at(Span { file_id: file_id, start: 0, end: 0 }, name, module_path)
 }
 
 fun module_with(decls: List<TopDecl>, imports: List<Import>): Module {
@@ -163,8 +165,7 @@ fun module_with(decls: List<TopDecl>, imports: List<Import>): Module {
 @test fun per_module_map_records_caller_and_target(): void {
     var decls = List.new<TopDecl>()
     // mod_a has two decls, one with file_id=42 (the caller).
-    var d = make_decl("foo", "mod_a")
-    d.span = Span { file_id: 42, start: 0, end: 0 }
+    var d = make_decl_in_file("foo", "mod_a", 42)
     decls.push(d)
     decls.push(make_decl("other", "mod_a"))
     // mod_b.sub has one decl (the import target).
@@ -188,8 +189,7 @@ fun module_with(decls: List<TopDecl>, imports: List<Import>): Module {
     // Recorded with a poison target, keeping the lists index-aligned
     // with `m.imports`.
     var decls = List.new<TopDecl>()
-    var d = make_decl("foo", "mod_a")
-    d.span = Span { file_id: 1, start: 0, end: 0 }
+    var d = make_decl_in_file("foo", "mod_a", 1)
     decls.push(d)
 
     var imports = List.new<Import>()
@@ -222,14 +222,11 @@ fun module_with(decls: List<TopDecl>, imports: List<Import>): Module {
     // Two files in one module, one import. Only the file that wrote it is
     // recorded, which is what lets the checker refuse a sibling.
     var decls = List.new<TopDecl>()
-    var d1 = make_decl("foo", "mod_a")
-    d1.span = Span { file_id: 1, start: 0, end: 0 }
+    var d1 = make_decl_in_file("foo", "mod_a", 1)
     decls.push(d1)
-    var d2 = make_decl("bar", "mod_a")
-    d2.span = Span { file_id: 2, start: 0, end: 0 }
+    var d2 = make_decl_in_file("bar", "mod_a", 2)
     decls.push(d2)
-    var d3 = make_decl("target", "mod_b")
-    d3.span = Span { file_id: 3, start: 0, end: 0 }
+    var d3 = make_decl_in_file("target", "mod_b", 3)
     decls.push(d3)
 
     var imports = List.new<Import>()

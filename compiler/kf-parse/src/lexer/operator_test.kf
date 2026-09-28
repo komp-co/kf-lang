@@ -32,7 +32,7 @@ fun reachable_operator_count(): uint64 {
         when (operator_at(i)) {
             Some(o) => {
                 val spelling = op_str(o)
-                val l = new_lexer(spelling, 0)
+                var l = new_lexer(spelling, 0)
                 when (l.read_operator()) {
                     Some(back) => {
                         if !op_str(back).equals(spelling) || l.pos != l.len {

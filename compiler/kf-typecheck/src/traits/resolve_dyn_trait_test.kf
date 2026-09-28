@@ -8,7 +8,7 @@ import kf_core.ast.dyn_meta.dyn_trait_type
 import kf_core.ast.dyn_meta.dyn_trait_args
 
 fun resolved_test_sink(argument: Type): Type {
-    val args = new_type_vec()
+    var args = new_type_vec()
     args.push(argument)
     return dyn_trait_type(intern("sample::api::Sink"), args, no_span())
 }
@@ -57,7 +57,7 @@ fun resolve_dyn_trait_keeps_generic_argument(): bool {
     val diagnostics = List.new<Diagnostic>()
     val diagnostic_ptr: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
     unsafe { *diagnostic_ptr = diagnostics }
-    val signatures = new_sig_table()
+    var signatures = new_sig_table()
     var type_parameters = List.new<String>()
     type_parameters.push(String.from("T"))
     signatures.insert_trait(TraitInfo {
@@ -104,7 +104,7 @@ fun resolve_dyn_trait_keeps_generic_argument(): bool {
 }
 
 @test fun resolve_dyn_trait_rejects_struct_principal(): void {
-    val signatures = new_sig_table()
+    var signatures = new_sig_table()
     signatures.insert_struct(StructLayout {
         name: String.from("Widget"),
         fields: List.new<StructFieldInfo>(),
@@ -116,7 +116,7 @@ fun resolve_dyn_trait_keeps_generic_argument(): bool {
 }
 
 @test fun resolve_dyn_trait_rejects_ambiguous_principal(): void {
-    val signatures = new_sig_table()
+    var signatures = new_sig_table()
     signatures.insert_trait(dyn_test_trait("Sink", "one::Sink", 0))
     signatures.insert_trait(dyn_test_trait("Sink", "two::Sink", 0))
     val message = dyn_resolution_message("Sink", List.new<TypeRef>(), signatures)
@@ -124,7 +124,7 @@ fun resolve_dyn_trait_keeps_generic_argument(): bool {
 }
 
 @test fun resolve_dyn_trait_checks_type_argument_arity(): void {
-    val signatures = new_sig_table()
+    var signatures = new_sig_table()
     signatures.insert_trait(dyn_test_trait("Sink", "sample::Sink", 1))
     val message = dyn_resolution_message("Sink", List.new<TypeRef>(), signatures)
     assert_eq(message.as_str(), "trait `Sink` expects 1 type arguments, found 0", "dynamic trait arity is checked")

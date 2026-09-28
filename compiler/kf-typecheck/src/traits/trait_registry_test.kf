@@ -22,7 +22,7 @@ fun owned_registry_decl(td: TopDecl): TopDecl {
 fun same_named_receivers_do_not_share_trait_impls(): void {
     val left = canonical_type_identity(new_type_identity(new_crate_id("left"), intern("models"), intern("Point")))
     val right = canonical_type_identity(new_type_identity(new_crate_id("right"), intern("models"), intern("Point")))
-    val table = new_sig_table()
+    var table = new_sig_table()
     table.insert_trait_impl(TraitImplInfo {
         type_name: String.from("Point"),
         receiver_identity: left,
@@ -36,7 +36,7 @@ fun same_named_receivers_do_not_share_trait_impls(): void {
 
 @test
 fun bare_reconstructed_receiver_uses_display_name_fallback(): void {
-    val table = new_sig_table()
+    var table = new_sig_table()
     table.insert_trait_impl(TraitImplInfo {
         type_name: String.from("Sym"),
         receiver_identity: canonical_type_identity(new_type_identity(new_crate_id("kf_core"), intern("ast"), intern("Sym"))),
@@ -104,7 +104,7 @@ fun imported_trait_method_uses_exact_link_name(): void {
 // A generic impl registers under its template (`Box2`); a bound checks the
 // monomorphized identity (`Box2__int32`).
 fun shout_registry(): SigTable {
-    val table = new_sig_table()
+    var table = new_sig_table()
     table.insert_trait_impl(TraitImplInfo {
         type_name: String.from("Box2"),
         receiver_identity: canonical_type_identity(new_type_identity(new_crate_id("app"), intern("shapes"), intern("Box2"))),

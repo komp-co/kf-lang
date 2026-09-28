@@ -5,7 +5,7 @@ import kf_core.ast.*
 import kf_parse.parser.parser_for
 
 @test fun parse_trait_records_one_supertrait(): void {
-    val p = parser_for("trait Compare: Equal { fun compare(other: Self): int32 }")
+    var p = parser_for("trait Compare: Equal { fun compare(other: Self): int32 }")
     val td = p.parse_top_decl()
     when (td.kind) {
         TraitDecl(methods, _pub, supers) => {
@@ -18,7 +18,7 @@ import kf_parse.parser.parser_for
 }
 
 @test fun parse_trait_records_several_supertraits(): void {
-    val p = parser_for("trait Sortable: Compare + Clone { }")
+    var p = parser_for("trait Sortable: Compare + Clone { }")
     val td = p.parse_top_decl()
     when (td.kind) {
         TraitDecl(_methods, _pub, supers) => {
@@ -31,7 +31,7 @@ import kf_parse.parser.parser_for
 }
 
 @test fun parse_supertrait_carries_type_args(): void {
-    val p = parser_for("trait Call1<A>: CallMut1<A> { fun call(a: A): int32 }")
+    var p = parser_for("trait Call1<A>: CallMut1<A> { fun call(a: A): int32 }")
     val td = p.parse_top_decl()
     assert_eq(td.generics.size(), 1, "trait param A")
     when (td.kind) {
@@ -44,7 +44,7 @@ import kf_parse.parser.parser_for
 }
 
 @test fun parse_trait_without_supertraits_is_empty(): void {
-    val p = parser_for("trait Equal { fun equals(other: Self): bool }")
+    var p = parser_for("trait Equal { fun equals(other: Self): bool }")
     val td = p.parse_top_decl()
     when (td.kind) {
         TraitDecl(_methods, _pub, supers) => assert_eq(supers.size(), 0, "no supertraits")
@@ -53,7 +53,7 @@ import kf_parse.parser.parser_for
 }
 
 @test fun a_comma_between_requirements_names_the_separator(): void {
-    val p = parser_for("trait Sortable: Compare, Clone { }")
+    var p = parser_for("trait Sortable: Compare, Clone { }")
     val td = p.parse_top_decl()
     assert_eq(p.diags.size(), 1, "one error for the list, not a cascade")
     when (td.kind) {
