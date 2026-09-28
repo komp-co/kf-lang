@@ -25,17 +25,19 @@ fun arms_are_all_wildcards(arms: List<SwitchArm>): bool {
 /// The subject is still evaluated and may be bound by a whole-subject binder,
 /// via `__auto_type`. Only the first arm is emitted; later ones are
 /// unreachable.
-fun emit_uncontested_arm(subj: Expr, arms: List<SwitchArm>, indent: uint64, env: &var LocalEnv): String {
+fun emit_uncontested_arm(subj: Expr, arms: List<SwitchArm>, by_address: bool, indent: uint64,
+                         env: &var LocalEnv): String {
     val a = *arms.at(0)
     var parts = List.new<String>()
     parts.push(emit_indent(indent))
     parts.push(String.from("{\n"))
     parts.push(emit_indent(indent + 1))
-    parts.push("__auto_type __when_subj = ${subj.emit_expr()};\n")
+    val read = if by_address { "&(${subj.emit_expr()})" } else { subj.emit_expr() }
+    parts.push("__auto_type __when_subj = ${read};\n")
     // Cast to void to silence an unused-variable warning.
     parts.push(emit_indent(indent + 1))
     parts.push(String.from("(void)__when_subj;\n"))
-    parts.push(emit_subject_binders(a.binders, indent + 1))
+    parts.push(emit_subject_binders(&a, by_address, indent + 1))
     parts.push(emit_block(a.body, indent + 1, env))
     parts.push(emit_indent(indent))
     parts.push(String.from("}\n"))

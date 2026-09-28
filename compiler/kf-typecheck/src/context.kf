@@ -65,6 +65,8 @@ pub struct TypeCtx {
     /// a cast or a negation sized. Judged at the end of the body, like `null`.
     pub var wide_literals_seen:  List<Span>
     pub var wide_literals_sized: List<Span>
+    /// `when` binders in scope that are references to their payload.
+    pub var ref_binders: List<String>
     /// Static calls on a generic type with no type arguments yet, and those a
     /// slot later completed.
     pub var open_calls:  List<OpenGenericCall>
@@ -104,6 +106,7 @@ pub fun new_type_ctx(return_ty: Type, diags: Ptr<List<Diagnostic>>, table: Ptr<D
         nulls_typed: List.new<Span>(),
         wide_literals_seen:  List.new<Span>(),
         wide_literals_sized: List.new<Span>(),
+        ref_binders: List.new<String>(),
         open_calls:  List.new<OpenGenericCall>(),
         open_typed:  List.new<Span>(),
         list_literals: List.new<Span>(),

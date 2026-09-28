@@ -17,19 +17,20 @@ pub fun arms_have_guard(arms: List<SwitchArm>): bool {
 }
 
 /// `ename` and `through_ref` are unused for a scalar subject.
-pub fun emit_guarded_chain(subj: Expr, ename: String, arms: List<SwitchArm>, is_enum: bool, through_ref: bool, indent: uint64, env: &var LocalEnv): String {
+pub fun emit_guarded_chain(subj: Expr, ename: String, arms: List<SwitchArm>, is_enum: bool, through_ref: bool, by_address: bool,
+                          indent: uint64, env: &var LocalEnv): String {
     var parts = List.new<String>()
     parts.push(emit_indent(indent))
     parts.push(String.from("{\n"))
     parts.push(emit_indent(indent + 1))
     // Read once into a temp shared by conditions and bodies.
     if is_enum {
-        parts.push("${subj.ty.c_type_of_type()} __when_subj = ${subj.emit_expr()};\n")
+        parts.push(when_subject_decl(subj.ty.c_type_of_type(), subj.emit_expr(), by_address))
     } else {
         parts.push("__auto_type __when_subj = ${subj.emit_expr()};\n")
     }
     while i in 0..arms.size() {
-        parts.push(emit_chain_arm(*arms.at(i), ename.clone(), through_ref, i > 0, indent + 1, env))
+        parts.push(emit_chain_arm(*arms.at(i), ename.clone(), through_ref, by_address, i > 0, indent + 1, env))
     }
     if arms.size() > 0 {
         parts.push(emit_indent(indent + 1))
@@ -40,7 +41,8 @@ pub fun emit_guarded_chain(subj: Expr, ename: String, arms: List<SwitchArm>, is_
     return concat_all(parts)
 }
 
-fun emit_chain_arm(a: SwitchArm, ename: String, through_ref: bool, chained: bool, indent: uint64, env: &var LocalEnv): String {
+fun emit_chain_arm(a: SwitchArm, ename: String, through_ref: bool, by_address: bool, chained: bool, indent: uint64,
+                   env: &var LocalEnv): String {
     var parts = List.new<String>()
     parts.push(emit_indent(indent))
     if chained {
@@ -49,9 +51,9 @@ fun emit_chain_arm(a: SwitchArm, ename: String, through_ref: bool, chained: bool
         parts.push(String.from("if ("))
     }
     parts.push(a.tag.chain_test(ename.as_str(), through_ref))
-    parts.push(chain_guard_test(a, through_ref, indent + 1, env))
+    parts.push(chain_guard_test(a, through_ref, by_address, indent + 1, env))
     parts.push(String.from(") {\n"))
-    parts.push(join_decls(chain_binder_decls(a, through_ref), indent + 1))
+    parts.push(join_decls(chain_binder_decls(a, through_ref, by_address), indent + 1))
     parts.push(emit_block(a.body, indent + 1, env))
     return concat_all(parts)
 }
@@ -59,11 +61,11 @@ fun emit_chain_arm(a: SwitchArm, ename: String, through_ref: bool, chained: bool
 /// `&& ({ binders prelude (guard); })` for a guarded arm, empty otherwise.
 /// Binders are plain reads of `__when_subj`, so declaring them again in the
 /// body is free.
-fun chain_guard_test(a: SwitchArm, through_ref: bool, indent: uint64, env: &var LocalEnv): String {
+fun chain_guard_test(a: SwitchArm, through_ref: bool, by_address: bool, indent: uint64, env: &var LocalEnv): String {
     if !switch_arm_has_guard(&a) { return "" }
     var parts = List.new<String>()
     parts.push(String.from(" && ({ "))
-    val decls = chain_binder_decls(a, through_ref)
+    val decls = chain_binder_decls(a, through_ref, by_address)
     while decl in &decls {
         parts.push(decl)
         parts.push(String.from(" "))
@@ -80,12 +82,17 @@ fun chain_guard_test(a: SwitchArm, through_ref: bool, indent: uint64, env: &var 
 
 /// One `__auto_type __x = <read of __when_subj>;` per binder; `_` declares
 /// nothing.
-fun chain_binder_decls(a: SwitchArm, through_ref: bool): List<String> {
+fun chain_binder_decls(a: SwitchArm, through_ref: bool, by_address: bool): List<String> {
     var out = List.new<String>()
     while i in 0..a.binders.size() {
         val b = a.binders.get(i)
         if !b.as_str().equals("_") {
-            out.push("__auto_type ${c_local_name(b.as_str())} = ${chain_binder_rhs(a.tag, through_ref, i)};")
+            val by_ref = a.binds_by_ref(b)
+            val init = when (a.tag) {
+                Variant(_) => binder_init(chain_binder_rhs(a.tag, through_ref, i), by_ref)
+                _ => whole_subject_read(by_ref, by_address)
+            }
+            out.push("__auto_type ${c_local_name(b.as_str())} = ${init};")
         }
     }
     return out
