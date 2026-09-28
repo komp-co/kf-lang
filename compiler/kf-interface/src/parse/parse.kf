@@ -153,10 +153,28 @@ mutating fun JsonReader.load_modules(crate: CrateId, crate_name: str, smap: Ptr<
         if !self.load_module_files(path.as_str(), smap) { return modules }
         if !self.expect_key("decls") { return modules }
         val decls = self.load_decls(crate, crate_name, path.as_str(), smap)
+        if !self.expect_key("reexports") { return modules }
+        val reexports = self.load_reexports(path.as_str())
         if self.object_has_next() { return modules }
-        modules.push(Module { crate: crate, path: split_dotted_path(path.as_str()), decls: decls, imports: List.new<Import>() })
+        modules.push(Module { crate: crate, path: split_dotted_path(path.as_str()), decls: decls, imports: reexports })
     }
     return modules
+}
+
+/// The module's `pub import`s, as imports it owns.
+mutating fun JsonReader.load_reexports(owner: str): List<Import> {
+    var out = List.new<Import>()
+    if !self.begin_array() { return out }
+    while self.array_has_next() {
+        if !self.begin_object() { return out }
+        if !self.expect_key("path") { return out }
+        val path = self.read_string()
+        if !self.expect_key("wildcard") { return out }
+        val wildcard = self.read_bool()
+        if self.object_has_next() { return out }
+        out.push(new_reexport(no_span(), split_dotted_path(path.as_str()), wildcard, String.from(owner)))
+    }
+    return out
 }
 
 /// The module's source file names, registered as importable dotted paths.

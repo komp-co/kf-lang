@@ -7,6 +7,7 @@ import kf_tool.project.parse_version
 import kf_tool.project.render
 import std.fs.TempDir
 import std.process.*
+import kf_tool.project.render
 
 /// The oldest kflatc whose command line this komp's matches: the first with
 /// the lint.toml flags komp passes.

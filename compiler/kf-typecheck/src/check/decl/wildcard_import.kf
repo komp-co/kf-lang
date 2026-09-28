@@ -13,27 +13,27 @@ fun narrow_threshold(): uint64 { return 3 }
 
 /// Only when the rewrite is known to compile: not when the import supplies
 /// nothing (`unused_import` owns that), more than the threshold, a name no
-/// import line can spell, or was written by the parser.
+/// import line can spell, was written by the parser, or re-exports — the
+/// module's own or the import's, whose names a narrowing would drop.
 pub fun Module.wildcard_import_diags(sp: Ptr<SigTable>): List<Diagnostic> {
     var out = List.new<Diagnostic>()
     if self.crate.is_poison() { return out }
-    val n = unsafe { sp.caller_files.size() }
-    if n != self.imports.size() { return out }
+    val targets = unsafe { sp.imported_targets.clone() }
+    val files = unsafe { sp.caller_files.clone() }
+    if files.size() < self.imports.size() || targets.size() < self.imports.size() { return out }
     val own = self.own_files()
-    var i = 0
-    while i < n {
-        val target = unsafe { sp.imported_targets.get(i) }
-        val file = unsafe { sp.caller_files.get(i) }
-        if target.id != 0 && contains_file(&own, file) {
-            val imp = *self.imports.at(i)
-            if imp.wildcard && import_is_written(&imp) {
+    while i in 0..self.imports.size() {
+        val target = targets.get(i)
+        val file = files.get(i)
+        val imp = self.imports.at(i)
+        if target.id != 0 && !imp.is_pub && contains_file(&own, file) && imp.wildcard && import_is_written(imp) {
+            if !self.target_reexports(&targets, target) {
                 val names = import_uses_of(sp, file, target)
                 if narrowable(&names) {
                     out.push(imp.wildcard_import_warning(&names))
                 }
             }
         }
-        i = i + 1
     }
     return out
 }

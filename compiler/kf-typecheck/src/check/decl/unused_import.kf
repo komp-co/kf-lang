@@ -10,30 +10,73 @@ import kf_core.ast.*
 import kf_core.diagnostic.*
 import kf_typecheck.import_was_used
 
-/// `caller_files[i]` and `imported_targets[i]` align with `m.imports`.
+/// The first `m.imports.size()` entries of `caller_files` and
+/// `imported_targets` align with `m.imports`; any after are re-exports'.
 pub fun Module.unused_import_diags(sp: Ptr<SigTable>): List<Diagnostic> {
     var out = List.new<Diagnostic>()
     // Only the crate being compiled is linted, not its dependencies' merged
     // source. Poison means the caller did not say which.
     if self.crate.is_poison() { return out }
-    val n = unsafe { sp.caller_files.size() }
+    val targets = unsafe { sp.imported_targets.clone() }
+    val files = unsafe { sp.caller_files.clone() }
     // Misalignment would delete the wrong line.
-    if n != self.imports.size() { return out }
+    if files.size() < self.imports.size() || targets.size() < self.imports.size() { return out }
     val own = self.own_files()
-    var i = 0
-    while i < n {
-        val target = unsafe { sp.imported_targets.get(i) }
-        val file = unsafe { sp.caller_files.get(i) }
-        // An unresolved import already has its own error.
-        if target.id != 0 && contains_file(&own, file) && !import_was_used(sp, file, target) {
-            val imp = *self.imports.at(i)
-            if import_is_written(&imp) && !duplicate_span(&out, imp.span) {
+    while i in 0..self.imports.size() {
+        val target = targets.get(i)
+        val file = files.get(i)
+        val imp = self.imports.at(i)
+        // An unresolved import already has its own error; a re-export is
+        // used by whoever imports its module.
+        val lintable = target.id != 0 && !imp.is_pub && contains_file(&own, file)
+        if lintable && !self.import_reaches_a_use(sp, &targets, file, target) {
+            if import_is_written(imp) && !duplicate_span(&out, imp.span) {
                 out.push(imp.unused_import_warning())
             }
         }
-        i = i + 1
     }
     return out
+}
+
+/// A name from `target`, or from a module it re-exports, is used in `file`.
+fun Module.import_reaches_a_use(sp: Ptr<SigTable>, targets: &List<Sym>, file: uint32, target: Sym): bool {
+    val reached = self.reexport_closure(targets, target)
+    while module in &reached {
+        if import_was_used(sp, file, module) { return true }
+    }
+    return false
+}
+
+/// `target` and every module its `pub import`s reach, transitively.
+pub fun Module.reexport_closure(targets: &List<Sym>, target: Sym): List<Sym> {
+    var reached = List.new<Sym>()
+    reached.push(target)
+    var next = 0
+    while next < reached.size() {
+        val owner = reached.get(next).as_str()
+        while k in 0..self.imports.size() {
+            val imp = self.imports.at(k)
+            val next_target = targets.get(k)
+            if imp.is_pub && imp.owner.as_str() == owner && next_target.id != 0 && !sym_in(&reached, next_target) {
+                reached.push(targets.get(k))
+            }
+        }
+        next = next + 1
+    }
+    return reached
+}
+
+/// `target` re-exports another module.
+pub fun Module.target_reexports(targets: &List<Sym>, target: Sym): bool {
+    val reached = self.reexport_closure(targets, target)
+    return reached.size() > 1
+}
+
+fun sym_in(syms: &List<Sym>, s: Sym): bool {
+    while item in &syms {
+        if item.id == s.id { return true }
+    }
+    return false
 }
 
 /// A file holds one crate's declarations, so any declaration settles it.
