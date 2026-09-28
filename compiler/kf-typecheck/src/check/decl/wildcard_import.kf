@@ -13,7 +13,7 @@ fun narrow_threshold(): uint64 { return 3 }
 
 /// Only when the rewrite is known to compile: not when the import supplies
 /// nothing (`unused_import` owns that), more than the threshold, a name no
-/// import line can spell, was written by the parser, or re-exports — the
+/// import line can spell, was written by the parser, or exports — the
 /// module's own or the import's, whose names a narrowing would drop.
 pub fun Module.wildcard_import_diags(sp: Ptr<SigTable>): List<Diagnostic> {
     var out = List.new<Diagnostic>()

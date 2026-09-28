@@ -1,6 +1,6 @@
-// `pub import`: a module's surface includes what it re-exports, across the
-// `.kfi` boundary and within one crate. Needs two crates, so not a
-// tests/cases file.
+// `export <names> from <module>`: a module's surface includes what it
+// exports, across the `.kfi` boundary and within one crate. Needs two crates,
+// so not a tests/cases file.
 
 import core.assert.assert_eq
 import kf_integration.harness.check_project
@@ -9,17 +9,19 @@ import std.fs.scratch_path
 
 extern "C" fun system(cmd: str): int32
 
-/// `reex_lib`'s root holds only re-exports: all of `reex_lib.emit` and
-/// `reex_lib.parse.read`, but not `reex_lib.parse.other`.
+/// `reex_lib`'s root holds only exports: all of `reex_lib.emit`,
+/// `reex_lib.parse.read`, and `reex_lib.parse.raw` as `parse_raw`, but not
+/// `reex_lib.parse.other`.
 fun prepare_reexport_fixture(name: str, main: str): int32 {
     val lib = scratch_path("${name}_lib")
     val app = scratch_path("${name}_app")
     val prep = unsafe { system("rm -rf ${lib} ${app} && mkdir -p ${lib}/src/emit ${lib}/src/parse ${app}/src") }
     if prep != 0 { return prep }
     write_file("${lib}/kf.toml", "[project]\nname = \"reex_lib\"\nversion = \"0.1.0\"\nkind = \"lib\"\n")
-    write_file("${lib}/src/lib.kf", "pub import reex_lib.emit.*\npub import reex_lib.parse.read\n")
+    write_file("${lib}/src/lib.kf", "export * from reex_lib.emit\nexport read, raw as parse_raw from reex_lib.parse\n")
     write_file("${lib}/src/emit/emit.kf", "pub fun write_it(): int32 { return 10 }\n")
-    val parse = "pub fun read(): int32 { return 20 }\n\npub fun other(): int32 { return 30 }\n"
+    val read = "pub fun read(): int32 { return 20 }\n"
+    val parse = "${read}\npub fun other(): int32 { return 30 }\n\npub fun raw(): int32 { return 5 }\n"
     write_file("${lib}/src/parse/parse.kf", parse)
     val project = "[project]\nname = \"reex_app\"\nversion = \"0.1.0\"\nkind = \"bin\"\n"
     write_file("${app}/kf.toml", "${project}\n[dependencies]\nreex_lib = { path = \"../${name}_lib\" }\n")
@@ -78,7 +80,38 @@ fun a_reexport_serves_the_crates_own_modules(): void {
     assert_eq(prep, 0, "scratch prepared")
     write_file("${root}/kf.toml", "[project]\nname = \"reex_local\"\nversion = \"0.1.0\"\nkind = \"bin\"\n")
     write_file("${root}/src/core_parts/parts.kf", "pub fun part(): int32 { return 4 }\n")
-    write_file("${root}/src/api/api.kf", "pub import reex_local.core_parts.part\n")
+    write_file("${root}/src/api/api.kf", "export part from reex_local.core_parts\n")
     write_file("${root}/src/main.kf", "import reex_local.api.*\n\nfun main(): int32 { return part() - 4 }\n")
     assert_eq(check_project(root), 0, "`reex_local.api` offers `part` to the rest of the crate")
+}
+
+@test
+fun a_renamed_export_is_called_by_its_new_name(): void {
+    assert_eq(prepare_reexport_fixture("kf_reex_rename", """import reex_lib.*
+import reex_lib as lib
+
+fun main(): int32 { return parse_raw() + lib.parse_raw() - 10 }
+"""), 0, "fixture prepared")
+    assert_eq(run_reexport_fixture("kf_reex_rename"), 0, "`parse_raw` calls `raw`, bare and through the alias")
+}
+
+@test
+fun a_renamed_exports_old_name_is_not_offered(): void {
+    assert_eq(prepare_reexport_fixture("kf_reex_oldname", """import reex_lib.*
+
+fun main(): int32 { return raw() - 5 }
+"""), 0, "fixture prepared")
+    val app = scratch_path("kf_reex_oldname_app")
+    assert_eq(build_project_separate(app, "") != 0, true, "only `parse_raw` is `reex_lib`'s")
+}
+
+@test
+fun an_export_does_not_import_into_its_own_file(): void {
+    val root = scratch_path("kf_reex_own_file")
+    val prep = unsafe { system("rm -rf ${root} && mkdir -p ${root}/src/parts") }
+    assert_eq(prep, 0, "scratch prepared")
+    write_file("${root}/kf.toml", "[project]\nname = \"reex_own\"\nversion = \"0.1.0\"\nkind = \"bin\"\n")
+    write_file("${root}/src/parts/parts.kf", "pub fun part(): int32 { return 4 }\n")
+    write_file("${root}/src/main.kf", "export part from reex_own.parts\n\nfun main(): int32 { return part() - 4 }\n")
+    assert_eq(check_project(root) != 0, true, "the file writing the export imports `part` separately")
 }

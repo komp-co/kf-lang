@@ -50,12 +50,12 @@ pub fun validate_imports_per_module(m: &Module,
     }
 
     val file_paths = m.collect_importable_files(smap)
-    val reexports = m.resolve_reexports(&var module_paths, &var decl_names, &file_paths)
+    val reexports = m.resolve_reexports(&var module_paths, &var decl_names, &file_paths, &var diags)
     var own = new_import_entries()
 
     // CONSTRAINT: an unresolved import is still recorded, with a poison
     // target, so index `i` of every list stays on `m.imports.get(i)`.
-    // Entries past the imports' own are what re-exports forward.
+    // Entries past the imports' own are what exports forward.
     while imp in &m.imports {
         val source_file = imp.span.file_id
         var resolved = poison_sym()
@@ -91,6 +91,8 @@ pub fun validate_imports_per_module(m: &Module,
                 diags.push(error_at(imp.span, msg))
             }
         }
+        // An export names what the module offers, not what its file sees.
+        if imp.is_pub && resolved.id != 0 { admitted = export_admission() }
         record_import(caller_files, imported_targets, imported_names, source_file, resolved, admitted)
         own.add(source_file, resolved, admitted)
     }
@@ -110,7 +112,7 @@ fun Import.crate_qualified(crate: CrateId): Import {
     if !crate.is_poison() { path.push(String.from(Sym { id: crate.raw }.as_str())) }
     while seg in &self.path { path.push(seg.clone()) }
     return Import { span: self.span, path: path, wildcard: self.wildcard, alias: self.alias.clone(),
-        is_pub: self.is_pub, owner: self.owner.clone() }
+        is_pub: self.is_pub, owner: self.owner.clone(), exposed: self.exposed.clone() }
 }
 
 fun Import.path_starts_with_crate_hint(): String {

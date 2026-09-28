@@ -161,22 +161,6 @@ mutating fun JsonReader.load_modules(crate: CrateId, crate_name: str, smap: Ptr<
     return modules
 }
 
-/// The module's `pub import`s, as imports it owns.
-mutating fun JsonReader.load_reexports(owner: str): List<Import> {
-    var out = List.new<Import>()
-    if !self.begin_array() { return out }
-    while self.array_has_next() {
-        if !self.begin_object() { return out }
-        if !self.expect_key("path") { return out }
-        val path = self.read_string()
-        if !self.expect_key("wildcard") { return out }
-        val wildcard = self.read_bool()
-        if self.object_has_next() { return out }
-        out.push(new_reexport(no_span(), split_dotted_path(path.as_str()), wildcard, String.from(owner)))
-    }
-    return out
-}
-
 /// The module's source file names, registered as importable dotted paths.
 mutating fun JsonReader.load_module_files(path: str, smap: Ptr<SourceMap>): bool {
     if !self.begin_array() { return false }
