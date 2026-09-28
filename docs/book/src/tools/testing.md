@@ -20,8 +20,8 @@ fun test_add(): void {
 
 The function is annotated with `@test`, returns `void`, and takes no
 arguments. The test file and the source file share the same scope — `add` is
-callable without any import, because the test file is a sibling module in
-the same crate.
+callable without any import, because the test file sits in the same
+directory, and so the same module, as the source.
 
 ## Assertions
 

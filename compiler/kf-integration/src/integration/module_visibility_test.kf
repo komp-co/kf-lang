@@ -1,6 +1,6 @@
-// `pub` carries a function across a module boundary, in a crate or out of
-// one, whether or not the compilation writes imports. Needs two modules, so
-// not a tests/cases file.
+// `pub` and an import carry a function across a module boundary, in a crate
+// or out of one; files of one module share scope. Needs two modules, so not a
+// tests/cases file.
 
 import core.assert.assert_eq
 import kf_integration.harness.check_project
@@ -9,8 +9,8 @@ import std.fs.scratch_root
 
 extern "C" fun system(cmd: str): int32
 
-/// `outer.inner` holds one `pub` and one private function; `main.kf` calls
-/// whichever `body` names. No import line anywhere, on purpose.
+/// `outer.inner` holds one `pub` and one private function, and `sibling.kf`,
+/// in `main.kf`'s own module, one private function; `main.kf` is `body`.
 fun prepare_visibility_fixture(name: str, body: str): int32 {
     val cmd = "rm -rf ${scratch_root()}/${name} ${scratch_root()}/${name}_libs && mkdir -p ${scratch_root()}/${name}/src/outer/inner && cp -r libs ${scratch_root()}/${name}_libs"
     val prep = unsafe { system(cmd.as_str()) }
@@ -33,6 +33,9 @@ fun prepare_visibility_fixture(name: str, body: str): int32 {
 pub fun public_value(): int32 { return 42 }
 """)
 
+    val sibling_path = "${scratch_root()}/${name}/src/sibling.kf"
+    write_file(sibling_path.as_str(), "fun sibling_value(): int32 { return 3 }\n")
+
     val main_path = "${scratch_root()}/${name}/src/main.kf"
     write_file(main_path.as_str(), body)
     return 0
@@ -46,18 +49,35 @@ fun check_fixture(name: str): int32 {
 
 @test
 fun a_private_function_does_not_cross_a_module_boundary(): void {
-    assert_eq(prepare_visibility_fixture("kf_vis_private", "fun main(): int32 { return private_value() }\n"), 0, "fixture prepared")
+    val body = "import kf_vis_private.outer.inner.private_value\n\nfun main(): int32 { return private_value() }\n"
+    assert_eq(prepare_visibility_fixture("kf_vis_private", body), 0, "fixture prepared")
     assert_eq(check_fixture("kf_vis_private") != 0, true, "a non-pub function in another module is not callable")
 }
 
 @test
-fun a_public_function_crosses_a_module_boundary(): void {
-    assert_eq(prepare_visibility_fixture("kf_vis_public", """fun main(): int32 {
+fun a_public_function_crosses_a_module_boundary_once_imported(): void {
+    assert_eq(prepare_visibility_fixture("kf_vis_public", """import kf_vis_public.outer.inner.public_value
+
+fun main(): int32 {
     if public_value() != 42 { return 1 }
     return 0
 }
 """), 0, "fixture prepared")
     assert_eq(check_fixture("kf_vis_public"), 0, "a pub function in another module is callable")
+}
+
+@test
+fun a_public_function_in_another_module_of_the_crate_needs_an_import(): void {
+    val body = "fun main(): int32 { return public_value() - 42 }\n"
+    assert_eq(prepare_visibility_fixture("kf_vis_unimported", body), 0, "fixture prepared")
+    assert_eq(check_fixture("kf_vis_unimported") != 0, true, "a sibling module's pub function needs an import")
+}
+
+@test
+fun files_of_one_module_share_scope(): void {
+    val body = "fun main(): int32 { return sibling_value() - 3 }\n"
+    assert_eq(prepare_visibility_fixture("kf_vis_sibling", body), 0, "fixture prepared")
+    assert_eq(check_fixture("kf_vis_sibling"), 0, "a private function in the same directory needs no import")
 }
 
 /// A dependency crate holding one `pub fun answer`, and an app crate that

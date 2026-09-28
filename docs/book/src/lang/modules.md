@@ -1,65 +1,125 @@
 # Modules, crates, and visibility
 
 A KFlat project is one **crate** — a `kf.toml` manifest plus a `src/`
-directory tree. Files and directories under `src/` become modules.
+directory tree. Each directory under `src/` is a **module**.
 
-## Files are modules
+## A module is a directory
 
-Every `.kf` file under `src/` is a module. The file `src/data.kf` is the
-module `data`. A subdirectory `src/util/format.kf` is `util.format`.
+Every `.kf` file in one directory belongs to the same module, and its files
+share one scope: a function declared in one file is callable from any other
+file of that directory, `pub` or not, with no import. The directory `src/`
+itself is the crate's root module, named after the crate.
 
 ```
 src/
-  main.kf           # crate root — where main() lives
-  data.kf           # module `data`
-  util/
-    format.kf       # module `util.format`
+  main.kf           # module `shapes` (the crate root)
+  helper.kf         # module `shapes`: shares main.kf's scope
+  geometry/
+    point.kf        # module `shapes.geometry`
+    distance.kf     # module `shapes.geometry`
 ```
 
-The crate root file (usually `main.kf` for a binary or `lib.kf` for a
-library) is the entry point. It is not a module — it is the top-level
-scope for the crate.
+A function name is unique within its crate, even across modules: a crate is
+one C namespace, so a second `answer` in another directory is an error that
+names the first one's module.
+
+Splitting a file within its directory changes nothing for anyone else.
+Adding a sub-directory makes a new module, and every file that uses it
+imports it.
 
 ## Imports
 
-The `import` statement brings names from other modules into scope. It must
-appear before any declarations:
+A module's name is its crate's name followed by the directories below `src/`,
+joined with dots. An import names a module and either one function in it or
+all of them:
 
 ```kflat
-import data.*             // everything from src/data.kf
-import util.format.*      // everything from src/util/format.kf
+import shapes.geometry.manhattan   // one function
+import shapes.geometry.*           // every pub function of the module
 ```
 
-The `.*` suffix is required — KFlat does not have item-level imports. An
-import makes every `pub` declaration from that module visible.
-
-You can import a dependent crate the same way. If `kf.toml` declares a
-dependency on `my_lib`, then:
+A function from any other module — a sibling directory in this crate, or
+another crate — needs an import, and must be `pub`. Imports appear before
+any declarations.
 
 ```kflat
-import my_lib.*
+// src/geometry/point.kf
+pub struct Point {
+    pub val x: int32
+    pub val y: int32
+}
+
+impl Point {
+    pub fun sum(): int32 { return self.x + self.y }
+}
 ```
-
-brings every `pub` declaration from that crate into scope.
-
-## pub: the crate boundary
-
-`pub` makes a declaration visible to code outside the crate. Without `pub`,
-the declaration is accessible only within the crate that defines it:
 
 ```kflat
-// src/data.kf
-pub fun query(): int32 { ... }    // visible to dependent crates
-fun helper(): void { ... }        // crate-internal only
+// src/geometry/distance.kf
+pub fun manhattan(p: &Point): int32 { return magnitude(p.x) + magnitude(p.y) }
+
+fun magnitude(v: int32): int32 { return if v < 0 { -v } else { v } }
 ```
 
-The same applies to fields: a `pub` field on a `pub` struct is visible
-outside the crate; a non-`pub` field on a `pub` struct is not.
+```kflat
+// src/main.kf
+import shapes.geometry.manhattan
 
-A crate-private type can still have public methods — the method is exported,
-but the type it lives on is not nameable by dependents. They can call the
-method through a value they already have, but they cannot declare a new
-variable of that type.
+fun main(): int32 {
+    val p = Point { x: 3, y: 4 }
+    return manhattan(&p) + p.sum() + helper()   // 14
+}
+```
+
+```kflat
+// src/helper.kf
+fun helper(): int32 { return 0 }
+```
+
+`helper` needs no import: it is in main.kf's own directory. Drop the import
+and call the private `magnitude` directly, and `komp check` reports both:
+
+```kflat
+// src/main.kf, without the import
+fun main(): int32 {
+    val p = Point { x: 3, y: 4 }
+    return manhattan(&p) + p.sum() + magnitude(-1)
+}
+```
+
+```console
+src/main.kf:3:12: error: cannot find function `manhattan` in this scope: `shapes.geometry` declares it, and this file does not import it
+src/main.kf:3:38: error: cannot find function `magnitude` in this scope: it is private to `shapes.geometry`
+```
+
+Imports govern free functions and extension functions. Types, traits,
+methods and enum variants are visible without one: `Point` and `p.sum()`
+above need no import.
+
+A path always starts with a crate's name, including inside the crate itself;
+`import geometry.*` is an error that names the path to write instead.
+
+## Dependencies
+
+If `kf.toml` declares a dependency on `my_lib`, its root module is `my_lib`
+and its sub-directories are `my_lib.<dir>`, imported the same way:
+
+```kflat
+import my_lib.answer
+import my_lib.text.two
+```
+
+## pub
+
+`pub` makes a function visible outside its module — to the other modules of
+its crate and to dependent crates alike, in both cases through an import.
+Without `pub`, a function is visible only inside its own directory.
+
+On a struct or a field, `pub` is not checked yet: a private field can be
+read and written from any module and any crate, and naming a dependency's
+private struct fails in cc rather than in the checker ([#190]).
+
+[#190]: https://github.com/komp-co/komp/issues/190
 
 ## Interface files (.kfi)
 

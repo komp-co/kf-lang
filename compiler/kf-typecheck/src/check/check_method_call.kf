@@ -38,12 +38,9 @@ fun emit_no_such_method(type_name: String, method_name: String, span: Span, name
     if method_name.as_str().equals("display") {
         msg.append(" (implement `Display` for it, or interpolate a field instead)")
     }
+    msg.append(unimported_extension_note(method_name.as_str(), ctx).as_str())
     val near = nearest_method(type_name.as_str(), method_name.as_str(), ctx)
-    if near.name.as_str() != "" {
-        msg.append(" (did you mean `")
-        msg.append(near.name.as_str())
-        msg.append("`?)")
-    }
+    if near.name.as_str() != "" { msg.append(" (did you mean `${near.name.as_str()}`?)") }
     val diag = new_diagnostic(Severity.Error, new_label(span, msg))
     // The fix spans `name_span`, since the call's span opens at the receiver.
     if near.name.as_str() != "" && !name_span.is_none() {

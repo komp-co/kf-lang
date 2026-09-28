@@ -179,7 +179,7 @@ fun fitting_extensions(name: str, recv: &Type, ctx: &var TypeCtx): List<Extensio
             when (unsafe { (*ctx.sigs).find_signature(link.as_str()) }) {
                 Some(sig) => {
                     val rank = sig.receiver_fit(recv, ctx)
-                    if rank > 0 && sig.extension_visible(name, ctx) {
+                    if rank > 0 && sig.extension_visible(ctx) {
                         note_import_use_named(ctx.sigs, ctx.owner_file, sig.owner_module, intern(name))
                         val receiver = autoderef_ty(*sig.params.at(0))
                         out.push(ExtensionFit { link: link.as_string(), rank: rank, receiver: receiver })
@@ -226,14 +226,10 @@ fun FnSignature.receiver_fit(recv: &Type, ctx: &var TypeCtx): uint64 {
 }
 
 /// Visible as a same-named function would be.
-fun FnSignature.extension_visible(name: str, ctx: &var TypeCtx): bool {
-    if self.owner_crate.raw == ctx.owner_crate.raw {
-        return self.owner_module.id == ctx.owner_module.id || self.is_pub
-    }
+fun FnSignature.extension_visible(ctx: &var TypeCtx): bool {
+    if self.owner_crate.raw == ctx.owner_crate.raw && self.owner_module.id == ctx.owner_module.id { return true }
     if !self.is_pub { return false }
-    val sigs = ctx.sigs
-    if !unsafe { (*sigs).gate_visibility } { return true }
-    if unsafe { (*sigs).file_admits(ctx.owner_file, self.owner_module, name) } { return true }
+    if unsafe { (*ctx.sigs).imports_admit(ctx.owner_file, &self) } { return true }
     return self.is_prelude
 }
 
@@ -251,7 +247,7 @@ fun nearest_with_extensions(type_name: str, wanted: str, budget: uint64, ctx: &v
             Some(sig) => {
                 val on = autoderef_ty(*sig.params.at(0)).kind.nominal_name()
                 val candidate = on.as_str().equals(type_name) && !name.as_str().equals(wanted)
-                if candidate && sig.extension_visible(name.as_str(), ctx) {
+                if candidate && sig.extension_visible(ctx) {
                     val distance = edit_distance(wanted, name.as_str(), best_distance)
                     if distance < best_distance {
                         best = name.clone()
@@ -263,4 +259,27 @@ fun nearest_with_extensions(type_name: str, wanted: str, budget: uint64, ctx: &v
         }
     }
     return NearMethod { name: best, tied: false }
+}
+
+/// ": `M` declares an extension `name`, ..." when exactly one module declares a
+/// `pub` extension of that name the caller's imports hide; "" otherwise.
+pub fun unimported_extension_note(wanted: str, ctx: &var TypeCtx): String {
+    var found = ""
+    val sigs = unsafe { &*ctx.sigs }
+    while i in 0..sigs.ext_names.size() {
+        if sigs.ext_names.get(i).as_str().equals(wanted) {
+            when (sigs.find_signature(sigs.ext_links.get(i).as_str())) {
+                Some(sig) => {
+                    if sig.is_pub && !sig.extension_visible(ctx) {
+                        val owner = sig.owner_module.as_str()
+                        if found.as_str() != "" && !found.as_str().equals(owner) { return "" }
+                        found = String.from(owner)
+                    }
+                }
+                None => { }
+            }
+        }
+    }
+    if found.as_str() == "" { return "" }
+    return ": `${found.as_str()}` declares an extension `${wanted}`, and this file does not import it"
 }

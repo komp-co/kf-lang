@@ -70,8 +70,9 @@ coercions available for arguments and bindings.
 
 ## pub
 
-`pub` on a function makes it visible outside the crate. Without `pub`, the
-function is accessible only within the crate that defines it:
+`pub` on a function makes it visible outside its module — to the crate's
+other directories and to dependent crates, each through an import. Without
+`pub`, the function is accessible only within its own directory:
 
 ```kflat
 pub fun add(a: int32, b: int32): int32 { return a + b }
@@ -79,8 +80,9 @@ pub fun add(a: int32, b: int32): int32 { return a + b }
 fun helper(a: int32, b: int32): int32 { return a * b }
 ```
 
-`helper` can be called from any file inside the same crate, but not from a
-dependent crate. `add` is visible everywhere.
+`helper` can be called from any file in the same directory, but not from
+another module. `add` is visible to any file that imports it; see
+[Modules](modules.md).
 
 ## static functions
 

@@ -98,6 +98,12 @@ src/main.kf:3:13: error: lambda parameter `x` needs a type annotation (its type 
   ([#53]). Write the receiver as a parameter, `fun <C: Trait> C.name()`, and
   name `C`.
 
+## Modules
+
+- `pub` is not checked on a struct or a field: a private field can be read
+  and written from any module and any crate, and naming a dependency's
+  private struct passes `komp check` and fails in cc ([#190]).
+
 ## std is thin, and not implicit
 
 `core` and `alloc` are injected automatically; `std` must be declared in
@@ -182,3 +188,4 @@ not agree with it in every case.
 [#58]: https://github.com/komp-co/komp/issues/58
 [#73]: https://github.com/komp-co/komp/issues/73
 [#79]: https://github.com/komp-co/komp/issues/79
+[#190]: https://github.com/komp-co/komp/issues/190

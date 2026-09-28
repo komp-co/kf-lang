@@ -117,10 +117,9 @@ check: found errors
 use without writing an import. `println`, `assert_eq`, `min`, `range` and the
 common `str`/`String` methods are all `@prelude` in the standard library.
 
-Resolution asks the mark, never the crate name: the caller's own crate
+Resolution asks the mark, never the crate name: the caller's own module
 answers first, then its imports, then any `@prelude` function. A name the
-caller's own crate defines still shadows a prelude name, and a prelude name
-still shadows nothing an import names.
+caller's module defines or imports still shadows a prelude name.
 
 Only `core`, `alloc` and `std` may use it, and only on a function. Every
 *other* `pub` function in the standard library is no longer ambient — it is
