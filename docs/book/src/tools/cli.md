@@ -23,8 +23,10 @@ points, and then compiles and links the C with cc.
 | `komp uninstall <name>[@<version>]` | Remove an installed program, or one version of it |
 | `komp search [<query>]` | List the packages an index offers, with their newest versions |
 | `komp info <name>` | List every version of a package in an index |
+| `komp cache list \| remove \| clean \| verify` | Look after the sources komp has downloaded |
 | `komp <command>` | Run the installed `komp-<command>` |
 | `komp self update [<version>]` | Install the newest komp release, or the one named |
+| `komp self list`, `komp self uninstall <version>` | List installed toolchains, or remove one |
 | `komp metadata <dir>` | Print the resolved crate graph as JSON, for tools |
 | `komp publish <dir>` | Add a library's version to a package index by pull request |
 | `komp new <name>` | Scaffold a new project directory |
@@ -306,6 +308,57 @@ JSON reading and writing
 A package's description is the one `komp publish` took from its `kf.toml`;
 a package published without one shows none.
 
+### komp cache
+
+Fetched sources live in komp's cache, `$KFLAT_CACHE` or else
+`~/.cache/kflat`: each under `git/<commit>` or `tarball/<sha256>`, never
+changed once written, with the package index checkouts under `index/`.
+
+```console
+$ komp cache list
+json 0.2.0  git 44a09fc77681  /home/me/.cache/kflat/git/44a09fc776814a7aa1871619f1c1b5786a9d5b43
+index  /home/me/.cache/kflat/index/github.com_komp-co_index
+$ komp cache verify
+ok       json 0.2.0 (git 44a09fc77681)
+1 checked, 0 damaged
+```
+
+When komp fetches a source it records a digest of its files beside it.
+`komp cache verify` hashes each source again: one that no longer matches is
+reported, removed and fetched again by the next command that needs it, and
+the exit status is 1. A source fetched before digests were kept has its
+digest recorded the first time it is verified.
+
+`komp cache remove <name>[@<version>]` removes the sources of that package,
+or of that one version; `komp cache clean` removes everything komp
+downloaded, and keeps the bootstrap seeds that `bootstrap/build.sh` stores
+in the same directory. Nothing is lost either way: a build fetches what its
+`kf.lock` pins again.
+
+### JSON output
+
+The listing commands take `--format=json` and print one JSON object on one
+line, for editors and scripts; a failure prints `{"error": "..."}` and exits
+1. A value that is absent is `null`, never `""`.
+
+| Command | Object |
+|---|---|
+| `komp search` | `{"index", "packages": [{"name", "newest", "description"}]}` |
+| `komp info <name>` | `{"index", "name", "description", "newest", "versions": [{"version", "yanked"}]}` |
+| `komp install` | `{"programs": [{"name", "default", "binary", "requirement", "versions"}]}`; `default`, `binary` and `requirement` are `null` for a version stored only for a project's pin |
+| `komp cache list` | `{"cache", "sources": [{"name", "version", "kind", "key", "root"}], "indexes"}` |
+| `komp cache verify` | `{"sources": [{"name", "version", "kind", "key", "state"}], "checked", "damaged"}`, each state `ok`, `damaged` or `recorded` |
+| `komp self list` | `{"running", "default", "toolchains": [{"version", "path", "default", "running"}]}` |
+
+```console
+$ komp info json --format=json
+{"index":"https://github.com/komp-co/index","name":"json","description":null,"newest":"0.2.0","versions":[{"version":"0.1.0","yanked":false},{"version":"0.2.0","yanked":false}]}
+```
+
+`komp check` and `komp lint` take `--diagnostic-format=json` instead, one
+object per diagnostic (see [Structured fixes](#structured-fixes)), and
+[`komp metadata`](#komp-metadata) always prints JSON.
+
 ### komp self update
 
 `komp self update` installs the newest komp release, the way a release's
@@ -327,6 +380,24 @@ installed komp 0.5.1; /home/me/.kflat/bin/komp now runs it
 $ komp self update
 komp 0.5.1 is the newest release
 ```
+
+`komp self list` shows every installed toolchain, marking the default, the
+one `~/.kflat/bin/komp` runs, and the komp running the command; `komp self
+uninstall <version>` removes one, but neither of those two:
+
+```console
+$ komp self list
+0.5.2  /home/me/.kflat/toolchains/0.5.2
+0.5.3  running  /home/me/.kflat/toolchains/0.5.3
+0.5.4  default  /home/me/.kflat/toolchains/0.5.4
+$ komp self uninstall 0.5.4
+error: kflat 0.5.4 is the default; `komp self update` to another one first
+$ komp self uninstall 0.5.2
+uninstalled kflat 0.5.2
+```
+
+A project whose [`kflat` pin](../start/projects.md#pinning-the-toolchain)
+needs a removed toolchain installs it again the next time it builds.
 
 It needs `curl`, `tar` and a C compiler. `KFLAT_RELEASES` names another
 place to take releases from, laid out as GitHub lays them out.
