@@ -1,0 +1,99 @@
+// `annotation bench` declares `@bench`. Registers every declaration, then
+// resolves each use on this crate's functions for `annotated_functions`.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_core.diagnostic.*
+import kf_typecheck.*
+
+pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): void {
+    val table = unsafe { &var *sigs }
+    var found = List.new<Diagnostic>()
+    while td in &self.decls {
+        when (td.kind) {
+            AnnotationDecl(is_pub) => {
+                if annotation_is_known(td.name.as_str()) {
+                    if td.crate.raw == self.crate.raw {
+                        val message = "`@${td.name.as_str()}` is a built-in annotation and cannot be declared"
+                        found.push(new_diagnostic(Severity.Error, new_label(td.decl_name_span(), message)))
+                    }
+                } else {
+                    val declared = DeclaredAnnotation {
+                        name: td.name, crate: td.crate, module: td.module_path, is_pub: is_pub
+                    }
+                    table.annotations.push(declared)
+                }
+            }
+            _ => {}
+        }
+    }
+    while td in &self.decls {
+        if td.crate.raw != self.crate.raw { continue }
+        while annotation in &td.annotations {
+            val kind = annotation_kind(annotation.as_str())
+            if kind.as_str().equals("") || annotation_is_known(kind.as_str()) { continue }
+            td.register_annotation_use(kind.as_str(), annotation.as_str(), sigs, table, &var found)
+        }
+    }
+    while diag in &found {
+        unsafe { diags.push(diag) }
+    }
+}
+
+/// `sigs` is `table`, for recording the import use.
+fun TopDecl.register_annotation_use(kind: str, written: str, sigs: Ptr<SigTable>, table: &var SigTable,
+    diags: &var List<Diagnostic>): void {
+    val file = self.span.file_id
+    val found = table.find_annotation(kind, file, self.crate, self.module_path)
+    if found == null {
+        val built_in = known_annotations_summary()
+        val message = "unknown annotation `@${kind}`: declare it with `annotation ${kind}`, or use ${built_in.as_str()}"
+        diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
+        return
+    }
+    val index = found ?: return
+    val declared = *table.annotations.at(index)
+    note_import_use_named(sigs, file, declared.module, declared.name)
+    if !written.equals(kind) {
+        val message = "`@${kind}` takes no arguments"
+        diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
+        return
+    }
+    if !self.is_plain_function() {
+        val message = "`@${kind}` can only annotate a function"
+        diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
+        return
+    }
+    if !self.takes_nothing_returns_void() {
+        val message = "a function marked `@${kind}` must take no parameters and return `void`"
+        diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
+        return
+    }
+    while listed in &table.annotated {
+        if listed.annotation == index && listed.function.id == self.name.id { return }
+    }
+    table.annotated.push(AnnotatedFunction { annotation: index, function: self.name })
+}
+
+/// A free function with no type parameters: one a value can name.
+fun TopDecl.is_plain_function(): bool {
+    if self.generics.size() > 0 || !self.ext_name.as_str().equals("") { return false }
+    return when (self.kind) {
+        Function(_p, _r, _b, _pub, _u, _mut, _st) => true
+        _ => false
+    }
+}
+
+fun TopDecl.takes_nothing_returns_void(): bool {
+    when (self.kind) {
+        Function(params, ret, _b, _pub, _u, _mut, _st) => {
+            if params.size() > 0 { return false }
+            return when (ret.kind) {
+                Named(name, args) => name.as_str() == "void" && args.size() == 0
+                _ => false
+            }
+        }
+        _ => return false
+    }
+}

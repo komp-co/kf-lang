@@ -1,10 +1,60 @@
 # Annotations
 
 Annotations start with `@` and apply to the declaration that follows. KFlat
-accepts `@test`, `@test_disabled`, `@allow(...)`, `@derive(...)`,
-`@no_mangle`, `@lang(...)` and `@prelude`. Any other annotation is an error.
+has `@test`, `@test_disabled`, `@allow(...)`, `@derive(...)`, `@no_mangle`,
+`@lang(...)` and `@prelude` built in, and a crate may
+[declare its own](#declaring-an-annotation). Any other annotation is an error.
 
 A declaration may carry several, one per line.
+
+## Declaring an annotation
+
+`annotation NAME` declares `@NAME`, and `annotated_functions<NAME>()` lists
+every function of the crate being compiled that carries it:
+
+```kflat
+annotation bench
+
+@bench
+fun sort_a_thousand(): void { }
+
+fun main(): int32 {
+    while entry in &annotated_functions<bench>() {
+        println(entry.name)
+        entry.function()
+    }
+    return 0
+}
+```
+
+Each entry is an `Annotated` from alloc: the function's `name` as a `String`,
+and the `function` itself as a `() -> void` value. The list is in declaration
+order, and private functions are in it, from any module of the crate.
+
+An annotation is a name like any other. Another module of the crate uses it
+only if it is `pub` and imported, and another crate the same way:
+
+```kflat
+// in a library crate named `measure`
+pub annotation bench
+
+// in a crate depending on it
+import measure.bench
+
+@bench
+fun parse_a_file(): void { }
+```
+
+The query only reaches the crate it is written in. A `measure` function
+calling `annotated_functions<bench>()` sees `measure`'s functions, not the
+ones of the crate that imported `bench`.
+
+A declared annotation takes no arguments and marks only a function taking no
+parameters and returning `void`, with no type parameters. The name of a
+built-in annotation cannot be declared.
+
+`annotation` is not a reserved word; it is read this way only at the start of
+a declaration, followed by a name.
 
 ## @test
 

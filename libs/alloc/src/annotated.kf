@@ -1,0 +1,8 @@
+import alloc.string.String
+
+/// A function carrying a declared annotation, as `annotated_functions<A>()`
+/// lists it.
+pub struct Annotated {
+    pub val name: String
+    pub val function: () -> void
+}

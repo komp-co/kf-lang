@@ -20,11 +20,8 @@ fun TopDecl.validate_one_annotation(annotation: str, diags: Ptr<List<Diagnostic>
     if annotation.equals("") { return }
     val kind = annotation_kind(annotation)
     val info = lookup_annotation(kind.as_str())
-    if info.name.as_str().equals("") {
-        val message = "unknown annotation `@${kind.as_str()}`: expected ${known_annotations_summary().as_str()}"
-        unsafe { diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message))) }
-        return
-    }
+    // Any other name is a declared annotation, resolved once imports are.
+    if info.name.as_str().equals("") { return }
     if !annotation_target_allows(info.target, self) {
         val message = "`@${kind.as_str()}` can only annotate ${annotation_target_phrase(info.target).as_str()}"
         unsafe { diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message))) }
