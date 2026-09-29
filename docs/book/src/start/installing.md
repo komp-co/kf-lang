@@ -19,13 +19,13 @@ add /home/me/.kflat/bin to PATH, for example in your shell profile:
 The script builds both with `cc`, or the compiler `CC` names, and puts them
 in `~/.kflat/toolchains/<version>/` with `core`, `alloc` and `std` in `libs/`
 beside them. `komp` and `kflatc` are linked into `~/.kflat/bin`, the same
-directory [`komp install`](../tools/cli.md#komp-install) puts programs in, so
+directory [`komp tool install`](../tools/cli.md#komp-tool) puts programs in, so
 it is the one directory to put on `PATH`. `KFLAT_HOME` moves all of it
 somewhere other than `~/.kflat`. Installing a version again replaces it;
 other versions stay where they are, for the projects that
 [pin](projects.md#pinning-the-toolchain) them.
 
-From then on, [`komp self update`](../tools/cli.md#komp-self-update) installs
+From then on, [`komp toolchain install`](../tools/cli.md#komp-toolchain) installs
 each new release the same way.
 
 ## Building from the seed

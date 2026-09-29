@@ -298,7 +298,7 @@ phase "formatting"
 mkdir -p "$WORK/fmt-toolchain/bin"
 cp "$WORK/komp" "$WORK/kflatc" "$WORK/fmt-toolchain/bin/"
 [ -e "$WORK/fmt-toolchain/libs" ] || ln -s "$ROOT/libs" "$WORK/fmt-toolchain/libs"
-KFLAT_HOME="$WORK/fmt-home" "$WORK/fmt-toolchain/bin/komp" install komp_fmt@0.1 > "$WORK/fmt-install.log" 2>&1 || {
+KFLAT_HOME="$WORK/fmt-home" "$WORK/fmt-toolchain/bin/komp" tool install komp_fmt@0.1 > "$WORK/fmt-install.log" 2>&1 || {
     cat "$WORK/fmt-install.log" >&2
     echo "FAIL: komp_fmt could not be installed from the package index" >&2
     exit 1
@@ -578,9 +578,19 @@ case "$outdated" in
 esac
 echo "  PASS  komp outdated takes its directory after its flags"
 
+# `komp new` with no name scaffolds the current directory, named after it.
+mkdir -p "$WORK/new-here"
+(cd "$WORK/new-here" && "$WORK/komp" new > /dev/null) || {
+    echo "FAIL: komp new with no name failed in an empty directory" >&2; exit 1
+}
+grep -q '^name = "new_here"$' "$WORK/new-here/kf.toml" || {
+    echo "FAIL: komp new did not name the project after its directory" >&2; cat "$WORK/new-here/kf.toml" >&2; exit 1
+}
+echo "  PASS  komp new scaffolds the current directory"
+
 # A crate declaring no dependencies still gets `core` and `alloc`, on both
 # check paths: the source walk serves a never-built project and every
-# `--diagnostic-format=json` run.
+# `--format=json` run.
 phase "cli check resolves the implicit stdlib"
 mkdir -p "$WORK/implicit-project/src"
 {
@@ -600,7 +610,7 @@ mkdir -p "$WORK/implicit-project/src"
 
 # Cold: nothing has ever written target/kflat for this project.
 "$WORK/komp" -q check "$WORK/implicit-project" > /dev/null
-"$WORK/komp" check --diagnostic-format=json "$WORK/implicit-project" > "$WORK/implicit.json"
+"$WORK/komp" check --format=json "$WORK/implicit-project" > "$WORK/implicit.json"
 if [ -s "$WORK/implicit.json" ]; then
     echo "  FAIL  json check reported errors on a clean project:"
     head -3 "$WORK/implicit.json"
@@ -613,7 +623,7 @@ if "$WORK/komp" -q check "$WORK/implicit-project" > /dev/null 2>&1; then
     echo "  FAIL  check exited 0 on an undefined function" >&2
     exit 1
 fi
-"$WORK/komp" check --diagnostic-format=json "$WORK/implicit-project" > "$WORK/implicit-bad.json" || true
+"$WORK/komp" check --format=json "$WORK/implicit-project" > "$WORK/implicit-bad.json" || true
 if ! grep -q '"severity":"error"' "$WORK/implicit-bad.json"; then
     echo "  FAIL  json check reported no error for an undefined function" >&2
     exit 1
@@ -1303,7 +1313,7 @@ if [ -n "$lintfailed" ] && [ -z "$failed" ]; then
         exit 1
     fi
     echo "FAIL: lints to fix in:$lintfailed" >&2
-    echo "      \`komp lint <crate>\` names each one, and \`komp fix\` carries the repairs" >&2
+    echo "      \`komp lint <crate>\` names each one, and \`komp check --fix\` carries the repairs" >&2
     echo "      it can; \`@allow(<lint>)\` on the declaration keeps one on purpose." >&2
     exit 1
 fi

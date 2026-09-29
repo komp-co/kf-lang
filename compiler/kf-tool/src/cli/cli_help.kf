@@ -6,25 +6,21 @@
 pub fun command_usage(command: str): str {
     return when command {
         "build" => "komp build [--verbose] [--unity] [-o <out.c>] [--manifest-path <path>] [-A|-W|-D <lint>] [--deny-warnings] [<project-dir>]"
-        "check" => "komp check [--diagnostic-format=json] [-A|-W|-D <lint>] [--deny-warnings] [--manifest-path <path>] [<project-dir>]"
+        "check" => "komp check [--fix [--dry-run]] [--format=json] [-A|-W|-D <lint>] [--deny-warnings] [--manifest-path <path>] [<project-dir>]"
         "run" => "komp run [--unity] [-p <crate>] [--manifest-path <path>] [<project-dir>]"
         "test" => "komp test [--unity] [<project-dir>] [--case <substring>] [--filter <substring>]"
-        "fix" => "komp fix [--dry-run] [--manifest-path <path>] [<project-dir>]"
-        "lint" => "komp lint [--list] [--fix] [-A|-W|-D <lint|group>] [--deny-warnings] [<project-dir>]"
+        "lint" => "komp lint [--list] [--fix [--dry-run]] [-A|-W|-D <lint|group>] [--deny-warnings] [<project-dir>]"
         "publish" => "komp publish [--status] [--index <url>] [<project-dir>]"
-        "update" => "komp update [-p <crate>] [--manifest-path <path>] [<project-dir>] | --installed [<name>...]"
-        "install" => "komp install [<name>[@<requirement>]] [--index <url>]"
-        "uninstall" => "komp uninstall <name>[@<version>]"
+        "update" => "komp update [-p <crate>] [--manifest-path <path>] [<project-dir>]"
+        "tool" => "komp tool install <name>[@<req>] [--index <url>] | list | update [<name>...] | remove <name>[@<ver>]"
         "add" => "komp add <name>[@<requirement>] [--index <name>] [-p <crate>] [--manifest-path <path>]"
         "search" => "komp search [<query>] [--index <url>] [--offline]"
         "cache" => "komp cache list | remove <name>[@<version>] | clean | verify"
         "info" => "komp info <name> [--index <url>] [--offline]"
         "outdated" => "komp outdated [--offline] [--format=json] [<project-dir>]"
-        "self" => "komp self update [<version>] | list | uninstall <version>"
+        "toolchain" => "komp toolchain install [<version>] | list | remove <version>"
         "metadata" => "komp metadata [--locked] [--offline] [--manifest-path <path>] [<project-dir>]"
-        "new" => "komp new <name>"
-        "init" => "komp init"
-        "version" => "komp version"
+        "new" => "komp new [<name>]"
         "help" => "komp help [<command>]"
         _ => ""
     }
@@ -44,7 +40,10 @@ fun command_detail(command: str): str {
   --workspace          build every workspace member"""
         "check" => """Type-check without producing a binary.
 
-  --diagnostic-format=json   one JSON object per diagnostic
+  --fix                      write the repairs the checker is sure of, in place
+  --dry-run                  with --fix, print what would change and write
+                             nothing
+  --format=json              one JSON object per diagnostic
   -A | -W | -D <lint>        allow, warn or deny one lint for this run
   --deny-warnings            treat every warning as an error
   --manifest-path <path>     the project's kf.toml, or its directory
@@ -67,34 +66,35 @@ kf.toml's [lint] table, then these flags.
 
   --list                      every lint: its group, level and what it reports;
                               with --format=json, as one JSON object
-  --fix                       apply the repairs the lints suggest, as komp fix
-  --diagnostic-format=json    one JSON object per diagnostic, no tally
+  --fix                       apply the repairs the lints suggest, as
+                              komp check --fix does
+  --dry-run                   with --fix, print what would change and write
+                              nothing
+  --format=json               one JSON object per diagnostic, no tally
   -A | -W | -D <lint|group>   allow, warn or deny a lint, a group, or `all`
   --deny-warnings             treat every warning as an error
   --manifest-path <path>      the project's kf.toml, or its directory
   -p, --package <crate>       lint this workspace member
   --workspace                 lint every workspace member"""
-        "fix" => """Apply the repairs the checker suggests, in place.
+        "tool" => """The programs komp builds from a package index into ~/.kflat/tools
+($KFLAT_HOME when set). `komp <command>` runs komp-<command>, the version the
+project's [tools] pins or the default, so installing komp_fmt gives `komp fmt`.
 
-  --dry-run           print what would change and write nothing
-  -p, --package <c>   fix this workspace member
-  --workspace         fix every workspace member"""
-        "install" => """Build a program from a package index into ~/.kflat/tools, unless that
-version is there already, and make it the default in ~/.kflat/bin
-($KFLAT_HOME when set); earlier versions stay, for projects that pin them.
-With no package, list what is installed. `komp <command>` runs
-komp-<command>, the version the project's [tools] pins or the default, so
-installing komp_fmt gives `komp fmt`.
-
-  <name>@<req>      the highest version the requirement allows, as in kf.toml;
-                    without one, the highest published
-  --index <url>     the index to look in, instead of the default"""
-        "uninstall" => """Remove a program komp installed: every version, and the default in
-~/.kflat/bin; with @<version>, that version only."""
+  install <name>[@<req>]   build the highest version the requirement allows,
+                           as in kf.toml, unless it is there already, and make
+                           it the default in ~/.kflat/bin; earlier versions
+                           stay, for projects that pin them
+    --index <url>          the index to look in, instead of the default
+  list                     each program: its default and every stored version
+  update [<name>...]       each program, or those named, to the highest
+                           version the requirement it was installed with
+                           allows; rebuilt only when that is newer
+  remove <name>[@<ver>]    every version, and the default in ~/.kflat/bin;
+                           with @<version>, that version only"""
         "add" => """Add a library from a package index to the project's [dependencies],
 replacing an entry of that name, then fetch it and update kf.lock. Without a
 requirement, the newest version is written, which allows its compatible
-successors. A program is refused: `komp install` installs one.
+successors. A program is refused: `komp tool install` installs one.
 
   <name>@<req>        write this requirement instead
   --index <name>      an index kf.toml declares under [indexes]
@@ -127,26 +127,21 @@ allows, and the newest version in its index.
   --offline         read each index as the cache has it, not bringing it up
                     to date first
   --format=json     one JSON object"""
-        "self" => """Install the newest komp release, or the version named, from its
-release archive, checked against the sha256 published beside it. It goes in
-~/.kflat/toolchains/<version> ($KFLAT_HOME when set) and ~/.kflat/bin/komp
-points at it; earlier toolchains stay. Needs curl, tar and a C compiler.
+        "toolchain" => """The kflat releases installed in ~/.kflat/toolchains ($KFLAT_HOME when set).
 
-  <version>   that release, such as 0.5.1, instead of the newest
-
+  install [<version>]  the newest release, or the one named, such as 0.5.1,
+                       from its release archive, checked against the sha256
+                       published beside it; ~/.kflat/bin/komp then points at
+                       it, and earlier toolchains stay. Needs curl, tar and a
+                       C compiler
   list                 every installed toolchain, the default and the running
                        one marked
-  uninstall <version>  remove that toolchain; not the default or the running one"""
+  remove <version>     that toolchain; not the default or the running one"""
         "update" => """Resolve every version, git and tarball dependency again: a
 requirement moves to the highest version its index now has, a tag or branch
 to the commit it names now. Fetches, and rewrites kf.lock.
 
-With --installed, update programs installed with `komp install` instead:
-each to the highest version the requirement it was installed with allows,
-rebuilt only when that is newer. Names pick some; none means all.
-
-  -p, --package <c>   update the workspace holding this member
-  --installed         update installed programs, not a project"""
+  -p, --package <c>   update the workspace holding this member"""
         "publish" => """Add this library's version to a package index by pull request.
 
 The version is kf.toml's; the commit is the one its tag vX.Y.Z names, which
@@ -161,9 +156,8 @@ entry is committed locally, komp says how to finish by hand, and exits 1.
 that run kflatc themselves. At a workspace or one of its members, every
 member and every crate they reach, dependencies first. Fetches first, as a
 build would; a failure is JSON too, with an `error` field, and exits 1."""
-        "new" => "Create a new project in a new directory of that name."
-        "init" => "Create a new project in the current directory."
-        "version" => "Print the compiler version."
+        "new" => """Create a new project in a new directory of that name; with no name, or
+`.`, in the current directory, named after it."""
         "help" => "Print the command list, or the help for one command."
         _ => ""
     }
@@ -189,21 +183,17 @@ pub fun print_usage(): void {
     runtime_println("  run       build the project and run it")
     runtime_println("  test      run the project's @test functions")
     runtime_println("  lint      report the project's lints, as lint.toml sets them")
-    runtime_println("  fix       apply the repairs the checker suggests")
     runtime_println("  update    re-resolve fetched dependencies and rewrite kf.lock")
     runtime_println("  add       add a library from a package index to [dependencies]")
-    runtime_println("  install   build a program from a package index into ~/.kflat/bin")
-    runtime_println("  uninstall remove an installed program")
+    runtime_println("  tool      install, list, update or remove programs from a package index")
     runtime_println("  search    list the packages an index offers")
     runtime_println("  cache     list, remove, clean or verify downloaded sources")
     runtime_println("  info      list a package's versions in an index")
     runtime_println("  outdated  compare a project's packages with their newest versions")
-    runtime_println("  self      update komp itself: komp self update")
+    runtime_println("  toolchain install, list or remove kflat releases")
     runtime_println("  publish   add this library's version to a package index")
     runtime_println("  metadata  print the resolved crate graph as JSON")
-    runtime_println("  new       create a new project")
-    runtime_println("  init      create a new project in the current directory")
-    runtime_println("  version   print the compiler version")
+    runtime_println("  new       create a new project, or one in the current directory")
     runtime_println("")
     runtime_println("The project directory defaults to the current directory, or is")
     runtime_println("named by --manifest-path. At a workspace, a command runs on its")
@@ -211,7 +201,8 @@ pub fun print_usage(): void {
     runtime_println("Dependencies from an index, git or a tarball are fetched before a")
     runtime_println("build and pinned in kf.lock: --locked fails rather than change it,")
     runtime_println("--offline rather than fetch.")
-    runtime_println("Global: -q, --quiet suppress warnings; -h, --help print this.")
+    runtime_println("Global: -q, --quiet suppress warnings; -h, --help print this;")
+    runtime_println("-V, --version print the version.")
     runtime_println("")
     runtime_println("`komp <command> --help` describes one command.")
 }
