@@ -95,6 +95,10 @@ if ! seed_build "$WORK/s0"; then
          "emitted, so a failure there is about the C toolchain, not your source."
 fi
 
+# The positional build below does not fetch: `metadata` fetches what
+# compiler/kf.lock pins into the cache first.
+"$WORK/s0/komp0" metadata "$ROOT/compiler" > /dev/null
+
 # Absolute project root: a seed older than the walk_project dedup fix
 # (abs_path.kf) assembles shared crates twice when the root is relative.
 echo "[2/4] komp0 compiler/komp -> stage1.c ; $CC stage1.c -> komp1"

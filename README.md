@@ -83,15 +83,9 @@ scripts/check.sh --fixpoint   # the fixpoint alone
 scripts/check.sh --sweep      # CLI checks and the crate sweep
 ```
 
-The full suite needs the [`json`](https://github.com/komp-co/json) package
-checked out as a sibling directory (`../json`), at the commit
-`bootstrap/json.rev` names, which the driver's integration tests build against
-as a real external dependency:
-
-```sh
-git clone https://github.com/komp-co/json ../json
-git -C ../json checkout --detach "$(cat bootstrap/json.rev)"
-```
+The compiler depends on the [`json`](https://github.com/komp-co/json)
+package from the index, at the version `compiler/kf.lock` pins. komp fetches
+it on the first build, so that build needs the network.
 
 Work is tracked in [issues](https://github.com/komp-co/komp/issues) and
 milestones. The editor tooling lives in its own repositories:

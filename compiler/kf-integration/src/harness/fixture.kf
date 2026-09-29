@@ -6,8 +6,7 @@ extern "C" fun system(cmd: str): int32
 
 /// Copy the tree at `src` to `dst`, by content.
 ///
-/// CONSTRAINT: `-L` copies through a symlinked source instead of linking it;
-/// `../json` is a symlink in every worktree.
+/// CONSTRAINT: `-L` copies through a symlinked source instead of linking it.
 pub fun copy_tree_by_content(src: str, dst: str): int32 {
     val cmd = "cp -RL ${shell_quote(src).as_str()} ${shell_quote(dst).as_str()}"
     return unsafe { system(cmd.as_str()) }
