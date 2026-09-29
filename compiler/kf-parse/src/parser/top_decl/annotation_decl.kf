@@ -1,3 +1,5 @@
+import alloc.list.*
+
 import kf_core.span.*
 import kf_core.ast.*
 import kf_parse.parser.*
@@ -13,13 +15,15 @@ impl Parser {
         }
     }
 
-    /// `annotation NAME`, consuming `annotation`.
+    /// `annotation NAME` or `annotation NAME(p: T, ...)`, consuming
+    /// `annotation`.
     mutating fun parse_annotation_decl(span: Span, is_pub: bool): TopDecl {
         unsafe { self.advance() } // consume `annotation`
         val name_at = self.peek().span
         val name = self.expect_name("annotation")
         unsafe { self.advance() }
-        var td = new_top_decl(span, name, TopDeclKind.AnnotationDecl(is_pub))
+        val params = if is_op(self.peek(), Operator.LParen) { self.parse_param_list() } else { List.new<Param>() }
+        var td = new_top_decl(span, name, TopDeclKind.AnnotationDecl(params, is_pub))
         td.name_span = name_at
         return td
     }

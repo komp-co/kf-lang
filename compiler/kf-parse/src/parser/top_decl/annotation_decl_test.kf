@@ -5,7 +5,7 @@ import kf_parse.parser.parser_for
 
 fun TopDecl.annotation_is_pub(): int32 {
     return when (self.kind) {
-        AnnotationDecl(is_pub) => if is_pub { 1 } else { 0 }
+        AnnotationDecl(_params, is_pub) => if is_pub { 1 } else { 0 }
         _ => -1
     }
 }
@@ -35,4 +35,28 @@ fun TopDecl.annotation_is_pub(): int32 {
     var p = parser_for("fun f(annotation: str): str { return annotation }")
     val _f = p.parse_top_decl()
     assert_eq(p.diags.size(), 0, "`annotation` as a parameter name")
+}
+
+fun TopDecl.annotation_params(): List<Param> {
+    return when (self.kind) {
+        AnnotationDecl(params, _pub) => params.clone()
+        _ => List.new<Param>()
+    }
+}
+
+@test fun an_annotation_without_parentheses_has_no_parameters(): void {
+    var p = parser_for("annotation bench")
+    assert_eq(p.parse_top_decl().annotation_params().size(), 0, "a bare declaration")
+}
+
+@test fun annotation_parameters_are_recorded_in_order(): void {
+    var p = parser_for("pub annotation bench(iterations: int32, label: String)")
+    val params = p.parse_top_decl().annotation_params()
+    assert_eq(params.at(1).name.as_str(), "label", "the second parameter")
+}
+
+@test fun an_annotation_parameter_needs_a_type(): void {
+    var p = parser_for("annotation bench(iterations)")
+    val _td = p.parse_top_decl()
+    assert_eq(p.diags.size() > 0, true, "as a function parameter does")
 }

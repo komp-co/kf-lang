@@ -9,8 +9,9 @@ import std.fs.scratch_root
 
 extern "C" fun system(cmd: str): int32
 
-/// `marks` declares `pub annotation bench` and a private `hidden`, and marks
-/// one function of its own; the app's `inner` module holds `inner_body`.
+/// `marks` declares `pub annotation bench`, `pub annotation sized(n)` and a
+/// private `hidden`, and marks one function of its own with each public one;
+/// the app's `inner` module holds `inner_body`.
 fun prepare_annotation_fixture(name: str, main_body: str, inner_body: str): int32 {
     val root = "${scratch_root()}/${name}"
     val cmd = "rm -rf ${root} && mkdir -p ${root}/marks/src ${root}/app/src/inner && cp -r libs ${root}/libs"
@@ -28,6 +29,13 @@ annotation hidden
 fun measured_in_marks(): void {}
 
 pub fun marked_in_marks(): uint64 { return annotated_functions<bench>().size() }
+
+pub annotation sized(n: int32)
+
+@sized(5)
+fun sized_in_marks(): void {}
+
+pub fun sized_total_in_marks(): int32 { return annotated_functions<sized>().at(0).args.n }
 """)
     val app_deps = "${libs}marks = { path = \"../marks\" }\n"
     val app_toml = "[project]\nname = \"app\"\nkind = \"bin\"\n\n[dependencies]\n${app_deps}"
@@ -82,4 +90,33 @@ fun a_private_annotation_does_not_cross_a_crate(): void {
     val inner = "import marks.hidden\n\n@hidden\nfun measured_in_inner(): void {}\n"
     assert_eq(prepare_annotation_fixture("kf_ann_private", annotation_counting_main(), inner), 0, "fixture prepared")
     assert_eq(build_annotated_app("kf_ann_private") != 0, true, "`hidden` is not `pub`")
+}
+
+@test
+fun an_imported_annotation_carries_its_arguments(): void {
+    val main = """import marks.sized
+import marks.sized_total_in_marks
+
+@sized(1000)
+fun sized_in_main(): void {}
+
+fun main(): int32 {
+    var total = 0
+    while entry in &annotated_functions<sized>() {
+        total = total + entry.args.n
+    }
+    return total - 1010 + sized_total_in_marks() - 5
+}
+"""
+    val inner = "import marks.sized\n\n@sized(n = 10)\nfun sized_in_inner(): void {}\n"
+    assert_eq(prepare_annotation_fixture("kf_ann_args", main, inner), 0, "fixture prepared")
+    assert_eq(build_and_run_annotated("kf_ann_args"), 0, "1000 and 10 in the app, 5 in marks")
+}
+
+@test
+fun an_imported_annotation_checks_its_arguments(): void {
+    val main = "fun main(): int32 { return 0 }\n"
+    val inner = "import marks.sized\n\n@sized(\"five\")\nfun sized_in_inner(): void {}\n"
+    assert_eq(prepare_annotation_fixture("kf_ann_args_bad", main, inner), 0, "fixture prepared")
+    assert_eq(build_annotated_app("kf_ann_args_bad") != 0, true, "`n` is an int32 across the crate boundary too")
 }
