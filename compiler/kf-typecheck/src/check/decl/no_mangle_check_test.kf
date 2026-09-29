@@ -8,7 +8,7 @@ import kf_typecheck.typecheck_module
 fun unmangled_decl(name: str, kind: TopDeclKind, crate: str): TopDecl {
     var declaration = new_top_decl(no_span(), String.from(name), kind)
     declaration.crate = new_crate_id(crate)
-    declaration.annotations.push(String.from("no_mangle"))
+    declaration.annotations.push(new_annotation(no_span(), "no_mangle", List.new<String>()))
     return declaration
 }
 

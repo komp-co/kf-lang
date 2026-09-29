@@ -23,7 +23,7 @@ pub fun TopDecl.template_source_slice(smap: Ptr<SourceMap>): String {
             // Every annotation, in source order, `@test` and `@allow` included.
             while item in &self.annotations {
                 out.append("@")
-                out.append(item.as_str())
+                out.append(item.to_source().as_str())
                 out.append("\n")
             }
             val piece = content.substring(start, end)

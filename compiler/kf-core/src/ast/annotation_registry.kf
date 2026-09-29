@@ -89,48 +89,6 @@ pub fun annotation_is_known(kind: str): bool {
     return lookup_annotation(kind).name.as_str().byte_len() > 0
 }
 
-/// `"allow(lint)"` is `"allow"`, `"lang(\"string\")"` is `"lang"`.
-pub fun annotation_kind(annotation: str): String {
-    val n = annotation.byte_len()
-    var i = 0
-    while i < n {
-        if annotation.byte_at(i) == 40 { return annotation.substring(0, i) } // `(`
-        i = i + 1
-    }
-    return String.from(annotation)
-}
-
-/// The trimmed comma-separated arguments of `name(...)`, or an empty list:
-/// `derive(Clone, Equal)` yields `["Clone", "Equal"]`.
-pub fun annotation_args(annotation: str, name: str): List<String> {
-    var out = List.new<String>()
-    val n = annotation.byte_len()
-    val name_n = name.byte_len()
-    if n < name_n + 2 { return out }
-    var j = 0
-    while j < name_n {
-        if annotation.byte_at(j) != name.byte_at(j) { return out }
-        j = j + 1
-    }
-    if annotation.byte_at(name_n) != 40 { return out } // `(`
-    if annotation.byte_at(n - 1) != 41 { return out } // `)`
-    var start = name_n + 1
-    var i = start
-    while i < n {
-        val b = annotation.byte_at(i)
-        if b == 44 || b == 41 { // `,` or `)`
-            var s = start
-            while s < i && annotation.byte_at(s) == 32 { s = s + 1 }
-            var e = i
-            while e > s && annotation.byte_at(e - 1) == 32 { e = e - 1 }
-            if e > s { out.push(annotation.substring(s, e)) }
-            start = i + 1
-        }
-        i = i + 1
-    }
-    return out
-}
-
 pub fun annotation_target_allows(target: AnnotationTarget, td: &TopDecl): bool {
     return when (target) {
         Function => when (td.kind) {

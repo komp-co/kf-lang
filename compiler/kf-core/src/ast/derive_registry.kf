@@ -49,10 +49,6 @@ pub fun lookup_derive(name: str): DeriveInfo {
         expander: DeriveExpander.Default, lang_key: "" }
 }
 
-pub fun derive_options_of(annotation: str): List<String> {
-    return annotation_args(annotation, "derive")
-}
-
 pub fun derivable_on_struct(name: str): bool {
     return lookup_derive(name).struct_ok
 }

@@ -86,17 +86,16 @@ fun TopDecl.receiver_head_is_param(name: str): bool {
 }
 
 fun TopDecl.receiver_param_named(name: str): bool {
-    val recorded = self.annotation_text("receiver_params")
-    return recorded.as_str().equals("receiver_params(${name})") ||
-        recorded.as_str().starts_with("receiver_params(${name},")
+    val recorded = self.annotation_words("receiver_params")
+    return recorded.size() > 0 && recorded.at(0).as_str() == name
 }
 
 /// Without `self`'s reference; a trait receiver is shown as the trait.
 fun TopDecl.extension_receiver(): TypeRef {
-    val trait_param = self.annotation_text("receiver_trait")
-    if trait_param.byte_len() > 0 {
+    val trait_params = self.annotation_words("receiver_trait")
+    if trait_params.size() > 0 {
         while tp in &self.generics {
-            if "receiver_trait(${tp.name.as_str()})".equals(trait_param) && tp.bounds.size() > 0 {
+            if tp.name.as_str() == trait_params.at(0).as_str() && tp.bounds.size() > 0 {
                 return *tp.bounds.at(0)
             }
         }

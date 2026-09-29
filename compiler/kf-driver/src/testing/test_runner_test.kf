@@ -6,12 +6,12 @@ import kf_core.ast.*
 import kf_driver.fresh_source_map
 
 // A null return-type pointer means `: void`.
-fun mk_void_fn(name: str, annotation: str): TopDecl {
+fun mk_void_fn(name: str, annotations: List<Annotation>): TopDecl {
     val body = List.new<Stmt>()
     val params = List.new<Param>()
     val null_ret: Ptr<TypeRef> = unsafe { 0 as Ptr<TypeRef> }
     var td = new_top_decl(no_span(), String.from(name), TopDeclKind.Function(params, null_ret, body, false, false, false, false))
-    td.annotations.push(String.from(annotation))
+    td.annotations = annotations
     return td
 }
 
@@ -38,9 +38,9 @@ fun contains_sub(hay: str, needle: str): bool {
 
 @test fun collect_test_names_picks_only_test_annotated(): void {
     var decls = List.new<TopDecl>()
-    decls.push(mk_void_fn("a", "test"))
-    decls.push(mk_void_fn("helper", ""))
-    decls.push(mk_void_fn("b", "test"))
+    decls.push(mk_void_fn("a", [new_annotation(no_span(), "test", List.new<String>())]))
+    decls.push(mk_void_fn("helper", List.new<Annotation>()))
+    decls.push(mk_void_fn("b", [new_annotation(no_span(), "test", List.new<String>())]))
     var mods = List.new<Module>()
     mods.push(Module { crate: crate_id_poison(), path: List.new<String>(), decls: decls, imports: List.new<Import>() })
     val names = collect_test_names(mods)

@@ -41,7 +41,7 @@ pub fun lint_typed_module(m: &Module): List<Diagnostic> {
 fun Module.copy_types(): List<String> {
     var out = List.new<String>()
     while decl in &self.decls {
-        val copies = decl.annotations.derives_copy()
+        val copies = (&decl).derives_copy()
         when (decl.kind) {
             Struct(_fields, _pub) => { if copies { out.push(decl.name.as_string()) } }
             EnumDecl(_variants, _pub) => { if copies { out.push(decl.name.as_string()) } }
@@ -51,15 +51,10 @@ fun Module.copy_types(): List<String> {
     return out
 }
 
-/// `@derive(..., Copy, ...)` among them.
-fun List<String>.derives_copy(): bool {
-    while annotation in &self {
-        if !annotation.as_str().starts_with("derive(") { continue }
-        val inside = annotation.as_str().substring(7, annotation.byte_len()).as_str().replace(")", "")
-        val names = inside.as_str().split(",")
-        while name in &names {
-            if name.as_str().trim().as_str() == "Copy" { return true }
-        }
+/// `@derive(..., Copy, ...)` is written on it.
+fun TopDecl.derives_copy(): bool {
+    while name in &self.annotation_words("derive") {
+        if name.as_str() == "Copy" { return true }
     }
     return false
 }

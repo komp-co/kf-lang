@@ -128,33 +128,9 @@ fun TopDecl.decl_covers(span: Span): bool {
     return span.start >= self.span.start && span.start < self.decl_end
 }
 
-/// The argument list is captured verbatim, so `allow(a,b)` is split here.
 fun TopDecl.allows_lint(name: str): bool {
-    val text = self.annotation_text("allow")
-    if text.as_str() == "" { return false }
-    return allow_names_include(text.as_str(), name)
-}
-
-/// Segment by segment, so `unused` does not match `unused_import`.
-pub fun allow_names_include(annotation: str, name: str): bool {
-    val n = annotation.byte_len()
-    var i: uint64 = 6 // past `allow(`
-    var start = 6
-    while i <= n {
-        val at_end = i == n
-        var is_sep = false
-        if !at_end {
-            val b = annotation.byte_at(i)
-            is_sep = b == 44 || b == 41 // `,` or `)`
-        }
-        if at_end || is_sep {
-            if i > start {
-                val seg = annotation.substring(start, i)
-                if seg.as_str().trim().as_str() == name { return true }
-            }
-            start = i + 1
-        }
-        i = i + 1
+    while allowed in &self.annotation_words("allow") {
+        if allowed.as_str() == name { return true }
     }
     return false
 }

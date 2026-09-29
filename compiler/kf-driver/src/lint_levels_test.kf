@@ -97,28 +97,28 @@ fun deny_warnings_reaches_a_warning_no_lint_produced(): void {
 
 @test
 fun allow_reads_each_name_in_its_list(): void {
-    assert_eq(allow_names_include("allow(unused_import)", "unused_import"), true, "one name")
-    assert_eq(allow_names_include("allow(dead_code,unused_import)", "unused_import"), true, "second of two")
-    assert_eq(allow_names_include("allow(unused_import,dead_code)", "dead_code"), true, "first of two")
+    val td = annotated_decl("allow", [String.from("dead_code"), String.from("unused_import")])
+    assert_eq(td.allows_lint("unused_import"), true, "second of two")
 }
 
 @test
 fun allow_does_not_match_on_a_prefix(): void {
-    assert_eq(allow_names_include("allow(unused)", "unused_import"), false, "a shorter name is a different name")
-    assert_eq(allow_names_include("allow(unused_import_extra)", "unused_import"), false, "and so is a longer one")
+    val td = annotated_decl("allow", [String.from("unused")])
+    assert_eq(td.allows_lint("unused_import"), false, "a shorter name is a different name")
 }
 
 @test
 fun an_empty_allow_list_suppresses_nothing(): void {
-    assert_eq(allow_names_include("allow()", "unused_import"), false, "`@allow()` names nothing")
+    val td = annotated_decl("allow", List.new<String>())
+    assert_eq(td.allows_lint("unused_import"), false, "`@allow()` names nothing")
 }
 
 /// A declaration spanning bytes 10..100 of file 1, annotated as given.
-fun annotated_decl(annotation: str): TopDecl {
+fun annotated_decl(annotation: str, words: List<String>): TopDecl {
     val kind = TopDeclKind.Function(List.new<Param>(), unsafe { 0 as Ptr<TypeRef> }, List.new<Stmt>(), false, false, false, false)
     var td = new_top_decl(Span { file_id: 1, start: 10, end: 20 }, String.from("f"), kind)
     td.decl_end = 100
-    if annotation != "" { td.annotations.push(String.from(annotation)) }
+    if annotation != "" { td.annotations.push(new_annotation(no_span(), annotation, words)) }
     return td
 }
 
@@ -135,14 +135,14 @@ fun inside_decl(): Span {
 
 @test
 fun an_allow_on_the_enclosing_declaration_suppresses(): void {
-    val m = module_with_decl(annotated_decl("allow(unused_import)"))
+    val m = module_with_decl(annotated_decl("allow", [String.from("unused_import")]))
     assert_eq(apply_lint_levels(a_lint(inside_decl()), &m, &new_lint_config()).size(), 0,
         "a suppression written next to the code wins")
 }
 
 @test
 fun an_allow_naming_another_lint_does_not_suppress(): void {
-    val m = module_with_decl(annotated_decl("allow(dead_code)"))
+    val m = module_with_decl(annotated_decl("allow", [String.from("dead_code")]))
     assert_eq(apply_lint_levels(a_lint(inside_decl()), &m, &new_lint_config()).size(), 1,
         "suppression is per lint, not per declaration")
 }
@@ -152,14 +152,14 @@ fun an_allow_beats_a_deny_from_configuration(): void {
     // The source has the last word.
     var cfg = new_lint_config()
     cfg.set_lint_level("unused_import", LintLevel.Deny)
-    val m = module_with_decl(annotated_decl("allow(unused_import)"))
+    val m = module_with_decl(annotated_decl("allow", [String.from("unused_import")]))
     assert_eq(apply_lint_levels(a_lint(inside_decl()), &m, &cfg).size(), 0, "innermost wins")
 }
 
 @test
 fun an_allow_does_not_reach_outside_its_declaration(): void {
     // An import sits above every declaration, so no `@allow` encloses it.
-    val m = module_with_decl(annotated_decl("allow(unused_import)"))
+    val m = module_with_decl(annotated_decl("allow", [String.from("unused_import")]))
     val above = Span { file_id: 1, start: 2, end: 5 }
     assert_eq(apply_lint_levels(a_lint(above), &m, &new_lint_config()).size(), 1,
         "a diagnostic before the declaration is not inside it")
@@ -167,7 +167,7 @@ fun an_allow_does_not_reach_outside_its_declaration(): void {
 
 @test
 fun an_allow_in_another_file_does_not_reach(): void {
-    val m = module_with_decl(annotated_decl("allow(unused_import)"))
+    val m = module_with_decl(annotated_decl("allow", [String.from("unused_import")]))
     val elsewhere = Span { file_id: 2, start: 50, end: 60 }
     assert_eq(apply_lint_levels(a_lint(elsewhere), &m, &new_lint_config()).size(), 1,
         "same offsets, different file")
@@ -175,15 +175,15 @@ fun an_allow_in_another_file_does_not_reach(): void {
 
 @test
 fun a_declaration_with_no_allow_suppresses_nothing(): void {
-    val m = module_with_decl(annotated_decl(""))
+    val m = module_with_decl(annotated_decl("", List.new<String>()))
     assert_eq(apply_lint_levels(a_lint(inside_decl()), &m, &new_lint_config()).size(), 1, "unannotated")
 }
 
 @test
 fun allow_coexists_with_test_on_one_declaration(): void {
     // `@test` survives beside a suppression.
-    var td = annotated_decl("test")
-    td.annotations.push(String.from("allow(unused_import)"))
+    var td = annotated_decl("test", List.new<String>())
+    td.annotations.push(new_annotation(no_span(), "allow", [String.from("unused_import")]))
     val m = module_with_decl(td)
     assert_eq((m.decls.at(0)).has_annotation("test"), true, "still a test")
     assert_eq(apply_lint_levels(a_lint(inside_decl()), &m, &new_lint_config()).size(), 0, "and still suppressed")

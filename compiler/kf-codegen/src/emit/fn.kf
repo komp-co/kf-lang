@@ -323,7 +323,7 @@ fun body_ends_with_return(body: List<Stmt>): bool {
 /// Associated-type bindings have no runtime form and emit nothing; a
 /// placeholder function would be redefined by a second one.
 pub fun TopDecl.method_emits_code(): bool {
-    if self.name.as_str() == "clone" && self.has_annotation("derive(Clone)") { return false }
+    if self.name.as_str() == "clone" && self.annotation_words("derive").size() > 0 { return false }
     return when (self.kind) {
         Function(_p, _r, _b, _pub, _u, _m, _s) => true
         _ => false

@@ -18,7 +18,7 @@ pub fun insert_fn_sig(sigs: Ptr<SigTable>, owner: Ptr<TopDecl>, sig: FnSignature
         if !ext_name.as_str().equals("") {
             unsafe { (*sigs).ext_names.push(ext_name) }
             unsafe { (*sigs).ext_links.push(intern(sig.name.as_str())) }
-            val trait_param = annotation_argument(unsafe { &*owner }, "receiver_trait")
+            val trait_param = (unsafe { &*owner }).annotation_word("receiver_trait")
             unsafe { (*sigs).ext_trait_params.push(intern(trait_param.as_str())) }
         }
     }
@@ -70,15 +70,15 @@ struct ReceiverParams {
 mutating fun TopDecl.add_receiver_params(types: &List<String>, diags: Ptr<List<Diagnostic>>): void {
     val receiver = self.receiver_type_ref() ?: return
     var found = ReceiverParams { names: List.new<String>(), spans: List.new<Span>() }
-    val recorded = self.annotation_argument("receiver_params")
-    if recorded.as_str().equals("") {
+    val recorded = self.annotation_words("receiver_params")
+    if recorded.size() == 0 {
         receiver.collect_receiver_params(self, types, &var found)
         if found.names.size() > 0 {
-            self.annotations.push("receiver_params(${str_join_names(&found.names)})")
+            self.annotations.push(new_annotation(receiver.span, "receiver_params", found.names.clone()))
         }
     } else {
-        while name in &recorded.as_str().split(",") {
-            found.names.push(name.trim())
+        while name in &recorded {
+            found.names.push(name.clone())
             found.spans.push(receiver.span)
         }
     }
@@ -100,7 +100,7 @@ mutating fun TopDecl.add_receiver_params(types: &List<String>, diags: Ptr<List<D
 /// `@receiver_trait(Receiver)`.
 mutating fun TopDecl.add_trait_receiver(types: &List<String>, traits: &List<String>): void {
     val receiver = self.receiver_type_ref() ?: return
-    var param = self.annotation_argument("receiver_trait")
+    var param = self.annotation_word("receiver_trait")
     if param.byte_len() == 0 {
         val head = when (receiver.kind) {
             Named(name, _args) => name.as_string()
@@ -108,7 +108,7 @@ mutating fun TopDecl.add_trait_receiver(types: &List<String>, traits: &List<Stri
         }
         if !names_contain(traits, head.as_str()) || self.declares_generic(head.as_str()) { return }
         param = self.fresh_receiver_name(types)
-        self.annotations.push("receiver_trait(${param})")
+        self.annotations.push(new_annotation(receiver.span, "receiver_trait", [param.clone()]))
     }
     if self.declares_generic(param.as_str()) { return }
     var tp = new_type_param(receiver.span, param.clone())
@@ -140,11 +140,11 @@ fun TopDecl.point_self_at(receiver: TypeRef): void {
     }
 }
 
-/// "" without the annotation.
-fun TopDecl.annotation_argument(key: str): String {
-    val text = self.annotation_text(key)
-    if text.byte_len() < key.byte_len() + 2 { return "" }
-    return text.slice_from(key.byte_len() + 1).take_bytes(text.byte_len() - key.byte_len() - 2)
+/// The one word of `@key(word)`, or "".
+fun TopDecl.annotation_word(key: str): String {
+    val words = self.annotation_words(key)
+    if words.size() == 0 { return "" }
+    return words.at(0).clone()
 }
 
 /// `self`'s type without the parser's reference.
@@ -197,15 +197,6 @@ fun TopDecl.declares_generic(name: str): bool {
         if tp.name.as_str().equals(name) { return true }
     }
     return false
-}
-
-fun str_join_names(names: &List<String>): String {
-    var out = ""
-    while n in &names {
-        if out.byte_len() > 0 { out.append(",") }
-        out.append(n.as_str())
-    }
-    return out
 }
 
 /// `List<Pont>` with `Point` in scope is likelier a typo than a parameter.
