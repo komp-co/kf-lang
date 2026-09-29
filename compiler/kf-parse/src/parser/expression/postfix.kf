@@ -4,7 +4,7 @@ import kf_core.span.*
 import kf_core.ast.*
 import kf_parse.parser.*
 
-/// The memory intrinsics and `annotated_functions`, which fold an explicit
+/// The memory intrinsics and `annotated`, which fold an explicit
 /// `<T>` into the callee name (`alloc<Expr>` is `alloc__Expr`). None is ever
 /// compared, so a following `<` is always a type-argument list.
 fun is_generic_call_name(s: str): bool {
@@ -18,7 +18,7 @@ fun is_generic_call_name(s: str): bool {
         "drop_in_place" => true
         "clone_place" => true
         "ptr_read" => true
-        "annotated_functions" => true
+        "annotated" => true
         _ => false
     }
 }

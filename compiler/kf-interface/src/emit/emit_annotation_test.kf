@@ -6,7 +6,12 @@ import kf_core.ast.*
 import kf_interface.parse.parse_interface
 
 fun annotation_module(is_pub: bool): Module {
-    var decl = new_top_decl(no_span(), String.from("bench"), TopDeclKind.AnnotationDecl(List.new<Param>(), is_pub))
+    return targeted_module(is_pub, default_mark_target(no_span()))
+}
+
+fun targeted_module(is_pub: bool, target: MarkTarget): Module {
+    val kind = TopDeclKind.AnnotationDecl(List.new<Param>(), target, is_pub)
+    var decl = new_top_decl(no_span(), String.from("bench"), kind)
     decl.crate = new_crate_id("sample")
     decl.module_path = intern("sample.api")
     var decls = List.new<TopDecl>()
@@ -21,7 +26,7 @@ fun loaded_annotation_count(is_pub: bool): uint64 {
     while m in &loaded.modules {
         while td in &m.decls {
             when (td.kind) {
-                AnnotationDecl(_params, _pub) => { if td.name.as_str() == "bench" { count = count + 1 } }
+                AnnotationDecl(_params, _target, _pub) => { if td.name.as_str() == "bench" { count = count + 1 } }
                 _ => {}
             }
         }
@@ -37,4 +42,42 @@ fun pub_annotation_round_trips_through_the_interface(): void {
 @test
 fun private_annotation_stays_out_of_the_interface(): void {
     assert_eq(loaded_annotation_count(false), 0 as uint64, "a private annotation does not cross")
+}
+
+fun named(name: str): TypeRef {
+    return new_type_ref(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
+}
+
+/// The target of the one annotation `m` reads back as.
+fun round_trip_target(m: Module): MarkTarget {
+    val out = m.emit_interface(String.from("sample"), &List.new<String>())
+    val loaded = parse_interface(out.as_str())
+    while module in &loaded.modules {
+        while td in &module.decls {
+            when (td.kind) {
+                AnnotationDecl(_params, target, _pub) => return target.clone()
+                _ => {}
+            }
+        }
+    }
+    return MarkTarget.Enum(List.new<TypeRef>())
+}
+
+@test
+fun a_function_target_crosses_with_its_type(): void {
+    val target = round_trip_target(targeted_module(true, default_mark_target(no_span())))
+    val source = target.target_types().at(0).tyref_to_source()
+    assert_eq(source.as_str(), "() -> void", "the function type is written and read back")
+}
+
+@test
+fun a_struct_target_crosses_with_its_bounds(): void {
+    val target = round_trip_target(targeted_module(true, MarkTarget.Struct([named("Plugin"), named("Default")])))
+    assert_eq("${target.target_word()}:${target.target_types().size()}", "struct:2", "kind and both bounds")
+}
+
+@test
+fun a_type_target_crosses_as_either_kind(): void {
+    val target = round_trip_target(targeted_module(true, MarkTarget.AnyType(List.new<TypeRef>())))
+    assert_eq(target.target_word(), "type", "struct or enum")
 }

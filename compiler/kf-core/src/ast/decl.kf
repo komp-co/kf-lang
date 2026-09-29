@@ -70,6 +70,23 @@ pub struct Annotation {
     pub val span: Span
 }
 
+/// What a declared annotation may mark.
+@derive(Clone)
+pub enum MarkTarget {
+    /// `on (A) -> R`: a function of exactly that type.
+    Function(Box<TypeRef>)
+    /// `on struct`, `on enum`, `on type`: a type implementing every bound.
+    Struct(List<TypeRef>)
+    Enum(List<TypeRef>)
+    AnyType(List<TypeRef>)
+}
+
+/// What a bare `annotation NAME` marks: a `() -> void` function.
+pub fun default_mark_target(span: Span): MarkTarget {
+    val void_ref = Box.new(new_type_ref(span, TypeRefKind.Named(intern("void"), List.new<TypeRef>())))
+    return MarkTarget.Function(Box.new(new_type_ref(span, TypeRefKind.Function(List.new<TypeRef>(), void_ref))))
+}
+
 /// CONSTRAINT: the name lives on this outer struct, not in the kind's
 /// payload: destructuring a Drop-typed payload out of a variant double-frees
 /// it. Read `.name` rather than destructuring.
@@ -137,9 +154,9 @@ pub enum TopDeclKind {
     /// `type Item = int32` inside a trait impl — the impl's choice for one
     /// associated type. The outer `name` is the associated type's name.
     AssocTypeBinding(Box<TypeRef>)
-    /// `annotation NAME(params)`: a name a function may carry as
-    /// `@NAME(args)`. Payload: params, is_pub.
-    AnnotationDecl(List<Param>, bool)
+    /// `annotation NAME(params) on TARGET`: a name a declaration may carry
+    /// as `@NAME(args)`. Payload: params, target, is_pub.
+    AnnotationDecl(List<Param>, MarkTarget, bool)
     /// Parse error.
     Poison
 }

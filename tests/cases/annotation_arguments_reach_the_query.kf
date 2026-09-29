@@ -17,7 +17,7 @@ fun sort_a_thousand(): void {}
 fun parse_a_file(): void {}
 
 fun main(): int32 {
-    val benches = annotated_functions<bench>()
+    val benches = annotated<bench>()
     val sort = benches.at(0).args
     if sort.iterations != 1000 { return 1 }
     if sort.label != "sort" { return 2 }

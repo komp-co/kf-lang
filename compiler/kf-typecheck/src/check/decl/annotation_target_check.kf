@@ -1,0 +1,148 @@
+// What a declared annotation may mark: a function of exactly its target
+// type, or a struct or enum implementing every bound.
+
+import alloc.list.*
+
+import kf_core.span.no_span
+import kf_core.ast.*
+import kf_core.diagnostic.*
+import kf_typecheck.*
+import kf_typecheck.types.type_eq
+import kf_typecheck.types.display_type_ref
+import kf_typecheck.types.resolve_type_ref
+
+/// A function target's type, resolved as `owner` sees it; poison for a type
+/// target. Resolution errors are reported only for this crate's annotations.
+pub fun MarkTarget.function_type(owner: &TopDecl, quiet: bool, sigs: Ptr<SigTable>,
+    diags: Ptr<List<Diagnostic>>): Type {
+    when (self) {
+        Function(ty) => {
+            var ctx = owner.declaration_ctx(sigs, diags)
+            ctx.quiet = quiet
+            return (*ty).resolve_type_ref(&var ctx)
+        }
+        _ => return poison_ty()
+    }
+}
+
+fun TopDecl.declaration_ctx(sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): TypeCtx {
+    var ctx = new_type_ctx(void_ty(no_span()), diags, Option.None, sigs)
+    ctx.owner_crate = self.crate
+    ctx.owner_module = self.module_path
+    ctx.owner_file = self.span.file_id
+    return ctx
+}
+
+/// Each bound of this crate's type target names a trait, without arguments.
+pub fun MarkTarget.check_bounds(table: &SigTable, diags: &var List<Diagnostic>): void {
+    if self.target_word() == "function" { return }
+    val bounds = self.target_types()
+    while bound in &bounds {
+        val trait_name = bound.bare_name()
+        if trait_name.as_str().equals("") {
+            diags.push(error_at(bound.span, "an annotation's bound names a trait without type arguments"))
+        } else if table.find_trait(trait_name.as_str()) == null {
+            diags.push(error_at(bound.span, "cannot find trait `${trait_name.as_str()}` for this bound"))
+        }
+    }
+}
+
+/// `Name` for a bare named type, else "".
+fun TypeRef.bare_name(): String {
+    return when (self.kind) {
+        Named(name, args) => if args.size() == 0 { name.as_string() } else { String.from("") }
+        _ => String.from("")
+    }
+}
+
+/// Whether this declaration may carry `@kind`, reported when it may not.
+/// `sigs` is `table`, and `pass_diags` the pass's list, for resolving the
+/// function's type.
+pub fun TopDecl.fits_target(kind: str, declared: &DeclaredAnnotation, table: &SigTable, sigs: Ptr<SigTable>,
+    pass_diags: Ptr<List<Diagnostic>>, diags: &var List<Diagnostic>): bool {
+    val at = self.decl_name_span()
+    when (declared.target) {
+        Function(ty) => {
+            if !self.is_plain_function() {
+                diags.push(error_at(at, "`@${kind}` can only annotate a function"))
+                return false
+            }
+            if !self.own_function_type(sigs, pass_diags).type_eq(declared.function_type) {
+                val wanted = (*ty).display_type_ref()
+                diags.push(error_at(at, "a function marked `@${kind}` must have type `${wanted.as_str()}`"))
+                return false
+            }
+            return true
+        }
+        Struct(bounds) => return self.fits_type_target(kind, self.is_struct(), "a struct", &bounds, table, diags)
+        Enum(bounds) => return self.fits_type_target(kind, self.is_enum(), "an enum", &bounds, table, diags)
+        AnyType(bounds) => {
+            val is_type = self.is_struct() || self.is_enum()
+            return self.fits_type_target(kind, is_type, "a struct or an enum", &bounds, table, diags)
+        }
+    }
+}
+
+fun TopDecl.fits_type_target(kind: str, right_kind: bool, phrase: str, bounds: &List<TypeRef>, table: &SigTable,
+    diags: &var List<Diagnostic>): bool {
+    val at = self.decl_name_span()
+    if !right_kind {
+        diags.push(error_at(at, "`@${kind}` can only annotate ${phrase}"))
+        return false
+    }
+    if self.generics.size() > 0 {
+        val why = "whether it meets the bounds depends on its arguments"
+        diags.push(error_at(at, "`@${kind}` cannot annotate a generic type: ${why}"))
+        return false
+    }
+    var fits = true
+    while bound in &bounds {
+        val trait_name = bound.bare_name()
+        if !table.type_implements(self.name.as_str(), trait_name.as_str(), "") {
+            val message = "`${self.name.as_str()}` must implement `${trait_name.as_str()}` to carry `@${kind}`"
+            diags.push(error_at(at, message))
+            fits = false
+        }
+    }
+    return fits
+}
+
+/// A free function with no type parameters: one a value can name.
+fun TopDecl.is_plain_function(): bool {
+    if self.generics.size() > 0 || !self.ext_name.as_str().equals("") { return false }
+    return when (self.kind) {
+        Function(_p, _r, _b, _pub, _u, _mut, _st) => true
+        _ => false
+    }
+}
+
+fun TopDecl.is_struct(): bool {
+    return when (self.kind) {
+        Struct(_f, _pub) => true
+        _ => false
+    }
+}
+
+fun TopDecl.is_enum(): bool {
+    return when (self.kind) {
+        EnumDecl(_v, _pub) => true
+        _ => false
+    }
+}
+
+/// `(A) -> R` from the declaration as written, resolved in its own module.
+/// Quiet: the signature's own errors were reported when it was registered.
+fun TopDecl.own_function_type(sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): Type {
+    var ctx = self.declaration_ctx(sigs, diags)
+    ctx.quiet = true
+    return when (self.kind) {
+        Function(params, ret, _b, _pub, _u, _mut, _st) => {
+            var param_types = new_type_vec()
+            while param in &params {
+                param_types.push((*param.ty).resolve_type_ref(&var ctx))
+            }
+            fn_ty(param_types, (*ret).resolve_type_ref(&var ctx), Provenance.Inferred(self.span))
+        }
+        _ => poison_ty()
+    }
+}

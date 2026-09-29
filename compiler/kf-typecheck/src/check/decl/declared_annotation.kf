@@ -1,6 +1,6 @@
-// `annotation bench(...)` declares `@bench(...)`. Registers every
-// declaration, then resolves and checks each use on this crate's functions
-// for `annotated_functions`.
+// `annotation bench(...) on TARGET` declares `@bench(...)`. Registers every
+// declaration, then resolves and checks each use in this crate for
+// `annotated`.
 
 import alloc.list.*
 
@@ -13,7 +13,7 @@ pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: Ptr<Lis
     var found = List.new<Diagnostic>()
     while td in &self.decls {
         when (td.kind) {
-            AnnotationDecl(own_params, is_pub) => {
+            AnnotationDecl(own_params, own_target, is_pub) => {
                 val own = td.crate.raw == self.crate.raw
                 if annotation_is_known(td.name.as_str()) {
                     if own {
@@ -21,10 +21,15 @@ pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: Ptr<Lis
                         found.push(new_diagnostic(Severity.Error, new_label(td.decl_name_span(), message)))
                     }
                 } else {
-                    if own { check_annotation_params(&own_params, table, self.crate, &var found) }
+                    if own {
+                        check_annotation_params(&own_params, table, self.crate, &var found)
+                        own_target.check_bounds(table, &var found)
+                    }
                     val params = if own { own_params.clone() } else { self.argument_struct_params(&td) }
+                    val function_type = own_target.function_type(&td, !own, sigs, diags)
                     val declared = DeclaredAnnotation {
-                        name: td.name, crate: td.crate, module: td.module_path, is_pub: is_pub, params: params
+                        name: td.name, crate: td.crate, module: td.module_path, is_pub: is_pub, params: params,
+                        target: own_target.clone(), function_type: function_type
                     }
                     table.annotations.push(declared)
                 }
@@ -37,7 +42,7 @@ pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: Ptr<Lis
         while annotation in &td.annotations {
             val kind = annotation.name.as_str()
             if kind.equals("") || annotation_is_known(kind) { continue }
-            td.register_annotation_use(annotation, sigs, table, &var found)
+            td.register_annotation_use(annotation, sigs, diags, table, &var found)
         }
     }
     while diag in &found {
@@ -45,9 +50,10 @@ pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: Ptr<Lis
     }
 }
 
-/// `sigs` is `table`, for recording the import use.
-fun TopDecl.register_annotation_use(annotation: &Annotation, sigs: Ptr<SigTable>, table: &var SigTable,
-    diags: &var List<Diagnostic>): void {
+/// `sigs` is `table`, for recording the import use; `pass_diags` is where
+/// `diags` go once the pass ends.
+fun TopDecl.register_annotation_use(annotation: &Annotation, sigs: Ptr<SigTable>, pass_diags: Ptr<List<Diagnostic>>,
+    table: &var SigTable, diags: &var List<Diagnostic>): void {
     val kind = annotation.name.as_str()
     val file = self.span.file_id
     val found = table.find_annotation(kind, file, self.crate, self.module_path)
@@ -62,20 +68,12 @@ fun TopDecl.register_annotation_use(annotation: &Annotation, sigs: Ptr<SigTable>
     note_import_use_named(sigs, file, declared.module, declared.name)
     val arguments = annotation.arguments_in_order(&declared.params, table, self.crate, diags)
     if !arguments.ok { return }
-    if !self.is_plain_function() {
-        val message = "`@${kind}` can only annotate a function"
-        diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
-        return
-    }
-    if !self.takes_nothing_returns_void() {
-        val message = "a function marked `@${kind}` must take no parameters and return `void`"
-        diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
-        return
-    }
+    if !self.fits_target(kind, &declared, table, sigs, pass_diags, diags) { return }
     while listed in &table.annotated {
-        if listed.annotation == index && listed.function.id == self.name.id { return }
+        if listed.annotation == index && listed.item.id == self.name.id { return }
     }
-    table.annotated.push(AnnotatedFunction { annotation: index, function: self.name, args: arguments.values })
+    val item = AnnotatedItem { annotation: index, item: self.name, module: self.module_path, args: arguments.values }
+    table.annotated.push(item)
 }
 
 /// A dependency's annotation has no parameters of its own in the interface;
@@ -96,26 +94,4 @@ fun Module.argument_struct_params(annotation: &TopDecl): List<Param> {
         }
     }
     return params
-}
-
-/// A free function with no type parameters: one a value can name.
-fun TopDecl.is_plain_function(): bool {
-    if self.generics.size() > 0 || !self.ext_name.as_str().equals("") { return false }
-    return when (self.kind) {
-        Function(_p, _r, _b, _pub, _u, _mut, _st) => true
-        _ => false
-    }
-}
-
-fun TopDecl.takes_nothing_returns_void(): bool {
-    when (self.kind) {
-        Function(params, ret, _b, _pub, _u, _mut, _st) => {
-            if params.size() > 0 { return false }
-            return when (ret.kind) {
-                Named(name, args) => name.as_str() == "void" && args.size() == 0
-                _ => false
-            }
-        }
-        _ => return false
-    }
 }

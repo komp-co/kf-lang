@@ -1,9 +1,21 @@
 import alloc.string.String
 
-/// A function carrying a declared annotation, as `annotated_functions<A>()`
-/// lists it. `A` is the annotation's own argument type, named after it.
-pub struct Annotated<A> {
+/// A function carrying a declared annotation, as `annotated<A>()` lists it.
+/// `A` is the annotation's argument type, named after it, and `F` the
+/// function type it marks.
+pub struct AnnotatedFunction<A, F> {
     pub val name: String
-    pub val function: () -> void
+    /// The declaring module's path, `app.routes`.
+    pub val module: String
+    pub val args: A
+    pub val function: F
+}
+
+/// A struct or enum carrying a declared annotation, as `annotated<A>()`
+/// lists it.
+pub struct AnnotatedType<A> {
+    pub val name: String
+    /// The declaring module's path, `app.plugins`.
+    pub val module: String
     pub val args: A
 }

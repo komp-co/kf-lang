@@ -24,7 +24,7 @@ mutating fun TopDecl.desugar_top_decl(): void {
         Extern(_, _, _, _) => return
         AssocType(_bounds) => return
         AssocTypeBinding(_chosen) => return
-        AnnotationDecl(_params, _pub) => return
+        AnnotationDecl(_params, _target, _pub) => return
         TraitDecl(_, _, _) => return
         TraitImpl(_, _) => return
         Poison => return

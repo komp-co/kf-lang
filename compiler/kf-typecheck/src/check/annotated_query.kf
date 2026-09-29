@@ -1,7 +1,10 @@
-// `annotated_functions<bench>()`: every function of this crate marked
-// `@bench`, private ones included, as a list literal the checker then types:
+// `annotated<bench>()`: every declaration of this crate marked `@bench`,
+// private ones included, as a list literal the checker then types. A
+// function target lists
 //
-//     [Annotated<bench> { name: "f", function: f, args: bench { ... } }, ...]
+//     AnnotatedFunction<bench, F> { name, module, args: bench { ... }, function: f }
+//
+// and a type target `AnnotatedType<bench> { name, module, args }`.
 
 import alloc.list.*
 
@@ -12,12 +15,14 @@ import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.note_import_use_named
 import kf_typecheck.find_annotation
 
-pub fun annotated_functions_prefix(): str { return "annotated_functions__" }
+pub fun annotated_prefix(): str { return "annotated__" }
 
-/// CONSTRAINT: by name until a release's seed knows a lang key for it.
-fun annotated_type_name(): str { return "Annotated" }
+/// CONSTRAINT: by name until a release's seed knows a lang key for them.
+fun entry_type_name(target: &MarkTarget): str {
+    return if target.target_word() == "function" { "AnnotatedFunction" } else { "AnnotatedType" }
+}
 
-pub mutating fun Expr.expand_annotated_functions(args: &List<Expr>, ctx: &var TypeCtx): void {
+pub mutating fun Expr.expand_annotated(args: &List<Expr>, ctx: &var TypeCtx): void {
     val sigs = unsafe { &*ctx.sigs }
     val index = self.queried_annotation(args, sigs, ctx) ?: return
     val declared = sigs.annotations.at(index)
@@ -26,7 +31,8 @@ pub mutating fun Expr.expand_annotated_functions(args: &List<Expr>, ctx: &var Ty
         if listed.annotation == index { elements.push(annotated_entry(&listed, &declared, self.span, ctx)) }
     }
     var new_call = collection_new_call(self.span, ctx.list_name())
-    new_call.type_args.push(entry_type(declared.name, self.span))
+    new_call.type_args.push(new_type_ref(self.span, TypeRefKind.Named(intern(entry_type_name(&declared.target)),
+        entry_type_args(&declared, self.span))))
     new_call.type_args_written = true
     *self = collection_literal_expr(self.span, &elements, new_call)
     check_expr(self, ctx)
@@ -37,9 +43,9 @@ pub mutating fun Expr.expand_annotated_functions(args: &List<Expr>, ctx: &var Ty
 mutating fun Expr.queried_annotation(args: &List<Expr>, sigs: &SigTable, ctx: &var TypeCtx): uint64? {
     val name = self.single_type_name()
     val message = if name.as_str().equals("") {
-        String.from("`annotated_functions` takes one annotation name: `annotated_functions<bench>()`")
+        String.from("`annotated` takes one annotation name: `annotated<bench>()`")
     } else if args.size() > 0 {
-        String.from("`annotated_functions` takes no arguments")
+        String.from("`annotated` takes no arguments")
     } else {
         val found = sigs.find_annotation(name.as_str(), ctx.owner_file, ctx.owner_crate, ctx.owner_module)
         if found != null {
@@ -64,35 +70,49 @@ fun Expr.single_type_name(): Sym {
     }
 }
 
-/// `Annotated<bench>`.
-fun entry_type(annotation: Sym, span: Span): TypeRef {
+/// `<bench, (Request) -> Response>` for a function target, `<bench>` for a
+/// type target.
+fun entry_type_args(declared: &DeclaredAnnotation, span: Span): List<TypeRef> {
     var args = List.new<TypeRef>()
-    args.push(new_type_ref(span, TypeRefKind.Named(annotation, List.new<TypeRef>())))
-    return new_type_ref(span, TypeRefKind.Named(intern(annotated_type_name()), args))
+    args.push(new_type_ref(span, TypeRefKind.Named(declared.name, List.new<TypeRef>())))
+    when (declared.target) {
+        Function(ty) => args.push((*ty).clone())
+        _ => {}
+    }
+    return args
 }
 
-/// `Annotated<bench> { name: "f", function: f, args: bench { ... } }`. The
-/// function is named directly, not looked up: a private function of another
-/// module is listed too.
-fun annotated_entry(listed: &AnnotatedFunction, declared: &DeclaredAnnotation, span: Span, ctx: &var TypeCtx): Expr {
-    var reference = new_expr(span, ExprKind.FnRef(listed.function))
-    reference.ty = fn_ty(new_type_vec(), void_ty(span), Provenance.Inferred(span))
-    ctx.note_fn_type(&reference.ty)
+/// One entry. A function is named directly, not looked up: a private
+/// function of another module is listed too.
+fun annotated_entry(listed: &AnnotatedItem, declared: &DeclaredAnnotation, span: Span, ctx: &var TypeCtx): Expr {
     var fields = List.new<FieldInit>()
-    val name = new_expr(span, ExprKind.LitStr(listed.function.as_string()))
-    fields.push(FieldInit { span: span, name: intern("name"), value: Box.new(name) })
-    fields.push(FieldInit { span: span, name: intern("function"), value: Box.new(reference) })
+    fields.push(string_field("name", listed.item.as_str(), span))
+    fields.push(string_field("module", listed.module.as_str(), span))
     val arguments = arguments_literal(listed, declared, span)
     fields.push(FieldInit { span: span, name: intern("args"), value: Box.new(arguments) })
-    var entry = new_expr(span, ExprKind.StructLit(intern(annotated_type_name()), fields))
-    entry.type_args.push(new_type_ref(span, TypeRefKind.Named(declared.name, List.new<TypeRef>())))
+    when (declared.target) {
+        Function(_ty) => {
+            var reference = new_expr(span, ExprKind.FnRef(listed.item))
+            reference.ty = declared.function_type.clone()
+            ctx.note_fn_type(&reference.ty)
+            fields.push(FieldInit { span: span, name: intern("function"), value: Box.new(reference) })
+        }
+        _ => {}
+    }
+    var entry = new_expr(span, ExprKind.StructLit(intern(entry_type_name(&declared.target)), fields))
+    entry.type_args = entry_type_args(declared, span)
     entry.type_args_written = true
     return entry
 }
 
+fun string_field(name: str, value: str, span: Span): FieldInit {
+    val literal = new_expr(span, ExprKind.LitStr(String.from(value)))
+    return FieldInit { span: span, name: intern(name), value: Box.new(literal) }
+}
+
 /// `bench { iterations: 1000, label: "sort" }`, each value where the use
 /// wrote it, so a type mismatch points there.
-fun arguments_literal(listed: &AnnotatedFunction, declared: &DeclaredAnnotation, span: Span): Expr {
+fun arguments_literal(listed: &AnnotatedItem, declared: &DeclaredAnnotation, span: Span): Expr {
     var fields = List.new<FieldInit>()
     while i in 0..declared.params.size() {
         val value = listed.args.at(i).clone()

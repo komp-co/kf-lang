@@ -1,6 +1,6 @@
 // `annotation bench(iterations: int32)` also declares `struct bench`, one
 // field per parameter: the type of a use's arguments, and of the `args` an
-// `annotated_functions<bench>()` entry carries.
+// `annotated<bench>()` entry carries.
 
 import alloc.list.*
 
@@ -15,7 +15,7 @@ pub mutating fun Module.expand_annotation_structs(diags: &var List<Diagnostic>):
     while td in &self.decls {
         if td.crate.raw != self.crate.raw { continue }
         when (td.kind) {
-            AnnotationDecl(params, is_pub) => {
+            AnnotationDecl(params, _target, is_pub) => {
                 if self.names_another_declaration(&td) {
                     val why = "an annotation's name is also the type of its arguments"
                     val message = "`${td.name.as_str()}` is already declared in this crate, and ${why}"
