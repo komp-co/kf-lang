@@ -48,6 +48,7 @@ fun expr_is_call_shaped(e: Expr): bool {
     return when (e.kind) {
         Call(_n, _a) => true
         MethodCall(_r, _m, _a) => true
+        CallValue(_c, _a) => true
         _ => false
     }
 }

@@ -34,6 +34,10 @@ fun hoist_in_children(ep: Ptr<Expr>, temps: &var WhenTemps, out: &var List<Stmt>
         Retain(i) => hoist_when_values(i, temps, out)
         FieldAccess(o, _f) => hoist_when_values(o, temps, out)
         Call(_n, args) => hoist_in_arg_list(ep, temps, out)
+        CallValue(callee, _args) => {
+            hoist_when_values(callee, temps, out)
+            hoist_in_arg_list(ep, temps, out)
+        }
         MethodCall(recv, _m, _args) => {
             hoist_when_values(recv, temps, out)
             hoist_in_arg_list(ep, temps, out)
@@ -65,6 +69,11 @@ fun hoist_in_arg_list(ep: Ptr<Expr>, temps: &var WhenTemps, out: &var List<Stmt>
         // A binder shares the arguments' storage, and none is added or
         // removed, so each is rewritten where it lies.
         Call(_n, args) => {
+            while i in 0..args.size() {
+                hoist_in_place(args.at_mut(i), temps, out)
+            }
+        }
+        CallValue(_callee, args) => {
             while i in 0..args.size() {
                 hoist_in_place(args.at_mut(i), temps, out)
             }

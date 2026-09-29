@@ -140,6 +140,11 @@ fun Expr.collect_expr(out: &var List<Sym>, dyn_used: &var bool): void {
             out.push(name)
             collect_exprs(&args, out, dyn_used)
         }
+        FnRef(name) => out.push(name)
+        CallValue(callee, args) => {
+            collect_expr_at(callee, out, dyn_used)
+            collect_exprs(&args, out, dyn_used)
+        }
         MethodCall(recv, name, args) => {
             collect_expr_at(recv, out, dyn_used)
             out.push(name)

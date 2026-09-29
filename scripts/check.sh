@@ -298,7 +298,7 @@ phase "formatting"
 mkdir -p "$WORK/fmt-toolchain/bin"
 cp "$WORK/komp" "$WORK/kflatc" "$WORK/fmt-toolchain/bin/"
 [ -e "$WORK/fmt-toolchain/libs" ] || ln -s "$ROOT/libs" "$WORK/fmt-toolchain/libs"
-KFLAT_HOME="$WORK/fmt-home" "$WORK/fmt-toolchain/bin/komp" install komp_fmt@0.1 > "$WORK/fmt-install.log" 2>&1 || {
+KFLAT_HOME="$WORK/fmt-home" "$WORK/fmt-toolchain/bin/komp" tool install komp_fmt@0.1 > "$WORK/fmt-install.log" 2>&1 || {
     cat "$WORK/fmt-install.log" >&2
     echo "FAIL: komp_fmt could not be installed from the package index" >&2
     exit 1
@@ -383,6 +383,23 @@ test -s "$WORK/legacy.c" || {
     exit 1
 }
 echo "  PASS  commands default to the current directory, and -h/-V answer anywhere"
+
+# `komp <tool>` hands its process to the tool, so an editor that stops the
+# tool leaves no komp behind: the tool's parent is komp's parent, the exit
+# status is the tool's own, and KOMP_BIN names a komp it can run.
+mkdir -p "$WORK/exec-home/bin"
+printf '#!/bin/sh\ntest -x "$KOMP_BIN" && echo "$PPID $*"\nexit 3\n' > "$WORK/exec-home/bin/komp-probe"
+chmod +x "$WORK/exec-home/bin/komp-probe"
+probe=$(KFLAT_HOME="$WORK/exec-home" sh -c 'echo "$$"; "$0" probe a "b c"; echo "status $?"' "$WORK/komp")
+expected=$(printf '%s\n%s a b c\nstatus 3' "${probe%%
+*}" "${probe%%
+*}")
+[ "$probe" = "$expected" ] || {
+    echo "FAIL: \`komp probe\` did not exec the tool; got:" >&2
+    echo "$probe" >&2
+    exit 1
+}
+echo "  PASS  komp <tool> replaces itself with the tool"
 
 # --manifest-path names a manifest; downstream appends kf.toml itself, so the
 # flag hands on its directory. Passing the directory works too.
@@ -550,9 +567,30 @@ printf '[lints]\nwildcard_import = "warn"\n' >> "$WORK/lint-file/lint.toml"
 }
 echo "  PASS  lint.toml sets groups and lints, and komp lint tallies them"
 
+# `komp outdated` finds its project wherever the directory sits among its
+# flags, as an editor passes them.
+mkdir -p "$WORK/outdated-app/src"
+printf '[project]\nname = "outdated_app"\nversion = "0.1.0"\nkind = "bin"\n' > "$WORK/outdated-app/kf.toml"
+outdated=$(cd / && "$WORK/komp" outdated --offline --format=json "$WORK/outdated-app" 2>&1 || true)
+case "$outdated" in
+    *'"project":"'*'/outdated-app","dependencies":[],"tools":[]}') ;;
+    *) echo "FAIL: komp outdated did not read the directory after its flags" >&2; echo "$outdated" >&2; exit 1 ;;
+esac
+echo "  PASS  komp outdated takes its directory after its flags"
+
+# `komp new` with no name scaffolds the current directory, named after it.
+mkdir -p "$WORK/new-here"
+(cd "$WORK/new-here" && "$WORK/komp" new > /dev/null) || {
+    echo "FAIL: komp new with no name failed in an empty directory" >&2; exit 1
+}
+grep -q '^name = "new_here"$' "$WORK/new-here/kf.toml" || {
+    echo "FAIL: komp new did not name the project after its directory" >&2; cat "$WORK/new-here/kf.toml" >&2; exit 1
+}
+echo "  PASS  komp new scaffolds the current directory"
+
 # A crate declaring no dependencies still gets `core` and `alloc`, on both
 # check paths: the source walk serves a never-built project and every
-# `--diagnostic-format=json` run.
+# `--format=json` run.
 phase "cli check resolves the implicit stdlib"
 mkdir -p "$WORK/implicit-project/src"
 {
@@ -572,7 +610,7 @@ mkdir -p "$WORK/implicit-project/src"
 
 # Cold: nothing has ever written target/kflat for this project.
 "$WORK/komp" -q check "$WORK/implicit-project" > /dev/null
-"$WORK/komp" check --diagnostic-format=json "$WORK/implicit-project" > "$WORK/implicit.json"
+"$WORK/komp" check --format=json "$WORK/implicit-project" > "$WORK/implicit.json"
 if [ -s "$WORK/implicit.json" ]; then
     echo "  FAIL  json check reported errors on a clean project:"
     head -3 "$WORK/implicit.json"
@@ -585,7 +623,7 @@ if "$WORK/komp" -q check "$WORK/implicit-project" > /dev/null 2>&1; then
     echo "  FAIL  check exited 0 on an undefined function" >&2
     exit 1
 fi
-"$WORK/komp" check --diagnostic-format=json "$WORK/implicit-project" > "$WORK/implicit-bad.json" || true
+"$WORK/komp" check --format=json "$WORK/implicit-project" > "$WORK/implicit-bad.json" || true
 if ! grep -q '"severity":"error"' "$WORK/implicit-bad.json"; then
     echo "  FAIL  json check reported no error for an undefined function" >&2
     exit 1
@@ -1275,7 +1313,7 @@ if [ -n "$lintfailed" ] && [ -z "$failed" ]; then
         exit 1
     fi
     echo "FAIL: lints to fix in:$lintfailed" >&2
-    echo "      \`komp lint <crate>\` names each one, and \`komp fix\` carries the repairs" >&2
+    echo "      \`komp lint <crate>\` names each one, and \`komp check --fix\` carries the repairs" >&2
     echo "      it can; \`@allow(<lint>)\` on the declaration keeps one on purpose." >&2
     exit 1
 fi

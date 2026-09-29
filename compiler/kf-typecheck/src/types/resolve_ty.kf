@@ -19,6 +19,11 @@ import kf_typecheck.note_import_use
 pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
     when (self.kind) {
         Named(name, args) => {
+            // A function type written back through its mangle fragment.
+            if args.size() == 0 && name.as_str().starts_with("kf__fn") {
+                val function = ctx.fn_type_for(name.as_str())
+                if function != null { return function!! }
+            }
             var s = name.as_str()
             // A local annotation may still name the `?` placeholder.
             if name.lang_placeholder_key().as_str().equals(lang_option_key()) {
@@ -161,7 +166,16 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
                 None => return poison_ty()
             }
         }
-        Function(_, _) => return poison_ty()
+        Function(params, ret_ptr) => {
+            var values = new_type_vec()
+            while param in &params {
+                values.push(param.resolve_type_ref(ctx))
+            }
+            val ret = ret_ptr.resolve_type_ref(ctx)
+            val function = fn_ty(values, ret, Provenance.Declared(self.span))
+            ctx.note_fn_type(&function)
+            return function
+        }
         Reference(mutable, inner_ptr) => {
             val inner = (unsafe { *inner_ptr }).resolve_type_ref(ctx)
             val p: Ptr<Type> = unsafe { alloc<Type>() }

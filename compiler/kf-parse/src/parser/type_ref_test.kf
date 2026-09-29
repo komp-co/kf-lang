@@ -1,6 +1,7 @@
 import core.assert.assert_eq
 
 import kf_core.ast.*
+import kf_core.span.no_span
 
 fun dyn_type_mutability(src: str): int32 {
     var p = parser_for(src)
@@ -90,4 +91,37 @@ fun dyn_type_diagnostic_count(src: str): uint64 {
 
 @test fun dyn_type_rejects_multiple_principals(): void {
     assert_eq(dyn_type_diagnostic_count("fun show(value: &dyn Read + Write): void { }"), 1, "a second principal is invalid trailing syntax")
+}
+
+fun first_param_type(src: str): TypeRef {
+    var p = parser_for(src)
+    val td = p.parse_top_decl()
+    when (td.kind) {
+        Function(params, _, _, _, _, _, _) => return unsafe { *params.at(0).ty }
+        _ => return type_ref_poison(no_span())
+    }
+}
+
+@test fun a_function_type_names_its_parameters(): void {
+    val ty = first_param_type("fun f(g: (int32, str) -> bool): void { }")
+    val count = when (ty.kind) {
+        Function(params, _) => params.size()
+        _ => 99
+    }
+    assert_eq(count, 2, "two parameter types before the arrow")
+}
+
+@test fun a_parenthesized_type_is_the_type(): void {
+    val ty = first_param_type("fun f(g: (int32)): void { }")
+    val grouped = when (ty.kind) {
+        Named(name, _) => name.as_str() == "int32"
+        _ => false
+    }
+    assert_eq(grouped, true, "`(T)` with no arrow groups `T`")
+}
+
+@test fun a_function_type_needs_its_arrow(): void {
+    var p = parser_for("fun f(g: (int32, bool)): void { }")
+    val _td = p.parse_top_decl()
+    assert_eq(p.diags.size() > 0, true, "two types in parentheses without `->` are an error")
 }

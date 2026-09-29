@@ -85,6 +85,11 @@ pub enum ExprKind {
     Call(Sym, List<Expr>)
     /// `receiver.method(args)`.
     MethodCall(Box<Expr>, Sym, List<Expr>)
+    /// A function named as a value. The name is the one a `Call` of it
+    /// carries, and `mangled_callee` pins it the same way.
+    FnRef(Sym)
+    /// A call through a function value: the value, then the arguments.
+    CallValue(Box<Expr>, List<Expr>)
     /// `receiver.field`. Fields are not in the decl table.
     FieldAccess(Box<Expr>, Sym)
     /// `if cond { then } else { otherwise }`; `else` is mandatory.

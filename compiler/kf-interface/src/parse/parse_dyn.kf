@@ -216,19 +216,15 @@ fun dyn_pointer_type(inner: Type, boxed: bool): Type {
 }
 
 fun dyn_function_type(params: &List<TypeRef>, ret: TypeRef): Type {
-    val values: Ptr<TypeList> = unsafe { alloc<TypeList>() }
-    unsafe { *values = new_type_vec() }
+    var values = new_type_vec()
     while param in &params {
         val parameter = dyn_type_from_ref(param)
         if parameter.is_poison() { return poison_ty() }
-        unsafe { values.push(parameter) }
+        values.push(parameter)
     }
-    val result: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *result = dyn_type_from_ref(ret) }
-    if unsafe { result.is_poison() } { return poison_ty() }
-    val signature: Ptr<FnSig> = unsafe { alloc<FnSig>() }
-    unsafe { *signature = FnSig { params: values, ret: result } }
-    return Type { kind: TypeKind.FnTy(signature), provenance: Provenance.Inferred(no_span()) }
+    val result = dyn_type_from_ref(ret)
+    if result.is_poison() { return poison_ty() }
+    return fn_ty(values, result, Provenance.Inferred(no_span()))
 }
 
 pub fun attach_imported_dyn_metadata(modules: &var List<Module>, layouts: &List<DynTraitLayout>, tables: &List<DynVTableInstance>, crate: CrateId): void {

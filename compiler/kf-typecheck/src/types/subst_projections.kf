@@ -172,6 +172,7 @@ fun subst_proj_expr_ptr_opt(p_opt: Ptr<Expr>?, self_name: str, trait_name: str, 
         Retain(ip) => subst_proj_expr_ptr_opt(ip, self_name, trait_name, trait_args, sigs)
         FieldAccess(rp, _f) => subst_proj_expr_ptr_opt(rp, self_name, trait_name, trait_args, sigs)
         Call(_n, args) => subst_proj_expr_list(args, self_name, trait_name, trait_args, sigs)
+        CallValue(_callee, args) => subst_proj_expr_list(args, self_name, trait_name, trait_args, sigs)
         MethodCall(rp, _mn, args) => {
             subst_proj_expr_ptr_opt(rp, self_name, trait_name, trait_args, sigs)
             subst_proj_expr_list(args, self_name, trait_name, trait_args, sigs)

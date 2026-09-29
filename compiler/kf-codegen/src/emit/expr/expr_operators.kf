@@ -137,6 +137,18 @@ fun emit_call(name: String, mangled: String, args: List<Expr>, is_intrinsic: boo
     return concat_all(parts)
 }
 
+/// `(callee)(args)`: through a function pointer.
+fun emit_call_value(callee_p: Ptr<Expr>, args: List<Expr>): String {
+    var parts = List.new<String>()
+    parts.push("(${emit_expr(*callee_p)})(")
+    while i in 0..args.size() {
+        if i > 0 { parts.push(String.from(", ")) }
+        parts.push(emit_value_expr(*args.at(i)))
+    }
+    parts.push(String.from(")"))
+    return concat_all(parts)
+}
+
 fun emit_runtime_cstr_call(name: String, args: List<Expr>): String {
     var parts = List.new<String>()
     parts.push(name)

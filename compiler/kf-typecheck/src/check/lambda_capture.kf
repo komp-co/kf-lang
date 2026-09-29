@@ -185,14 +185,7 @@ fun Type.capture_type_cannot_escape(): bool {
 fun gather_free_names(p_opt: Ptr<Expr>?, params: &List<Param>, ctx: &var TypeCtx, found: &var List<LambdaCapture>, locals: &var List<String>): void {
     val p = p_opt ?: return
     when (unsafe { p.kind }) {
-        Variable(nm) => {
-            val name = nm.as_string()
-            if param_named(params, name.as_str()) { return }
-            if name_in_list(locals, name.as_str()) { return }
-            if !ctx.is_declared(name.as_str()) { return }
-            if capture_index(found, name.as_str()) < found.size() { return }
-            found.push(LambdaCapture { name: name, mode: CaptureMode.Shared })
-        }
+        Variable(nm) => note_free_name(nm, params, ctx, found, locals)
         Binary(lp, _op, rp) => {
             gather_free_names(lp, params, ctx, found, locals)
             gather_free_names(rp, params, ctx, found, locals)
@@ -203,7 +196,15 @@ fun gather_free_names(p_opt: Ptr<Expr>?, params: &List<Param>, ctx: &var TypeCtx
             gather_free_names(recv_ptr, params, ctx, found, locals)
             gather_free_names_list(&args, params, ctx, found, locals)
         }
-        Call(_nm, args) => gather_free_names_list(&args, params, ctx, found, locals)
+        // Unchecked yet: a call through a local function value still names it.
+        Call(nm, args) => {
+            if nm.local_is_function_value(ctx) { note_free_name(nm, params, ctx, found, locals) }
+            gather_free_names_list(&args, params, ctx, found, locals)
+        }
+        CallValue(callee, args) => {
+            gather_free_names(callee, params, ctx, found, locals)
+            gather_free_names_list(&args, params, ctx, found, locals)
+        }
         FieldAccess(obj_ptr, _f) => gather_free_names(obj_ptr, params, ctx, found, locals)
         IfExpr(c_ptr, t_ptr, e_ptr) => {
             gather_free_names(c_ptr, params, ctx, found, locals)
@@ -256,6 +257,10 @@ fun classify_capture_expr(p_opt: Ptr<Expr>?, consumed: bool, captures: &var List
             classify_capture_args(&args, captures, ctx)
         }
         Call(_nm, args) => classify_capture_args(&args, captures, ctx)
+        CallValue(callee, args) => {
+            classify_capture_expr(callee, false, captures, ctx)
+            classify_capture_args(&args, captures, ctx)
+        }
         FieldAccess(obj_ptr, _f) => classify_capture_expr(obj_ptr, consumed, captures, ctx)
         IfExpr(c_ptr, t_ptr, e_ptr) => {
             classify_capture_expr(c_ptr, false, captures, ctx)
@@ -412,7 +417,18 @@ fun rewrite_captures_to_fields(p_opt: Ptr<Expr>?, captures: &List<LambdaCapture>
             rewrite_captures_to_fields(recv_ptr, captures, span, locals)
             rewrite_captures_list(&args, captures, span, locals)
         }
-        Call(_nm, args) => rewrite_captures_list(&args, captures, span, locals)
+        Call(nm, args) => {
+            rewrite_captures_list(&args, captures, span, locals)
+            if name_in_list(locals, nm.as_str()) || capture_index(captures, nm.as_str()) >= captures.size() { return }
+            // A captured function value is called through its field.
+            val callee = Box.new(new_expr(span, ExprKind.Variable(nm)))
+            rewrite_captures_to_fields(callee, captures, span, locals)
+            unsafe { p.kind = ExprKind.CallValue(callee, args) }
+        }
+        CallValue(callee, args) => {
+            rewrite_captures_to_fields(callee, captures, span, locals)
+            rewrite_captures_list(&args, captures, span, locals)
+        }
         FieldAccess(obj_ptr, _f) => rewrite_captures_to_fields(obj_ptr, captures, span, locals)
         IfExpr(c_ptr, t_ptr, e_ptr) => {
             rewrite_captures_to_fields(c_ptr, captures, span, locals)

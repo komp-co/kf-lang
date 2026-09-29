@@ -79,15 +79,17 @@ fun TypeRef.arg_meets_bounds(
     if tp.bounds.size() == 0 { return true }
 
     // No `impl Trait for` a borrow, function type or array can be written, so
-    // the answer is a decided no, except that a shared borrow is `Copy`.
+    // the answer is a decided no, except that a shared borrow and a function
+    // type are `Copy`.
     when (self.kind) {
         Reference(mutable, _pointee) => return !mutable && tp.bounded_by_copy_alone(copy_name)
-        Function(_params, _ret) => { return false }
+        Function(_params, _ret) => return tp.bounded_by_copy_alone(copy_name)
         Array(_elem, _n) => { return false }
         _ => { }
     }
 
     val base = self.tyref_base_name()
+    if fn_frag_parts(base.as_str()) != null { return tp.bounded_by_copy_alone(copy_name) }
     // A projection or poison is undecidable here; typecheck judges it.
     if base.as_str().equals("") { return true }
     while b in &tp.bounds {

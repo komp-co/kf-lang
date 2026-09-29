@@ -6,7 +6,14 @@ pub mutating fun Expr.move_check_expr_value(ctx: &var MoveCtx): void {
             val heap = self.ty.is_heap_ty()
             if heap { self.consume_var_node(name, ctx) }
         }
+        FnRef(_) => { }
         Call(_, args) => {
+            move_check_args_borrow(&var args, ctx)
+            val callee = self.mangled_callee.as_string()
+            check_consumed_args_for(args, callee, ctx)
+            move_check_args_consume(args, callee, ctx)
+        }
+        CallValue(_callee, args) => {
             move_check_args_borrow(&var args, ctx)
             val callee = self.mangled_callee.as_string()
             check_consumed_args_for(args, callee, ctx)
@@ -81,7 +88,14 @@ pub mutating fun Expr.move_check_expr_borrow(ctx: &var MoveCtx): void {
                 }
             }
         }
+        FnRef(_) => { }
         Call(_, args) => {
+            move_check_args_borrow(&var args, ctx)
+            val callee_b1 = self.mangled_callee.as_string()
+            check_consumed_args_for(args, callee_b1, ctx)
+            move_check_args_consume(args, callee_b1, ctx)
+        }
+        CallValue(_callee, args) => {
             move_check_args_borrow(&var args, ctx)
             val callee_b1 = self.mangled_callee.as_string()
             check_consumed_args_for(args, callee_b1, ctx)

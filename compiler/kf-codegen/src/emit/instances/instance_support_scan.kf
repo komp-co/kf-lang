@@ -173,6 +173,11 @@ fun Expr.scan_expr(callees: &var NameSet, type_refs: &var NameSet): void {
             scan_expr(unsafe { &*recv }, callees, type_refs)
             scan_expr_list(args, callees, type_refs)
         }
+        FnRef(name) => callees.add(name.as_string())
+        CallValue(callee, args) => {
+            scan_expr(&*callee, callees, type_refs)
+            scan_expr_list(args, callees, type_refs)
+        }
         FieldAccess(obj, _f) => scan_expr(unsafe { &*obj }, callees, type_refs)
         IfExpr(c, t, el) => {
             scan_expr(unsafe { &*c }, callees, type_refs)

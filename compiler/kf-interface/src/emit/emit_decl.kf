@@ -236,7 +236,16 @@ pub fun TypeRef.tyref_to_source(): String {
             out.append(inner_tr.tyref_to_source().as_str())
             return out
         }
-        Function(_p, _r) => return String.from("poison")
+        Function(params, ret) => {
+            var out = String.from("(")
+            while i in 0..params.size() {
+                if i > 0 { out.append(", ") }
+                out.append(params.at(i).tyref_to_source().as_str())
+            }
+            out.append(") -> ")
+            out.append(ret.tyref_to_source().as_str())
+            return out
+        }
         Array(_e, _n) => return String.from("poison")
         Projection(owner, member) => {
             val owner_tr: TypeRef = unsafe { *owner }

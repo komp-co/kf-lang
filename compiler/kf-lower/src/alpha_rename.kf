@@ -104,6 +104,10 @@ fun rename_expr_ptr(p_opt: Ptr<Expr>?, ctx: &var RnCtx): void {
             rename_expr_list(&args, ctx)
         }
         Call(_nm, args) => rename_expr_list(&args, ctx)
+        CallValue(callee, args) => {
+            rename_expr_ptr(callee, ctx)
+            rename_expr_list(&args, ctx)
+        }
         FieldAccess(obj_ptr, _f) => rename_expr_ptr(obj_ptr, ctx)
         IfExpr(c_ptr, t_ptr, e_ptr) => {
             rename_expr_ptr(c_ptr, ctx)
@@ -124,6 +128,7 @@ fun rename_expr_ptr(p_opt: Ptr<Expr>?, ctx: &var RnCtx): void {
         LitStr(_) => return
         LitFloat(_) => return
         LitChar(_) => return
+        FnRef(_) => return
         LitBool(_) => return
         Release(_) => return
         Lambda(_, _) => return

@@ -99,6 +99,18 @@ fun qualify_expr_ptr(ep: Ptr<Expr>, names: &var List<String>, repls: &var List<T
         }
         Unary(_o, ip) => qualify_expr_ptr(ip, names, repls, rename_types)
         Deref(ip) => qualify_expr_ptr(ip, names, repls, rename_types)
+        FnRef(n) => {
+            if rename_types { return }
+            val lookup_name = if e.mangled_callee.as_str() == "" { n.as_string() } else { e.mangled_callee.as_string() }
+            val hit = rename_lookup(lookup_name.as_str(), names, repls)
+            if hit.as_str().byte_len() > 0 {
+                unsafe { ep.mangled_callee = intern_string(hit) }
+            }
+        }
+        CallValue(callee, args) => {
+            qualify_expr_ptr(callee, names, repls, rename_types)
+            qualify_expr_args(args, names, repls, rename_types)
+        }
         Call(_n, args) => {
             qualify_expr_args(args, names, repls, rename_types)
             if rename_types {

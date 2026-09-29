@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/komp-co/kf-extensions/main/brand/kiwi.svg" width="96" alt="The KFlat paper kiwi">
+
 # KFlat
 
 A systems programming language that compiles to C, and `komp`, its
@@ -44,8 +46,8 @@ komp test hello       # run its @test functions
 ```
 
 `komp build` writes per-crate artifacts and links them; `--unity` builds
-through a single C file instead. `komp fix` applies the repairs the checker
-suggests. Every command takes a project directory — one containing a
+through a single C file instead. `komp check --fix` applies the repairs the
+checker suggests. Every command takes a project directory — one containing a
 `kf.toml` — or `--manifest-path`.
 
 ## Repository layout

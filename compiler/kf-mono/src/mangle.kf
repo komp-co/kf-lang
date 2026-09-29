@@ -96,7 +96,14 @@ pub fun ty_to_mangle(t: Type): String {
             val inner_name = ty_to_mangle(inner)
             return borrow_frag(is_mut, inner_name.as_str())
         }
-        FnTy(_) => return String.from("fn")
+        FnTy(_) => {
+            val parts = t.fn_parts() ?: return String.from("poison")
+            var params = List.new<String>()
+            while param in &parts.params {
+                params.push(ty_to_mangle(param))
+            }
+            return fn_frag(&params, ty_to_mangle(parts.ret).as_str())
+        }
         // Still unresolved; keeping owner and member apart lets substitution
         // finish it later.
         Projection(owner, member) => {

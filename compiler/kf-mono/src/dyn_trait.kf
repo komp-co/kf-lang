@@ -232,6 +232,10 @@ fun Expr.assert_dyn_expr_concrete(): void {
         Unary(_, inner) => assert_dyn_expr_concrete(unsafe { &*inner })
         Deref(inner) => assert_dyn_expr_concrete(unsafe { &*inner })
         Call(_, args) => { var i: uint64 = 0; while i < args.size() { assert_dyn_expr_concrete(args.at(i)); i = i + 1 } }
+        CallValue(callee, args) => {
+            assert_dyn_expr_concrete(&*callee)
+            while arg in &args { assert_dyn_expr_concrete(arg) }
+        }
         FieldAccess(inner, _) => assert_dyn_expr_concrete(unsafe { &*inner })
         IfExpr(condition, then_value, else_value) => { assert_dyn_expr_concrete(unsafe { &*condition }); assert_dyn_expr_concrete(unsafe { &*then_value }); assert_dyn_expr_concrete(unsafe { &*else_value }) }
         StructLit(_, fields) => {

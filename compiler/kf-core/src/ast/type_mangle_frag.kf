@@ -41,7 +41,14 @@ impl Type {
                 // Reserved-prefixed and carrying mutability; see c_names.kf.
                 return wrapped_type_frag(borrow_frag_marker(is_mut), p)
             }
-            FnTy(_) => return String.from("fn")
+            FnTy(_) => {
+                val parts = self.fn_parts() ?: return String.from("poison")
+                var params = List.new<String>()
+                while param in &parts.params {
+                    params.push(param.mangle_frag())
+                }
+                return fn_frag(&params, parts.ret.mangle_frag().as_str())
+            }
             // Kept, not poisoned, so `F` stays a segment substitution can reach.
             Projection(owner, member) => {
                 val inner = unsafe { *owner }.mangle_frag()

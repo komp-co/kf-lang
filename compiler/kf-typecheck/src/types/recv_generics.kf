@@ -15,6 +15,13 @@ pub struct RecvBinding {
     pub val types: List<Type>
 }
 
+/// A function type is found among those met; its fragment does not decode.
+fun recv_arg_from_frag(frag: String, span: Span, ctx: &var TypeCtx): Type {
+    val function = ctx.fn_type_for(frag.as_str())
+    if function != null { return function!! }
+    return ty_from_mangle_frag(frag, span, ctx.string_name())
+}
+
 /// Empty for a non-instance, making every substitution the identity.
 pub fun recv_type_bindings(sname: String, span: Span, ctx: &var TypeCtx): RecvBinding {
     var names = List.new<String>()
@@ -56,14 +63,14 @@ pub fun recv_type_bindings(sname: String, span: Span, ctx: &var TypeCtx): RecvBi
                         if gi.type_params.size() == 1 {
                             // One parameter takes the whole suffix.
                             names.push(*gi.type_params.at(0))
-                            types.push(ty_from_mangle_frag(suffix, span, ctx.string_name()))
+                            types.push(recv_arg_from_frag(suffix, span, ctx))
                         } else {
                             // Otherwise split by segment, only when the counts agree.
                             val segs = mangle_segments(suffix.as_str())
                             if segs.size() == gi.type_params.size() {
                                 while s in 0..segs.size() {
                                     names.push(*gi.type_params.at(s))
-                                    types.push(ty_from_mangle_frag(*segs.at(s), span, ctx.string_name()))
+                                    types.push(recv_arg_from_frag(*segs.at(s), span, ctx))
                                 }
                             }
                         }

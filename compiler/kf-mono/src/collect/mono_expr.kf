@@ -68,6 +68,13 @@ pub fun mono_expr_in(e: &var Expr, owner: str): void {
                 e.mangled_callee = intern(name_sym.as_str())
             }
         }
+        FnRef(name_sym) => {
+            if e.mangled_callee.as_str() == "" { e.mangled_callee = name_sym }
+        }
+        CallValue(callee_ptr, args) => {
+            mono_expr_in(&var *callee_ptr, owner)
+            mono_args(args, owner)
+        }
         MethodCall(recv_ptr, method_sym, args) => {
             val method = method_sym.as_str()
             mono_expr_in(unsafe { &var *recv_ptr }, owner)

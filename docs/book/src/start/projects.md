@@ -11,7 +11,7 @@ $ komp new my-project
 $ ls my-project
 kf.toml  src/
 
-$ komp init   # in an existing directory — scaffolds it in place
+$ komp new    # in an existing directory — scaffolds it in place
 ```
 
 Both write the same two files:
@@ -287,16 +287,16 @@ stops instead:
 
 ```console
 $ komp build --offline
-error: kf.toml pins kflat 0.6: this komp is 0.5.3 and no installed toolchain fits; --offline installs none
+error: kf.toml pins kflat 0.7: this komp is 0.6.0 and no installed toolchain fits; --offline installs none
 ```
 
-komp drives kflatc 0.5.3 and newer, the releases whose command line matches
+komp drives kflatc 0.6.0 and newer, the releases whose command line matches
 its own. A requirement that allows none of them stops the build, whatever is
 installed:
 
 ```console
 $ komp build
-error: kf.toml pins kflat 0.4, older than the oldest kflatc this komp drives (0.5.3); pin a newer release, or build with a komp from that one
+error: kf.toml pins kflat 0.5, older than the oldest kflatc this komp drives (0.6.0); pin a newer release, or build with a komp from that one
 ```
 
 A `KFLATC` older than that is refused the same way, by name.
@@ -317,7 +317,7 @@ komp_doc = { version = "0.3", index = "work" }
 
 Inside the project, `komp fmt` runs the highest version of `komp_fmt` that
 `"0.1"` allows among those installed, and installs one the first time none
-does; elsewhere it runs the default [`komp install`](../tools/cli.md#komp-install)
+does; elsewhere it runs the default [`komp tool install`](../tools/cli.md#komp-tool)
 made. Versions sit side by side in `~/.kflat/tools`, each built once, so a
 project on 0.1 and a default of 0.2 each run their own. In a workspace,
 `[tools]` goes in the root `kf.toml` and pins every member.

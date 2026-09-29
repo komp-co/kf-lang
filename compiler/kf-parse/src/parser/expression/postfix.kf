@@ -58,7 +58,13 @@ fun TypeRef.tyref_mangle_frag(): String {
         Reference(is_mut, inner_ptr) => {
             return borrow_frag(is_mut, (unsafe { &*inner_ptr }).tyref_mangle_frag().as_str())
         }
-        Function(_p, _r) => return String.from("fn")
+        Function(params, ret) => {
+            var frags = List.new<String>()
+            while param in &params {
+                frags.push(param.tyref_mangle_frag())
+            }
+            return fn_frag(&frags, ret.tyref_mangle_frag().as_str())
+        }
         Array(_e, _n) => return String.from("array")
         Projection(owner, member) => {
             val inner = (unsafe { &*owner }).tyref_mangle_frag()
@@ -316,6 +322,12 @@ impl Parser {
                 val cur_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
                 unsafe { *cur_ptr = take<Expr>(current) }
                 current = new_expr(cur_span.merge(bang_span), ExprKind.MethodCall(cur_ptr, intern("unwrap"), List.new<Expr>()))
+            } else if is_op(self.peek(), Operator.LParen) {
+                // `pick(true)(5)`, `(h.on)(8)`: a call through the value.
+                val cur_span = current.span
+                val callee = Box.new(take<Expr>(current))
+                val call_args = self.parse_arg_list()
+                current = new_expr(self.span_through_last(cur_span), ExprKind.CallValue(callee, call_args))
             } else if is_op(self.peek(), Operator.LBracket) {
                 current = self.parse_index(take<Expr>(current))
             } else if is_keyword(self.peek(), Keyword.As) {

@@ -36,6 +36,18 @@ pub fun Type.type_to_type_ref(span: Span): TypeRef {
             unsafe { *inner_ptr = within }
             return new_type_ref(span, TypeRefKind.Reference(mutable, inner_ptr))
         }
+        FnTy(_) => {
+            val parts = self.fn_parts() ?: return poison_ref(span)
+            var params = List.new<TypeRef>()
+            while param in &parts.params {
+                val written = param.type_to_type_ref(span)
+                if written.type_ref_is_poison() { return poison_ref(span) }
+                params.push(written)
+            }
+            val ret = Box.new(parts.ret.type_to_type_ref(span))
+            if ret.type_ref_is_poison() { return poison_ref(span) }
+            return new_type_ref(span, TypeRefKind.Function(params, ret))
+        }
         _ => return poison_ref(span)
     }
 }

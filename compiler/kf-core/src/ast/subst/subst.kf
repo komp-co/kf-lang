@@ -157,6 +157,14 @@ pub fun Type.subst_type(names: &var List<String>, repls: &var List<TypeRef>): Ty
             unsafe { *np = inner }
             return Type { kind: TypeKind.RefTo(m, np), provenance: self.provenance }
         }
+        FnTy(_) => {
+            val parts = self.fn_parts() ?: return poison_ty()
+            var params = new_type_vec()
+            while param in &parts.params {
+                params.push(param.subst_type(names, repls))
+            }
+            return fn_ty(params, parts.ret.subst_type(names, repls), self.provenance)
+        }
         // Only the owner is substituted; the impl chooses the member.
         Projection(owner, member) => {
             val inner = subst_type(unsafe { &*owner }, names, repls)
@@ -220,6 +228,14 @@ fun TypeRef.tref_to_type_shallow(): Type {
             val np: Ptr<Type> = unsafe { alloc<Type>() }
             unsafe { *np = it }
             return Type { kind: TypeKind.RefTo(is_mut, np), provenance: Provenance.Inferred(no_span()) }
+        }
+        Function(params, ret) => {
+            var values = new_type_vec()
+            while param in &params {
+                values.push(param.tref_to_type_shallow())
+            }
+            val result = tref_to_type_shallow(&*ret)
+            return fn_ty(values, result, Provenance.Inferred(no_span()))
         }
         _ => return poison_ty()
     }

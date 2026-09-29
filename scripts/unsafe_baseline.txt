@@ -23,7 +23,7 @@
 14 compiler/kf-codegen/src/emit/stmt/emit_stmt.kf
 1 compiler/kf-codegen/src/emit/stmt/switch_guard.kf
 3 compiler/kf-codegen/src/emit/symbols/qualify.kf
-19 compiler/kf-codegen/src/emit/symbols/qualify_body.kf
+20 compiler/kf-codegen/src/emit/symbols/qualify_body.kf
 14 compiler/kf-codegen/src/emit/symbols/qualify_helpers.kf
 6 compiler/kf-codegen/src/emit/types.kf
 4 compiler/kf-codegen/src/emit/unit/header.kf
@@ -32,7 +32,7 @@
 9 compiler/kf-core/src/ast/subst/expr_subst.kf
 23 compiler/kf-core/src/ast/subst/subst.kf
 23 compiler/kf-core/src/ast/subst/type_ref_subst.kf
-14 compiler/kf-core/src/ast/ty.kf
+17 compiler/kf-core/src/ast/ty.kf
 3 compiler/kf-core/src/ast/type_mangle_frag.kf
 3 compiler/kf-core/src/diagnostic/renderer.kf
 2 compiler/kf-driver/src/build/crate_sources.kf
@@ -63,7 +63,7 @@
 1 compiler/kf-interface/src/emit/emit_generics.kf
 2 compiler/kf-interface/src/glue_set.kf
 5 compiler/kf-interface/src/parse/parse.kf
-15 compiler/kf-interface/src/parse/parse_dyn.kf
+7 compiler/kf-interface/src/parse/parse_dyn.kf
 1 compiler/kf-interface/src/parse/parse_support.kf
 42 compiler/kf-interface/src/reference_walk.kf
 13 compiler/kf-lower/src/alpha_rename.kf
@@ -110,7 +110,7 @@
 2 compiler/kf-mono/src/materialize/materialize_normalize.kf
 33 compiler/kf-parse/src/lexer/lexer.kf
 3 compiler/kf-parse/src/lexer/multiline_interp.kf
-51 compiler/kf-parse/src/lexer/operator.kf
+53 compiler/kf-parse/src/lexer/operator.kf
 20 compiler/kf-parse/src/parser/expression/expression.kf
 5 compiler/kf-parse/src/parser/expression/index.kf
 46 compiler/kf-parse/src/parser/expression/postfix.kf
@@ -126,7 +126,7 @@
 34 compiler/kf-parse/src/parser/top_decl/impl.kf
 18 compiler/kf-parse/src/parser/top_decl/top_decl.kf
 48 compiler/kf-parse/src/parser/top_decl/types.kf
-31 compiler/kf-parse/src/parser/type_ref.kf
+38 compiler/kf-parse/src/parser/type_ref.kf
 6 compiler/kf-resolve/src/import_validation.kf
 1 compiler/kf-resolve/src/resolve_body.kf
 1 compiler/kf-resolve/src/resolver.kf
@@ -172,17 +172,18 @@
 1 compiler/kf-typecheck/src/check/decl/lang_check.kf
 4 compiler/kf-typecheck/src/check/decl/no_mangle_check.kf
 23 compiler/kf-typecheck/src/check/decl/rewrite_option.kf
-3 compiler/kf-typecheck/src/check/decl/unused_import.kf
-3 compiler/kf-typecheck/src/check/decl/wildcard_import.kf
+2 compiler/kf-typecheck/src/check/decl/unused_import.kf
+2 compiler/kf-typecheck/src/check/decl/wildcard_import.kf
 8 compiler/kf-typecheck/src/check/extension_bounds.kf
 14 compiler/kf-typecheck/src/check/extension_call.kf
 25 compiler/kf-typecheck/src/check/foreach.kf
 20 compiler/kf-typecheck/src/check/foreach_counted.kf
 18 compiler/kf-typecheck/src/check/foreach_ref.kf
+1 compiler/kf-typecheck/src/check/function_value.kf
 2 compiler/kf-typecheck/src/check/instance_bounds.kf
 3 compiler/kf-typecheck/src/check/integer_literal.kf
 5 compiler/kf-typecheck/src/check/lambda_bound_mismatch.kf
-20 compiler/kf-typecheck/src/check/lambda_capture.kf
+21 compiler/kf-typecheck/src/check/lambda_capture.kf
 8 compiler/kf-typecheck/src/check/lambda_expect.kf
 5 compiler/kf-typecheck/src/check/lang_placeholder.kf
 1 compiler/kf-typecheck/src/check/method_generics.kf
@@ -199,6 +200,7 @@
 5 compiler/kf-typecheck/src/check/written_type_ref.kf
 6 compiler/kf-typecheck/src/context.kf
 2 compiler/kf-typecheck/src/lib.kf
+2 compiler/kf-typecheck/src/sig_fn_types.kf
 23 compiler/kf-typecheck/src/sig_table_imports.kf
 7 compiler/kf-typecheck/src/traits/copy_obligation.kf
 19 compiler/kf-typecheck/src/traits/dyn_coerce.kf
