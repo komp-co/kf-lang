@@ -23,12 +23,13 @@ points, and then compiles and links the C with cc.
 | `komp uninstall <name>[@<version>]` | Remove an installed program, or one version of it |
 | `komp search [<query>]` | List the packages an index offers, with their newest versions |
 | `komp info <name>` | List every version of a package in an index |
+| `komp outdated [<dir>]` | Compare a project's index packages and tools with their newest versions |
 | `komp cache list \| remove \| clean \| verify` | Look after the sources komp has downloaded |
 | `komp <command>` | Run the installed `komp-<command>` |
 | `komp self update [<version>]` | Install the newest komp release, or the one named |
 | `komp self list`, `komp self uninstall <version>` | List installed toolchains, or remove one |
 | `komp metadata <dir>` | Print the resolved crate graph as JSON, for tools |
-| `komp publish <dir>` | Add a library's version to a package index by pull request |
+| `komp publish <dir>` | Add a package's version to a package index by pull request |
 | `komp new <name>` | Scaffold a new project directory |
 | `komp init` | Scaffold a project in the current directory |
 | `komp version` | Print compiler version |
@@ -111,9 +112,10 @@ inside the crate, runs them, and reports failures. See
 
 ### komp publish
 
-`komp publish <project-dir>` adds a library's version to a package index,
+`komp publish <project-dir>` adds a package's version to a package index,
 [komp-co/index](https://github.com/komp-co/index) unless `--index <url>` or
-`$KFLAT_INDEX` names another:
+`$KFLAT_INDEX` names another. The package is a library that `[dependencies]`
+can name, or a program that [`komp install`](#komp-install) installs:
 
 ```console
 $ git tag v0.2.0 && git push origin v0.2.0
@@ -126,10 +128,10 @@ opened   https://github.com/komp-co/index/pull/12
 The version is `kf.toml`'s, and the commit is the one its `vX.Y.Z` tag names.
 `kf.toml`'s `description`, when it has one, becomes the package's description
 in the index, replacing the one an earlier version gave.
-komp refuses, and says what to do, when the crate is a `bin`, its name is not
-lowercase `snake_case`, the working tree has uncommitted changes, the tag is
-missing, names another commit or is not pushed, the crate does not pass
-`komp check`, or the index already has that version.
+komp refuses, and says what to do, when its name is not lowercase
+`snake_case`, the working tree has uncommitted changes, the tag is missing,
+names another commit or is not pushed, the crate does not pass `komp check`,
+or the index already has that version.
 
 The entry is committed on a branch `publish/<name>-<version>` in a clone
 under komp's cache. Opening the pull request uses the
@@ -312,6 +314,28 @@ JSON reading and writing
 A package's description is the one `komp publish` took from its `kf.toml`;
 a package published without one shows none.
 
+### komp outdated
+
+`komp outdated [<project-dir>]` lists every dependency the project takes
+from a package index, and every program its [`[tools]`](../start/projects.md#pinning-tools)
+table pins. Each row shows its requirement, the version `kf.lock` holds, the
+newest version the requirement allows, and the newest version the index has
+that is not yanked. A dependency by path, git or tarball has no index to ask,
+so it is not listed. A tool is never locked.
+
+```console
+$ komp outdated
+dependencies
+  json  0.1        locked 0.1.0     allowed 0.1.0     newest 0.2.0
+tools
+  komp_fmt  0.1        locked -         allowed 0.1.0     newest 0.1.0
+```
+
+Here `json = "0.1"` holds the project to 0.1.x while 0.2.0 exists; changing
+the requirement to `"0.2"` and running `komp update` moves to it. Each index
+is brought up to date once per run; `--offline` reads each as the cache has
+it, and a package whose index was never fetched reports that on its row.
+
 ### komp cache
 
 Fetched sources live in komp's cache, `$KFLAT_CACHE` or else
@@ -349,6 +373,8 @@ line, for editors and scripts; a failure prints `{"error": "..."}` and exits
 |---|---|
 | `komp search` | `{"index", "packages": [{"name", "newest", "description"}]}` |
 | `komp info <name>` | `{"index", "name", "description", "newest", "versions": [{"version", "yanked"}]}` |
+| `komp outdated` | `{"project", "dependencies": [{"name", "requirement", "index", "locked", "allowed", "newest", "error"}], "tools"}`, each tool a row of the same shape |
+| `komp lint --list` | `{"groups", "lints": [{"name", "group", "level", "default", "description", "options": [{"key", "value", "default", "description"}]}]}` |
 | `komp install` | `{"programs": [{"name", "default", "binary", "requirement", "versions"}]}`; `default`, `binary` and `requirement` are `null` for a version stored only for a project's pin |
 | `komp cache list` | `{"cache", "sources": [{"name", "version", "kind", "key", "root"}], "indexes"}` |
 | `komp cache verify` | `{"sources": [{"name", "version", "kind", "key", "state"}], "checked", "damaged"}`, each state `ok`, `damaged` or `recorded` |
@@ -448,7 +474,8 @@ what they do to `compile`. The crates' own C sources are left out; komp
 appends them.
 
 `kflatc lints` prints every lint at the level the lint flags on its command
-line give it, as `komp lint --list` shows.
+line give it, as `komp lint --list` shows; `--json` prints the same as one
+JSON object.
 
 `kflatc version` prints what komp needs to know about the compiler it runs, one
 `key value` line each after the first: its interface `abi`, `runtime` and
