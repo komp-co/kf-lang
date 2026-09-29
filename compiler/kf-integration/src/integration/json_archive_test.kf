@@ -1,5 +1,6 @@
-// Separate compilation of the real json project at `../json`, copied into
-// scratch so the source-unavailable checks never touch it.
+// Separate compilation of the real json project, as compiler/kf.lock pins it
+// in komp's cache, copied into scratch so the source-unavailable checks never
+// touch it.
 
 import core.assert.assert_eq
 
@@ -7,18 +8,34 @@ import kf_codegen.*
 import kf_driver.*
 import kf_tool.build.build_project_separate
 import kf_tool.build.check_project_with_kflatc
+import kf_tool.fetch.cache_root
+import kf_tool.fetch.cached_root
+import kf_tool.fetch.parse_lockfile
 import kf_integration.harness.compile_project_separate
 import kf_integration.harness.copy_tree_by_content
+import std.fs.read_to_string
 import std.fs.scratch_path
 
 extern "C" fun system(cmd: str): int32
 extern "C" fun access(path: str, mode: int32): int32
 
+/// Where the compiler's own json dependency was fetched to.
+fun locked_json_root(): String {
+    var lock = String.from("")
+    when (read_to_string("compiler/kf.lock")) {
+        Ok(text) => lock = text
+        Err(_error) => return lock
+    }
+    while entry in &parse_lockfile(lock.as_str()) {
+        if entry.name.as_str() == "json" { return entry.cached_root(cache_root().as_str()) }
+    }
+    return String.from("")
+}
+
 fun prepare_real_json_app(): int32 {
     val prep = unsafe { system("rm -rf ${scratch_path("kf_sc4_json_dep")} ${scratch_path("kf_sc4_json_app")} ${scratch_path("kf_sc4_libs")} && mkdir -p ${scratch_path("kf_sc4_json_app/src")} ${scratch_path("kf_sc4_libs")} && cp -R libs/core ${scratch_path("kf_sc4_libs/core")} && cp -R libs/alloc ${scratch_path("kf_sc4_libs/alloc")}") }
     if prep != 0 { return prep }
-    // By content: `../json` may be a symlink, which `cp -R` would recreate.
-    val copied = copy_tree_by_content("../json", scratch_path("kf_sc4_json_dep"))
+    val copied = copy_tree_by_content(locked_json_root().as_str(), scratch_path("kf_sc4_json_dep"))
     if copied != 0 { return copied }
     write_file(scratch_path("kf_sc4_json_dep/kf.toml"), """[project]
 name = "json"

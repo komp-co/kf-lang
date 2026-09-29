@@ -20,4 +20,4 @@ kf_lint = { path = "../kf-lint" }
 core = { path = "../../libs/core" }
 alloc = { path = "../../libs/alloc" }
 std = { path = "../../libs/std" }
-json = { path = "../../../json" }
+json = "0.2"

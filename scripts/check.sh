@@ -102,18 +102,12 @@ if [ "${1:-}" = "--isolated" ]; then
     # commit.
     ( git ls-files --others --exclude-standard -z | xargs -0 -r tar -cf - ) \
         | ( cd "$iso/komp" && tar -xf - ) 2>/dev/null || true
-    # The tool and compiler crates depend on the sibling, and it is swept too.
-    if [ -d "$ROOT/../json" ]; then
-        cp -r "$ROOT/../json" "$iso/json"
-        rm -rf "$iso/json/target"
-    fi
     rc=0
     sh "$iso/komp/scripts/check.sh" "$@" || rc=$?
     exit "$rc"
 fi
 
-# Every crate, unless the caller names a subset. `../json` is a sibling
-# checkout but a first-party crate: the tool and compiler crates depend on it.
+# Every crate, unless the caller names a subset.
 #
 # `CRATES` lets CI shard the sweep. `CHECK_CLI=0` skips the CLI gates, which
 # belong to one shard.
@@ -121,7 +115,7 @@ CRATES="${CRATES:-compiler/kf-core compiler/kf-parse compiler/kf-assemble
         compiler/kf-resolve compiler/kf-typecheck compiler/kf-mono
         compiler/kf-lower compiler/kf-codegen compiler/kf-interface
         compiler/kf-shared compiler/kf-lint compiler/kf-driver compiler/kf-tool compiler/kf-integration
-        libs/core libs/alloc libs/std ../json}"
+        libs/core libs/alloc libs/std}"
 CHECK_CLI="${CHECK_CLI:-1}"
 
 # Peak RSS a single crate's `komp test` may reach, in MB: a ceiling with room
