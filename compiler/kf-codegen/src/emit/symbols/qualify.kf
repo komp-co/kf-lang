@@ -86,7 +86,7 @@ mutating fun TopDecl.qualify_decl(names: &var List<String>, repls: &var List<Typ
         }
         AssocType(_bounds) => return
         AssocTypeBinding(_chosen) => return
-        AnnotationDecl(_) => return
+        AnnotationDecl(_params, _pub) => return
         TraitDecl(_meths, _pub, _) => return
         Poison => return
     }

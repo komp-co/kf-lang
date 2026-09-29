@@ -504,13 +504,15 @@ when (m.get(&key)) {
 
 ## Annotated
 
-`Annotated` is one entry of `annotated_functions<A>()`: a function carrying a
-[declared annotation](../lang/annotations.md#declaring-an-annotation).
+`Annotated<A>` is one entry of `annotated_functions<A>()`: a function carrying
+a [declared annotation](../lang/annotations.md#declaring-an-annotation), and
+the arguments it was given.
 
 ```kflat
-pub struct Annotated {
+pub struct Annotated<A> {
     pub val name: String         // the function's name as declared
     pub val function: () -> void
+    pub val args: A              // the struct the annotation's parameters declare
 }
 ```
 

@@ -21,7 +21,7 @@ pub fun decl_is_exported(td: &TopDecl): bool {
         ImplBlock(_methods) => return true
         TraitDecl(_methods, is_pub, _) => return is_pub
         TraitImpl(_trait_ref, _methods) => return true
-        AnnotationDecl(is_pub) => return is_pub
+        AnnotationDecl(_params, is_pub) => return is_pub
         _ => return false
     }
 }

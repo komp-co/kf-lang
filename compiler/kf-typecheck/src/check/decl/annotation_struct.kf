@@ -1,0 +1,60 @@
+// `annotation bench(iterations: int32)` also declares `struct bench`, one
+// field per parameter: the type of a use's arguments, and of the `args` an
+// `annotated_functions<bench>()` entry carries.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_core.diagnostic.*
+
+/// For this crate's annotations; a dependency's struct arrives with its
+/// interface. CONSTRAINT: before registration, so the struct is laid out
+/// like any other.
+pub mutating fun Module.expand_annotation_structs(diags: &var List<Diagnostic>): void {
+    var synth = List.new<TopDecl>()
+    while td in &self.decls {
+        if td.crate.raw != self.crate.raw { continue }
+        when (td.kind) {
+            AnnotationDecl(params, is_pub) => {
+                if self.names_another_declaration(&td) {
+                    val why = "an annotation's name is also the type of its arguments"
+                    val message = "`${td.name.as_str()}` is already declared in this crate, and ${why}"
+                    diags.push(new_diagnostic(Severity.Error, new_label(td.decl_name_span(), message)))
+                } else {
+                    synth.push(td.argument_struct(&params, is_pub))
+                }
+            }
+            _ => {}
+        }
+    }
+    while item in &synth {
+        self.decls.push(item)
+    }
+}
+
+/// Every name the struct would share C's namespace with: any other
+/// declaration of the crate, in any module.
+fun Module.names_another_declaration(annotation: &TopDecl): bool {
+    while other in &self.decls {
+        if other.crate.raw != self.crate.raw || other.name.id != annotation.name.id { continue }
+        if other.span.file_id == annotation.span.file_id && other.span.start == annotation.span.start { continue }
+        when (other.kind) {
+            ImplBlock(_methods) => {}
+            TraitImpl(_trait, _methods) => {}
+            _ => return true
+        }
+    }
+    return false
+}
+
+fun TopDecl.argument_struct(params: &List<Param>, is_pub: bool): TopDecl {
+    var fields = List.new<Field>()
+    while param in &params {
+        fields.push(new_field(param.span, param.name.as_string(), Box.new((*param.ty).clone()), false, is_pub))
+    }
+    var decl = new_top_decl(self.span, self.name.as_string(), TopDeclKind.Struct(fields, is_pub))
+    decl.crate = self.crate
+    decl.module_path = self.module_path
+    decl.name_span = self.name_span
+    return decl
+}

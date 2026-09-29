@@ -6,7 +6,7 @@ import kf_core.ast.*
 import kf_interface.parse.parse_interface
 
 fun annotation_module(is_pub: bool): Module {
-    var decl = new_top_decl(no_span(), String.from("bench"), TopDeclKind.AnnotationDecl(is_pub))
+    var decl = new_top_decl(no_span(), String.from("bench"), TopDeclKind.AnnotationDecl(List.new<Param>(), is_pub))
     decl.crate = new_crate_id("sample")
     decl.module_path = intern("sample.api")
     var decls = List.new<TopDecl>()
@@ -21,7 +21,7 @@ fun loaded_annotation_count(is_pub: bool): uint64 {
     while m in &loaded.modules {
         while td in &m.decls {
             when (td.kind) {
-                AnnotationDecl(_) => { if td.name.as_str() == "bench" { count = count + 1 } }
+                AnnotationDecl(_params, _pub) => { if td.name.as_str() == "bench" { count = count + 1 } }
                 _ => {}
             }
         }

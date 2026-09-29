@@ -27,9 +27,49 @@ fun main(): int32 {
 }
 ```
 
-Each entry is an `Annotated` from alloc: the function's `name` as a `String`,
-and the `function` itself as a `() -> void` value. The list is in declaration
-order, and private functions are in it, from any module of the crate.
+Each entry is an `Annotated<bench>` from alloc: the function's `name` as a
+`String`, the `function` itself as a `() -> void` value, and the use's `args`.
+The list is in declaration order, and private functions are in it, from any
+module of the crate.
+
+### Parameters
+
+An annotation may take parameters, written like a function's:
+
+```kflat
+enum Level {
+    Low
+    High
+}
+
+annotation bench(iterations: int32, label: String, level: Level)
+
+@bench(1000, "sort", Level.High)
+fun sort_a_thousand(): void { }
+
+@bench(label = "parse", iterations = 10, level = Level.Low)
+fun parse_a_file(): void { }
+
+fun main(): int32 {
+    while entry in &annotated_functions<bench>() {
+        if entry.args.iterations > 100 {
+            println(entry.args.label)
+            entry.function()
+        }
+    }
+    return 0
+}
+```
+
+A use gives every argument, positionally, by name in any order, or
+positionally and then by name. Each argument is a literal of its parameter's
+type, so a parameter is a number, `bool`, `char`, `String`, or an enum whose
+variants carry nothing.
+
+`annotation bench(...)` also declares a struct `bench` with one field per
+parameter, and that struct is the type of `entry.args`. An annotation without
+parameters declares an empty one. The struct shares the annotation's name,
+so nothing else in the crate may be called `bench`.
 
 An annotation is a name like any other. Another module of the crate uses it
 only if it is `pub` and imported, and another crate the same way:
@@ -49,9 +89,9 @@ The query only reaches the crate it is written in. A `measure` function
 calling `annotated_functions<bench>()` sees `measure`'s functions, not the
 ones of the crate that imported `bench`.
 
-A declared annotation takes no arguments and marks only a function taking no
-parameters and returning `void`, with no type parameters. The name of a
-built-in annotation cannot be declared.
+A declared annotation marks only a function taking no parameters and
+returning `void`, with no type parameters. The name of a built-in annotation
+cannot be declared.
 
 `annotation` is not a reserved word; it is read this way only at the start of
 a declaration, followed by a name.

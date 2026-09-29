@@ -82,7 +82,9 @@ pub fun TopDecl.deep_clone_top_decl(): TopDecl {
             unsafe { *clone_chosen = clone_type_ref(&*chosen) }
             return self.copied_top_decl(TopDeclKind.AssocTypeBinding(clone_chosen))
         }
-        AnnotationDecl(is_pub) => return self.copied_top_decl(TopDeclKind.AnnotationDecl(is_pub))
+        AnnotationDecl(params, is_pub) => {
+            return self.copied_top_decl(TopDeclKind.AnnotationDecl(params.clone(), is_pub))
+        }
         TraitDecl(methods, is_pub, supers) => {
             // Cloned, not shared: the source module is dropped afterwards.
             var cloned_supers = List.new<TypeRef>()

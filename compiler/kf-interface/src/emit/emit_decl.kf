@@ -126,7 +126,7 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             o.field_raw("methods", emit_interface_methods(td, methods, true, true, interface_trait_suffix(trait_type, m), unmangled).as_str())
             return o.finish()
         }
-        AnnotationDecl(is_pub) => {
+        AnnotationDecl(_params, is_pub) => {
             var o = JsonWriter.object()
             o.field_string("kind", "annotation")
             o.field_bool("hidden", hidden)

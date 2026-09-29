@@ -246,7 +246,7 @@ mutating fun JsonReader.load_annotation(crate: CrateId, path: str, hidden: bool)
     if !self.expect_key("pub") { return poison_decl() }
     val is_pub = self.read_bool()
     if self.object_has_next() { return poison_decl() }
-    val decl = new_top_decl(no_span(), name, TopDeclKind.AnnotationDecl(is_pub))
+    val decl = new_top_decl(no_span(), name, TopDeclKind.AnnotationDecl(List.new<Param>(), is_pub))
     return stamp_imported(decl, crate, path, "", hidden)
 }
 

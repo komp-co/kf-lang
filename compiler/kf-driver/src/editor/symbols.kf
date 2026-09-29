@@ -53,7 +53,7 @@ fun TopDecl.symbol_kind_of(nested: bool): str {
         TraitImpl(_trait_ref, _methods) => "impl"
         AssocType(_bounds) => "type"
         AssocTypeBinding(_chosen) => "type"
-        AnnotationDecl(_pub) => "annotation"
+        AnnotationDecl(_params, _pub) => "annotation"
         Poison => ""
     }
 }

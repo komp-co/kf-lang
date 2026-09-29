@@ -189,12 +189,13 @@ pub struct BoundInfo {
     pub val span: Span
 }
 
-/// An `annotation NAME` declaration, in this crate or a dependency.
+/// An `annotation NAME(params)` declaration, in this crate or a dependency.
 pub struct DeclaredAnnotation {
     pub val name: Sym
     pub val crate: CrateId
     pub val module: Sym
     pub val is_pub: bool
+    pub val params: List<Param>
 }
 
 /// A function of the crate being compiled carrying a declared annotation,
@@ -202,6 +203,8 @@ pub struct DeclaredAnnotation {
 pub struct AnnotatedFunction {
     pub val annotation: uint64
     pub val function: Sym
+    /// The use's argument values, in parameter order.
+    pub val args: List<Expr>
 }
 
 pub struct SigTable {
