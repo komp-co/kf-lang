@@ -22,6 +22,7 @@ impl Parser {
         when (t.kind) {
             KeywordTok(kw) => return self.parse_top_keyword(kw, t.span)
             Identifier(_) => {
+                if self.at_annotation_decl() { return self.parse_annotation_decl(t.span, false) }
                 self.parse_err(t.span, "expected a declaration (`fun`, `struct`, `enum`, `impl`, `trait`, `extern`, `import`), found ${tok_str(self.peek())}")
                 unsafe { self.advance() }
                 self.sync_to_newline()
@@ -235,6 +236,9 @@ impl Parser {
         }
         if is_keyword(self.peek(), Keyword.Trait) {
             return self.parse_trait(span, true)
+        }
+        if self.at_annotation_decl() {
+            return self.parse_annotation_decl(span, true)
         }
         return new_top_decl(span, "", TopDeclKind.Poison)
     }

@@ -1,0 +1,26 @@
+import kf_core.span.*
+import kf_core.ast.*
+import kf_parse.parser.*
+
+impl Parser {
+    /// `annotation` is a keyword only at the head of a declaration followed
+    /// by a name, so it stays usable as an identifier everywhere else.
+    fun at_annotation_decl(): bool {
+        if !self.at_word("annotation") { return false }
+        return when (self.peek_at(1).kind) {
+            Identifier(_) => true
+            _ => false
+        }
+    }
+
+    /// `annotation NAME`, consuming `annotation`.
+    mutating fun parse_annotation_decl(span: Span, is_pub: bool): TopDecl {
+        unsafe { self.advance() } // consume `annotation`
+        val name_at = self.peek().span
+        val name = self.expect_name("annotation")
+        unsafe { self.advance() }
+        var td = new_top_decl(span, name, TopDeclKind.AnnotationDecl(is_pub))
+        td.name_span = name_at
+        return td
+    }
+}

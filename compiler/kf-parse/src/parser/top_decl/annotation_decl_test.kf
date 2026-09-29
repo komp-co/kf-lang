@@ -1,0 +1,38 @@
+import core.assert.assert_eq
+
+import kf_core.ast.*
+import kf_parse.parser.parser_for
+
+fun TopDecl.annotation_is_pub(): int32 {
+    return when (self.kind) {
+        AnnotationDecl(is_pub) => if is_pub { 1 } else { 0 }
+        _ => -1
+    }
+}
+
+@test fun annotation_decl_records_its_name(): void {
+    var p = parser_for("annotation bench")
+    assert_eq(p.parse_top_decl().name.as_str(), "bench", "the declared name")
+}
+
+@test fun annotation_decl_is_private_by_default(): void {
+    var p = parser_for("annotation bench")
+    assert_eq(p.parse_top_decl().annotation_is_pub(), 0, "a private annotation declaration")
+}
+
+@test fun pub_annotation_decl_is_public(): void {
+    var p = parser_for("pub annotation bench")
+    assert_eq(p.parse_top_decl().annotation_is_pub(), 1, "a public annotation declaration")
+}
+
+@test fun annotation_decl_parses_without_error(): void {
+    var p = parser_for("pub annotation bench\nfun f(): void {}")
+    val _a = p.parse_top_decl()
+    assert_eq(p.diags.size(), 0, "no diagnostics")
+}
+
+@test fun annotation_stays_an_identifier_in_a_body(): void {
+    var p = parser_for("fun f(annotation: str): str { return annotation }")
+    val _f = p.parse_top_decl()
+    assert_eq(p.diags.size(), 0, "`annotation` as a parameter name")
+}

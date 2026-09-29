@@ -123,6 +123,7 @@
 45 compiler/kf-parse/src/parser/statement/control.kf
 18 compiler/kf-parse/src/parser/statement/statement.kf
 2 compiler/kf-parse/src/parser/statement/terminator.kf
+2 compiler/kf-parse/src/parser/top_decl/annotation_decl.kf
 17 compiler/kf-parse/src/parser/top_decl/extension.kf
 34 compiler/kf-parse/src/parser/top_decl/impl.kf
 18 compiler/kf-parse/src/parser/top_decl/top_decl.kf

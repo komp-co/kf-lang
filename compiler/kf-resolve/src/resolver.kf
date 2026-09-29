@@ -37,6 +37,7 @@ fun TopDecl.should_register_decl(): bool {
         TraitImpl(_, _) => false
         AssocType(_) => false
         AssocTypeBinding(_) => false
+        AnnotationDecl(_) => false
         Poison => false
     }
 }
