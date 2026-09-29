@@ -201,6 +201,7 @@ mutating fun JsonReader.load_decl(crate: CrateId, crate_name: str, path: str, sm
         "trait_impl" => self.load_trait_impl(crate, path, hidden)
         "extern" => self.load_extern_decl(crate, path, hidden)
         "generic" => self.load_generic(crate, crate_name, path, smap)
+        "annotation" => self.load_annotation(crate, path, hidden)
         _ => poison_decl()
     }
 }
@@ -237,6 +238,16 @@ mutating fun JsonReader.load_fun(crate: CrateId, path: str, hidden: bool): TopDe
     decl.ext_name = intern(ext_name.as_str())
     if is_prelude { decl.annotations.push("prelude") }
     return stamp_imported(decl, crate, path, link_name, hidden)
+}
+
+mutating fun JsonReader.load_annotation(crate: CrateId, path: str, hidden: bool): TopDecl {
+    if !self.expect_key("name") { return poison_decl() }
+    val name = self.read_string()
+    if !self.expect_key("pub") { return poison_decl() }
+    val is_pub = self.read_bool()
+    if self.object_has_next() { return poison_decl() }
+    val decl = new_top_decl(no_span(), name, TopDeclKind.AnnotationDecl(is_pub))
+    return stamp_imported(decl, crate, path, "", hidden)
 }
 
 mutating fun JsonReader.load_struct(crate: CrateId, path: str, hidden: bool): TopDecl {
