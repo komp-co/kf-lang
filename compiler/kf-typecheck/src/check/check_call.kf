@@ -255,10 +255,11 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
     return ret
 }
 
-/// The enum's name when `kind` names a registered enum, or "".
+/// The enum's name when `kind` names a registered enum and no local, or "".
 fun try_get_enum_recv_name(kind: ExprKind, ctx: &var TypeCtx): String {
     when (kind) {
         Variable(n) => {
+            if ctx.is_declared(n.as_str()) { return "" }
             val ep = unsafe { (*ctx.sigs).find_enum(n.as_str(), ctx.owner_crate) }
             if ep.is_none() { return "" }
             return n.as_string()
