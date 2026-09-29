@@ -1,0 +1,78 @@
+// `annotated_functions<bench>()`: every function of this crate marked
+// `@bench`, private ones included, as a list literal the checker then types:
+//
+//     [Annotated { name: "f", function: f }, ...]
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.*
+import kf_core.diagnostic.new_label
+import kf_core.diagnostic.new_diagnostic
+import kf_typecheck.note_import_use_named
+import kf_typecheck.find_annotation
+
+pub fun annotated_functions_prefix(): str { return "annotated_functions__" }
+
+/// CONSTRAINT: by name until a release's seed knows a lang key for it.
+fun annotated_type_name(): str { return "Annotated" }
+
+pub mutating fun Expr.expand_annotated_functions(args: &List<Expr>, ctx: &var TypeCtx): void {
+    val sigs = unsafe { &*ctx.sigs }
+    val index = self.queried_annotation(args, sigs, ctx) ?: return
+    var elements = List.new<Expr>()
+    while listed in &sigs.annotated {
+        if listed.annotation == index { elements.push(annotated_entry(listed.function, self.span, ctx)) }
+    }
+    var new_call = collection_new_call(self.span, ctx.list_name())
+    val element_type = TypeRefKind.Named(intern(annotated_type_name()), List.new<TypeRef>())
+    new_call.type_args.push(new_type_ref(self.span, element_type))
+    new_call.type_args_written = true
+    *self = collection_literal_expr(self.span, &elements, new_call)
+    check_expr(self, ctx)
+}
+
+/// The queried annotation's index in `SigTable.annotations`; null, reported
+/// and typed poison, when the query names none this file sees.
+mutating fun Expr.queried_annotation(args: &List<Expr>, sigs: &SigTable, ctx: &var TypeCtx): uint64? {
+    val name = self.single_type_name()
+    val message = if name.as_str().equals("") {
+        String.from("`annotated_functions` takes one annotation name: `annotated_functions<bench>()`")
+    } else if args.size() > 0 {
+        String.from("`annotated_functions` takes no arguments")
+    } else {
+        val found = sigs.find_annotation(name.as_str(), ctx.owner_file, ctx.owner_crate, ctx.owner_module)
+        if found != null {
+            val index = found ?: return null
+            val declared = *sigs.annotations.at(index)
+            note_import_use_named(ctx.sigs, ctx.owner_file, declared.module, declared.name)
+            return index
+        }
+        "cannot find annotation `${name.as_str()}` in this scope"
+    }
+    ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+    self.ty = poison_ty()
+    return null
+}
+
+/// The one bare name in `<...>`, or the empty name.
+fun Expr.single_type_name(): Sym {
+    if self.type_args.size() != 1 { return intern("") }
+    return when (self.type_args.at(0).kind) {
+        Named(name, args) => if args.size() == 0 { name } else { intern("") }
+        _ => intern("")
+    }
+}
+
+/// `Annotated { name: "f", function: f }`. The function is named directly, not
+/// looked up: a private function of another module is listed too.
+fun annotated_entry(function: Sym, span: Span, ctx: &var TypeCtx): Expr {
+    var reference = new_expr(span, ExprKind.FnRef(function))
+    reference.ty = fn_ty(new_type_vec(), void_ty(span), Provenance.Inferred(span))
+    ctx.note_fn_type(&reference.ty)
+    var fields = List.new<FieldInit>()
+    val name = new_expr(span, ExprKind.LitStr(function.as_string()))
+    fields.push(FieldInit { span: span, name: intern("name"), value: Box.new(name) })
+    fields.push(FieldInit { span: span, name: intern("function"), value: Box.new(reference) })
+    return new_expr(span, ExprKind.StructLit(intern(annotated_type_name()), fields))
+}

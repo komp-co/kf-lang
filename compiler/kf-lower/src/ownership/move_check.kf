@@ -48,6 +48,7 @@ mutating fun TopDecl.move_check_top_decl_in(diags: Ptr<List<Diagnostic>>, names:
         Extern(_, _, _, _) => return
         AssocType(_bounds) => return
         AssocTypeBinding(_chosen) => return
+        AnnotationDecl(_) => return
         TraitDecl(_, _, _) => return
         TraitImpl(_, _) => return
         Poison => return

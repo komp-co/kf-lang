@@ -98,7 +98,9 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
         }
         Call(callee_name, args) => {
             val through_alias = ctx.through_module.id != 0
-            if !through_alias && callee_name.local_is_function_value(ctx) {
+            if e.is_intrinsic && callee_name.as_str().starts_with(annotated_functions_prefix()) {
+                e.expand_annotated_functions(&args, ctx)
+            } else if !through_alias && callee_name.local_is_function_value(ctx) {
                 e.kind = ExprKind.CallValue(Box.new(new_expr(e.span, ExprKind.Variable(callee_name))), args)
                 check_expr(e, ctx)
             } else if !through_alias && callee_name.local_is_callable(args.size(), ctx) {

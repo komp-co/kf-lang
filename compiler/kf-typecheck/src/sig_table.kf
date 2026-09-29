@@ -189,6 +189,21 @@ pub struct BoundInfo {
     pub val span: Span
 }
 
+/// An `annotation NAME` declaration, in this crate or a dependency.
+pub struct DeclaredAnnotation {
+    pub val name: Sym
+    pub val crate: CrateId
+    pub val module: Sym
+    pub val is_pub: bool
+}
+
+/// A function of the crate being compiled carrying a declared annotation,
+/// which indexes `SigTable.annotations`.
+pub struct AnnotatedFunction {
+    pub val annotation: uint64
+    pub val function: Sym
+}
+
 pub struct SigTable {
     pub var sigs: List<FnSignature>
     /// Positions in `sigs` by name. `sigs` is append-only and lookups want the
@@ -250,6 +265,9 @@ pub struct SigTable {
     pub var untyped_recv_methods: List<Sym>
     /// Function types met so far, so a mangle fragment naming one reads back.
     pub var fn_types: List<Type>
+    pub var annotations: List<DeclaredAnnotation>
+    /// In declaration order, which is the order `annotated_functions` lists.
+    pub var annotated: List<AnnotatedFunction>
 }
 
 pub fun new_sig_table(): SigTable {
@@ -290,7 +308,9 @@ pub fun new_sig_table(): SigTable {
         ext_trait_params: List.new<Sym>(),
         untyped_recv_spans: List.new<Span>(),
         untyped_recv_methods: List.new<Sym>(),
-        fn_types: List.new<Type>()
+        fn_types: List.new<Type>(),
+        annotations: List.new<DeclaredAnnotation>(),
+        annotated: List.new<AnnotatedFunction>()
     }
 }
 

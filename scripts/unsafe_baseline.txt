@@ -123,6 +123,7 @@
 45 compiler/kf-parse/src/parser/statement/control.kf
 18 compiler/kf-parse/src/parser/statement/statement.kf
 2 compiler/kf-parse/src/parser/statement/terminator.kf
+2 compiler/kf-parse/src/parser/top_decl/annotation_decl.kf
 17 compiler/kf-parse/src/parser/top_decl/extension.kf
 34 compiler/kf-parse/src/parser/top_decl/impl.kf
 18 compiler/kf-parse/src/parser/top_decl/top_decl.kf
@@ -138,6 +139,7 @@
 2 compiler/kf-tool/src/build/kflatc_process.kf
 1 compiler/kf-tool/src/cli/cli_new.kf
 1 compiler/kf-typecheck/src/check/alias_call.kf
+1 compiler/kf-typecheck/src/check/annotated_functions.kf
 6 compiler/kf-typecheck/src/check/borrow/borrow_args.kf
 8 compiler/kf-typecheck/src/check/borrow/deref.kf
 1 compiler/kf-typecheck/src/check/borrow/deref_temporary.kf
@@ -164,7 +166,8 @@
 15 compiler/kf-typecheck/src/check/decl/check_function_body.kf
 8 compiler/kf-typecheck/src/check/decl/check_impl_header.kf
 3 compiler/kf-typecheck/src/check/decl/check_pub_signature.kf
-5 compiler/kf-typecheck/src/check/decl/derive.kf
+2 compiler/kf-typecheck/src/check/decl/declared_annotation.kf
+4 compiler/kf-typecheck/src/check/decl/derive.kf
 24 compiler/kf-typecheck/src/check/decl/derive_equal_enum.kf
 63 compiler/kf-typecheck/src/check/decl/derive_synth.kf
 1 compiler/kf-typecheck/src/check/decl/duplicate_functions.kf

@@ -1,0 +1,7 @@
+//! build: fail
+//! deps: core
+// `test` is built in; declaring it again would give `@test` two meanings.
+
+annotation test
+
+fun main(): int32 { return 0 }

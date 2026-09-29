@@ -502,3 +502,15 @@ when (m.get(&key)) {
 }
 ```
 
+## Annotated
+
+`Annotated` is one entry of `annotated_functions<A>()`: a function carrying a
+[declared annotation](../lang/annotations.md#declaring-an-annotation).
+
+```kflat
+pub struct Annotated {
+    pub val name: String         // the function's name as declared
+    pub val function: () -> void
+}
+```
+

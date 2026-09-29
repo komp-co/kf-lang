@@ -113,7 +113,7 @@ impl Parser {
     }
 
     /// The current token is the identifier `word`.
-    fun at_word(word: str): bool {
+    pub fun at_word(word: str): bool {
         return when (self.peek().kind) {
             Identifier(s) => s.as_str() == word
             _ => false

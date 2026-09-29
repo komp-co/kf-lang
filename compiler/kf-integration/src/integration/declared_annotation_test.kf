@@ -1,0 +1,85 @@
+// A declared annotation crosses modules and crates like any imported name,
+// and `annotated_functions` lists only the crate being compiled, private
+// functions of other modules included. Needs two crates, so not a
+// tests/cases file.
+
+import core.assert.assert_eq
+import kf_tool.build.build_project_separate
+import std.fs.scratch_root
+
+extern "C" fun system(cmd: str): int32
+
+/// `marks` declares `pub annotation bench` and a private `hidden`, and marks
+/// one function of its own; the app's `inner` module holds `inner_body`.
+fun prepare_annotation_fixture(name: str, main_body: str, inner_body: str): int32 {
+    val root = "${scratch_root()}/${name}"
+    val cmd = "rm -rf ${root} && mkdir -p ${root}/marks/src ${root}/app/src/inner && cp -r libs ${root}/libs"
+    val prep = unsafe { system(cmd.as_str()) }
+    if prep != 0 { return prep }
+    val libs = """core = { path = "../libs/core" }
+alloc = { path = "../libs/alloc" }
+"""
+    val marks_toml = "[project]\nname = \"marks\"\nkind = \"lib\"\n\n[dependencies]\n${libs}"
+    write_file("${root}/marks/kf.toml".as_str(), marks_toml.as_str())
+    write_file("${root}/marks/src/lib.kf".as_str(), """pub annotation bench
+annotation hidden
+
+@bench
+fun measured_in_marks(): void {}
+
+pub fun marked_in_marks(): uint64 { return annotated_functions<bench>().size() }
+""")
+    val app_deps = "${libs}marks = { path = \"../marks\" }\n"
+    val app_toml = "[project]\nname = \"app\"\nkind = \"bin\"\n\n[dependencies]\n${app_deps}"
+    write_file("${root}/app/kf.toml".as_str(), app_toml.as_str())
+    write_file("${root}/app/src/main.kf".as_str(), main_body)
+    write_file("${root}/app/src/inner/inner.kf".as_str(), inner_body)
+    return 0
+}
+
+fun build_and_run_annotated(name: str): int32 {
+    val root = "${scratch_root()}/${name}"
+    val built = build_project_separate("${root}/app".as_str(), "")
+    if built != 0 { return 100 + built }
+    return unsafe { system("${root}/app/target/kflat/app".as_str()) }
+}
+
+fun build_annotated_app(name: str): int32 {
+    return build_project_separate("${scratch_root()}/${name}/app".as_str(), "")
+}
+
+fun annotation_counting_main(): str {
+    return """import marks.bench
+import marks.marked_in_marks
+
+@bench
+fun measured_in_main(): void {}
+
+fun main(): int32 {
+    if annotated_functions<bench>().size() != 2 { return 1 }
+    if marked_in_marks() != 1 { return 2 }
+    return 0
+}
+"""
+}
+
+@test
+fun an_imported_annotation_lists_this_crates_functions_only(): void {
+    val inner = "import marks.bench\n\n@bench\nfun measured_in_inner(): void {}\n"
+    assert_eq(prepare_annotation_fixture("kf_ann_count", annotation_counting_main(), inner), 0, "fixture prepared")
+    assert_eq(build_and_run_annotated("kf_ann_count"), 0, "two functions in the app, one in marks")
+}
+
+@test
+fun an_annotation_needs_an_import_in_each_module(): void {
+    val inner = "@bench\nfun measured_in_inner(): void {}\n"
+    assert_eq(prepare_annotation_fixture("kf_ann_unimported", annotation_counting_main(), inner), 0, "fixture prepared")
+    assert_eq(build_annotated_app("kf_ann_unimported") != 0, true, "inner does not import `bench`")
+}
+
+@test
+fun a_private_annotation_does_not_cross_a_crate(): void {
+    val inner = "import marks.hidden\n\n@hidden\nfun measured_in_inner(): void {}\n"
+    assert_eq(prepare_annotation_fixture("kf_ann_private", annotation_counting_main(), inner), 0, "fixture prepared")
+    assert_eq(build_annotated_app("kf_ann_private") != 0, true, "`hidden` is not `pub`")
+}

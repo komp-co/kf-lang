@@ -1,0 +1,40 @@
+import alloc.list.*
+import core.assert.assert_eq
+
+import kf_core.span.no_span
+import kf_core.ast.*
+import kf_interface.parse.parse_interface
+
+fun annotation_module(is_pub: bool): Module {
+    var decl = new_top_decl(no_span(), String.from("bench"), TopDeclKind.AnnotationDecl(is_pub))
+    decl.crate = new_crate_id("sample")
+    decl.module_path = intern("sample.api")
+    var decls = List.new<TopDecl>()
+    decls.push(decl)
+    return Module { crate: new_crate_id("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
+}
+
+fun loaded_annotation_count(is_pub: bool): uint64 {
+    val out = annotation_module(is_pub).emit_interface(String.from("sample"), &List.new<String>())
+    val loaded = parse_interface(out.as_str())
+    var count: uint64 = 0
+    while m in &loaded.modules {
+        while td in &m.decls {
+            when (td.kind) {
+                AnnotationDecl(_) => { if td.name.as_str() == "bench" { count = count + 1 } }
+                _ => {}
+            }
+        }
+    }
+    return count
+}
+
+@test
+fun pub_annotation_round_trips_through_the_interface(): void {
+    assert_eq(loaded_annotation_count(true), 1 as uint64, "a public annotation crosses")
+}
+
+@test
+fun private_annotation_stays_out_of_the_interface(): void {
+    assert_eq(loaded_annotation_count(false), 0 as uint64, "a private annotation does not cross")
+}

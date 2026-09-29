@@ -120,6 +120,9 @@ pub enum TopDeclKind {
     /// `type Item = int32` inside a trait impl — the impl's choice for one
     /// associated type. The outer `name` is the associated type's name.
     AssocTypeBinding(Box<TypeRef>)
+    /// `annotation NAME`: a name a function may carry as `@NAME`. Payload:
+    /// is_pub.
+    AnnotationDecl(bool)
     /// Parse error.
     Poison
 }
