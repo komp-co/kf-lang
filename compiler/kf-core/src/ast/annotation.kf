@@ -1,0 +1,78 @@
+// Reading and writing an annotation's arguments.
+
+import alloc.list.*
+
+import kf_core.span.Span
+
+/// One the compiler writes itself, each word a bare name:
+/// `receiver_params(T, U)`.
+pub fun new_annotation(span: Span, name: str, words: List<String>): Annotation {
+    var args = List.new<AnnotationArg>()
+    while word in &words {
+        val value = new_expr(span, ExprKind.Variable(intern(word.as_str())))
+        args.push(AnnotationArg { name: intern(""), value: Box.new(value) })
+    }
+    return Annotation { name: intern(name), args: args, has_parens: words.size() > 0, span: span }
+}
+
+impl Annotation {
+    /// Each positional argument that is a bare name or a string, as text, in
+    /// order: `@derive(Clone, Equal)` gives `["Clone", "Equal"]` and
+    /// `@lang("string")` gives `["string"]`.
+    pub fun words(): List<String> {
+        var out = List.new<String>()
+        while arg in &self.args {
+            if !arg.name.as_str().equals("") { continue }
+            when (arg.value.kind) {
+                Variable(word) => out.push(word.as_string())
+                LitStr(text) => out.push(text.clone())
+                _ => {}
+            }
+        }
+        return out
+    }
+
+    /// As it would be written, without the `@`: `derive(Clone, Equal)`.
+    pub fun to_source(): String {
+        var out = self.name.as_string()
+        if !self.has_parens { return out }
+        out.append("(")
+        while i in 0..self.args.size() {
+            val arg = self.args.at(i)
+            if i > 0 { out.append(", ") }
+            if !arg.name.as_str().equals("") { out.append("${arg.name.as_str()} = ") }
+            out.append(arg.value.argument_source().as_str())
+        }
+        out.append(")")
+        return out
+    }
+}
+
+/// A name, a literal or `Enum.Variant`; any other expression renders as `_`.
+fun Expr.argument_source(): String {
+    return when (self.kind) {
+        Variable(name) => name.as_string()
+        LitStr(text) => "\"${escaped(text.as_str(), 34)}\""
+        LitChar(c) => "'${escaped(String.of(&(c as char)).as_str(), 39)}'"
+        LitInt(n) => String.of(&(n))
+        LitFloat(spelling) => spelling.clone()
+        LitBool(b) => if b { String.from("true") } else { String.from("false") }
+        FieldAccess(owner, member) => "${owner.argument_source().as_str()}.${member.as_str()}"
+        _ => String.from("_")
+    }
+}
+
+/// `text` with `\`, the `quote` byte and a newline escaped.
+fun escaped(text: str, quote: uint8): String {
+    var out = String.from("")
+    while i in 0..text.byte_len() {
+        val b = text.byte_at(i)
+        if b == 92 || b == quote { out.append("\\") }
+        if b == 10 {
+            out.append("\\n")
+        } else {
+            out.append(text.substring(i, i + 1).as_str())
+        }
+    }
+    return out
+}

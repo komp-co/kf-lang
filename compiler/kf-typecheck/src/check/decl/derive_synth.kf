@@ -154,7 +154,7 @@ fun synth_clone_impl(name: String, span: Span, owner: CrateId, module_path: Sym,
     body.push(new_stmt(span, StmtKind.Return(operand)))
     var clone_fn = new_top_decl(span, String.from("clone"),
         TopDeclKind.Function(List.new<Param>(), result_type, body, true, false, false, false))
-    clone_fn.annotations.push(String.from("derive(Clone)"))
+    clone_fn.annotations.push(new_annotation(span, "derive", [String.from("Clone")]))
     clone_fn.crate = owner
     clone_fn.module_path = module_path
     var methods = List.new<TopDecl>()

@@ -31,9 +31,9 @@ pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: Ptr<Lis
     while td in &self.decls {
         if td.crate.raw != self.crate.raw { continue }
         while annotation in &td.annotations {
-            val kind = annotation_kind(annotation.as_str())
-            if kind.as_str().equals("") || annotation_is_known(kind.as_str()) { continue }
-            td.register_annotation_use(kind.as_str(), annotation.as_str(), sigs, table, &var found)
+            val kind = annotation.name.as_str()
+            if kind.equals("") || annotation_is_known(kind) { continue }
+            td.register_annotation_use(annotation, sigs, table, &var found)
         }
     }
     while diag in &found {
@@ -42,8 +42,9 @@ pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: Ptr<Lis
 }
 
 /// `sigs` is `table`, for recording the import use.
-fun TopDecl.register_annotation_use(kind: str, written: str, sigs: Ptr<SigTable>, table: &var SigTable,
+fun TopDecl.register_annotation_use(annotation: &Annotation, sigs: Ptr<SigTable>, table: &var SigTable,
     diags: &var List<Diagnostic>): void {
+    val kind = annotation.name.as_str()
     val file = self.span.file_id
     val found = table.find_annotation(kind, file, self.crate, self.module_path)
     if found == null {
@@ -55,7 +56,7 @@ fun TopDecl.register_annotation_use(kind: str, written: str, sigs: Ptr<SigTable>
     val index = found ?: return
     val declared = *table.annotations.at(index)
     note_import_use_named(sigs, file, declared.module, declared.name)
-    if !written.equals(kind) {
+    if annotation.has_parens {
         val message = "`@${kind}` takes no arguments"
         diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
         return

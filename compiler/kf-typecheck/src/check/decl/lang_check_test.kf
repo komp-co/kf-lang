@@ -5,11 +5,11 @@ import kf_resolve.new_decl_table
 import kf_core.span.no_span
 import kf_typecheck.typecheck_module
 
-/// A struct owned by `crate`, with `annotation` unless "".
-fun lang_decl(name: str, crate: str, annotation: str): TopDecl {
+/// A struct owned by `crate`, carrying `annotations`.
+fun lang_decl(name: str, crate: str, annotations: List<Annotation>): TopDecl {
     var declaration = new_top_decl(no_span(), String.from(name), TopDeclKind.Struct(List.new<Field>(), true))
     declaration.crate = new_crate_id(crate)
-    if !annotation.equals("") { declaration.annotations.push(String.from(annotation)) }
+    declaration.annotations = annotations
     return declaration
 }
 
@@ -28,36 +28,36 @@ fun lang_messages(decls: List<TopDecl>): uint64 {
 @test
 fun the_standard_library_may_mark_its_string(): void {
     var decls = List.new<TopDecl>()
-    decls.push(lang_decl("Text", "alloc", "lang(string)"))
+    decls.push(lang_decl("Text", "alloc", [lang_annotation("string")]))
     assert_eq(lang_messages(decls), 0, "alloc declares the language's string")
 }
 
 @test
 fun a_program_may_not_declare_a_lang_item(): void {
     var decls = List.new<TopDecl>()
-    decls.push(lang_decl("Text", "application", "lang(string)"))
+    decls.push(lang_decl("Text", "application", [lang_annotation("string")]))
     assert_eq(lang_messages(decls), 1, "the language's own types come from its standard library")
 }
 
 @test
 fun an_unknown_lang_key_is_rejected(): void {
     var decls = List.new<TopDecl>()
-    decls.push(lang_decl("Text", "alloc", "lang(strnig)"))
+    decls.push(lang_decl("Text", "alloc", [lang_annotation("strnig")]))
     assert_eq(lang_messages(decls), 1, "a typo cannot leave the type quietly unmarked")
 }
 
 @test
 fun a_lang_item_without_a_key_is_rejected(): void {
     var decls = List.new<TopDecl>()
-    decls.push(lang_decl("Text", "alloc", "lang"))
+    decls.push(lang_decl("Text", "alloc", [new_annotation(no_span(), "lang", List.new<String>())]))
     assert_eq(lang_messages(decls), 1, "`@lang` alone names nothing")
 }
 
 @test
 fun a_lang_key_declared_twice_is_rejected(): void {
     var decls = List.new<TopDecl>()
-    decls.push(lang_decl("Text", "alloc", "lang(string)"))
-    decls.push(lang_decl("Words", "core", "lang(string)"))
+    decls.push(lang_decl("Text", "alloc", [lang_annotation("string")]))
+    decls.push(lang_decl("Words", "core", [lang_annotation("string")]))
     assert_eq(lang_messages(decls), 1, "one key names one type")
 }
 
@@ -69,15 +69,15 @@ fun a_function_cannot_be_a_lang_item(): void {
     val kind = TopDeclKind.Function(List.new<Param>(), ret, List.new<Stmt>(), true, false, false, false)
     var helper = new_top_decl(no_span(), String.from("helper"), kind)
     helper.crate = new_crate_id("alloc")
-    helper.annotations.push(String.from("lang(string)"))
+    helper.annotations.push(lang_annotation("string"))
     decls.push(helper)
     assert_eq(lang_messages(decls), 1, "only a type can be the language's string")
 }
 
 @test
 fun the_lang_key_is_read_from_the_annotation(): void {
-    val marked = lang_decl("Text", "alloc", "lang(string)")
-    val plain = lang_decl("Text", "alloc", "")
+    val marked = lang_decl("Text", "alloc", [lang_annotation("string")])
+    val plain = lang_decl("Text", "alloc", List.new<Annotation>())
     assert_eq((&marked).lang_key_of().as_str(), "string", "the argument is the key")
     assert_eq((&plain).lang_key_of().as_str(), "", "no annotation, no key")
 }
@@ -89,7 +89,7 @@ fun prelude_decl(crate: str, in_prelude: bool): TopDecl {
     val kind = TopDeclKind.Function(List.new<Param>(), ret, List.new<Stmt>(), true, false, false, false)
     var helper = new_top_decl(no_span(), String.from("helper"), kind)
     helper.crate = new_crate_id(crate)
-    if in_prelude { helper.annotations.push(String.from("prelude")) }
+    if in_prelude { helper.annotations.push(new_annotation(no_span(), "prelude", List.new<String>())) }
     return helper
 }
 

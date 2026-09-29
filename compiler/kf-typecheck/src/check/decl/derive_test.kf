@@ -8,11 +8,19 @@ import kf_core.span.no_span
 import kf_core.ast.*
 import kf_core.diagnostic.*
 
-fun derived_struct_module(): Module {
-    return derived_struct_module_with_annotation(String.from("derive(Default)"))
+fun derive_of(names: List<String>): Annotation {
+    return new_annotation(no_span(), "derive", names)
 }
 
-fun derived_struct_module_with_annotation(annotation: String): Module {
+fun allow_of(lint: str): Annotation {
+    return new_annotation(no_span(), "allow", [String.from(lint)])
+}
+
+fun derived_struct_module(): Module {
+    return derived_struct_module_with_annotation(new_annotation(no_span(), "derive", [String.from("Default")]))
+}
+
+fun derived_struct_module_with_annotation(annotation: Annotation): Module {
     var m = new_module(List.new<String>())
     val fields = List.new<Field>()
     var td = new_top_decl(no_span(), String.from("Config"), TopDeclKind.Struct(fields, true))
@@ -70,7 +78,8 @@ fun a_plain_struct_derives_nothing(): void {
 
 @test
 fun multiple_derive_options_synthesize_multiple_impls(): void {
-    var m = derived_struct_module_with_annotation(String.from("derive(Default,Equal,Clone)"))
+    val all_three = derive_of([String.from("Default"), String.from("Equal"), String.from("Clone")])
+    var m = derived_struct_module_with_annotation(all_three)
     m.expand_derives()
     assert_eq(m.decls.size(), 4, "each supported derive option adds its impl")
 }
@@ -79,7 +88,7 @@ fun multiple_derive_options_synthesize_multiple_impls(): void {
 fun enum_clone_derive_synthesizes_an_impl(): void {
     var m = new_module(List.new<String>())
     var td = new_top_decl(no_span(), String.from("Token"), TopDeclKind.EnumDecl(List.new<Variant>(), true))
-    td.annotations.push(String.from("derive(Clone)"))
+    td.annotations.push(new_annotation(no_span(), "derive", [String.from("Clone")]))
     m.decls.push(td)
     m.expand_derives()
     assert_eq(m.decls.size(), 2, "an enum Clone derive adds its impl")
@@ -89,7 +98,7 @@ fun enum_clone_derive_synthesizes_an_impl(): void {
 fun an_enum_derives_equal_and_clone_together(): void {
     var m = new_module(List.new<String>())
     var td = new_top_decl(no_span(), String.from("Token"), TopDeclKind.EnumDecl(List.new<Variant>(), true))
-    td.annotations.push(String.from("derive(Equal,Clone)"))
+    td.annotations.push(new_annotation(no_span(), "derive", [String.from("Equal"), String.from("Clone")]))
     m.decls.push(td)
     m.expand_derives()
     assert_eq(m.decls.size(), 3, "each option adds its own impl")
@@ -99,7 +108,7 @@ fun an_enum_derives_equal_and_clone_together(): void {
 fun enum_equal_derive_synthesizes_an_impl(): void {
     var m = new_module(List.new<String>())
     var td = new_top_decl(no_span(), String.from("Token"), TopDeclKind.EnumDecl(List.new<Variant>(), true))
-    td.annotations.push(String.from("derive(Equal)"))
+    td.annotations.push(new_annotation(no_span(), "derive", [String.from("Equal")]))
     m.decls.push(td)
     m.expand_derives()
     assert_eq(m.decls.size(), 2, "an enum Equal derive adds its impl")
@@ -111,7 +120,7 @@ fun disabled_test_annotation_is_accepted(): void {
     val result: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *result = new_type_ref(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
     var td = new_top_decl(no_span(), String.from("paused"), TopDeclKind.Function(List.new<Param>(), result, List.new<Stmt>(), false, false, false, false))
-    td.annotations.push(String.from("test_disabled"))
+    td.annotations.push(new_annotation(no_span(), "test_disabled", List.new<String>()))
     m.decls.push(td)
     var diags = List.new<Diagnostic>()
     m.validate_annotations(&var diags)
@@ -119,13 +128,13 @@ fun disabled_test_annotation_is_accepted(): void {
 }
 
 // A function carrying `annotation`, checked through validate_annotations.
-fun annotated_function(annotation: str): List<Diagnostic> {
+fun annotated_function(annotation: Annotation): List<Diagnostic> {
     var m = new_module(List.new<String>())
     val result: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *result = new_type_ref(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
     val kind = TopDeclKind.Function(List.new<Param>(), result, List.new<Stmt>(), false, false, false, false)
     var td = new_top_decl(no_span(), String.from("f"), kind)
-    td.annotations.push(String.from(annotation))
+    td.annotations.push(annotation)
     m.decls.push(td)
     var diags = List.new<Diagnostic>()
     m.validate_annotations(&var diags)
@@ -134,12 +143,12 @@ fun annotated_function(annotation: str): List<Diagnostic> {
 
 @test
 fun an_allow_naming_a_registered_lint_is_accepted(): void {
-    assert_eq(annotated_function("allow(unused_import)").size(), 0, "a real lint name suppresses cleanly")
+    assert_eq(annotated_function(allow_of("unused_import")).size(), 0, "a real lint name suppresses cleanly")
 }
 
 @test
 fun an_allow_naming_an_unknown_lint_is_rejected(): void {
-    assert_eq(annotated_function("allow(unused_importt)").size() > 0, true, "a typo'd suppression is not accepted")
+    assert_eq(annotated_function(allow_of("unused_importt")).size() > 0, true, "a typo'd suppression is not accepted")
 }
 
 // A field-less struct must still produce a `uint64` hash body.
@@ -162,7 +171,7 @@ fun Module.synthesized_trait_name(): String {
 
 @test
 fun hash_is_an_accepted_derive_option(): void {
-    val m = derived_struct_module_with_annotation(String.from("derive(Hash)"))
+    val m = derived_struct_module_with_annotation(new_annotation(no_span(), "derive", [String.from("Hash")]))
     var diags = List.new<Diagnostic>()
     m.validate_annotations(&var diags)
     assert_eq(diags.size(), 0, "`@derive(Hash)` is accepted")
@@ -170,7 +179,7 @@ fun hash_is_an_accepted_derive_option(): void {
 
 @test
 fun an_unknown_derive_option_is_still_rejected(): void {
-    val m = derived_struct_module_with_annotation(String.from("derive(Hashish)"))
+    val m = derived_struct_module_with_annotation(new_annotation(no_span(), "derive", [String.from("Hashish")]))
     var diags = List.new<Diagnostic>()
     m.validate_annotations(&var diags)
     assert_eq(diags.size() > 0, true, "a near-miss option is not accepted")
@@ -178,11 +187,11 @@ fun an_unknown_derive_option_is_still_rejected(): void {
 
 @test
 fun deriving_hash_synthesizes_a_hash_impl(): void {
-    var m = derived_struct_module_with_annotation(String.from("derive(Hash)"))
+    var m = derived_struct_module_with_annotation(new_annotation(no_span(), "derive", [String.from("Hash")]))
     var hash_td = new_top_decl(no_span(), String.from("Hash"),
         TopDeclKind.TraitDecl(List.new<TopDecl>(), true, List.new<TypeRef>()))
     hash_td.crate = new_crate_id("core")
-    hash_td.annotations.push(String.from("lang(hash)"))
+    hash_td.annotations.push(lang_annotation("hash"))
     m.decls.push(hash_td)
     m.expand_derives()
     assert_eq(m.synthesized_trait_name().as_str(), "Hash", "the impl is for Hash")
@@ -190,7 +199,7 @@ fun deriving_hash_synthesizes_a_hash_impl(): void {
 
 @test
 fun deriving_hash_and_equal_synthesizes_both(): void {
-    var m = derived_struct_module_with_annotation(String.from("derive(Hash, Equal)"))
+    var m = derived_struct_module_with_annotation(derive_of([String.from("Hash"), String.from("Equal")]))
     m.expand_derives()
     var impls: uint64 = 0
     while decl in &m.decls {

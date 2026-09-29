@@ -147,7 +147,7 @@ fun a_trait_with_an_associated_type_survives_without_type_params(): void {
 fun interface_round_trip_restores_a_lang_key(): void {
     var m = interface_test_module()
     var marked = *m.decls.at(0)
-    marked.annotations.push(String.from("lang(string)"))
+    marked.annotations.push(lang_annotation("string"))
     m.decls.set(0, marked)
     val encoded = m.emit_interface(String.from("sample"), &List.new<String>())
     val loaded = parse_interface(encoded.as_str())

@@ -1,0 +1,76 @@
+// The `@name` and `@name(args)` run above a declaration. Unknown names are
+// left for typecheck.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_parse.parser.*
+
+impl Parser {
+    /// Collected in a loop so the list stays in source order.
+    mutating fun parse_annotated_decl(): TopDecl {
+        var annotations = List.new<Annotation>()
+        while is_op(self.peek(), Operator.At) {
+            unsafe { self.advance() } // consume `@`
+            annotations.push(self.parse_annotation())
+            self.skip_newlines()
+        }
+        var td = self.parse_top_decl()
+        td.annotations = annotations
+        return td
+    }
+
+    /// The empty name without an identifier after `@`. Each argument is an
+    /// expression, positional or `name = value`.
+    mutating fun parse_annotation(): Annotation {
+        val span = self.peek().span
+        val name = when (self.peek().kind) {
+            Identifier(s) => s.as_string()
+            _ => String.from("")
+        }
+        var args = List.new<AnnotationArg>()
+        if name.as_str().equals("") {
+            return Annotation { name: intern(""), args: args, has_parens: false, span: span }
+        }
+        unsafe { self.advance() }
+        val has_parens = is_op(self.peek(), Operator.LParen)
+        if has_parens {
+            unsafe { self.advance() } // consume `(`
+            self.parse_annotation_args(&var args)
+        }
+        val whole = self.span_through_last(span)
+        return Annotation { name: intern(name.as_str()), args: args, has_parens: has_parens, span: whole }
+    }
+
+    mutating fun parse_annotation_args(args: &var List<AnnotationArg>): void {
+        while true {
+            self.skip_newlines()
+            if is_op(self.peek(), Operator.RParen) || self.at_eof() { break }
+            val arg_name = self.named_argument_label()
+            args.push(AnnotationArg { name: intern(arg_name.as_str()), value: Box.new(self.parse_expr()) })
+            self.skip_newlines()
+            if !is_op(self.peek(), Operator.Comma) { break }
+            unsafe { self.advance() }
+        }
+        if !is_op(self.peek(), Operator.RParen) {
+            val found = tok_str(self.peek())
+            self.parse_err(self.peek().span, "expected `,` or `)` in an annotation's arguments, found ${found}")
+            self.sync_to_newline()
+            return
+        }
+        unsafe { self.advance() } // consume `)`
+    }
+
+    /// `name` of `name = value`, consumed, or "" for a positional argument.
+    mutating fun named_argument_label(): String {
+        if !is_op(self.peek_at(1), Operator.Eq) { return "" }
+        val label = when (self.peek().kind) {
+            Identifier(s) => s.as_string()
+            _ => String.from("")
+        }
+        if label.as_str().equals("") { return label }
+        unsafe { self.advance() } // the name
+        unsafe { self.advance() } // `=`
+        return label
+    }
+}

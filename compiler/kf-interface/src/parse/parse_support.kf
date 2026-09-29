@@ -95,8 +95,8 @@ mutating fun JsonReader.read_c_naming(): CNaming? {
 
 fun mark_c_naming(td: TopDecl, naming: CNaming): TopDecl {
     var marked = td
-    if naming.unmangled { marked.annotations.push(String.from("no_mangle")) }
-    if !naming.lang.as_str().equals("") { marked.annotations.push("lang(${naming.lang.as_str()})") }
+    if naming.unmangled { marked.annotations.push(new_annotation(no_span(), "no_mangle", List.new<String>())) }
+    if !naming.lang.as_str().equals("") { marked.annotations.push(lang_annotation(naming.lang.as_str())) }
     return marked
 }
 
