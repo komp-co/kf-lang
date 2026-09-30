@@ -115,8 +115,25 @@ fun Module.declaration_allows(name: str, span: Span): bool {
     if span.is_none() { return false }
     while td in &self.decls {
         if td.decl_covers(span) {
-            if td.allows_lint(name) { return true }
+            if td.allows_lint(name) || td.member_allows(name, span) { return true }
         }
+    }
+    return false
+}
+
+/// An `@allow` on the impl or trait method the evidence is in.
+fun TopDecl.member_allows(name: str, span: Span): bool {
+    return when (self.kind) {
+        ImplBlock(methods) => methods.any_allows(name, span)
+        TraitImpl(_trait, methods) => methods.any_allows(name, span)
+        TraitDecl(members, _pub, _supers) => members.any_allows(name, span)
+        _ => false
+    }
+}
+
+fun List<TopDecl>.any_allows(name: str, span: Span): bool {
+    while member in &self {
+        if member.decl_covers(span) && member.allows_lint(name) { return true }
     }
     return false
 }
@@ -128,33 +145,9 @@ fun TopDecl.decl_covers(span: Span): bool {
     return span.start >= self.span.start && span.start < self.decl_end
 }
 
-/// The argument list is captured verbatim, so `allow(a,b)` is split here.
 fun TopDecl.allows_lint(name: str): bool {
-    val text = self.annotation_text("allow")
-    if text.as_str() == "" { return false }
-    return allow_names_include(text.as_str(), name)
-}
-
-/// Segment by segment, so `unused` does not match `unused_import`.
-pub fun allow_names_include(annotation: str, name: str): bool {
-    val n = annotation.byte_len()
-    var i: uint64 = 6 // past `allow(`
-    var start = 6
-    while i <= n {
-        val at_end = i == n
-        var is_sep = false
-        if !at_end {
-            val b = annotation.byte_at(i)
-            is_sep = b == 44 || b == 41 // `,` or `)`
-        }
-        if at_end || is_sep {
-            if i > start {
-                val seg = annotation.substring(start, i)
-                if seg.as_str().trim().as_str() == name { return true }
-            }
-            start = i + 1
-        }
-        i = i + 1
+    while allowed in &self.annotation_words("allow") {
+        if allowed.as_str() == name { return true }
     }
     return false
 }

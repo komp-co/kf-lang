@@ -484,3 +484,38 @@ fun Module.binding_choice_name(): String {
     m.qualify_type_symbols()
     assert_eq(m.binding_choice_name().as_str(), "aa__Cursor", "the chosen type is renamed like any other type position")
 }
+
+@test
+fun a_function_type_respells_its_parameters(): void {
+    var names = List.new<String>()
+    var repls = List.new<TypeRef>()
+    push_rename(String.from("Point"), String.from("aa__Point"), &var names, &var repls)
+    val point = Type { kind: TypeKind.Struct(intern("Point")), provenance: Provenance.Inferred(no_span()) }
+    var params = new_type_vec()
+    params.push(point)
+    val function = fn_ty(params, point, Provenance.Inferred(no_span()))
+    val qualified = qualify_type(function, &var names, &var repls)
+    val parts = qualified.fn_parts() ?: return
+    val shown = "${parts.params.at(0).named()} ${parts.ret.named()}"
+    assert_eq(shown.as_str(), "aa__Point aa__Point", "the parameter and the result")
+}
+
+fun Type.named(): String {
+    return when (self.kind) {
+        Struct(name) => name.as_string()
+        _ => String.from("")
+    }
+}
+
+@test fun the_owner_before_a_method_keeps_an_underscored_argument(): void {
+    val owner = static_callee_owner_before("List__AnnotatedItem__is_shown_new", "new")
+    assert_eq(owner.as_str(), "List__AnnotatedItem__is_shown", "the argument is not cut at its `_`")
+}
+
+@test fun the_owner_before_a_method_stops_at_the_trait_tail(): void {
+    assert_eq(static_callee_owner_before("Cel_from__From__int32", "from").as_str(), "Cel", "the tail is not the owner")
+}
+
+@test fun the_owner_before_an_absent_method_is_empty(): void {
+    assert_eq(static_callee_owner_before("Cel_into", "from").as_str(), "", "no method segment")
+}

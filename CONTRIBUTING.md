@@ -97,10 +97,10 @@ A `classify` job first decides what the PR needs (`scripts/ci-classify.sh`):
 | only Markdown and `//` comment lines in `.kf` files | fixpoint (includes the ratchets: file size, line length, unsafe blocks) |
 | anything else | all four |
 
-The four jobs each clone the public
-[`json`](https://github.com/komp-co/json) dependency as a sibling
-(`../json`), at the commit `bootstrap/json.rev` pins, so a change to `json`
-reaches komp only through a PR that moves the pin:
+The compiler's [`json`](https://github.com/komp-co/json) dependency comes
+from the index at the version `compiler/kf.lock` pins, so a change to `json`
+reaches komp only through a PR that moves the lock (`komp update compiler`).
+The four jobs are:
 
 1. **fixpoint** — `sh scripts/check.sh --fixpoint`, the self-host fixpoint
    (stage1 == stage2),
@@ -199,8 +199,8 @@ detect its own age, which is why this is written down rather than checked.
 
 ## Local dev quickstart
 
-- The compiler needs the `json` crate cloned as a sibling (`../json`) and the
-  checkout directory named lowercase `komp`: a path dependency reaches the
-  stdlib through that name.
+- The checkout directory must be named lowercase `komp`: a path dependency
+  reaches the stdlib through that name. The first build fetches `json` from
+  the index.
 - Self-host + fixpoint: `sh bootstrap/build.sh` (fetches the seed once).
 - Test one crate: `komp test compiler/<crate>`.

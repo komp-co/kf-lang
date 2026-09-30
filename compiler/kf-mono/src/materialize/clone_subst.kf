@@ -93,6 +93,7 @@ pub fun clone_subst_decl(tmpl: &TopDecl, args: &List<TypeRef>, mangled: String):
         // Associated types are members, specialized by clone_subst_member.
         AssocType(_bounds) => return new_owned_top_decl(tmpl.crate, tmpl.span, "", TopDeclKind.Poison)
         AssocTypeBinding(_chosen) => return new_owned_top_decl(tmpl.crate, tmpl.span, "", TopDeclKind.Poison)
+        AnnotationDecl(_params, _target, _pub) => return new_owned_top_decl(tmpl.crate, tmpl.span, "", TopDeclKind.Poison)
         TraitDecl(_methods, _pub, _) => {
             return new_owned_top_decl(tmpl.crate, tmpl.span, "", TopDeclKind.Poison)
         }

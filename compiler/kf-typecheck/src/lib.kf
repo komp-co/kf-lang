@@ -42,6 +42,8 @@ pub fun typecheck_module_typed(m: &var Module,
     m.reject_colliding_no_mangle(&var diags)
     m.reject_duplicate_lang_items(&var diags)
     m.prepare_extensions(&var diags)
+    m.prepare_annotation_params(&var diags)
+    m.expand_annotation_structs(&var diags)
     // Before registration, so derived impls go through every later pass.
     m.expand_derives()
     val sigs = check_decl_module(m, table, &var diags, caller_files, imported_targets, imported_names)

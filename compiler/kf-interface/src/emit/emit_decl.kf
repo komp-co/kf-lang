@@ -126,6 +126,17 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             o.field_raw("methods", emit_interface_methods(td, methods, true, true, interface_trait_suffix(trait_type, m), unmangled).as_str())
             return o.finish()
         }
+        AnnotationDecl(_params, target, is_pub) => {
+            var o = JsonWriter.object()
+            o.field_string("kind", "annotation")
+            o.field_bool("hidden", hidden)
+            o.field_string("name", td.name.as_str())
+            o.field_bool("pub", is_pub)
+            o.field_string("function", target.function_source().as_str())
+            o.field_raw("kinds", target.kinds_json().as_str())
+            o.field_raw("params", type_params_json(td.generics).as_str())
+            return o.finish()
+        }
         _ => return String.from("{}")
     }
 }

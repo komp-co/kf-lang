@@ -56,7 +56,7 @@ fun list_of(name: str, element: str, lang: bool): TopDecl {
     var fields = List.new<Field>()
     fields.push(new_field(no_span(), String.from("data"), data, true, false))
     var td = new_top_decl(no_span(), String.from(name), TopDeclKind.Struct(fields, true))
-    if lang { td.annotations.push(String.from("lang(list)")) }
+    if lang { td.annotations.push(lang_annotation("list")) }
     return td
 }
 

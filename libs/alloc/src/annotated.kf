@@ -1,0 +1,31 @@
+import alloc.string.String
+
+/// A function carrying a declared annotation, as `annotated<A>()` lists it.
+/// `A` is the annotation's argument type, named after it, and `F` the
+/// function type it marks.
+pub struct AnnotatedFunction<A, F> {
+    pub val name: String
+    /// The declaring module's path, `app.routes`.
+    pub val module: String
+    pub val args: A
+    pub val function: F
+}
+
+/// What `annotated<A>()` lists for an annotation marking by kind: the
+/// declaration's name and kind, but nothing to call.
+pub struct AnnotatedItem<A> {
+    pub val name: String
+    /// The declaring module's path, `app.plugins`.
+    pub val module: String
+    pub val kind: AnnotatedKind
+    pub val args: A
+}
+
+/// The kind of declaration an `AnnotatedItem` names.
+@derive(Copy, Equal)
+pub enum AnnotatedKind {
+    Function
+    Struct
+    Enum
+    Trait
+}

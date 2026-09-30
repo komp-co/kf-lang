@@ -11,20 +11,18 @@ pub fun Module.validate_annotations(diags: Ptr<List<Diagnostic>>): void {
     while td in &self.decls {
         // Each annotation is judged on its own.
         while item in &td.annotations {
-            td.validate_one_annotation(item.as_str(), diags)
+            td.validate_one_annotation(item, diags)
         }
+        if td.crate.raw == self.crate.raw { td.validate_member_annotations(diags) }
     }
 }
 
-fun TopDecl.validate_one_annotation(annotation: str, diags: Ptr<List<Diagnostic>>): void {
-    if annotation.equals("") { return }
-    val kind = annotation_kind(annotation)
+fun TopDecl.validate_one_annotation(annotation: &Annotation, diags: Ptr<List<Diagnostic>>): void {
+    val kind = annotation.name
+    if kind.as_str().equals("") { return }
     val info = lookup_annotation(kind.as_str())
-    if info.name.as_str().equals("") {
-        val message = "unknown annotation `@${kind.as_str()}`: expected ${known_annotations_summary().as_str()}"
-        unsafe { diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message))) }
-        return
-    }
+    // Any other name is a declared annotation, resolved once imports are.
+    if info.name.as_str().equals("") { return }
     if !annotation_target_allows(info.target, self) {
         val message = "`@${kind.as_str()}` can only annotate ${annotation_target_phrase(info.target).as_str()}"
         unsafe { diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message))) }
@@ -33,15 +31,14 @@ fun TopDecl.validate_one_annotation(annotation: str, diags: Ptr<List<Diagnostic>
     when kind.as_str() {
         "lang" => self.validate_lang_annotation(diags)
         "prelude" => self.validate_prelude_annotation(diags)
-        "derive" => self.validate_derive_options(annotation, diags)
-        "allow" => self.validate_allow_names(annotation, diags)
+        "derive" => self.validate_derive_options(&annotation.words(), diags)
+        "allow" => self.validate_allow_names(&annotation.words(), diags)
         _ => { }
     }
 }
 
 /// Options are checked against the derive registry.
-fun TopDecl.validate_derive_options(annotation: str, diags: Ptr<List<Diagnostic>>): void {
-    val options = derive_options_of(annotation)
+fun TopDecl.validate_derive_options(options: &List<String>, diags: Ptr<List<Diagnostic>>): void {
     var bad = false
     while item in &options {
         val name = item.as_str()
@@ -63,8 +60,7 @@ fun TopDecl.validate_derive_options(annotation: str, diags: Ptr<List<Diagnostic>
 }
 
 /// An `@allow` naming no registered lint suppresses nothing silently.
-fun TopDecl.validate_allow_names(annotation: str, diags: Ptr<List<Diagnostic>>): void {
-    val names = annotation_args(annotation, "allow")
+fun TopDecl.validate_allow_names(names: &List<String>, diags: Ptr<List<Diagnostic>>): void {
     while name in &names {
         if !lint_exists(name.as_str()) {
             val message = "`@allow(...)` names no lint `${name}`"
@@ -78,7 +74,7 @@ pub mutating fun Module.expand_derives(): void {
     val cloned = self.types_with_impl_of(clone_sym)
     var synth = List.new<TopDecl>()
     while td in &self.decls {
-        val options = derive_options_of((&td).annotation_text("derive").as_str())
+        val options = (&td).annotation_words("derive")
         while option in &options {
             val entry = lookup_derive(option.as_str())
             if !entry.name.as_str().equals("") && derive_admits(entry, &td) {

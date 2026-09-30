@@ -43,7 +43,7 @@ import kf_parse.parser.parser_for
 @test fun parse_test_annotation_recorded(): void {
     var p = parser_for("@test fun foo(): void {}")
     val td = p.parse_top_decl()
-    assert_eq(td.annotations.at(0).as_str(), "test", "@test → annotation == test")
+    assert_eq(td.annotations.at(0).to_source().as_str(), "test", "@test → annotation == test")
 }
 
 @test fun parse_unannotated_fun_has_empty_annotation(): void {
@@ -55,19 +55,19 @@ import kf_parse.parser.parser_for
 @test fun parse_unknown_annotation_recorded_not_rejected(): void {
     var p = parser_for("@inline fun foo(): void {}")
     val td = p.parse_top_decl()
-    assert_eq(td.annotations.at(0).as_str(), "inline", "@inline recorded verbatim, not rejected")
+    assert_eq(td.annotations.at(0).to_source().as_str(), "inline", "@inline recorded verbatim, not rejected")
 }
 
 @test fun parse_derive_annotation_captures_args(): void {
     var p = parser_for("@derive(Default) struct S { var x: int32 }")
     val td = p.parse_top_decl()
-    assert_eq(td.annotations.at(0).as_str(), "derive(Default)", "@derive(Default) → annotation carries the arg")
+    assert_eq(td.annotations.at(0).to_source().as_str(), "derive(Default)", "@derive(Default) carries the arg")
 }
 
 @test fun parse_derive_annotation_multiple_traits(): void {
     var p = parser_for("@derive(Default, Equal) struct S { var x: int32 }")
     val td = p.parse_top_decl()
-    assert_eq(td.annotations.at(0).as_str(), "derive(Default,Equal)", "@derive lists comma-joined traits")
+    assert_eq(td.annotations.at(0).to_source().as_str(), "derive(Default, Equal)", "@derive lists comma-joined traits")
 }
 
 @test fun parse_trait_records_required_method(): void {

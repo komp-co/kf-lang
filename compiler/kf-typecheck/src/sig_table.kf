@@ -189,6 +189,38 @@ pub struct BoundInfo {
     pub val span: Span
 }
 
+/// An `annotation NAME(params)` declaration, in this crate or a dependency.
+pub struct DeclaredAnnotation {
+    pub val name: Sym
+    pub val crate: CrateId
+    pub val module: Sym
+    pub val is_pub: bool
+    pub val params: List<Param>
+    pub val target: MarkTarget
+    /// A function target's type, or a pattern's with poison for each `_`,
+    /// resolved; poison for a kind target. A type parameter is `Generic`.
+    pub val function_type: Type
+    /// Declared and implicit, in order.
+    pub val type_params: List<TypeParam>
+}
+
+/// A declaration of the crate being compiled carrying a declared
+/// annotation, which indexes `SigTable.annotations`.
+pub struct AnnotatedItem {
+    pub val annotation: uint64
+    /// The symbol a value names: `length`, or `Counter_get` for a method.
+    pub val item: Sym
+    /// As listed: `length`, or `Counter.get`.
+    pub val name: String
+    /// What each of the annotation's type parameters stands for here, in
+    /// order.
+    pub val bindings: List<Type>
+    pub val kind: MarkKind
+    pub val module: Sym
+    /// The use's argument values, in parameter order.
+    pub val args: List<Expr>
+}
+
 pub struct SigTable {
     pub var sigs: List<FnSignature>
     /// Positions in `sigs` by name. `sigs` is append-only and lookups want the
@@ -250,6 +282,9 @@ pub struct SigTable {
     pub var untyped_recv_methods: List<Sym>
     /// Function types met so far, so a mangle fragment naming one reads back.
     pub var fn_types: List<Type>
+    pub var annotations: List<DeclaredAnnotation>
+    /// In declaration order, which is the order `annotated` lists.
+    pub var annotated: List<AnnotatedItem>
 }
 
 pub fun new_sig_table(): SigTable {
@@ -290,7 +325,9 @@ pub fun new_sig_table(): SigTable {
         ext_trait_params: List.new<Sym>(),
         untyped_recv_spans: List.new<Span>(),
         untyped_recv_methods: List.new<Sym>(),
-        fn_types: List.new<Type>()
+        fn_types: List.new<Type>(),
+        annotations: List.new<DeclaredAnnotation>(),
+        annotated: List.new<AnnotatedItem>()
     }
 }
 

@@ -61,7 +61,7 @@ fun lang_name_messages(crate: str, with_lang: bool): uint64 {
     if with_lang {
         var lang = new_top_decl(no_span(), String.from("String"), TopDeclKind.Struct(List.new<Field>(), true))
         lang.crate = new_crate_id("alloc")
-        lang.annotations.push(String.from("lang(string)"))
+        lang.annotations.push(lang_annotation("string"))
         declarations.push(lang)
     }
     var declaration = new_top_decl(no_span(), String.from("String"), TopDeclKind.Struct(List.new<Field>(), true))
@@ -82,7 +82,7 @@ fun the_lang_string_is_not_refused_its_own_name(): void {
     var declarations = List.new<TopDecl>()
     var lang = new_top_decl(no_span(), String.from("String"), TopDeclKind.Struct(List.new<Field>(), true))
     lang.crate = new_crate_id("alloc")
-    lang.annotations.push(String.from("lang(string)"))
+    lang.annotations.push(lang_annotation("string"))
     declarations.push(lang)
     var module = Module { crate: new_crate_id("alloc"), path: List.new<String>(), decls: declarations, imports: List.new<Import>() }
     var table = new_decl_table()

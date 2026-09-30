@@ -22,6 +22,7 @@ impl Parser {
         when (t.kind) {
             KeywordTok(kw) => return self.parse_top_keyword(kw, t.span)
             Identifier(_) => {
+                if self.at_annotation_decl() { return self.parse_annotation_decl(t.span, false) }
                 self.parse_err(t.span, "expected a declaration (`fun`, `struct`, `enum`, `impl`, `trait`, `extern`, `import`), found ${tok_str(self.peek())}")
                 unsafe { self.advance() }
                 self.sync_to_newline()
@@ -69,78 +70,6 @@ impl Parser {
                 return new_top_decl(t.span, "", TopDeclKind.Poison)
             }
         }
-    }
-
-    /// The run of annotations above a declaration, each recorded verbatim;
-    /// unknown names are left for typecheck. Collected in a loop so the list
-    /// stays in source order.
-    mutating fun parse_annotated_decl(): TopDecl {
-        var names = List.new<String>()
-        while is_op(self.peek(), Operator.At) {
-            unsafe { self.advance() } // consume `@`
-            names.push(self.parse_annotation_name())
-            self.skip_newlines()
-        }
-        var td = self.parse_top_decl() // parse the decl they annotate
-        td.annotations = names
-        return td
-    }
-
-    /// "" without an identifier. Arguments are captured verbatim:
-    /// `@derive(Default, Equal)` records `"derive(Default,Equal)"`.
-    mutating fun parse_annotation_name(): String {
-        val t = self.peek()
-        when (t.kind) {
-            Identifier(s) => {
-                val owned_name = s.as_string()
-                unsafe { self.advance() }
-                if is_op(self.peek(), Operator.LParen) {
-                    return owned_name + self.parse_annotation_args()
-                }
-                return owned_name
-            }
-            KeywordTok(_) => return ""
-            Op(_) => return ""
-            IntLiteral(_) => return ""
-            StringLiteral(_) => return ""
-            FloatLiteral(_) => return ""
-            CharLiteral(_) => return ""
-            Newline => return ""
-            Eof => return ""
-            LexError(_) => return ""
-        }
-    }
-
-    /// `(a, b)` as `"(a,b)"`, stopping at `)` or EOF.
-    mutating fun parse_annotation_args(): String {
-        unsafe { self.advance() } // consume `(`
-        var out = String.from("(")
-        var first = true
-        while true {
-            val t = self.peek()
-            if t.is_op(Operator.RParen) { break }
-            var done = false
-            when (t.kind) {
-                Eof => { done = true }
-                Identifier(a) => {
-                    if !first { out = out + String.from(",") }
-                    out = out + a.as_string()
-                    first = false
-                }
-                StringLiteral(text) => {
-                    if !first { out = out + String.from(",") }
-                    out = out + text
-                    first = false
-                }
-                _ => {}
-            }
-            if done { break }
-            unsafe { self.advance() } // ident, comma, or stray token
-        }
-        if is_op(self.peek(), Operator.RParen) {
-            unsafe { self.advance() } // consume `)`
-        }
-        return out + String.from(")")
     }
 
     mutating fun parse_top_keyword(kw: Keyword, span: Span): TopDecl {
@@ -235,6 +164,9 @@ impl Parser {
         }
         if is_keyword(self.peek(), Keyword.Trait) {
             return self.parse_trait(span, true)
+        }
+        if self.at_annotation_decl() {
+            return self.parse_annotation_decl(span, true)
         }
         return new_top_decl(span, "", TopDeclKind.Poison)
     }

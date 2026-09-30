@@ -227,7 +227,7 @@ pub fun type_has_user_clone(name: String, m: &Module): bool {
             when (k) {
                 ImplBlock(methods) => {
                     while mth in &methods {
-                        if mth.name.as_str() == "clone" && !(&mth).has_annotation("derive(Clone)") { return true }
+                        if mth.name.as_str() == "clone" && (&mth).annotation_words("derive").size() == 0 { return true }
                     }
                 }
                 _ => {}

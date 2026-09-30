@@ -2,9 +2,9 @@ import core.assert.assert_eq
 import alloc.list.*
 import kf_core.span.no_span
 
-fun marked_struct(name: str, annotation: str): TopDecl {
+fun marked_struct(name: str, lang_key: str): TopDecl {
     var td = new_top_decl(no_span(), String.from(name), TopDeclKind.Struct(List.new<Field>(), true))
-    if !annotation.equals("") { td.annotations.push(String.from(annotation)) }
+    if !lang_key.equals("") { td.annotations.push(new_annotation(no_span(), "lang", [String.from(lang_key)])) }
     return td
 }
 
@@ -15,7 +15,7 @@ fun module_of(decls: List<TopDecl>): Module {
 @test fun the_lang_string_is_found_by_its_key_not_its_name(): void {
     var decls = List.new<TopDecl>()
     decls.push(marked_struct("Other", ""))
-    decls.push(marked_struct("Text", "lang(string)"))
+    decls.push(marked_struct("Text", "string"))
     val m = module_of(decls)
     assert_eq((&m).lang_type_name(lang_string_key()).as_str(), "Text", "whatever the library called it")
 }

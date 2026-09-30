@@ -8,4 +8,4 @@ kf_core = { path = "../kf-core" }
 kf_parse = { path = "../kf-parse" }
 core = { path = "../../libs/core" }
 alloc = { path = "../../libs/alloc" }
-json = { path = "../../../json" }
+json = "0.2"

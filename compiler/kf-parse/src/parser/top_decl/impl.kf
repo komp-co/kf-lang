@@ -129,7 +129,24 @@ impl Parser {
         methods.push(new_top_decl(span, name, TopDeclKind.AssocType(bounds)))
     }
 
+    /// A member, with the `@...` run above it recorded on it.
     mutating fun parse_one_impl_method(methods: &var List<TopDecl>): bool {
+        var annotations = List.new<Annotation>()
+        while is_op(self.peek(), Operator.At) {
+            unsafe { self.advance() } // consume `@`
+            annotations.push(self.parse_annotation())
+            self.skip_newlines()
+        }
+        val before = methods.size()
+        val parsed = self.parse_impl_member(methods)
+        if methods.size() > before {
+            val member = methods.at_mut(before)
+            member.annotations = annotations
+        }
+        return parsed
+    }
+
+    mutating fun parse_impl_member(methods: &var List<TopDecl>): bool {
         if is_keyword(self.peek(), Keyword.TypeKw) {
             self.parse_assoc_type(methods)
             return true

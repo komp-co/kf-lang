@@ -5,6 +5,7 @@
 import alloc.list.*
 
 import kf_core.span.Span
+import kf_core.span.no_span
 
 pub fun lang_string_key(): str { return "string" }
 
@@ -83,14 +84,20 @@ pub fun known_lang_keys_summary(): String {
     return out
 }
 
+/// `@lang("key")`, for a declaration read back from an interface.
+pub fun lang_annotation(key: str): Annotation {
+    var args = List.new<AnnotationArg>()
+    val literal = new_expr(no_span(), ExprKind.LitStr(String.from(key)))
+    args.push(AnnotationArg { name: intern(""), value: Box.new(literal) })
+    return Annotation { name: intern("lang"), args: args, has_parens: true, span: no_span() }
+}
+
 impl TopDecl {
     /// The key of this declaration's `@lang(...)`, or "".
     pub fun lang_key_of(): String {
-        val text = self.annotation_text("lang")
-        val n = text.as_str().byte_len()
-        if n < 7 { return "" }
-        val key = text.as_str().substring(5, n - 1)
-        return key
+        val words = self.annotation_words("lang")
+        if words.size() == 0 { return "" }
+        return words.at(0).clone()
     }
 }
 

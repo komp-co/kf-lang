@@ -1,10 +1,340 @@
 # Annotations
 
 Annotations start with `@` and apply to the declaration that follows. KFlat
-accepts `@test`, `@test_disabled`, `@allow(...)`, `@derive(...)`,
-`@no_mangle`, `@lang(...)` and `@prelude`. Any other annotation is an error.
+has `@test`, `@test_disabled`, `@allow(...)`, `@derive(...)`, `@no_mangle`,
+`@lang(...)` and `@prelude` built in, and a crate may
+[declare its own](#declaring-an-annotation). Any other annotation is an error.
 
 A declaration may carry several, one per line.
+
+A method of an `impl` or a trait may carry `@allow(...)`, which then covers
+only that method. Every other built-in annotation is an error on a method. A
+method of an `impl` may carry a [declared one](#methods); a method of a trait
+may not, since it has no body to name.
+
+## Declaring an annotation
+
+`annotation NAME` declares `@NAME`, and `annotated<NAME>()` lists everything
+in the crate being compiled that carries it:
+
+```kflat
+annotation bench
+
+@bench
+fun sort_a_thousand(): void { }
+
+fun main(): int32 {
+    while entry in &annotated<bench>() {
+        println(entry.name)
+        entry.function()
+    }
+    return 0
+}
+```
+
+The list is in declaration order, and private declarations are in it, from
+any module of the crate. Each entry has the declaration's `name`, the path of
+the `module` declaring it, and the use's `args`.
+
+### Parameters
+
+An annotation may take parameters, written like a function's:
+
+```kflat
+enum Level {
+    Low
+    High
+}
+
+annotation bench(iterations: int32, label: String, level: Level)
+
+@bench(1000, "sort", Level.High)
+fun sort_a_thousand(): void { }
+
+@bench(label = "parse", iterations = 10, level = Level.Low)
+fun parse_a_file(): void { }
+
+fun main(): int32 {
+    while entry in &annotated<bench>() {
+        if entry.args.iterations > 100 {
+            println(entry.args.label)
+            entry.function()
+        }
+    }
+    return 0
+}
+```
+
+A use gives every argument, positionally, by name in any order, or
+positionally and then by name. Each argument is a literal of its parameter's
+type, so a parameter is a number, `bool`, `char`, `String`, or an enum whose
+variants carry nothing.
+
+`annotation bench(...)` also declares a struct `bench` with one field per
+parameter, and that struct is the type of `entry.args`. An annotation without
+parameters declares an empty one. The struct shares the annotation's name,
+so nothing else in the crate may be called `bench`.
+
+### Targets
+
+`on` says what an annotation marks. A function type marks functions of
+exactly that type, and each entry's `function` is a value of it:
+
+```kflat
+struct Request {
+    val body: String
+}
+
+annotation route(path: String) on (Request) -> int32
+
+@route("/len")
+fun length(r: Request): int32 { return r.body.byte_len() as int32 }
+
+fun main(): int32 {
+    val routes = annotated<route>()
+    return routes.at(0).function(Request { body: "abcd" }) - 4
+}
+```
+
+A parameter written `&T` fits where the target says `&var T`, since a shared
+borrow can always be lent from a mutable one. The reverse does not fit, and
+the entry's `function` keeps the target's type either way.
+
+#### Methods
+
+A method is marked as the function it is as a
+[value](functions.md#methods-as-values): its receiver first, `&Type`, or
+`&var Type` for a `mutating` method. One `&var Server` target so marks both
+kinds, and its entries are called with the receiver:
+
+```kflat
+struct Request {
+    val path: String
+}
+
+struct Server {
+    var hits: int32
+}
+
+annotation handler(path: String) on (&var Server, Request) -> int32
+
+impl Server {
+    @handler("/users")
+    fun users(r: Request): int32 { return self.hits }
+
+    @handler("/login")
+    mutating fun login(r: Request): int32 {
+        self.hits = self.hits + 1
+        return 0
+    }
+}
+
+fun serve(s: &var Server, r: Request): int32 {
+    while h in &annotated<handler>() {
+        if h.args.path == r.path { return h.function(s, r) }
+    }
+    return -1
+}
+
+fun main(): int32 {
+    var s = Server { hits: 0 }
+    serve(&var s, Request { path: "/login" })
+    println(serve(&var s, Request { path: "/users" }))   // 1
+    return 0
+}
+```
+
+A method's entry is named `Server.users`. A method of a generic type cannot
+carry a function-type annotation, since a value has one type.
+
+#### Signature patterns
+
+A function type written with wildcards marks every function it matches. `_`
+stands for any one type, and `&_` or `&var _` for a borrow of any type. A
+trailing `..` stands for any further parameters, none included:
+
+```kflat
+annotation flag on (bool, ..) -> bool     // a bool first, then anything
+annotation pair on (bool, _) -> bool      // exactly one more parameter
+annotation shown on (int32) -> _          // any result
+annotation hook on (&_, bool) -> bool     // a method of any type
+
+@flag
+fun alone(on: bool): bool { return on }
+
+@flag
+@pair
+fun with_label(on: bool, label: String): bool { return on }
+
+@shown
+fun label_of(n: int32): String { return "#${n}" }
+
+fun main(): int32 {
+    while f in &annotated<flag>() {
+        println(f.name)
+    }
+    return 0
+}
+```
+
+The functions a pattern matches have different types, so there is no one
+type to call them through: the entries are `AnnotatedItem`s, with a name and
+no `function`. `..` must come last, and `_` stands only for a whole parameter
+or result, not a type argument (`List<_>`). `(..) -> _` matches every
+function a value can name.
+
+#### Type parameters
+
+A name in a target that is not a type in scope is a type parameter, as a
+name in an [extension's](extensions.md#generic-receivers) receiver is. Each
+use binds it to what stands in its place, so where it appears twice, the two
+types agree. Bounds go in a list before the annotation's name:
+
+```kflat
+struct Request {
+    val path: String
+}
+
+struct Server {
+    var hits: int32
+}
+
+trait Counted {
+    fun count(): int32
+}
+
+impl Counted for Server {
+    fun count(): int32 { return self.hits }
+}
+
+annotation same on (T, T) -> T
+annotation handler on (&var S, Request) -> int32
+annotation <T: Counted> counted on (&T) -> int32
+
+@same
+fun add(a: int32, b: int32): int32 { return a + b }
+
+impl Server {
+    @handler
+    mutating fun login(r: Request): int32 {
+        self.hits = self.hits + 1
+        return 0
+    }
+}
+
+@counted
+fun hits(s: &Server): int32 { return s.count() }
+
+fun main(): int32 {
+    var s = Server { hits: 0 }
+    while h in &annotated<handler<Server>>() {
+        h.function(&var s, Request { path: "/login" })
+    }
+    println(annotated<same<int32>>().at(0).function(2, 3))   // 5
+    println(annotated<counted<Server>>().at(0).function(&s))  // 1
+    return 0
+}
+```
+
+A query may pin every type parameter, as `annotated<handler<Server>>()` does.
+It then lists only the uses binding them that way, and for an exact function
+type, with no `_` or `..`, their entries are `AnnotatedFunction`s with a
+callable `function` of the pinned type. Without pins, the entries are
+`AnnotatedItem`s naming every use. Pinning some parameters but not all is an
+error, and the order is the bounds list's, then the target's, left to right.
+
+Like `_`, a type parameter stands for a whole parameter or result, or one
+behind `&`. A bound is checked at each use, and a type parameter the target
+never names is an error. A name close to a type in scope, such as `Pont` with
+`Point` declared, is warned about, since it is likelier a typo.
+
+`on` may instead name kinds of declaration: `fun`, `struct`, `enum` and
+`trait`. `on fun` marks every function, whatever its signature, and `on any`
+marks all four kinds. Several kinds are separated by `,`. A struct or an enum
+kind may take a bound after `:`, which every marked declaration of that kind
+must implement:
+
+```kflat
+trait Plugin {
+    fun start(): int32
+}
+
+annotation plugin(order: int32) on struct: Plugin
+annotation hook on <struct: Plugin, enum>
+annotation deprecated(since: String) on any
+
+@plugin(1)
+@hook
+struct Logger {
+    val level: int32
+}
+
+impl Plugin for Logger {
+    fun start(): int32 { return self.level }
+}
+
+@hook
+@deprecated("0.4")
+enum Level {
+    Low
+    High
+}
+
+@deprecated("0.3")
+trait Named {
+    fun name(): String
+}
+
+fun main(): int32 {
+    while p in &annotated<plugin>() {
+        println("${p.module}.${p.name}, order ${p.args.order}")
+    }
+    while d in &annotated<deprecated>() {
+        if d.kind == AnnotatedKind.Trait {
+            println("trait ${d.name}, since ${d.args.since}")
+        }
+    }
+    return 0
+}
+```
+
+A list of kinds with a bound goes in `<...>`, as a type's generic parameters
+do: `on <struct: Plugin + Default, enum>`. A bound on `fun` or `trait` is an
+error, since neither implements a trait.
+
+An entry of a kind target has the declaration's `kind`, but nothing to call:
+it may name a type, a trait, or a function of any signature. A generic type
+cannot carry an annotation whose kind has a bound, since whether it meets the
+bound can depend on its arguments. A bound names a trait without type
+arguments.
+
+Without `on`, an annotation marks functions of type `() -> void`. Entries
+are an `AnnotatedFunction<bench, F>` for a function type, or an
+`AnnotatedItem<bench>` for kinds, from alloc.
+
+### Across modules and crates
+
+An annotation is a name like any other. Another module of the crate uses it
+only if it is `pub` and imported, and another crate the same way:
+
+```kflat
+// in a library crate named `measure`
+pub annotation bench
+
+// in a crate depending on it
+import measure.bench
+
+@bench
+fun parse_a_file(): void { }
+```
+
+The query only reaches the crate it is written in. A `measure` function
+calling `annotated<bench>()` sees `measure`'s functions, not the ones of the
+crate that imported `bench`.
+
+The name of a built-in annotation cannot be declared. `annotation`, `on`
+and `any` are not reserved words; they are read this way only in an
+annotation's declaration.
 
 ## @test
 
@@ -60,9 +390,11 @@ the type must not implement `Drop`. See [Copy](memory.md#copy).
 it annotates:
 
 ```kflat
-@allow(unused_import, dead_code)
+@allow(unused_import, unused_variable)
 fun scratch(): void { }
 ```
+
+On a method, it covers that method and nothing else in its `impl`.
 
 The names are the ones a diagnostic reports as its `code`. `lint.toml` sets
 the same levels for a whole crate, and `-A`/`-W`/`-D` set them for one build;

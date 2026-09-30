@@ -7,7 +7,7 @@ kind = "lib"
 core = { path = "../../libs/core" }
 alloc = { path = "../../libs/alloc" }
 std = { path = "../../libs/std" }
-json = { path = "../../../json" }
+json = "0.2"
 
 [native]
 c_sources = ["native/file_hash.c"]

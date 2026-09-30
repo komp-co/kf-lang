@@ -102,28 +102,17 @@ pub fun Module.collect_fn_renames(names: &var List<String>, repls: &var List<Typ
         }
     }
     self.collect_unique_method_renames(names, repls)
+    self.collect_method_value_renames(names, repls)
 }
 
 fun Module.collect_unique_method_renames(names: &var List<String>, repls: &var List<TypeRef>): void {
-    val list_name = self.lang_type_name(lang_list_key())
-    val option_name = self.lang_type_name(lang_option_key())
     while owner in &self.decls {
         when (owner.kind) {
             ImplBlock(methods) => {
                 while method in &methods {
                     val raw_name = method_source_name(method.name.as_string())
                     if !method_name_is_runtime_owned(raw_name.as_str()) && self.method_name_count(raw_name.as_str()) == 1 && !self.module_has_free_symbol(raw_name.as_str()) {
-                        var link = method.link_name.as_string()
-                        if link.as_str() == "" && !owner.crate.is_poison() {
-                            val owner_name = owner.name.as_string()
-                            // A builtin type's impls are emitted unprefixed
-                            // (`int8_add__Add`).
-                            val unprefixed = is_mangled_decl_name(owner.name.as_str()) || is_runtime_type_name(owner.name.as_str()) ||
-                                is_container_type_name(owner.name.as_str(), list_name, option_name) ||
-                                self.type_is_no_mangle(owner.name.as_str())
-                            val prefix = if unprefixed { String.from("") } else { String.from(owner.crate.symbol_prefix().as_str()) }
-                            link = prefix + owner_name + String.from("_") + method.name.as_string()
-                        }
+                        val link = self.method_link_name(owner, method)
                         if link.as_str() != "" {
                             push_rename(raw_name, link, names, repls)
                         }
@@ -133,6 +122,54 @@ fun Module.collect_unique_method_renames(names: &var List<String>, repls: &var L
             _ => {}
         }
     }
+}
+
+/// `Counter_get`, the name a method value is checked under, for every method
+/// of a non-generic impl.
+/// CONSTRAINT: after qualify_type_symbols, so the owner's name may carry its
+/// crate prefix, which the checked name does not.
+fun Module.collect_method_value_renames(names: &var List<String>, repls: &var List<TypeRef>): void {
+    while owner in &self.decls {
+        if owner.generics.size() > 0 { continue }
+        when (owner.kind) {
+            ImplBlock(methods) => self.push_method_value_renames(owner, &methods, names, repls)
+            TraitImpl(_trait, methods) => self.push_method_value_renames(owner, &methods, names, repls)
+            _ => {}
+        }
+    }
+}
+
+fun Module.push_method_value_renames(owner: &TopDecl, methods: &List<TopDecl>, names: &var List<String>,
+    repls: &var List<TypeRef>): void {
+    val checked_owner = owner.unprefixed_name()
+    while method in &methods {
+        val link = self.method_link_name(owner, method)
+        if link.as_str() != "" {
+            push_rename("${checked_owner.as_str()}_${method.name.as_str()}", link, names, repls)
+        }
+    }
+}
+
+/// The type's name without the crate prefix qualify_type_symbols gave it.
+fun TopDecl.unprefixed_name(): String {
+    val prefix = self.crate.symbol_prefix()
+    val name = self.name.as_str()
+    if prefix.byte_len() == 0 || !name.starts_with(prefix.as_str()) { return self.name.as_string() }
+    return name.substring(prefix.byte_len(), name.byte_len())
+}
+
+/// The method's C symbol; "" for an impl with no owning crate.
+fun Module.method_link_name(owner: &TopDecl, method: &TopDecl): String {
+    val link = method.link_name.as_string()
+    if link.as_str() != "" || owner.crate.is_poison() { return link }
+    val list_name = self.lang_type_name(lang_list_key())
+    val option_name = self.lang_type_name(lang_option_key())
+    // A builtin type's impls are emitted unprefixed (`int8_add__Add`).
+    val unprefixed = is_mangled_decl_name(owner.name.as_str()) || is_runtime_type_name(owner.name.as_str()) ||
+        is_container_type_name(owner.name.as_str(), list_name, option_name) ||
+        self.type_is_no_mangle(owner.name.as_str())
+    val prefix = if unprefixed { String.from("") } else { String.from(owner.crate.symbol_prefix().as_str()) }
+    return prefix + owner.name.as_string() + String.from("_") + method.name.as_string()
 }
 
 // A method-name rename is unsafe when a free function or extern shares the

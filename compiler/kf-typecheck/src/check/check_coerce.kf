@@ -21,6 +21,8 @@ fun is_box_new_recv(recv_kind: ExprKind, method_name: String): bool {
 fun static_recv_type_name(recv_kind: ExprKind, ctx: &var TypeCtx): String {
     when (recv_kind) {
         Variable(n) => {
+            // A local shadows a type of its name.
+            if ctx.is_declared(n.as_str()) { return "" }
             val sp = ctx.sigs
             val sptr = unsafe { sp.find_struct(n.as_str(), ctx.owner_crate) }
             if sptr.is_some() { return n.as_string() }
@@ -40,6 +42,7 @@ fun static_recv_type_name(recv_kind: ExprKind, ctx: &var TypeCtx): String {
 fun trait_recv_name(recv_kind: ExprKind, ctx: &var TypeCtx): String {
     when (recv_kind) {
         Variable(n) => {
+            if ctx.is_declared(n.as_str()) { return "" }
             val tp = unsafe { (*ctx.sigs).find_trait(n.as_str()) }
             if tp.is_some() { return n.as_string() }
             return ""

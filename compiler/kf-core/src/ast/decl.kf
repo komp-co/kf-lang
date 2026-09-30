@@ -52,6 +52,59 @@ pub fun new_variant(span: Span, name: String, payloads: List<TypeRef>): Variant 
     return Variant { span: span, name: intern(name.as_str()), payloads: payloads }
 }
 
+/// One argument of `@name(...)`: `Clone`, `"string"`, `iterations = 100`.
+@derive(Clone)
+pub struct AnnotationArg {
+    /// Empty for a positional argument.
+    pub val name: Sym
+    pub val value: Box<Expr>
+}
+
+/// `@name` or `@name(args)` above a declaration.
+@derive(Clone)
+pub struct Annotation {
+    pub val name: Sym
+    pub var args: List<AnnotationArg>
+    /// `@name()` as against `@name`.
+    pub val has_parens: bool
+    pub val span: Span
+}
+
+/// A kind of declaration an annotation may mark by kind.
+@derive(Clone, Equal)
+pub enum MarkKind {
+    Function
+    Struct
+    Enum
+    Trait
+}
+
+/// One kind in `on struct: Plugin, enum`, and the traits a marked type of
+/// that kind implements.
+@derive(Clone)
+pub struct KindTarget {
+    pub val kind: MarkKind
+    pub val bounds: List<TypeRef>
+}
+
+/// What a declared annotation may mark.
+@derive(Clone)
+pub enum MarkTarget {
+    /// `on (A) -> R`: a function of exactly that type.
+    Function(Box<TypeRef>)
+    /// `on fun, struct: Plugin`: any declaration of a listed kind.
+    Kinds(List<KindTarget>)
+    /// `on (bool, _, ..) -> _`: a function whose type matches, `_` standing
+    /// for any one type and a trailing `..` for any further parameters.
+    Signature(List<TypeRef>, bool, Box<TypeRef>)
+}
+
+/// What a bare `annotation NAME` marks: a `() -> void` function.
+pub fun default_mark_target(span: Span): MarkTarget {
+    val void_ref = Box.new(new_type_ref(span, TypeRefKind.Named(intern("void"), List.new<TypeRef>())))
+    return MarkTarget.Function(Box.new(new_type_ref(span, TypeRefKind.Function(List.new<TypeRef>(), void_ref))))
+}
+
 /// CONSTRAINT: the name lives on this outer struct, not in the kind's
 /// payload: destructuring a Drop-typed payload out of a variant double-frees
 /// it. Read `.name` rather than destructuring.
@@ -64,9 +117,8 @@ pub struct TopDecl {
     pub var module_path: Sym
     pub var decl: DeclId?
     pub var generics: List<TypeParam>
-    /// Every `@name(...)` written above the declaration, verbatim and in
-    /// source order: `"test"`, `"derive(Clone,Equal)"`.
-    pub var annotations: List<String>
+    /// Every `@name(...)` written above the declaration, in source order.
+    pub var annotations: List<Annotation>
     /// Set on methods from a `TraitImpl`, which Mono turns into an ImplBlock.
     /// Codegen puts them in the crate header even without `pub`.
     pub var from_trait_impl: bool
@@ -120,6 +172,9 @@ pub enum TopDeclKind {
     /// `type Item = int32` inside a trait impl — the impl's choice for one
     /// associated type. The outer `name` is the associated type's name.
     AssocTypeBinding(Box<TypeRef>)
+    /// `annotation NAME(params) on TARGET`: a name a declaration may carry
+    /// as `@NAME(args)`. Payload: params, target, is_pub.
+    AnnotationDecl(List<Param>, MarkTarget, bool)
     /// Parse error.
     Poison
 }
@@ -128,42 +183,18 @@ impl TopDecl {
     /// `@name` or `@name(...)` is written above this declaration.
     pub fun has_annotation(name: str): bool {
         while a in &self.annotations {
-            if a.as_str().equals(name) { return true }
-            val n = name.byte_len()
-            if a.as_str().byte_len() > n {
-                if a.as_str().byte_at(n) == 40 {
-                    var j = 0
-                    var same = true
-                    while j < n {
-                        if a.as_str().byte_at(j) != name.byte_at(j) { same = false }
-                        j = j + 1
-                    }
-                    if same { return true }
-                }
-            }
+            if a.name.as_str() == name { return true }
         }
         return false
     }
 
-    /// Verbatim, or "": `derive` on `@derive(Clone,Equal)` gives
-    /// `"derive(Clone,Equal)"`.
-    pub fun annotation_text(name: str): String {
+    /// The words of the first `@name(...)`, or none: `derive` on
+    /// `@derive(Clone, Equal)` gives `["Clone", "Equal"]`.
+    pub fun annotation_words(name: str): List<String> {
         while a in &self.annotations {
-            if a.as_str().equals(name) { return a.clone() }
-            val n = name.byte_len()
-            if a.as_str().byte_len() > n {
-                if a.as_str().byte_at(n) == 40 {
-                    var j = 0
-                    var same = true
-                    while j < n {
-                        if a.as_str().byte_at(j) != name.byte_at(j) { same = false }
-                        j = j + 1
-                    }
-                    if same { return a.clone() }
-                }
-            }
+            if a.name.as_str() == name { return a.words() }
         }
-        return ""
+        return List.new<String>()
     }
 
     /// Where a diagnostic about this declaration points: its name, falling
@@ -175,7 +206,7 @@ impl TopDecl {
 }
 
 pub fun new_top_decl(span: Span, name: String, kind: TopDeclKind): TopDecl {
-    return TopDecl { span: span, name: intern(name.as_str()), kind: kind, crate: crate_id_poison(), module_path: intern(""), decl: null, generics: List.new<TypeParam>(), annotations: List.new<String>(), from_trait_impl: false, linkage: linkage_source(), link_name: intern(""), dyn_layouts: List.new<DynTraitLayout>(), dyn_vtables: List.new<DynVTableInstance>(), decl_end: 0, name_span: no_span(), ext_name: intern("") }
+    return TopDecl { span: span, name: intern(name.as_str()), kind: kind, crate: crate_id_poison(), module_path: intern(""), decl: null, generics: List.new<TypeParam>(), annotations: List.new<Annotation>(), from_trait_impl: false, linkage: linkage_source(), link_name: intern(""), dyn_layouts: List.new<DynTraitLayout>(), dyn_vtables: List.new<DynVTableInstance>(), decl_end: 0, name_span: no_span(), ext_name: intern("") }
 }
 
 /// Stamps the owner onto nested methods too, which are checked as

@@ -1,5 +1,5 @@
 name: Set up a komp job
-description: The json sibling, ccache in front of cc, and optionally the komp the fixpoint job built.
+description: ccache in front of cc, and optionally the komp the fixpoint job built.
 inputs:
   prebuilt:
     description: Download the komp and kflatc the fixpoint job uploaded.
@@ -7,12 +7,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Clone json beside komp, at the commit bootstrap/json.rev pins
-      shell: sh
-      run: |
-        git clone -q https://github.com/komp-co/json ../json
-        git -C ../json checkout -q --detach "$(cat bootstrap/json.rev)"
-
     - name: Install ccache
       shell: sh
       run: sudo apt-get install -y -qq --no-install-recommends ccache > /dev/null

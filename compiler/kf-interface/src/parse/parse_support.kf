@@ -95,8 +95,8 @@ mutating fun JsonReader.read_c_naming(): CNaming? {
 
 fun mark_c_naming(td: TopDecl, naming: CNaming): TopDecl {
     var marked = td
-    if naming.unmangled { marked.annotations.push(String.from("no_mangle")) }
-    if !naming.lang.as_str().equals("") { marked.annotations.push("lang(${naming.lang.as_str()})") }
+    if naming.unmangled { marked.annotations.push(new_annotation(no_span(), "no_mangle", List.new<String>())) }
+    if !naming.lang.as_str().equals("") { marked.annotations.push(lang_annotation(naming.lang.as_str())) }
     return marked
 }
 
@@ -111,6 +111,13 @@ fun parse_type_ptr(source: str): Ptr<TypeRef> {
     var parser = new_parser(tokens)
     val parsed = parser.parse_type_ref_ptr()
     return parsed
+}
+
+/// A function type, or a signature pattern with `_` and `..`.
+fun parse_signature_source(source: str): MarkTarget {
+    val tokens = tokenize(source, 0)
+    var parser = new_parser(tokens)
+    return parser.parse_signature_target()
 }
 
 fun split_dotted_path(path: str): List<String> {
