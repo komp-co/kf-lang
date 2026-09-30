@@ -1,0 +1,6 @@
+//! build: fail
+//! deps: core, alloc
+
+template missing on struct T { }
+
+fun main(): int32 { return 0 }

@@ -102,6 +102,7 @@ pub fun TopDecl.deep_clone_top_decl(): TopDecl {
             unsafe { *clone_trait_ref = clone_type_ref(&*trait_ref) }
             return self.copied_top_decl(TopDeclKind.TraitImpl(clone_trait_ref, deep_clone_methods(&methods)))
         }
+        Template(kind, marked, body) => return self.copied_top_decl(TopDeclKind.Template(kind, marked, deep_clone_methods(&body)))
         Poison => return self.copied_top_decl(TopDeclKind.Poison)
     }
 }
@@ -129,6 +130,7 @@ fun TopDecl.copied_top_decl(kind: TopDeclKind): TopDecl {
     out.decl_end = self.decl_end
     out.name_span = self.name_span
     out.ext_name = self.ext_name
+    out.resolves_in = self.resolves_in
     return out
 }
 
