@@ -31,12 +31,13 @@ pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: Ptr<Lis
                     if own {
                         check_annotation_params(&own_params, table, self.crate, &var found)
                         own_target.check_bounds(table, &var found)
+                        td.check_type_params(table, &var found)
                     }
                     val params = if own { own_params.clone() } else { self.argument_struct_params(&td) }
                     val function_type = own_target.function_type(&td, !own, sigs, diags)
                     val declared = DeclaredAnnotation {
                         name: td.name, crate: td.crate, module: td.module_path, is_pub: is_pub, params: params,
-                        target: own_target.clone(), function_type: function_type
+                        target: own_target.clone(), function_type: function_type, type_params: td.generics.clone()
                     }
                     table.annotations.push(declared)
                 }
@@ -74,15 +75,16 @@ fun TopDecl.register_annotation_use(annotation: &Annotation, owner: &MethodOwner
     note_import_use_named(sigs, file, declared.module, declared.name)
     val arguments = annotation.arguments_in_order(&declared.params, table, self.crate, diags)
     if !arguments.ok { return }
-    if !self.fits_target(kind, &declared, owner, table, sigs, pass_diags, diags) { return }
+    var bound = List.new<Type>()
+    if !self.fits_target(kind, &declared, owner, table, sigs, pass_diags, &var bound, diags) { return }
     val symbol = self.value_symbol(owner)
     while listed in &table.annotated {
         if listed.annotation == index && listed.item.id == symbol.id { return }
     }
     val marked = self.mark_kind() ?: return
     table.annotated.push(AnnotatedItem {
-        annotation: index, item: symbol, name: self.listed_name(owner), kind: marked, module: self.module_path,
-        args: arguments.values
+        annotation: index, item: symbol, name: self.listed_name(owner), bindings: bound, kind: marked,
+        module: self.module_path, args: arguments.values
     })
 }
 

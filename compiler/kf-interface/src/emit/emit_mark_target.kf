@@ -3,6 +3,9 @@
 // with its bounds:
 //
 //     "function":"","kinds":[{"kind":"struct","bounds":["Plugin"]}]
+//
+// and its type parameters, the implicit ones included, each with its bounds:
+// "params":[{"name":"T","bounds":["Display"]}].
 
 import alloc.list.*
 
@@ -44,4 +47,19 @@ fun signature_source(params: &List<TypeRef>, has_rest: bool, ret: &TypeRef): Str
     out.append(") -> ")
     out.append(ret.tyref_to_source().as_str())
     return out
+}
+
+fun type_params_json(params: &List<TypeParam>): String {
+    var out = JsonWriter.array()
+    while param in &params {
+        var o = JsonWriter.object()
+        o.field_string("name", param.name.as_str())
+        var bounds = JsonWriter.array()
+        while bound in &param.bounds {
+            bounds.write_string(bound.tyref_to_source().as_str())
+        }
+        o.field_raw("bounds", bounds.finish().as_str())
+        out.write_raw(o.finish().as_str())
+    }
+    return out.finish()
 }

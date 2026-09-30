@@ -1,11 +1,12 @@
 // `annotated<bench>()`: every declaration of this crate marked `@bench`,
-// private ones included, as a list literal the checker then types. A
-// function target lists
+// private ones included, as a list literal the checker then types. An exact
+// function target, with its type parameters pinned (`annotated<route<Req>>()`)
+// if it has any, lists
 //
 //     AnnotatedFunction<bench, F> { name, module, args: bench { ... }, function: f }
 //
-// and a kind target `AnnotatedItem<bench> { name, module, kind, args }`,
-// `kind` an `AnnotatedKind` variant.
+// and any other target `AnnotatedItem<bench> { name, module, kind, args }`,
+// `kind` an `AnnotatedKind` variant. Pins keep only the uses binding them.
 
 import alloc.list.*
 
@@ -15,100 +16,193 @@ import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.note_import_use_named
 import kf_typecheck.find_annotation
+import kf_typecheck.types.type_eq
+import kf_typecheck.types.resolve_type_ref
+import kf_typecheck.types.type_to_type_ref
+import kf_typecheck.check.decl.is_borrow
+import kf_typecheck.check.decl.type_param_name
 
 pub fun annotated_prefix(): str { return "annotated__" }
 
-/// CONSTRAINT: by name until a release's seed knows a lang key for them.
-fun entry_type_name(target: &MarkTarget): str {
-    return when (target) {
-        Function(_ty) => "AnnotatedFunction"
-        _ => "AnnotatedItem"
-    }
+/// What a query's entries are: callable `AnnotatedFunction`s of one function
+/// type, or `AnnotatedItem`s naming each declaration.
+struct EntryShape {
+    val is_callable: bool
+    /// The entries' function type, and as written for the entry's type.
+    val function_type: Type
+    val function_ref: TypeRef
+}
+
+/// `annotated<handler>()`, or `annotated<handler<Server>>()` pinning each of
+/// the annotation's type parameters.
+struct AnnotationQuery {
+    val index: uint64
+    val pins: List<Type>
 }
 
 pub mutating fun Expr.expand_annotated(args: &List<Expr>, ctx: &var TypeCtx): void {
     val sigs = unsafe { &*ctx.sigs }
-    val index = self.queried_annotation(args, sigs, ctx) ?: return
-    val declared = sigs.annotations.at(index)
+    val query = self.queried_annotation(args, sigs, ctx) ?: return
+    val declared = sigs.annotations.at(query.index)
+    val shape = declared.entry_shape(&query.pins, self.span)
     var elements = List.new<Expr>()
     while listed in &sigs.annotated {
-        if listed.annotation == index { elements.push(annotated_entry(&listed, &declared, self.span, ctx)) }
+        if listed.annotation == query.index && listed.binds_as(&query.pins) {
+            elements.push(annotated_entry(&listed, &declared, &shape, self.span, ctx))
+        }
     }
     var new_call = collection_new_call(self.span, ctx.list_name())
-    new_call.type_args.push(new_type_ref(self.span, TypeRefKind.Named(intern(entry_type_name(&declared.target)),
-        entry_type_args(&declared, self.span))))
+    new_call.type_args.push(new_type_ref(self.span, TypeRefKind.Named(intern(shape.entry_type_name()),
+        entry_type_args(&declared, &shape, self.span))))
     new_call.type_args_written = true
     *self = collection_literal_expr(self.span, &elements, new_call)
     check_expr(self, ctx)
 }
 
-/// The queried annotation's index in `SigTable.annotations`; null, reported
-/// and typed poison, when the query names none this file sees.
-mutating fun Expr.queried_annotation(args: &List<Expr>, sigs: &SigTable, ctx: &var TypeCtx): uint64? {
-    val name = self.single_type_name()
-    val message = if name.as_str().equals("") {
-        String.from("`annotated` takes one annotation name: `annotated<bench>()`")
-    } else if args.size() > 0 {
-        String.from("`annotated` takes no arguments")
-    } else {
-        val found = sigs.find_annotation(name.as_str(), ctx.owner_file, ctx.owner_crate, ctx.owner_module)
-        if found != null {
-            val index = found ?: return null
-            val declared = sigs.annotations.at(index)
-            note_import_use_named(ctx.sigs, ctx.owner_file, declared.module, declared.name)
-            return index
-        }
-        "cannot find annotation `${name.as_str()}` in this scope"
+/// CONSTRAINT: by name until a release's seed knows a lang key for them.
+fun EntryShape.entry_type_name(): str {
+    return if self.is_callable { "AnnotatedFunction" } else { "AnnotatedItem" }
+}
+
+/// Callable for an exact function type whose type parameters, if any, the
+/// query pins; the pinned type is the target's with each parameter replaced.
+fun DeclaredAnnotation.entry_shape(pins: &List<Type>, span: Span): EntryShape {
+    val written = when (self.target) {
+        Function(ty) => Option.Some((*ty).clone())
+        _ => null
     }
+    val is_callable = written != null && (self.type_params.size() == 0 || pins.size() > 0)
+    if pins.size() == 0 {
+        val function_ref = written ?: type_ref_poison(span)
+        return EntryShape {
+            is_callable: is_callable, function_type: self.function_type.clone(), function_ref: function_ref
+        }
+    }
+    val pinned = self.function_type.with_params(&self.type_params, pins)
+    val function_ref = pinned.type_to_type_ref(span)
+    return EntryShape { is_callable: is_callable, function_type: pinned, function_ref: function_ref }
+}
+
+/// Each parameter and the result with a type parameter, or a borrow of one,
+/// replaced by its pin.
+fun Type.with_params(params: &List<TypeParam>, pins: &List<Type>): Type {
+    val parts = self.fn_parts() ?: return *self
+    var types = new_type_vec()
+    while param in &parts.params {
+        types.push(param.slot_with(params, pins))
+    }
+    return fn_ty(types, parts.ret.slot_with(params, pins), self.provenance)
+}
+
+fun Type.slot_with(params: &List<TypeParam>, pins: &List<Type>): Type {
+    val name = self.through_borrow().type_param_name() ?: return *self
+    while i in 0..params.size() {
+        if params.at(i).name.id == name.id {
+            val pin = *pins.at(i)
+            if self.is_borrow(false) || self.is_borrow(true) { return pin.borrowed(self.is_borrow(true), no_span()) }
+            return pin
+        }
+    }
+    return *self
+}
+
+/// Whether this use's type parameters stand for the pins; any use when there
+/// are none.
+fun AnnotatedItem.binds_as(pins: &List<Type>): bool {
+    if pins.size() == 0 { return true }
+    if self.bindings.size() != pins.size() { return false }
+    while i in 0..pins.size() {
+        if !self.bindings.at(i).type_eq(*pins.at(i)) { return false }
+    }
+    return true
+}
+
+/// The queried annotation and its pins; null, reported and typed poison,
+/// when the query names none this file sees or pins some parameters but not
+/// all.
+mutating fun Expr.queried_annotation(args: &List<Expr>, sigs: &SigTable, ctx: &var TypeCtx): AnnotationQuery? {
+    val name = self.single_type_name()
+    if name.as_str().equals("") {
+        return self.query_error("`annotated` takes one annotation name: `annotated<bench>()`", ctx)
+    }
+    if args.size() > 0 { return self.query_error("`annotated` takes no arguments", ctx) }
+    val found = sigs.find_annotation(name.as_str(), ctx.owner_file, ctx.owner_crate, ctx.owner_module)
+    val index = found ?: return self.query_error("cannot find annotation `${name.as_str()}` in this scope", ctx)
+    val declared = sigs.annotations.at(index)
+    note_import_use_named(ctx.sigs, ctx.owner_file, declared.module, declared.name)
+    val pin_refs = self.queried_type_args()
+    val wanted = declared.type_params.size()
+    if wanted == 0 && pin_refs.size() > 0 {
+        return self.query_error("`${name.as_str()}` has no type parameters to pin", ctx)
+    }
+    if pin_refs.size() > 0 && pin_refs.size() != wanted {
+        val count = if wanted == 1 { String.from("1 type parameter") } else { "${wanted} type parameters" }
+        return self.query_error("`${name.as_str()}` has ${count}: pin all of them or none", ctx)
+    }
+    var pins = List.new<Type>()
+    while pin in &pin_refs {
+        pins.push(pin.resolve_type_ref(ctx))
+    }
+    return AnnotationQuery { index: index, pins: pins }
+}
+
+mutating fun Expr.query_error(message: String, ctx: &var TypeCtx): AnnotationQuery? {
     ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
     self.ty = poison_ty()
     return null
 }
 
-/// The one bare name in `<...>`, or the empty name.
+/// The one name in `<...>`, with or without type arguments, or the empty
+/// name.
 fun Expr.single_type_name(): Sym {
     if self.type_args.size() != 1 { return intern("") }
     return when (self.type_args.at(0).kind) {
-        Named(name, args) => if args.size() == 0 { name } else { intern("") }
+        Named(name, _args) => name
         _ => intern("")
     }
 }
 
-/// `<bench, (Request) -> Response>` for a function target, `<bench>` for a
-/// kind target.
-fun entry_type_args(declared: &DeclaredAnnotation, span: Span): List<TypeRef> {
-    var args = List.new<TypeRef>()
-    args.push(new_type_ref(span, TypeRefKind.Named(declared.name, List.new<TypeRef>())))
-    when (declared.target) {
-        Function(ty) => args.push((*ty).clone())
+/// `Server` in `annotated<handler<Server>>()`.
+fun Expr.queried_type_args(): List<TypeRef> {
+    var pins = List.new<TypeRef>()
+    if self.type_args.size() != 1 { return pins }
+    when (self.type_args.at(0).kind) {
+        Named(_name, args) => pins = args.clone()
         _ => {}
     }
+    return pins
+}
+
+/// `<bench, (Request) -> Response>` for callable entries, `<bench>` for the
+/// rest.
+fun entry_type_args(declared: &DeclaredAnnotation, shape: &EntryShape, span: Span): List<TypeRef> {
+    var args = List.new<TypeRef>()
+    args.push(new_type_ref(span, TypeRefKind.Named(declared.name, List.new<TypeRef>())))
+    if shape.is_callable { args.push(shape.function_ref.clone()) }
     return args
 }
 
 /// One entry. A function is named directly, not looked up: a private
 /// function of another module is listed too.
-fun annotated_entry(listed: &AnnotatedItem, declared: &DeclaredAnnotation, span: Span, ctx: &var TypeCtx): Expr {
+fun annotated_entry(listed: &AnnotatedItem, declared: &DeclaredAnnotation, shape: &EntryShape, span: Span,
+    ctx: &var TypeCtx): Expr {
     var fields = List.new<FieldInit>()
     fields.push(string_field("name", listed.name.as_str(), span))
     fields.push(string_field("module", listed.module.as_str(), span))
     val arguments = arguments_literal(listed, declared, span)
     fields.push(FieldInit { span: span, name: intern("args"), value: Box.new(arguments) })
-    when (declared.target) {
-        Function(_ty) => {
-            var reference = new_expr(span, ExprKind.FnRef(listed.item))
-            reference.ty = declared.function_type.clone()
-            ctx.note_fn_type(&reference.ty)
-            fields.push(FieldInit { span: span, name: intern("function"), value: Box.new(reference) })
-        }
-        _ => {
-            val kind_type = new_expr(span, ExprKind.Variable(intern("AnnotatedKind")))
-            val variant = new_expr(span, ExprKind.FieldAccess(Box.new(kind_type), listed.kind.variant_name()))
-            fields.push(FieldInit { span: span, name: intern("kind"), value: Box.new(variant) })
-        }
+    if shape.is_callable {
+        var reference = new_expr(span, ExprKind.FnRef(listed.item))
+        reference.ty = shape.function_type.clone()
+        ctx.note_fn_type(&reference.ty)
+        fields.push(FieldInit { span: span, name: intern("function"), value: Box.new(reference) })
+    } else {
+        val kind_type = new_expr(span, ExprKind.Variable(intern("AnnotatedKind")))
+        val variant = new_expr(span, ExprKind.FieldAccess(Box.new(kind_type), listed.kind.variant_name()))
+        fields.push(FieldInit { span: span, name: intern("kind"), value: Box.new(variant) })
     }
-    var entry = new_expr(span, ExprKind.StructLit(intern(entry_type_name(&declared.target)), fields))
-    entry.type_args = entry_type_args(declared, span)
+    var entry = new_expr(span, ExprKind.StructLit(intern(shape.entry_type_name()), fields))
+    entry.type_args = entry_type_args(declared, shape, span)
     entry.type_args_written = true
     return entry
 }

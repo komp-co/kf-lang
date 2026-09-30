@@ -183,6 +183,71 @@ no `function`. `..` must come last, and `_` stands only for a whole parameter
 or result, not a type argument (`List<_>`). `(..) -> _` matches every
 function a value can name.
 
+#### Type parameters
+
+A name in a target that is not a type in scope is a type parameter, as a
+name in an [extension's](extensions.md#generic-receivers) receiver is. Each
+use binds it to what stands in its place, so where it appears twice, the two
+types agree. Bounds go in a list before the annotation's name:
+
+```kflat
+struct Request {
+    val path: String
+}
+
+struct Server {
+    var hits: int32
+}
+
+trait Counted {
+    fun count(): int32
+}
+
+impl Counted for Server {
+    fun count(): int32 { return self.hits }
+}
+
+annotation same on (T, T) -> T
+annotation handler on (&var S, Request) -> int32
+annotation <T: Counted> counted on (&T) -> int32
+
+@same
+fun add(a: int32, b: int32): int32 { return a + b }
+
+impl Server {
+    @handler
+    mutating fun login(r: Request): int32 {
+        self.hits = self.hits + 1
+        return 0
+    }
+}
+
+@counted
+fun hits(s: &Server): int32 { return s.count() }
+
+fun main(): int32 {
+    var s = Server { hits: 0 }
+    while h in &annotated<handler<Server>>() {
+        h.function(&var s, Request { path: "/login" })
+    }
+    println(annotated<same<int32>>().at(0).function(2, 3))   // 5
+    println(annotated<counted<Server>>().at(0).function(&s))  // 1
+    return 0
+}
+```
+
+A query may pin every type parameter, as `annotated<handler<Server>>()` does.
+It then lists only the uses binding them that way, and for an exact function
+type, with no `_` or `..`, their entries are `AnnotatedFunction`s with a
+callable `function` of the pinned type. Without pins, the entries are
+`AnnotatedItem`s naming every use. Pinning some parameters but not all is an
+error, and the order is the bounds list's, then the target's, left to right.
+
+Like `_`, a type parameter stands for a whole parameter or result, or one
+behind `&`. A bound is checked at each use, and a type parameter the target
+never names is an error. A name close to a type in scope, such as `Pont` with
+`Point` declared, is warned about, since it is likelier a typo.
+
 `on` may instead name kinds of declaration: `fun`, `struct`, `enum` and
 `trait`. `on fun` marks every function, whatever its signature, and `on any`
 marks all four kinds. Several kinds are separated by `,`. A struct or an enum
