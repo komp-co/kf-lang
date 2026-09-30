@@ -10,6 +10,10 @@ fun param_bounded(name: str, bound: str): TypeParam {
     return tp
 }
 
+fun no_supers(): TemplateBounds {
+    return TemplateBounds { clone_trait: intern("Clone"), copy_trait: intern("Copy"), supers: List.new<TraitSupers>() }
+}
+
 fun empty_fn(name: str): TopDecl {
     return new_top_decl(no_span(), String.from(name),
         TopDeclKind.Function(List.new<Param>(), void_ret(), List.new<Stmt>(), true, false, false, false))
@@ -17,18 +21,31 @@ fun empty_fn(name: str): TopDecl {
 
 @test
 fun a_written_bound_is_found(): void {
-    assert_eq(param_is_bounded_by(&param_bounded("T", "Clone"), intern("Clone")), true, "`T: Clone` names Clone")
+    val bounded = no_supers().param_is_bounded_by(&param_bounded("T", "Clone"), intern("Clone"))
+    assert_eq(bounded, true, "`T: Clone` names Clone")
 }
 
 @test
 fun another_bound_is_not_that_trait(): void {
-    assert_eq(param_is_bounded_by(&param_bounded("T", "Equal"), intern("Clone")), false, "`T: Equal` is not Clone")
+    val bounded = no_supers().param_is_bounded_by(&param_bounded("T", "Equal"), intern("Clone"))
+    assert_eq(bounded, false, "`T: Equal` is not Clone")
 }
 
 @test
 fun an_unknown_trait_bounds_nothing(): void {
-    assert_eq(param_is_bounded_by(&param_bounded("T", "Clone"), intern("")), false,
+    assert_eq(no_supers().param_is_bounded_by(&param_bounded("T", "Clone"), intern("")), false,
         "with no lang trait in scope, nothing counts as bounded")
+}
+
+@test
+fun a_supertrait_bounds_the_parameter(): void {
+    var supers = List.new<Sym>()
+    supers.push(intern("Copy"))
+    var table = List.new<TraitSupers>()
+    table.push(TraitSupers { name: intern("Whole"), supers: supers })
+    val bounds = TemplateBounds { clone_trait: intern("Clone"), copy_trait: intern("Copy"), supers: table }
+    assert_eq(bounds.param_is_bounded_by(&param_bounded("T", "Whole"), intern("Copy")), true,
+        "`trait Whole: Copy` makes `T: Whole` Copy")
 }
 
 @test
