@@ -76,3 +76,42 @@ fun escaped(text: str, quote: uint8): String {
     }
     return out
 }
+
+impl MarkTarget {
+    /// `function`, `struct`, `enum` or `type`: what follows `on`.
+    pub fun target_word(): str {
+        return when (self) {
+            Function(_ty) => "function"
+            Struct(_bounds) => "struct"
+            Enum(_bounds) => "enum"
+            AnyType(_bounds) => "type"
+        }
+    }
+
+    /// The function's type, or the bounds.
+    pub fun target_types(): List<TypeRef> {
+        var types = List.new<TypeRef>()
+        when (self) {
+            Function(ty) => types.push((*ty).clone())
+            Struct(bounds) => types = bounds.clone()
+            Enum(bounds) => types = bounds.clone()
+            AnyType(bounds) => types = bounds.clone()
+        }
+        return types
+    }
+}
+
+/// The target `target_word` and `target_types` describe; a bare function
+/// target when the word is unknown.
+pub fun mark_target_of(word: str, types: List<TypeRef>, span: Span): MarkTarget {
+    return when word {
+        "function" => {
+            if types.size() != 1 { return default_mark_target(span) }
+            MarkTarget.Function(Box.new(types.at(0).clone()))
+        }
+        "struct" => MarkTarget.Struct(types)
+        "enum" => MarkTarget.Enum(types)
+        "type" => MarkTarget.AnyType(types)
+        _ => default_mark_target(span)
+    }
+}

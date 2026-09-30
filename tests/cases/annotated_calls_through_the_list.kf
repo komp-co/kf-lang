@@ -9,7 +9,7 @@ annotation probe
 fun stop(): void { panic("called through the list") }
 
 fun main(): int32 {
-    while entry in &annotated_functions<probe>() {
+    while entry in &annotated<probe>() {
         entry.function()
     }
     return 0

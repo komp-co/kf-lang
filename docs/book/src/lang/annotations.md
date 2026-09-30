@@ -9,8 +9,8 @@ A declaration may carry several, one per line.
 
 ## Declaring an annotation
 
-`annotation NAME` declares `@NAME`, and `annotated_functions<NAME>()` lists
-every function of the crate being compiled that carries it:
+`annotation NAME` declares `@NAME`, and `annotated<NAME>()` lists everything
+in the crate being compiled that carries it:
 
 ```kflat
 annotation bench
@@ -19,7 +19,7 @@ annotation bench
 fun sort_a_thousand(): void { }
 
 fun main(): int32 {
-    while entry in &annotated_functions<bench>() {
+    while entry in &annotated<bench>() {
         println(entry.name)
         entry.function()
     }
@@ -27,10 +27,9 @@ fun main(): int32 {
 }
 ```
 
-Each entry is an `Annotated<bench>` from alloc: the function's `name` as a
-`String`, the `function` itself as a `() -> void` value, and the use's `args`.
-The list is in declaration order, and private functions are in it, from any
-module of the crate.
+The list is in declaration order, and private declarations are in it, from
+any module of the crate. Each entry has the declaration's `name`, the path of
+the `module` declaring it, and the use's `args`.
 
 ### Parameters
 
@@ -51,7 +50,7 @@ fun sort_a_thousand(): void { }
 fun parse_a_file(): void { }
 
 fun main(): int32 {
-    while entry in &annotated_functions<bench>() {
+    while entry in &annotated<bench>() {
         if entry.args.iterations > 100 {
             println(entry.args.label)
             entry.function()
@@ -71,6 +70,64 @@ parameter, and that struct is the type of `entry.args`. An annotation without
 parameters declares an empty one. The struct shares the annotation's name,
 so nothing else in the crate may be called `bench`.
 
+### Targets
+
+`on` says what an annotation marks. A function type marks functions of
+exactly that type, and each entry's `function` is a value of it:
+
+```kflat
+struct Request {
+    val body: String
+}
+
+annotation route(path: String) on (Request) -> int32
+
+@route("/len")
+fun length(r: Request): int32 { return r.body.byte_len() as int32 }
+
+fun main(): int32 {
+    val routes = annotated<route>()
+    return routes.at(0).function(Request { body: "abcd" }) - 4
+}
+```
+
+`on struct`, `on enum` and `on type` (either one) mark types, and a bound
+after `:` requires every marked type to implement those traits:
+
+```kflat
+trait Plugin {
+    fun start(): int32
+}
+
+annotation plugin(order: int32) on struct: Plugin
+
+@plugin(1)
+struct Logger {
+    val level: int32
+}
+
+impl Plugin for Logger {
+    fun start(): int32 { return self.level }
+}
+
+fun main(): int32 {
+    while p in &annotated<plugin>() {
+        println("${p.module}.${p.name}, order ${p.args.order}")
+    }
+    return 0
+}
+```
+
+A type entry has no value to call: nothing at run time refers to a type.
+A generic type cannot carry a type-target annotation, since whether it meets
+a bound can depend on its arguments. A bound names a trait without type
+arguments.
+
+Without `on`, an annotation marks functions of type `() -> void`. Entries
+are an `AnnotatedFunction<bench, F>` or an `AnnotatedType<bench>` from alloc.
+
+### Across modules and crates
+
 An annotation is a name like any other. Another module of the crate uses it
 only if it is `pub` and imported, and another crate the same way:
 
@@ -86,15 +143,12 @@ fun parse_a_file(): void { }
 ```
 
 The query only reaches the crate it is written in. A `measure` function
-calling `annotated_functions<bench>()` sees `measure`'s functions, not the
-ones of the crate that imported `bench`.
+calling `annotated<bench>()` sees `measure`'s functions, not the ones of the
+crate that imported `bench`.
 
-A declared annotation marks only a function taking no parameters and
-returning `void`, with no type parameters. The name of a built-in annotation
-cannot be declared.
-
-`annotation` is not a reserved word; it is read this way only at the start of
-a declaration, followed by a name.
+The name of a built-in annotation cannot be declared. `annotation` and `on`
+are not reserved words; they are read this way only in an annotation's
+declaration.
 
 ## @test
 

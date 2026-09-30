@@ -126,12 +126,19 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             o.field_raw("methods", emit_interface_methods(td, methods, true, true, interface_trait_suffix(trait_type, m), unmangled).as_str())
             return o.finish()
         }
-        AnnotationDecl(_params, is_pub) => {
+        AnnotationDecl(_params, target, is_pub) => {
             var o = JsonWriter.object()
             o.field_string("kind", "annotation")
             o.field_bool("hidden", hidden)
             o.field_string("name", td.name.as_str())
             o.field_bool("pub", is_pub)
+            o.field_string("on", target.target_word())
+            var types = JsonWriter.array()
+            val target_types = target.target_types()
+            while item in &target_types {
+                types.write_string(item.tyref_to_source().as_str())
+            }
+            o.field_raw("types", types.finish().as_str())
             return o.finish()
         }
         _ => return String.from("{}")

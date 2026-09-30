@@ -502,17 +502,24 @@ when (m.get(&key)) {
 }
 ```
 
-## Annotated
+## AnnotatedFunction and AnnotatedType
 
-`Annotated<A>` is one entry of `annotated_functions<A>()`: a function carrying
-a [declared annotation](../lang/annotations.md#declaring-an-annotation), and
-the arguments it was given.
+The entries of `annotated<A>()`: declarations carrying a
+[declared annotation](../lang/annotations.md#declaring-an-annotation), and the
+arguments each was given. A function target lists `AnnotatedFunction`, a type
+target `AnnotatedType`.
 
 ```kflat
-pub struct Annotated<A> {
-    pub val name: String         // the function's name as declared
-    pub val function: () -> void
-    pub val args: A              // the struct the annotation's parameters declare
+pub struct AnnotatedFunction<A, F> {
+    pub val name: String        // the function's name as declared
+    pub val module: String      // its module's path, `app.routes`
+    pub val args: A             // the struct the annotation's parameters declare
+    pub val function: F         // the target's function type
+}
+
+pub struct AnnotatedType<A> {
+    pub val name: String
+    pub val module: String
+    pub val args: A
 }
 ```
-

@@ -64,6 +64,7 @@
 1 compiler/kf-interface/src/emit/emit_generics.kf
 2 compiler/kf-interface/src/glue_set.kf
 5 compiler/kf-interface/src/parse/parse.kf
+1 compiler/kf-interface/src/parse/parse_annotation.kf
 7 compiler/kf-interface/src/parse/parse_dyn.kf
 1 compiler/kf-interface/src/parse/parse_support.kf
 42 compiler/kf-interface/src/reference_walk.kf
@@ -123,7 +124,7 @@
 45 compiler/kf-parse/src/parser/statement/control.kf
 18 compiler/kf-parse/src/parser/statement/statement.kf
 2 compiler/kf-parse/src/parser/statement/terminator.kf
-2 compiler/kf-parse/src/parser/top_decl/annotation_decl.kf
+5 compiler/kf-parse/src/parser/top_decl/annotation_decl.kf
 7 compiler/kf-parse/src/parser/top_decl/annotation_use.kf
 17 compiler/kf-parse/src/parser/top_decl/extension.kf
 34 compiler/kf-parse/src/parser/top_decl/impl.kf
@@ -140,7 +141,7 @@
 2 compiler/kf-tool/src/build/kflatc_process.kf
 1 compiler/kf-tool/src/cli/cli_new.kf
 1 compiler/kf-typecheck/src/check/alias_call.kf
-1 compiler/kf-typecheck/src/check/annotated_functions.kf
+1 compiler/kf-typecheck/src/check/annotated_query.kf
 6 compiler/kf-typecheck/src/check/borrow/borrow_args.kf
 8 compiler/kf-typecheck/src/check/borrow/deref.kf
 1 compiler/kf-typecheck/src/check/borrow/deref_temporary.kf

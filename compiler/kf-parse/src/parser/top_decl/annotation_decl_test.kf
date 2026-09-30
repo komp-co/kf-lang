@@ -5,7 +5,7 @@ import kf_parse.parser.parser_for
 
 fun TopDecl.annotation_is_pub(): int32 {
     return when (self.kind) {
-        AnnotationDecl(_params, is_pub) => if is_pub { 1 } else { 0 }
+        AnnotationDecl(_params, _target, is_pub) => if is_pub { 1 } else { 0 }
         _ => -1
     }
 }
@@ -39,7 +39,7 @@ fun TopDecl.annotation_is_pub(): int32 {
 
 fun TopDecl.annotation_params(): List<Param> {
     return when (self.kind) {
-        AnnotationDecl(params, _pub) => params.clone()
+        AnnotationDecl(params, _target, _pub) => params.clone()
         _ => List.new<Param>()
     }
 }
@@ -59,4 +59,59 @@ fun TopDecl.annotation_params(): List<Param> {
     var p = parser_for("annotation bench(iterations)")
     val _td = p.parse_top_decl()
     assert_eq(p.diags.size() > 0, true, "as a function parameter does")
+}
+
+/// "function", "struct", "enum" or "type", with the bound count.
+fun TopDecl.target_shape(): String {
+    when (self.kind) {
+        AnnotationDecl(_params, target, _pub) => return target.shape()
+        _ => return String.from("none")
+    }
+}
+
+fun MarkTarget.shape(): String {
+    return when (self) {
+        Function(_ty) => String.from("function")
+        Struct(bounds) => "struct:${bounds.size()}"
+        Enum(bounds) => "enum:${bounds.size()}"
+        AnyType(bounds) => "type:${bounds.size()}"
+    }
+}
+
+fun shape_of(src: str): String {
+    var p = parser_for(src)
+    return p.parse_top_decl().target_shape()
+}
+
+@test fun a_bare_annotation_marks_a_function(): void {
+    assert_eq(shape_of("annotation bench").as_str(), "function", "`on () -> void` by default")
+}
+
+@test fun a_function_type_target_is_recorded(): void {
+    val shape = shape_of("annotation route(path: String) on (Request) -> Response")
+    assert_eq(shape.as_str(), "function", "after the parameters")
+}
+
+@test fun a_struct_target_takes_its_bounds(): void {
+    assert_eq(shape_of("annotation plugin on struct: Plugin + Default").as_str(), "struct:2", "two traits")
+}
+
+@test fun an_enum_target_may_have_no_bound(): void {
+    assert_eq(shape_of("annotation level on enum").as_str(), "enum:0", "any enum")
+}
+
+@test fun a_type_target_is_struct_or_enum(): void {
+    assert_eq(shape_of("annotation serialize on type: Serialize").as_str(), "type:1", "one trait")
+}
+
+@test fun a_target_that_is_not_a_type_kind_is_an_error(): void {
+    var p = parser_for("annotation bench on fun")
+    val _td = p.parse_top_decl()
+    assert_eq(p.diags.size() > 0, true, "`fun` is not a target")
+}
+
+@test fun a_non_function_type_after_on_is_an_error(): void {
+    var p = parser_for("annotation bench on (int32)")
+    val _td = p.parse_top_decl()
+    assert_eq(p.diags.size() > 0, true, "a grouped type is not a function type")
 }

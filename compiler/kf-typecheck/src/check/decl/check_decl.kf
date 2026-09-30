@@ -122,7 +122,7 @@ pub fun check_decl_module(m: &var Module,
         register_sigs(m.decls.at_mut(ii), sig_ptr, diags, table_ptr)
     }
 
-    // Every function an `annotated_functions` query in a body may list.
+    // Every declaration an `annotated` query in a body may list.
     m.register_declared_annotations(sig_ptr, diags)
 
     // Bodies. A lambda parks a synthesized struct and impl on the table; the

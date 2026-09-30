@@ -85,7 +85,9 @@ fun qualify_expr_ptr(ep: Ptr<Expr>, names: &var List<String>, repls: &var List<T
     }
     when (e.kind) {
         Variable(vn) => {
-            if !rename_types { return }
+            // A local of a type's name has a type of its own; only a
+            // type-name receiver, which the checker leaves untyped, is a type.
+            if !rename_types || !e.ty.is_poison() { return }
             val hit = rename_lookup(vn.as_str(), names, repls)
             if hit.as_str().byte_len() == 0 { return }
             // A type-name receiver is respelled so codegen's receiver-name

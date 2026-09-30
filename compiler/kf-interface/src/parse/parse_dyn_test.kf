@@ -11,20 +11,20 @@ fun loaded_dyn_interface(): InterfaceLoad {
 }
 
 fun raw_dyn_interface(traits: str, vtables: str): String {
-    return "{\"kfi\":14,\"crate\":\"sample\",\"compiler_abi\":\"komp-1\",\"runtime_abi\":\"kflat-runtime-1\",\"target\":\"x86_64-linux-gnu\",\"deps\":[],\"glue\":[],\"dyn_traits\":${traits},\"dyn_vtables\":${vtables},\"modules\":[]}"
+    return "{\"kfi\":15,\"crate\":\"sample\",\"compiler_abi\":\"komp-1\",\"runtime_abi\":\"kflat-runtime-1\",\"target\":\"x86_64-linux-gnu\",\"deps\":[],\"glue\":[],\"dyn_traits\":${traits},\"dyn_vtables\":${vtables},\"modules\":[]}"
 }
 
 fun valid_dyn_layout_json(): str {
     return "[{\"identity\":\"Score\",\"principal\":\"Score\",\"args\":[],\"methods\":[{\"name\":\"score\",\"slot\":0,\"mutating\":false,\"params\":[],\"ret\":\"int32\"}]}]"
 }
 
-@test fun interface_version_fourteen_is_current(): void {
-    assert_eq(interface_format_version(), 14, "annotations cross in interface version fourteen")
+@test fun interface_version_fifteen_is_current(): void {
+    assert_eq(interface_format_version(), 15, "annotation targets cross in interface version fifteen")
 }
 
 @test fun interface_version_eight_is_rejected(): void {
     val loaded = parse_interface("{\"kfi\":8}")
-    assert_eq(loaded.error.as_str(), "unsupported interface version (expected 14, got 8)", "an older version is rejected")
+    assert_eq(loaded.error.as_str(), "unsupported interface version (expected 15, got 8)", "an older version is rejected")
 }
 
 @test fun dyn_interface_round_trip_restores_method_order(): void {

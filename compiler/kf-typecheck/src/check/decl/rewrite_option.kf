@@ -258,7 +258,7 @@ mutating fun TopDecl.rewrite_option_decl(option_name: Sym): void {
             rewrite_option_box(boxed, option_name)
             self.kind = TopDeclKind.AssocTypeBinding(boxed)
         }
-        AnnotationDecl(_params, _pub) => {}
+        AnnotationDecl(_params, _target, _pub) => {}
         Poison => {}
     }
 }

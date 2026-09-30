@@ -165,7 +165,7 @@ fun restored_hidden_helper_keeps_link_name(): void {
 
 @test
 fun corrupt_template_source_is_a_normal_load_error(): void {
-    val source = "{\"kfi\":14,\"crate\":\"sample\",\"compiler_abi\":\"komp-1\",\"runtime_abi\":\"kflat-runtime-1\",\"target\":\"x86_64-linux-gnu\",\"deps\":[],\"glue\":[],\"dyn_traits\":[],\"dyn_vtables\":[],\"modules\":[{\"path\":\"sample.api\",\"files\":[],\"decls\":[{\"kind\":\"generic\",\"hidden\":false,\"name\":\"id\",\"src\":\"fun id<T>(\"}],\"reexports\":[]}]}"
+    val source = "{\"kfi\":15,\"crate\":\"sample\",\"compiler_abi\":\"komp-1\",\"runtime_abi\":\"kflat-runtime-1\",\"target\":\"x86_64-linux-gnu\",\"deps\":[],\"glue\":[],\"dyn_traits\":[],\"dyn_vtables\":[],\"modules\":[{\"path\":\"sample.api\",\"files\":[],\"decls\":[{\"kind\":\"generic\",\"hidden\":false,\"name\":\"id\",\"src\":\"fun id<T>(\"}],\"reexports\":[]}]}"
     val loaded = parse_interface(source)
     assert_eq(loaded.ok, false, "unparseable template text is diagnosed, not crashed on")
 }

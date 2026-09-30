@@ -1,7 +1,7 @@
 //! build: fail
 //! deps: core
-// The query hands back `() -> void` values, so a marked function takes nothing
-// and returns nothing.
+// A bare `annotation bench` marks `() -> void` functions, so a marked function
+// takes nothing and returns nothing.
 
 annotation bench
 
