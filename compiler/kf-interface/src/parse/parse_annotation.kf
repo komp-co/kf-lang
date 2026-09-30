@@ -74,3 +74,16 @@ mutating fun JsonReader.read_type_params(): List<TypeParam>? {
     }
     return params
 }
+
+/// A field's or a variant's annotation uses; empty, and the record poisoned
+/// by the caller's next key check, when the array is malformed.
+mutating fun JsonReader.load_annotation_uses(): List<Annotation> {
+    var uses = List.new<Annotation>()
+    if !self.begin_array() { return uses }
+    while self.array_has_next() {
+        // CONSTRAINT: a local, as for the function type above.
+        val source = self.read_string()
+        uses.push(parse_annotation_source(source.as_str()))
+    }
+    return uses
+}

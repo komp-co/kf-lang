@@ -266,8 +266,11 @@ mutating fun JsonReader.load_fields(): List<Field> {
         val is_var = self.read_bool()
         if !self.expect_key("pub") { return fields }
         val is_pub = self.read_bool()
+        if !self.expect_key("annotations") { return fields }
+        var field = new_field(no_span(), name, ty, is_var, is_pub)
+        field.annotations = self.load_annotation_uses()
         if self.object_has_next() { return fields }
-        fields.push(new_field(no_span(), name, ty, is_var, is_pub))
+        fields.push(field)
     }
     return fields
 }
@@ -299,8 +302,11 @@ mutating fun JsonReader.load_variants(): List<Variant> {
             val ty = parse_type_ptr(self.read_string().as_str())
             payloads.push(unsafe { *ty })
         }
+        if !self.expect_key("annotations") { return variants }
+        var variant = new_variant(no_span(), name, payloads)
+        variant.annotations = self.load_annotation_uses()
         if self.object_has_next() { return variants }
-        variants.push(new_variant(no_span(), name, payloads))
+        variants.push(variant)
     }
     return variants
 }

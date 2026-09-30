@@ -113,6 +113,13 @@ fun parse_type_ptr(source: str): Ptr<TypeRef> {
     return parsed
 }
 
+/// `rename("id")`, as a member's annotation use is written without its `@`.
+fun parse_annotation_source(source: str): Annotation {
+    val tokens = tokenize(source, 0)
+    var parser = new_parser(tokens)
+    return parser.parse_annotation()
+}
+
 /// A function type, or a signature pattern with `_` and `..`.
 fun parse_signature_source(source: str): MarkTarget {
     val tokens = tokenize(source, 0)
