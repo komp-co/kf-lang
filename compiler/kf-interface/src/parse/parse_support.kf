@@ -113,6 +113,13 @@ fun parse_type_ptr(source: str): Ptr<TypeRef> {
     return parsed
 }
 
+/// A function type, or a signature pattern with `_` and `..`.
+fun parse_signature_source(source: str): MarkTarget {
+    val tokens = tokenize(source, 0)
+    var parser = new_parser(tokens)
+    return parser.parse_signature_target()
+}
+
 fun split_dotted_path(path: str): List<String> {
     var out = List.new<String>()
     val n = path.byte_len()

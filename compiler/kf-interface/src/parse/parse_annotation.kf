@@ -20,8 +20,7 @@ mutating fun JsonReader.load_annotation(crate: CrateId, path: str, hidden: bool)
     val kinds = self.read_kind_targets() ?: return poison_decl()
     if self.object_has_next() { return poison_decl() }
     val target = if function.byte_len() > 0 {
-        val parsed = parse_type_ptr(function.as_str())
-        MarkTarget.Function(parsed)
+        parse_signature_source(function.as_str())
     } else if kinds.size() > 0 {
         MarkTarget.Kinds(kinds)
     } else {

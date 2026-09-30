@@ -1,5 +1,6 @@
-// An annotation's target in its interface record: the function type's
-// source, "" for a list of kinds, and the kinds, each with its bounds:
+// An annotation's target in its interface record: the function type's or
+// signature pattern's source, "" for a list of kinds, and the kinds, each
+// with its bounds:
 //
 //     "function":"","kinds":[{"kind":"struct","bounds":["Plugin"]}]
 
@@ -11,6 +12,7 @@ import json.writer.JsonWriter
 fun MarkTarget.function_source(): String {
     return when (self) {
         Function(ty) => (*ty).tyref_to_source()
+        Signature(params, has_rest, ret) => signature_source(&params, has_rest, &*ret)
         _ => String.from("")
     }
 }
@@ -29,4 +31,17 @@ fun MarkTarget.kinds_json(): String {
         kinds.write_raw(o.finish().as_str())
     }
     return kinds.finish()
+}
+
+/// `(bool, _, ..) -> _`, as the parser reads it back.
+fun signature_source(params: &List<TypeRef>, has_rest: bool, ret: &TypeRef): String {
+    var out = String.from("(")
+    while i in 0..params.size() {
+        if i > 0 { out.append(", ") }
+        out.append(params.at(i).tyref_to_source().as_str())
+    }
+    if has_rest { out.append(if params.size() > 0 { ", .." } else { ".." }) }
+    out.append(") -> ")
+    out.append(ret.tyref_to_source().as_str())
+    return out
 }

@@ -1,0 +1,172 @@
+// A function or method against a function-type target, or a signature
+// pattern whose `_` stands for any one type and whose trailing `..` for any
+// further parameters. A pattern's resolved type carries poison for each `_`.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_core.diagnostic.*
+import kf_typecheck.*
+import kf_typecheck.types.type_eq
+import kf_typecheck.types.display_type_ref
+import kf_typecheck.types.resolve_type_ref
+
+/// A function target's type, or a pattern's with poison for each `_`,
+/// resolved as `owner` sees it; poison for a kind target. Resolution errors
+/// are reported only for this crate's annotations.
+pub fun MarkTarget.function_type(owner: &TopDecl, quiet: bool, sigs: Ptr<SigTable>,
+    diags: Ptr<List<Diagnostic>>): Type {
+    var ctx = owner.declaration_ctx(sigs, diags)
+    ctx.quiet = quiet
+    when (self) {
+        Function(ty) => return (*ty).resolve_type_ref(&var ctx)
+        Signature(params, _has_rest, ret) => {
+            var types = new_type_vec()
+            while param in &params {
+                types.push(param.slot_type(&var ctx))
+            }
+            return fn_ty(types, (*ret).slot_type(&var ctx), Provenance.Inferred(owner.span))
+        }
+        _ => return poison_ty()
+    }
+}
+
+/// Poison for `_`, a borrow of poison for `&_` or `&var _`.
+fun TypeRef.slot_type(ctx: &var TypeCtx): Type {
+    if self.is_wildcard() { return poison_ty() }
+    when (self.kind) {
+        Reference(is_mutable, inner) => {
+            if inner.is_wildcard() { return poison_ty().borrowed(is_mutable, self.span) }
+        }
+        _ => {}
+    }
+    return self.resolve_type_ref(ctx)
+}
+
+/// Whether this function, a method of `owner` or top-level, matches the
+/// target, reported when it does not.
+fun TopDecl.fits_signature(kind: str, declared: &DeclaredAnnotation, owner: &MethodOwner, sigs: Ptr<SigTable>,
+    pass_diags: Ptr<List<Diagnostic>>, diags: &var List<Diagnostic>): bool {
+    val at = self.decl_name_span()
+    if !self.is_plain_function() {
+        diags.push(error_at(at, "`@${kind}` can only annotate a function"))
+        return false
+    }
+    if owner.is_generic {
+        val why = "a function value has one type"
+        diags.push(error_at(at, "`@${kind}` cannot annotate a method of a generic type: ${why}"))
+        return false
+    }
+    val own = self.own_function_type(owner, sigs, pass_diags)
+    val has_rest = declared.target.has_rest()
+    if own.matches_target(&declared.function_type, has_rest) { return true }
+    val wanted = declared.target.signature_display()
+    val verb = if has_rest || declared.function_type.has_wildcard() { "match" } else { "have type" }
+    diags.push(error_at(at, "a function marked `@${kind}` must ${verb} `${wanted.as_str()}`"))
+    return false
+}
+
+fun MarkTarget.has_rest(): bool {
+    return when (self) {
+        Signature(_params, has_rest, _ret) => has_rest
+        _ => false
+    }
+}
+
+/// The target as written: `(Request) -> int32`, `(bool, ..) -> _`.
+fun MarkTarget.signature_display(): String {
+    when (self) {
+        Function(ty) => return (*ty).display_type_ref()
+        Signature(params, has_rest, ret) => {
+            var out = String.from("(")
+            while i in 0..params.size() {
+                if i > 0 { out.append(", ") }
+                out.append(params.at(i).display_type_ref().as_str())
+            }
+            if has_rest { out.append(if params.size() > 0 { ", .." } else { ".." }) }
+            out.append(") -> ")
+            out.append((*ret).display_type_ref().as_str())
+            return out
+        }
+        _ => return String.from("")
+    }
+}
+
+fun Type.has_wildcard(): bool {
+    val parts = self.fn_parts() ?: return false
+    if parts.ret.through_borrow().is_poison() { return true }
+    while param in &parts.params {
+        if param.through_borrow().is_poison() { return true }
+    }
+    return false
+}
+
+/// Whether a function of this type may be marked by a target of type
+/// `target`: slot by slot, with a trailing `..` admitting further parameters.
+fun Type.matches_target(target: &Type, has_rest: bool): bool {
+    val own = self.fn_parts() ?: return false
+    val wanted = target.fn_parts() ?: return false
+    val count = own.params.size()
+    if count < wanted.params.size() || (!has_rest && count != wanted.params.size()) { return false }
+    if !own.ret.fits_slot(&wanted.ret, false) { return false }
+    while i in 0..wanted.params.size() {
+        if !own.params.at(i).fits_slot(wanted.params.at(i), true) { return false }
+    }
+    return true
+}
+
+/// `_` takes any type, `&_` any shared borrow and `&var _` a mutable one;
+/// any other slot takes its own type. With `lends`, a `&T` also stands where
+/// the slot is `&var T` or `&var _`, since a shared borrow can be lent from a
+/// mutable one.
+fun Type.fits_slot(slot: &Type, lends: bool): bool {
+    if slot.is_poison() { return true }
+    if slot.through_borrow().is_poison() {
+        if slot.is_borrow(false) { return self.is_borrow(false) }
+        return self.is_borrow(true) || (lends && self.is_borrow(false))
+    }
+    return self.type_eq(*slot) || (lends && self.lends_from(slot))
+}
+
+/// `&T` where `target` is `&var T`.
+fun Type.lends_from(target: &Type): bool {
+    return self.is_borrow(false) && target.is_borrow(true) && self.through_borrow().type_eq(target.through_borrow())
+}
+
+fun Type.is_borrow(is_mutable: bool): bool {
+    return when (self.kind) {
+        RefTo(mutable, _inner) => mutable == is_mutable
+        _ => false
+    }
+}
+
+/// A free function or method with no type parameters: one a value can name.
+fun TopDecl.is_plain_function(): bool {
+    if self.generics.size() > 0 || !self.ext_name.as_str().equals("") { return false }
+    return when (self.kind) {
+        Function(_p, _r, _b, _pub, _u, _mut, _st) => true
+        _ => false
+    }
+}
+
+/// `(A) -> R` from the declaration as written, resolved in its own module, a
+/// method's receiver first. Quiet: the signature's own errors were reported
+/// when it was registered.
+fun TopDecl.own_function_type(owner: &MethodOwner, sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): Type {
+    var ctx = self.declaration_ctx(sigs, diags)
+    ctx.quiet = true
+    return when (self.kind) {
+        Function(params, ret, _b, _pub, _u, is_mutating, is_static) => {
+            var param_types = new_type_vec()
+            if owner.is_method() && !is_static {
+                val receiver = new_type_ref(self.span, TypeRefKind.Named(owner.type_name, List.new<TypeRef>()))
+                param_types.push(receiver.resolve_type_ref(&var ctx).borrowed(is_mutating, self.span))
+            }
+            while param in &params {
+                param_types.push((*param.ty).resolve_type_ref(&var ctx))
+            }
+            fn_ty(param_types, (*ret).resolve_type_ref(&var ctx), Provenance.Inferred(self.span))
+        }
+        _ => poison_ty()
+    }
+}

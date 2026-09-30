@@ -121,3 +121,42 @@ impl MarkTarget {
         return kinds
     }
 }
+
+impl TypeRef {
+    /// `_`, any one type.
+    pub fun is_wildcard(): bool {
+        return when (self.kind) {
+            Named(name, args) => args.size() == 0 && name.as_str() == "_"
+            _ => false
+        }
+    }
+
+    /// `_`, `&_` or `&var _`: a wildcard where a signature pattern admits one.
+    pub fun is_wildcard_slot(): bool {
+        return when (self.kind) {
+            Reference(_is_mutable, inner) => inner.is_wildcard()
+            _ => self.is_wildcard()
+        }
+    }
+
+    /// A `_` anywhere inside, including the type itself.
+    pub fun mentions_wildcard(): bool {
+        if self.is_wildcard() { return true }
+        when (self.kind) {
+            Named(_name, args) => return args.any_mentions_wildcard()
+            DynTrait(_name, args) => return args.any_mentions_wildcard()
+            Function(params, ret) => return params.any_mentions_wildcard() || ret.mentions_wildcard()
+            Reference(_is_mutable, inner) => return inner.mentions_wildcard()
+            Array(element, _size) => return element.mentions_wildcard()
+            Projection(owner, _member) => return owner.mentions_wildcard()
+            Poison => return false
+        }
+    }
+}
+
+fun List<TypeRef>.any_mentions_wildcard(): bool {
+    while item in &self {
+        if item.mentions_wildcard() { return true }
+    }
+    return false
+}

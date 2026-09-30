@@ -66,6 +66,7 @@ fun round_trip_target(m: Module): MarkTarget {
 fun MarkTarget.function_text(): String {
     return when (self) {
         Function(ty) => (*ty).tyref_to_source()
+        Signature(params, has_rest, ret) => "pattern ${signature_source(&params, has_rest, &*ret)}"
         _ => String.from("kinds")
     }
 }
@@ -111,4 +112,22 @@ fun kinds_cross_with_their_bounds(): void {
 fun any_crosses_as_every_kind(): void {
     val target = round_trip_target(targeted_module(true, any_kind_target()))
     assert_eq(target.kinds_text().as_str(), "fun:,struct:,enum:,trait:", "all four")
+}
+
+fun wildcard(): TypeRef { return named("_") }
+
+@test
+fun a_signature_pattern_crosses_with_its_wildcards(): void {
+    var params = List.new<TypeRef>()
+    params.push(named("bool"))
+    params.push(wildcard())
+    val target = round_trip_target(targeted_module(true, MarkTarget.Signature(params, true, Box.new(wildcard()))))
+    assert_eq(target.function_text().as_str(), "pattern (bool, _, ..) -> _", "each wildcard and the rest")
+}
+
+@test
+fun rest_alone_crosses(): void {
+    val pattern = MarkTarget.Signature(List.new<TypeRef>(), true, Box.new(named("bool")))
+    val target = round_trip_target(targeted_module(true, pattern))
+    assert_eq(target.function_text().as_str(), "pattern (..) -> bool", "no parameters before it")
 }

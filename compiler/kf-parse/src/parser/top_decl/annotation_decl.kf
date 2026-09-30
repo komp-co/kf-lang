@@ -29,22 +29,12 @@ impl Parser {
         return td
     }
 
-    /// `on (A) -> R`, `on any`, `on KIND, KIND` or `on <KIND: Bound, KIND>`,
+    /// `on (A, _, ..) -> R`, `on any`, `on KIND, KIND` or `on <KIND: Bound, KIND>`,
     /// consuming `on`. A kind with a bound in a list needs the brackets.
     mutating fun parse_mark_target(): MarkTarget {
         unsafe { self.advance() } // consume `on`
         val at = self.peek().span
-        if is_op(self.peek(), Operator.LParen) {
-            val function = self.parse_type_ref_ptr()
-            val is_function = when (unsafe { function.kind }) {
-                Function(_params, _ret) => true
-                _ => false
-            }
-            if !is_function {
-                self.parse_err(at, String.from("expected a function type after `on`, such as `(Request) -> Response`"))
-            }
-            return MarkTarget.Function(function)
-        }
+        if is_op(self.peek(), Operator.LParen) { return self.parse_signature_target() }
         if self.at_word("any") {
             unsafe { self.advance() }
             return any_kind_target()
