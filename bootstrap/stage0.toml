@@ -1,5 +1,5 @@
 # The seed: the released komp and kflatc, as C, that bootstrap this tree.
 # bootstrap/seed.sh fetches it and checks it against sha256.
-version = "0.8.0"
-url = "https://github.com/komp-co/komp/releases/download/v0.8.0/kflat-seed-0.8.0.tar.gz"
-sha256 = "a5bafd659f5f49d8d7d57a53adab821520eae04ddc11e8a2c78e89825a84ffec"
+version = "0.9.0"
+url = "https://github.com/komp-co/komp/releases/download/v0.9.0/kflat-seed-0.9.0.tar.gz"
+sha256 = "34e3e9dd4df5acdacca615f0f6345c64356b37126322727bf88ea21d9e665535"
