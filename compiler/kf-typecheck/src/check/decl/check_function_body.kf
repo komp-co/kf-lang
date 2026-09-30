@@ -228,7 +228,7 @@ fun check_method_body(struct_name: String, generics: List<String>, impl_trait: S
             while own_body_generic in &own_body_generics {
                 body_generics.push(own_body_generic)
             }
-            check_fn_body(td, owner, td.crate, td.module_path, td.span.file_id, self_name, struct_name, impl_trait, impl_trait_args, td.name.as_string(), is_mutating, body_generics, params, ret_ptr, &var body, diags, sigs)
+            check_fn_body(td, owner, td.crate, td.scope_module(), td.span.file_id, self_name, struct_name, impl_trait, impl_trait_args, td.name.as_string(), is_mutating, body_generics, params, ret_ptr, &var body, diags, sigs)
         }
         _ => { }
     }

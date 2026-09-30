@@ -31,17 +31,20 @@ impl Parser {
                 while is_op(self.peek(), Operator.Dot) {
                     unsafe { self.advance() } // consume `.`
                     val member = self.peek()
-                    when (member.kind) {
-                        Identifier(mname) => {
-                            unsafe { self.advance() }
-                            val owner_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-                            unsafe { *owner_ptr = tr }
-                            tr = new_type_ref(t.span, TypeRefKind.Projection(owner_ptr, intern(mname.as_str())))
-                        }
-                        _ => {
-                            self.parse_err(member.span, String.from("expected an associated type name after `.` in a type"))
-                            tr = type_ref_poison(t.span)
-                        }
+                    // `field.type`, a template's fact, reads as a projection.
+                    var mname = when (member.kind) {
+                        Identifier(word) => word.as_string()
+                        _ => String.from("")
+                    }
+                    if member.is_keyword(Keyword.TypeKw) { mname = String.from("type") }
+                    if mname.byte_len() > 0 {
+                        unsafe { self.advance() }
+                        val owner_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
+                        unsafe { *owner_ptr = tr }
+                        tr = new_type_ref(t.span, TypeRefKind.Projection(owner_ptr, intern(mname.as_str())))
+                    } else {
+                        self.parse_err(member.span, String.from("expected an associated type name after `.` in a type"))
+                        tr = type_ref_poison(t.span)
                     }
                 }
                 unsafe { *ptr = tr }

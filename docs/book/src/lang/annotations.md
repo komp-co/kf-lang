@@ -347,8 +347,8 @@ fun main(): int32 {
 A member's uses are checked like any other, arguments and target, and kept
 with its type, in a library's interface too. `annotated` does not list them,
 since nothing names a field on its own at run time, and querying an
-annotation that marks only members is an error. A built-in annotation cannot
-mark a member.
+annotation that marks only members is an error. A [template](templates.md)
+reads them instead. A built-in annotation cannot mark a member.
 
 ### Across modules and crates
 

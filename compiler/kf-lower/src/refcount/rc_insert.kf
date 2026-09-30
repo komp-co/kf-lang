@@ -50,6 +50,7 @@ pub fun rc_insert_top_decl_pv(td: &var TopDecl, names: List<String>, tp: Ptr<Lis
         AssocType(_bounds) => return
         AssocTypeBinding(_chosen) => return
         AnnotationDecl(_params, _target, _pub) => return
+        Template(_kind, _marked, _body) => return
         TraitDecl(_, _, _) => return
         TraitImpl(_, _) => return
         Poison => return

@@ -150,6 +150,10 @@ pub struct TopDecl {
     /// `fun List<Point>.area()`), empty otherwise. `name` is then a hidden
     /// name distinguishing extensions, and the first parameter is `self`.
     pub var ext_name: Sym
+    /// The module whose names the body sees, when not its own: a template's,
+    /// for a declaration the template adds to another module. Empty
+    /// otherwise.
+    pub var resolves_in: Sym
 }
 
 pub enum TopDeclKind {
@@ -185,6 +189,10 @@ pub enum TopDeclKind {
     /// `annotation NAME(params) on TARGET`: a name a declaration may carry
     /// as `@NAME(args)`. Payload: params, target, is_pub.
     AnnotationDecl(List<Param>, MarkTarget, bool)
+    /// `template NAME on KIND T { declarations }`: what `@NAME` adds beside
+    /// each declaration of that kind it marks. The outer `name` is the
+    /// annotation's. Payload: the kind, `T`, the declarations.
+    Template(MarkKind, Sym, List<TopDecl>)
     /// Parse error.
     Poison
 }
@@ -207,6 +215,11 @@ impl TopDecl {
         return List.new<String>()
     }
 
+    /// The module the body's names resolve in.
+    pub fun scope_module(): Sym {
+        return if self.resolves_in.as_str().byte_len() > 0 { self.resolves_in } else { self.module_path }
+    }
+
     /// Where a diagnostic about this declaration points: its name, falling
     /// back to the whole span for synthesized and poison declarations.
     pub fun decl_name_span(): Span {
@@ -216,7 +229,7 @@ impl TopDecl {
 }
 
 pub fun new_top_decl(span: Span, name: String, kind: TopDeclKind): TopDecl {
-    return TopDecl { span: span, name: intern(name.as_str()), kind: kind, crate: crate_id_poison(), module_path: intern(""), decl: null, generics: List.new<TypeParam>(), annotations: List.new<Annotation>(), from_trait_impl: false, linkage: linkage_source(), link_name: intern(""), dyn_layouts: List.new<DynTraitLayout>(), dyn_vtables: List.new<DynVTableInstance>(), decl_end: 0, name_span: no_span(), ext_name: intern("") }
+    return TopDecl { span: span, name: intern(name.as_str()), kind: kind, crate: crate_id_poison(), module_path: intern(""), decl: null, generics: List.new<TypeParam>(), annotations: List.new<Annotation>(), from_trait_impl: false, linkage: linkage_source(), link_name: intern(""), dyn_layouts: List.new<DynTraitLayout>(), dyn_vtables: List.new<DynVTableInstance>(), decl_end: 0, name_span: no_span(), ext_name: intern(""), resolves_in: intern("") }
 }
 
 /// Stamps the owner onto nested methods too, which are checked as
@@ -236,6 +249,10 @@ pub mutating fun TopDecl.stamp_decl_owner(crate: CrateId, module_path: Sym): voi
         TraitImpl(trait_ref, methods) => {
             stamp_nested_decl_owners(&var methods, crate, module_path)
             self.kind = TopDeclKind.TraitImpl(trait_ref, methods)
+        }
+        Template(kind, marked, body) => {
+            stamp_nested_decl_owners(&var body, crate, module_path)
+            self.kind = TopDeclKind.Template(kind, marked, body)
         }
         _ => {}
     }
