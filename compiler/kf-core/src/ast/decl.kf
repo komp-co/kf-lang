@@ -36,20 +36,27 @@ pub struct Field {
     pub val ty: Box<TypeRef>
     pub val is_var: bool
     pub val is_pub: bool
+    /// The `@...` run above the field.
+    pub var annotations: List<Annotation>
 }
 
 pub fun new_field(span: Span, name: String, ty: Ptr<TypeRef>, is_var: bool, is_pub: bool): Field {
-    return Field { span: span, name: intern(name.as_str()), ty: ty, is_var: is_var, is_pub: is_pub }
+    return Field {
+        span: span, name: intern(name.as_str()), ty: ty, is_var: is_var, is_pub: is_pub,
+        annotations: List.new<Annotation>()
+    }
 }
 
 pub struct Variant {
     pub val span: Span
     pub val name: Sym
     pub var payloads: List<TypeRef>
+    /// The `@...` run above the variant.
+    pub var annotations: List<Annotation>
 }
 
 pub fun new_variant(span: Span, name: String, payloads: List<TypeRef>): Variant {
-    return Variant { span: span, name: intern(name.as_str()), payloads: payloads }
+    return Variant { span: span, name: intern(name.as_str()), payloads: payloads, annotations: List.new<Annotation>() }
 }
 
 /// One argument of `@name(...)`: `Clone`, `"string"`, `iterations = 100`.
@@ -70,13 +77,16 @@ pub struct Annotation {
     pub val span: Span
 }
 
-/// A kind of declaration an annotation may mark by kind.
+/// A kind of declaration, or of a type's member, an annotation may mark by
+/// kind.
 @derive(Clone, Equal)
 pub enum MarkKind {
     Function
     Struct
     Enum
     Trait
+    Field
+    Variant
 }
 
 /// One kind in `on struct: Plugin, enum`, and the traits a marked type of
@@ -140,6 +150,12 @@ pub struct TopDecl {
     /// `fun List<Point>.area()`), empty otherwise. `name` is then a hidden
     /// name distinguishing extensions, and the first parameter is `self`.
     pub var ext_name: Sym
+    /// The module whose names the body sees, when not its own: a template's,
+    /// for a declaration the template adds to another module. Empty
+    /// otherwise.
+    pub var resolves_in: Sym
+    /// A `sealed trait`: only its own crate implements it.
+    pub var is_sealed: bool
 }
 
 pub enum TopDeclKind {
@@ -175,6 +191,10 @@ pub enum TopDeclKind {
     /// `annotation NAME(params) on TARGET`: a name a declaration may carry
     /// as `@NAME(args)`. Payload: params, target, is_pub.
     AnnotationDecl(List<Param>, MarkTarget, bool)
+    /// `template NAME on KIND T { declarations }`: what `@NAME` adds beside
+    /// each declaration of that kind it marks. The outer `name` is the
+    /// annotation's. Payload: the kind, `T`, the declarations.
+    Template(MarkKind, Sym, List<TopDecl>)
     /// Parse error.
     Poison
 }
@@ -197,6 +217,11 @@ impl TopDecl {
         return List.new<String>()
     }
 
+    /// The module the body's names resolve in.
+    pub fun scope_module(): Sym {
+        return if self.resolves_in.as_str().byte_len() > 0 { self.resolves_in } else { self.module_path }
+    }
+
     /// Where a diagnostic about this declaration points: its name, falling
     /// back to the whole span for synthesized and poison declarations.
     pub fun decl_name_span(): Span {
@@ -206,7 +231,7 @@ impl TopDecl {
 }
 
 pub fun new_top_decl(span: Span, name: String, kind: TopDeclKind): TopDecl {
-    return TopDecl { span: span, name: intern(name.as_str()), kind: kind, crate: crate_id_poison(), module_path: intern(""), decl: null, generics: List.new<TypeParam>(), annotations: List.new<Annotation>(), from_trait_impl: false, linkage: linkage_source(), link_name: intern(""), dyn_layouts: List.new<DynTraitLayout>(), dyn_vtables: List.new<DynVTableInstance>(), decl_end: 0, name_span: no_span(), ext_name: intern("") }
+    return TopDecl { span: span, name: intern(name.as_str()), kind: kind, crate: crate_id_poison(), module_path: intern(""), decl: null, generics: List.new<TypeParam>(), annotations: List.new<Annotation>(), from_trait_impl: false, linkage: linkage_source(), link_name: intern(""), dyn_layouts: List.new<DynTraitLayout>(), dyn_vtables: List.new<DynVTableInstance>(), decl_end: 0, name_span: no_span(), ext_name: intern(""), resolves_in: intern(""), is_sealed: false }
 }
 
 /// Stamps the owner onto nested methods too, which are checked as
@@ -226,6 +251,10 @@ pub mutating fun TopDecl.stamp_decl_owner(crate: CrateId, module_path: Sym): voi
         TraitImpl(trait_ref, methods) => {
             stamp_nested_decl_owners(&var methods, crate, module_path)
             self.kind = TopDeclKind.TraitImpl(trait_ref, methods)
+        }
+        Template(kind, marked, body) => {
+            stamp_nested_decl_owners(&var body, crate, module_path)
+            self.kind = TopDeclKind.Template(kind, marked, body)
         }
         _ => {}
     }

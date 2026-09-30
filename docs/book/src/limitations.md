@@ -106,6 +106,19 @@ src/main.kf:3:13: error: lambda parameter `x` needs a type annotation (its type 
   ([#53]). Write the receiver as a parameter, `fun <C: Trait> C.name()`, and
   name `C`.
 
+## Templates
+
+- A [template](lang/templates.md) adds to structs only; templates on enums
+  come with the variant loop ([#289]).
+- A template adds to its own crate's structs only ([#290]), and not to a
+  generic struct ([#296]).
+- A name a template adds cannot be spliced from the field or the struct
+  (`with_$field`, `${T}Builder`), so a free function or a type in a template
+  collides when two structs are marked ([#288]).
+- `break` and `continue` cannot leave a template's member loop ([#288]).
+- A `pub` extension function a template adds cannot be imported by another
+  module: imports are checked before templates expand ([#297]).
+
 ## Modules
 
 - `pub` is not checked on a struct or a field: a private field can be read
@@ -198,3 +211,8 @@ not agree with it in every case.
 [#190]: https://github.com/komp-co/komp/issues/190
 [#194]: https://github.com/komp-co/komp/issues/194
 [#216]: https://github.com/komp-co/komp/issues/216
+[#288]: https://github.com/komp-co/komp/issues/288
+[#289]: https://github.com/komp-co/komp/issues/289
+[#290]: https://github.com/komp-co/komp/issues/290
+[#296]: https://github.com/komp-co/komp/issues/296
+[#297]: https://github.com/komp-co/komp/issues/297

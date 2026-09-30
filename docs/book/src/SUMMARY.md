@@ -18,6 +18,7 @@
 - [Patterns](lang/patterns.md)
 - [Functions](lang/functions.md)
 - [Annotations](lang/annotations.md)
+- [Templates](lang/templates.md)
 - [Structs](lang/structs.md)
 - [Enums, Option, and Result](lang/enums.md)
 - [Traits](lang/traits.md)

@@ -8,6 +8,8 @@ import kf_resolve.*
 import kf_typecheck.check.unknown_bound_diags
 import kf_typecheck.check.untyped_receiver_diags
 import kf_typecheck.check.decl.*
+import kf_typecheck.template.expand_templates
+import kf_typecheck.template.with_expansion_notes
 
 pub mutating fun Module.typecheck_module(table: &var DeclTable): List<Diagnostic> {
     val null_files: Ptr<List<uint32>> = unsafe { 0 as Ptr<List<uint32>> }
@@ -38,6 +40,8 @@ pub fun typecheck_module_typed(m: &var Module,
     imported_targets: Ptr<List<Sym>>,
     imported_names: Ptr<List<Sym>>): TypedModule {
     var diags = List.new<Diagnostic>()
+    // First, so what a template adds passes through every later step.
+    val expansions = m.expand_templates(&var diags)
     m.validate_annotations(&var diags)
     m.reject_colliding_no_mangle(&var diags)
     m.reject_duplicate_lang_items(&var diags)
@@ -72,7 +76,7 @@ pub fun typecheck_module_typed(m: &var Module,
     while item in &untyped {
         diags.push(item)
     }
-    val found = without_duplicates(diags)
+    val found = with_expansion_notes(without_duplicates(diags), &expansions)
     return TypedModule { diags: found, sigs: sigs }
 }
 

@@ -38,6 +38,7 @@ fun TopDecl.should_register_decl(): bool {
         AssocType(_) => false
         AssocTypeBinding(_) => false
         AnnotationDecl(_params, _target, _pub) => false
+        Template(_kind, _marked, _body) => false
         Poison => false
     }
 }

@@ -5,6 +5,19 @@ import kf_core.ast.*
 import kf_parse.parser.*
 
 impl Parser {
+    /// `sealed trait`: `sealed` is a word only here, so a name `sealed`
+    /// elsewhere is untouched.
+    fun at_sealed_trait(): bool {
+        return self.at_word("sealed") && is_keyword(self.peek_at(1), Keyword.Trait)
+    }
+
+    mutating fun parse_sealed_trait(span: Span, is_pub: bool): TopDecl {
+        self.advance() // consume `sealed`
+        var td = self.parse_trait(span, is_pub)
+        td.is_sealed = true
+        return td
+    }
+
     mutating fun parse_trait(span: Span, is_pub: bool): TopDecl {
         unsafe { self.advance() } // consume `trait`
         // Read before the name is interned; a Sym has no position.
@@ -218,7 +231,10 @@ impl Parser {
                     self.parse_err(self.peek().span, String.from("unclosed struct body: missing `}` before the end of the file"))
                     break
                 }
-                fields.push(self.parse_field())
+                val annotations = self.parse_annotation_run()
+                var field = self.parse_field()
+                field.annotations = annotations
+                fields.push(field)
                 self.skip_newlines()
                 if is_op(self.peek(), Operator.Comma) {
                     unsafe { self.advance() }
@@ -257,7 +273,10 @@ impl Parser {
                     self.parse_err(self.peek().span, String.from("unclosed enum body: missing `}` before the end of the file"))
                     break
                 }
-                variants.push(self.parse_variant())
+                val annotations = self.parse_annotation_run()
+                var variant = self.parse_variant()
+                variant.annotations = annotations
+                variants.push(variant)
                 self.skip_newlines()
                 if is_op(self.peek(), Operator.Comma) {
                     unsafe { self.advance() }

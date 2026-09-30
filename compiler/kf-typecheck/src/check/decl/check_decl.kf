@@ -90,6 +90,7 @@ pub fun check_decl_module(m: &var Module,
 
     // Impl headers, once identities and traits are registered.
     m.check_impl_headers(sig_ptr, diags)
+    m.check_sealed_impls(diags)
 
     // Struct layouts, generic templates first: resolving `Option<Ptr<Expr>>`
     // instantiates from the template's layout, and a missed instantiation is
@@ -383,7 +384,7 @@ fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &va
             if td.linkage.is_imported() { eff_table = Option.None }
             var ctx0 = new_type_ctx(void_ty(no_span()), diags, eff_table, sig_ptr)
             ctx0.owner_crate = td.crate
-            ctx0.owner_module = td.module_path
+            ctx0.owner_module = td.scope_module()
             ctx0.owner_file = td.span.file_id
             ctx0.metadata_owner = td
             // The impl's generics and the method's own, so `&A` resolves to
@@ -456,7 +457,7 @@ fun check_top_decl(td: &var TopDecl, _table: &var DeclTable, diags: Ptr<List<Dia
                 emit_builtin_type_name_reserved_err(diags, td_span, td.name.as_string())
             }
             val no_self = ""
-            check_fn_body(td, td.name.as_string(), td.crate, td.module_path, td.span.file_id, no_self, "", "", "", "", false, type_param_names(td.generics), params, ret_ptr, &var body, diags, sigs)
+            check_fn_body(td, td.name.as_string(), td.crate, td.scope_module(), td.span.file_id, no_self, "", "", "", "", false, type_param_names(td.generics), params, ret_ptr, &var body, diags, sigs)
         }
         ImplBlock(methods) => {
             // Impl method bodies are walked like any function, with `self`
@@ -481,7 +482,7 @@ fun check_top_decl(td: &var TopDecl, _table: &var DeclTable, diags: Ptr<List<Dia
             // Its own ctx, so the impl's generics are in scope.
             var sig_ctx = new_type_ctx(void_ty(no_span()), diags, Option.None, sigs)
             sig_ctx.owner_crate = td.crate
-            sig_ctx.owner_module = td.module_path
+            sig_ctx.owner_module = td.scope_module()
             sig_ctx.owner_file = td.span.file_id
             sig_ctx.metadata_owner = unsafe { td as Ptr<TopDecl> }
             sig_ctx.seed_generics(gnames.clone())

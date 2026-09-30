@@ -66,7 +66,7 @@ impl Parser {
         val kind = self.peek_mark_kind()
         if kind == null {
             val found = tok_str(self.peek())
-            val expected = "a function type, `any`, `fun`, `struct`, `enum` or `trait`"
+            val expected = "a function type, `any`, `fun`, `struct`, `enum`, `trait`, `field` or `variant`"
             self.parse_err(at, "expected ${expected} after `on`, found ${found}")
             return false
         }
@@ -93,6 +93,11 @@ impl Parser {
 
     fun peek_mark_kind(): MarkKind? {
         when (self.peek().kind) {
+            Identifier(word) => return when word.as_str() {
+                "field" => MarkKind.Field
+                "variant" => MarkKind.Variant
+                _ => null
+            }
             KeywordTok(k) => return when (k) {
                 Fun => MarkKind.Function
                 Struct => MarkKind.Struct

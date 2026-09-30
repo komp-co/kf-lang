@@ -429,3 +429,27 @@ fun bound_head_name(tr: TypeRef): String {
         _ => assert_eq(false, true, "expected a Function")
     }
 }
+
+@test fun a_sealed_trait_is_marked(): void {
+    var p = parser_for("pub sealed trait Endian { fun swaps(): bool }")
+    val td = p.parse_top_decl()
+    assert_eq(td.is_sealed, true, "`sealed` before `trait`")
+}
+
+@test fun a_private_sealed_trait_is_marked(): void {
+    var p = parser_for("sealed trait Endian { fun swaps(): bool }")
+    val td = p.parse_top_decl()
+    assert_eq(td.is_sealed, true, "without `pub` too")
+}
+
+@test fun a_plain_trait_is_not_sealed(): void {
+    var p = parser_for("pub trait Endian { fun swaps(): bool }")
+    val td = p.parse_top_decl()
+    assert_eq(td.is_sealed, false, "no modifier")
+}
+
+@test fun sealed_is_still_a_name(): void {
+    var p = parser_for("fun sealed(): bool { return true }")
+    val td = p.parse_top_decl()
+    assert_eq(td.name.as_str(), "sealed", "a word only before `trait`")
+}
