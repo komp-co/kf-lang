@@ -15,12 +15,14 @@ import kf_typecheck.types.type_param_names
 import kf_typecheck.traits.trait_impl_owner_name
 
 /// A function target's type, or a pattern's with poison for each `_`,
-/// resolved as `owner` sees it; poison for a kind target. Resolution errors
-/// are reported only for this crate's annotations.
-pub fun MarkTarget.function_type(owner: &TopDecl, quiet: bool, sigs: Ptr<SigTable>,
+/// resolved as `owner` sees it; poison for a kind target. Resolution errors,
+/// an unknown type through `decls`, are reported only for this crate's
+/// annotations, which pass it.
+pub fun MarkTarget.function_type(owner: &TopDecl, decls: Ptr<DeclTable>?, sigs: Ptr<SigTable>,
     diags: Ptr<List<Diagnostic>>): Type {
     var ctx = owner.declaration_ctx(sigs, diags)
-    ctx.quiet = quiet
+    ctx.table = decls
+    ctx.quiet = decls == null
     ctx.seed_generics(type_param_names(owner.generics))
     when (self) {
         Function(ty) => return (*ty).resolve_type_ref(&var ctx)
