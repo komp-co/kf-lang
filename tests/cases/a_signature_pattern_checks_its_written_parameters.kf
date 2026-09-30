@@ -1,0 +1,10 @@
+//! build: fail
+//! deps: core, alloc
+// Under `(bool, ..) -> bool` the first parameter is still a `bool`.
+
+annotation flag on (bool, ..) -> bool
+
+@flag
+fun counted(n: int32): bool { return true }
+
+fun main(): int32 { return 0 }

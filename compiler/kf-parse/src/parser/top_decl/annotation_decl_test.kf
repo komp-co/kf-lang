@@ -72,6 +72,7 @@ fun TopDecl.target_shape(): String {
 fun MarkTarget.shape(): String {
     when (self) {
         Function(_ty) => return String.from("function")
+        Signature(params, has_rest, _ret) => return "signature:${params.size()}${if has_rest { "+" } else { "" }}"
         Kinds(kinds) => {
             var out = String.from("")
             while listed in &kinds {
@@ -155,4 +156,40 @@ fun has_errors(src: str): bool {
 
 @test fun a_non_function_type_after_on_is_an_error(): void {
     assert_eq(has_errors("annotation bench on (int32)"), true, "a grouped type is not a function type")
+}
+
+@test fun a_wildcard_parameter_makes_a_signature(): void {
+    assert_eq(shape_of("annotation flag on (bool, _) -> bool").as_str(), "signature:2", "two parameters, one any")
+}
+
+@test fun a_trailing_rest_makes_a_signature(): void {
+    assert_eq(shape_of("annotation flag on (bool, ..) -> bool").as_str(), "signature:1+", "one and any more")
+}
+
+@test fun a_wildcard_result_makes_a_signature(): void {
+    assert_eq(shape_of("annotation route on (Request) -> _").as_str(), "signature:1", "any result")
+}
+
+@test fun a_borrowed_wildcard_makes_a_signature(): void {
+    assert_eq(shape_of("annotation hook on (&_, bool) -> bool").as_str(), "signature:2", "a receiver of any type")
+}
+
+@test fun rest_alone_takes_any_parameters(): void {
+    assert_eq(shape_of("annotation logged on (..) -> _").as_str(), "signature:0+", "any function")
+}
+
+@test fun a_signature_without_wildcards_is_a_function_type(): void {
+    assert_eq(shape_of("annotation route on (Request, bool) -> int32").as_str(), "function", "exact")
+}
+
+@test fun rest_before_a_parameter_is_an_error(): void {
+    assert_eq(has_errors("annotation flag on (.., bool) -> bool"), true, "`..` comes last")
+}
+
+@test fun a_nested_wildcard_is_an_error(): void {
+    assert_eq(has_errors("annotation flag on (List<_>) -> bool"), true, "a whole parameter only")
+}
+
+@test fun a_signature_without_a_result_is_an_error(): void {
+    assert_eq(has_errors("annotation flag on (bool, ..)"), true, "`->` is required")
 }

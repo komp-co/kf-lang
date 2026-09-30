@@ -147,6 +147,42 @@ fun main(): int32 {
 A method's entry is named `Server.users`. A method of a generic type cannot
 carry a function-type annotation, since a value has one type.
 
+#### Signature patterns
+
+A function type written with wildcards marks every function it matches. `_`
+stands for any one type, and `&_` or `&var _` for a borrow of any type. A
+trailing `..` stands for any further parameters, none included:
+
+```kflat
+annotation flag on (bool, ..) -> bool     // a bool first, then anything
+annotation pair on (bool, _) -> bool      // exactly one more parameter
+annotation shown on (int32) -> _          // any result
+annotation hook on (&_, bool) -> bool     // a method of any type
+
+@flag
+fun alone(on: bool): bool { return on }
+
+@flag
+@pair
+fun with_label(on: bool, label: String): bool { return on }
+
+@shown
+fun label_of(n: int32): String { return "#${n}" }
+
+fun main(): int32 {
+    while f in &annotated<flag>() {
+        println(f.name)
+    }
+    return 0
+}
+```
+
+The functions a pattern matches have different types, so there is no one
+type to call them through: the entries are `AnnotatedItem`s, with a name and
+no `function`. `..` must come last, and `_` stands only for a whole parameter
+or result, not a type argument (`List<_>`). `(..) -> _` matches every
+function a value can name.
+
 `on` may instead name kinds of declaration: `fun`, `struct`, `enum` and
 `trait`. `on fun` marks every function, whatever its signature, and `on any`
 marks all four kinds. Several kinds are separated by `,`. A struct or an enum

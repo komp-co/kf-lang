@@ -94,6 +94,9 @@ pub enum MarkTarget {
     Function(Box<TypeRef>)
     /// `on fun, struct: Plugin`: any declaration of a listed kind.
     Kinds(List<KindTarget>)
+    /// `on (bool, _, ..) -> _`: a function whose type matches, `_` standing
+    /// for any one type and a trailing `..` for any further parameters.
+    Signature(List<TypeRef>, bool, Box<TypeRef>)
 }
 
 /// What a bare `annotation NAME` marks: a `() -> void` function.
