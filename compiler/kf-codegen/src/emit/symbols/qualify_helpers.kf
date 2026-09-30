@@ -253,6 +253,16 @@ pub fun qualify_type(t: Type, names: &var List<String>, repls: &var List<TypeRef
             qualify_type_ptr(p, names, repls)
             return t
         }
+        FnTy(_signature) => {
+            // Rebuilt rather than respelled in place: the signature is shared
+            // with every copy of the type.
+            val parts = t.fn_parts() ?: return t
+            var params = new_type_vec()
+            while param in &parts.params {
+                params.push(qualify_type(param, names, repls))
+            }
+            return fn_ty(params, qualify_type(parts.ret, names, repls), t.provenance)
+        }
         _ => return t
     }
 }
