@@ -195,6 +195,7 @@
 5 compiler/kf-typecheck/src/check/lang_placeholder.kf
 1 compiler/kf-typecheck/src/check/method_generics.kf
 17 compiler/kf-typecheck/src/check/method_return_instance.kf
+1 compiler/kf-typecheck/src/check/method_value.kf
 4 compiler/kf-typecheck/src/check/open_binding.kf
 1 compiler/kf-typecheck/src/check/operator_diagnostics.kf
 4 compiler/kf-typecheck/src/check/operator_operand.kf

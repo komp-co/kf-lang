@@ -99,6 +99,11 @@ pub fun Type.through_borrow(): Type {
     }
 }
 
+/// `&self`, or `&var self` when `is_mutable`.
+pub fun Type.borrowed(is_mutable: bool, span: Span): Type {
+    return Type { kind: TypeKind.RefTo(is_mutable, Box.new(*self)), provenance: Provenance.Inferred(span) }
+}
+
 pub struct TypeList {
     pub var data: Ptr<Type>
     pub var len: uint64

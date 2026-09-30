@@ -132,3 +132,35 @@ fun rename_lookup_misses_with_empty_string(): void {
     var repls = List.new<TypeRef>()
     assert_eq(rename_lookup("unknown", &var names, &var repls).as_str(), "", "a miss returns the empty sentinel")
 }
+
+/// `impl Counter { fun get() }` in crate "aa", its owner already renamed as
+/// qualify_type_symbols leaves it.
+fun module_with_method(owner_name: str): Module {
+    var methods = List.new<TopDecl>()
+    methods.push(owned_fn_decl("get"))
+    var impl_decl = new_top_decl(no_span(), String.from(owner_name), TopDeclKind.ImplBlock(methods))
+    impl_decl.crate = new_crate_id("aa")
+    impl_decl.module_path = intern("aa.lib")
+    return module_of_one(impl_decl)
+}
+
+@test
+fun a_method_value_renames_to_its_symbol(): void {
+    val m = module_with_method("aa__Counter")
+    var names = List.new<String>()
+    var repls = List.new<TypeRef>()
+    m.collect_fn_renames(&var names, &var repls)
+    assert_eq(rename_lookup("Counter_get", &var names, &var repls).as_str(), "aa__Counter_get", "keyed unprefixed")
+}
+
+@test
+fun an_unprefixed_owner_keeps_its_name(): void {
+    val owner = owned_struct_decl("Counter")
+    assert_eq(owner.unprefixed_name().as_str(), "Counter", "nothing to strip")
+}
+
+@test
+fun a_prefixed_owner_loses_its_prefix(): void {
+    val owner = owned_struct_decl("aa__Counter")
+    assert_eq(owner.unprefixed_name().as_str(), "Counter", "the crate's prefix goes")
+}
