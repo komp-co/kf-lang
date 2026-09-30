@@ -260,8 +260,10 @@ pub fun register_sigs(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: Ptr<List<
             // Test runners are a separate module calling @test functions by
             // name.
             val is_runner_visible = is_pub || (&td).has_annotation("test")
-            register_fn_sig(td, td.name.as_string(), params, ret_ptr, type_param_names(td.generics), td.crate, td.module_path, td.span.file_id, is_runner_visible, sig_ptr, diags, table)
+            // Bounds first: a signature naming a bounded type checks its
+            // arguments against them.
             register_bounds(td.name.as_string(), td.generics, sig_ptr)
+            register_fn_sig(td, td.name.as_string(), params, ret_ptr, type_param_names(td.generics), td.crate, td.module_path, td.span.file_id, is_runner_visible, sig_ptr, diags, table)
         }
         Extern(params, ret_ptr, is_pub, _variadic) => {
             // An extern's signature types its calls.
@@ -341,6 +343,7 @@ fun register_fn_sig(metadata_owner: Ptr<TopDecl>, fn_name: String, params: List<
     ctx0.owner_module = owner_module
     ctx0.owner_file = owner_file
     ctx0.metadata_owner = metadata_owner
+    ctx0.fn_owner = fn_name.clone()
     ctx0.seed_generics(generics)
     val ret_tr: TypeRef = unsafe { *ret_ptr }
     val ret_ty = ret_tr.resolve_type_ref(&var ctx0)
@@ -387,6 +390,12 @@ fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &va
             ctx0.owner_module = td.scope_module()
             ctx0.owner_file = td.span.file_id
             ctx0.metadata_owner = td
+            // The method's own bounded params, then the impl's, under the
+            // unsuffixed body key, registered before the signature is resolved.
+            val bound_owner = method_body_owner(struct_name.clone(), td.name.as_string())
+            register_bounds(bound_owner.clone(), td.generics, sig_ptr)
+            register_bounds(bound_owner.clone(), &impl_tps, sig_ptr)
+            ctx0.fn_owner = bound_owner
             // The impl's generics and the method's own, so `&A` resolves to
             // `RefTo(Generic("A"))`, not a nominal `A`.
             var all_generics = List.new<String>()
@@ -417,11 +426,6 @@ fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &va
                 param_ty.validate_dyn_placement(p_tr.span, &var ctx0)
                 ptys.push(param_ty)
             }
-            // The method's own bounded params, then the impl's, under the
-            // unsuffixed body key. Before the insert, which consumes `mangled`.
-            val bound_owner = method_body_owner(struct_name.clone(), td.name.as_string())
-            register_bounds(bound_owner.clone(), td.generics, sig_ptr)
-            register_bounds(bound_owner, &impl_tps, sig_ptr)
             val sp = sig_ptr
             if td.linkage.is_imported() {
                 val receiver = canonical_type_identity(new_type_identity(td.crate, td.module_path, intern(struct_name.as_str())))
