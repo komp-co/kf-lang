@@ -223,6 +223,11 @@ fun check_assign(name: String, expr_ptr: Ptr<Expr>, span: Span, ctx: &var TypeCt
     check_expr(unsafe { &var *expr_ptr }, ctx)
     val expr = unsafe { *expr_ptr }
     expr.reject_stored_lambda_transfer("an assignment", ctx)
+    if !ctx.has_local(name.as_str()) {
+        val message = "cannot assign to `${name}`: it is not declared; declare it with `var ${name} = ...`"
+        ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
+        return
+    }
     val target = ctx.lookup(name.as_str())
     if target.is_poison() {
         return
