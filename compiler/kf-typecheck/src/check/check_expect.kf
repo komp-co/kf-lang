@@ -54,8 +54,7 @@ pub mutating fun Expr.apply_expected(expected: Type, ctx: &var TypeCtx): bool {
         WhenExpr(_subject, arms) => {
             was_when = true
             while item in &arms {
-                val vp = arm_value_expr(item) ?: continue
-                if apply_expected(unsafe { &var *vp }, expected.clone(), ctx) { when_hit = true }
+                if apply_expected_to_tail(&item.body, expected.clone(), ctx) { when_hit = true }
             }
         }
         _ => { }
@@ -254,6 +253,28 @@ pub mutating fun Expr.expect_or_reject(expected: Type, ctx: &var TypeCtx): bool 
     val cur = *self
     if cur.ty.type_eq(expected) { return true }
     return ctx.fits(cur.ty, expected)
+}
+
+/// The expected type applied to every value a statement list yields at its
+/// end, through an `if` or `when` statement that ends it.
+fun apply_expected_to_tail(stmts: &List<Stmt>, expected: Type, ctx: &var TypeCtx): bool {
+    if stmts.size() == 0 { return false }
+    when (stmts.at(stmts.size() - 1).kind) {
+        Expression(vp) => return apply_expected(unsafe { &var *vp }, expected, ctx)
+        If(_cond, then_body, else_body) => {
+            val a = apply_expected_to_tail(&then_body, expected.clone(), ctx)
+            val b = apply_expected_to_tail(&else_body, expected, ctx)
+            return a || b
+        }
+        When(_subject, arms) => {
+            var hit = false
+            while arm in &arms {
+                if apply_expected_to_tail(&arm.body, expected.clone(), ctx) { hit = true }
+            }
+            return hit
+        }
+        _ => return false
+    }
 }
 
 /// Name-level equality: enum instances appear as Struct or EnumTy.
