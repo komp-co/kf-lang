@@ -40,6 +40,8 @@ mutating fun Module.normalize_trait_impls(): void {
                 normalized.dyn_layouts = clone_dyn_layout_list(&td.dyn_layouts)
                 normalized.dyn_vtables = clone_dyn_vtable_list(&td.dyn_vtables)
                 normalized.decl_end = td.decl_end
+                val principal = tref.trait_ref_principal()
+                normalized.implemented_lang_trait = self.lang_key_of_trait(principal.as_str())
                 kept.push(normalized)
             }
             _ => kept.push(td)
@@ -151,4 +153,18 @@ fun is_poison_decl(td: TopDecl): bool {
         Poison => true
         _ => false
     }
+}
+
+/// The lang key of the trait named `name`, or empty for an ordinary trait.
+/// CONSTRAINT: runs while the trait declaration still exists.
+fun Module.lang_key_of_trait(name: str): Sym {
+    while td in &self.decls {
+        when (td.kind) {
+            TraitDecl(_members, _pub, _supers) => {
+                if td.name.as_str() == name { return intern((&td).lang_key_of().as_str()) }
+            }
+            _ => { }
+        }
+    }
+    return intern("")
 }
