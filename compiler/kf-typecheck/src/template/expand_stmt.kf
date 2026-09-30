@@ -5,6 +5,7 @@
 
 import alloc.list.*
 
+import kf_core.span.Span
 import kf_core.ast.*
 
 fun expand_stmts(stmts: &List<Stmt>, x: &var Expansion): List<Stmt> {
@@ -68,12 +69,48 @@ fun Stmt.unroll(binder: Sym, body: &List<Stmt>, x: &var Expansion, out: &var Lis
         x.report(self.span, String.from("a member loop cannot be inside another"))
         return
     }
+    val jump = stray_jump(body)
+    if jump != null {
+        val at = jump ?: self.span
+        x.report(at, String.from("a member loop is written out once per field, so it has no loop to leave"))
+        return
+    }
     while i in 0..x.fields.size() {
         x.binder = binder
         x.member = i
         val copy = expand_stmts(body, x)
         x.binder = intern("")
         out.push(self.scope(copy))
+    }
+}
+
+/// A `break` or `continue` that would leave the member loop: one not inside
+/// a loop of its own.
+fun stray_jump(stmts: &List<Stmt>): Span? {
+    while stmt in &stmts {
+        val found = stmt.stray_jump_in()
+        if found != null { return found }
+    }
+    return null
+}
+
+fun Stmt.stray_jump_in(): Span? {
+    when (self.kind) {
+        Break => return self.span
+        Continue => return self.span
+        If(_condition, then_body, else_body) => {
+            val found = stray_jump(&then_body)
+            if found != null { return found }
+            return stray_jump(&else_body)
+        }
+        When(_subject, arms) => {
+            while arm in &arms {
+                val found = stray_jump(&arm.body)
+                if found != null { return found }
+            }
+            return null
+        }
+        _ => return null
     }
 }
 

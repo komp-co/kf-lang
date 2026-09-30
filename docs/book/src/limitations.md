@@ -115,6 +115,7 @@ src/main.kf:3:13: error: lambda parameter `x` needs a type annotation (its type 
 - A name a template adds cannot be spliced from the field or the struct
   (`with_$field`, `${T}Builder`), so a free function or a type in a template
   collides when two structs are marked ([#288]).
+- `break` and `continue` cannot leave a template's member loop ([#288]).
 - A `pub` extension function a template adds cannot be imported by another
   module: imports are checked before templates expand ([#297]).
 

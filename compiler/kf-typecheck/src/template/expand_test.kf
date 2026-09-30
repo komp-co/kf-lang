@@ -118,3 +118,28 @@ fun TypeRef.bare_type_name(): String {
         _ => String.from("")
     }
 }
+
+@test fun a_break_in_a_member_loop_is_reported(): void {
+    var x = point_expansion()
+    x.binder = intern("")
+    var body = List.new<Stmt>()
+    body.push(new_stmt(no_span(), StmtKind.Break))
+    var stmts = List.new<Stmt>()
+    stmts.push(new_stmt(no_span(), StmtKind.ForEach(intern("field"), Box.new(access(variable("T"), "fields")), body)))
+    val _out = expand_stmts(&stmts, &var x)
+    assert_eq(x.diags.size(), 1, "the loop is written out, so `break` has nowhere to go")
+}
+
+@test fun a_break_in_an_inner_loop_stays(): void {
+    var x = point_expansion()
+    x.binder = intern("")
+    var inner = List.new<Stmt>()
+    inner.push(new_stmt(no_span(), StmtKind.Break))
+    var body = List.new<Stmt>()
+    val always = new_expr(no_span(), ExprKind.LitBool(true))
+    body.push(new_stmt(no_span(), StmtKind.While(Box.new(always), inner)))
+    var stmts = List.new<Stmt>()
+    stmts.push(new_stmt(no_span(), StmtKind.ForEach(intern("field"), Box.new(access(variable("T"), "fields")), body)))
+    val _out = expand_stmts(&stmts, &var x)
+    assert_eq(x.diags.size(), 0, "`break` leaves its own loop")
+}

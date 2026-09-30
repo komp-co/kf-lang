@@ -111,6 +111,9 @@ user User with 3 fields: 0=id 1=login
 Any other variable in a template is an ordinary one, living while the program
 runs. `field` itself is not a value: use one of its facts, or `$field`.
 
+A member loop is written out once per field rather than run, so `break` and
+`continue` cannot leave it. A loop of their own inside it still can.
+
 ## Where the code lives
 
 What a template adds belongs to the marked struct's module: an extension
