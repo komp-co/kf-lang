@@ -40,7 +40,7 @@ pub trait One {
 pub trait Num: Add + Sub + Mul + Div + Zero + One {
 }
 
-/// A whole number: the eight primitive integer types. It declares nothing;
-/// implement it with `impl Integer for X { }`.
-pub trait Integer: Num + Equal + Compare + Mod + Copy {
+/// A whole number: the eight primitive integer types, and only they. Sealed,
+/// so a bound on it promises a primitive integer.
+pub sealed trait Integer: Num + Equal + Compare + Mod + Copy {
 }
