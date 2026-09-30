@@ -49,3 +49,7 @@ fun module_of(decls: List<TopDecl>): Module {
     assert_eq(intern("String").lang_placeholder_key().as_str(), "", "an ordinary name is no placeholder")
     assert_eq(intern("lang::").lang_placeholder_key().as_str(), "", "a placeholder names a key")
 }
+
+@test fun the_array_key_is_known(): void {
+    assert_eq(is_known_lang_key(lang_array_key()), true, "core marks `Array` with `@lang(\"array\")`")
+}
