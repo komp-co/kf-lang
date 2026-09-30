@@ -123,7 +123,7 @@ pub fun check_decl_module(m: &var Module,
     }
 
     // Every declaration an `annotated` query in a body may list.
-    m.register_declared_annotations(sig_ptr, diags)
+    m.register_declared_annotations(sig_ptr, diags, table_ptr)
 
     // Bodies. A lambda parks a synthesized struct and impl on the table; the
     // loop bound is re-read, so appended declarations are checked too,
