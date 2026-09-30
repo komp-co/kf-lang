@@ -39,3 +39,8 @@ pub trait One {
 /// with `impl Num for X { }` once the six are in place.
 pub trait Num: Add + Sub + Mul + Div + Zero + One {
 }
+
+/// A whole number: the eight primitive integer types. It declares nothing;
+/// implement it with `impl Integer for X { }`.
+pub trait Integer: Num + Equal + Compare + Mod + Copy {
+}

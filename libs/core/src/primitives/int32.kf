@@ -56,6 +56,8 @@ impl One for int32 { static fun one(): int32 { return 1 } }
 
 impl Num for int32 { }
 
+impl Integer for int32 { }
+
 impl Bounded for int32 {
     static fun min_value(): int32 { return 0 - 2147483647 - 1 }
     static fun max_value(): int32 { return 2147483647 }
