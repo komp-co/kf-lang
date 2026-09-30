@@ -90,7 +90,7 @@ fun entry_type_args(declared: &DeclaredAnnotation, span: Span): List<TypeRef> {
 /// function of another module is listed too.
 fun annotated_entry(listed: &AnnotatedItem, declared: &DeclaredAnnotation, span: Span, ctx: &var TypeCtx): Expr {
     var fields = List.new<FieldInit>()
-    fields.push(string_field("name", listed.item.as_str(), span))
+    fields.push(string_field("name", listed.name.as_str(), span))
     fields.push(string_field("module", listed.module.as_str(), span))
     val arguments = arguments_literal(listed, declared, span)
     fields.push(FieldInit { span: span, name: intern("args"), value: Box.new(arguments) })

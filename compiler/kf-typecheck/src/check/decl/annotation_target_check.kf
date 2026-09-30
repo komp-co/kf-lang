@@ -56,11 +56,11 @@ fun TypeRef.bare_name(): String {
     }
 }
 
-/// Whether this declaration may carry `@kind`, reported when it may not.
-/// `sigs` is `table`, and `pass_diags` the pass's list, for resolving the
-/// function's type.
-pub fun TopDecl.fits_target(kind: str, declared: &DeclaredAnnotation, table: &SigTable, sigs: Ptr<SigTable>,
-    pass_diags: Ptr<List<Diagnostic>>, diags: &var List<Diagnostic>): bool {
+/// Whether this declaration, a method of `owner` or top-level, may carry
+/// `@kind`, reported when it may not. `sigs` is `table`, and `pass_diags` the
+/// pass's list, for resolving the function's type.
+pub fun TopDecl.fits_target(kind: str, declared: &DeclaredAnnotation, owner: &MethodOwner, table: &SigTable,
+    sigs: Ptr<SigTable>, pass_diags: Ptr<List<Diagnostic>>, diags: &var List<Diagnostic>): bool {
     val at = self.decl_name_span()
     when (declared.target) {
         Function(ty) => {
@@ -68,7 +68,13 @@ pub fun TopDecl.fits_target(kind: str, declared: &DeclaredAnnotation, table: &Si
                 diags.push(error_at(at, "`@${kind}` can only annotate a function"))
                 return false
             }
-            if !self.own_function_type(sigs, pass_diags).type_eq(declared.function_type) {
+            if owner.is_generic {
+                val why = "a function value has one type"
+                diags.push(error_at(at, "`@${kind}` cannot annotate a method of a generic type: ${why}"))
+                return false
+            }
+            val own = self.own_function_type(owner, sigs, pass_diags)
+            if !own.fits_function_target(&declared.function_type) {
                 val wanted = (*ty).display_type_ref()
                 diags.push(error_at(at, "a function marked `@${kind}` must have type `${wanted.as_str()}`"))
                 return false
@@ -143,7 +149,34 @@ fun TopDecl.meets_bounds(kind: str, bounds: &List<TypeRef>, table: &SigTable, di
     return fits
 }
 
-/// A free function with no type parameters: one a value can name.
+/// Whether a function of this type may be marked by a target of type
+/// `target`: the same types, except that a `&T` parameter may stand where the
+/// target has `&var T`, since a shared borrow can be lent from a mutable one.
+fun Type.fits_function_target(target: &Type): bool {
+    val own = self.fn_parts() ?: return false
+    val wanted = target.fn_parts() ?: return false
+    if own.params.size() != wanted.params.size() || !own.ret.type_eq(wanted.ret) { return false }
+    while i in 0..own.params.size() {
+        val have = own.params.at(i)
+        val want = wanted.params.at(i)
+        if !have.type_eq(*want) && !have.lends_from(want) { return false }
+    }
+    return true
+}
+
+/// `&T` where `target` is `&var T`.
+fun Type.lends_from(target: &Type): bool {
+    return self.is_borrow(false) && target.is_borrow(true) && self.through_borrow().type_eq(target.through_borrow())
+}
+
+fun Type.is_borrow(is_mutable: bool): bool {
+    return when (self.kind) {
+        RefTo(mutable, _inner) => mutable == is_mutable
+        _ => false
+    }
+}
+
+/// A free function or method with no type parameters: one a value can name.
 fun TopDecl.is_plain_function(): bool {
     if self.generics.size() > 0 || !self.ext_name.as_str().equals("") { return false }
     return when (self.kind) {
@@ -152,14 +185,19 @@ fun TopDecl.is_plain_function(): bool {
     }
 }
 
-/// `(A) -> R` from the declaration as written, resolved in its own module.
-/// Quiet: the signature's own errors were reported when it was registered.
-fun TopDecl.own_function_type(sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): Type {
+/// `(A) -> R` from the declaration as written, resolved in its own module, a
+/// method's receiver first. Quiet: the signature's own errors were reported
+/// when it was registered.
+fun TopDecl.own_function_type(owner: &MethodOwner, sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): Type {
     var ctx = self.declaration_ctx(sigs, diags)
     ctx.quiet = true
     return when (self.kind) {
-        Function(params, ret, _b, _pub, _u, _mut, _st) => {
+        Function(params, ret, _b, _pub, _u, is_mutating, is_static) => {
             var param_types = new_type_vec()
+            if owner.is_method() && !is_static {
+                val receiver = new_type_ref(self.span, TypeRefKind.Named(owner.type_name, List.new<TypeRef>()))
+                param_types.push(receiver.resolve_type_ref(&var ctx).borrowed(is_mutating, self.span))
+            }
             while param in &params {
                 param_types.push((*param.ty).resolve_type_ref(&var ctx))
             }

@@ -8,9 +8,9 @@ has `@test`, `@test_disabled`, `@allow(...)`, `@derive(...)`, `@no_mangle`,
 A declaration may carry several, one per line.
 
 A method of an `impl` or a trait may carry `@allow(...)`, which then covers
-only that method. Every other built-in annotation is an error on a method, and
-so is a declared one: a method is not yet a value that `annotated<A>()` could
-hand back.
+only that method. Every other built-in annotation is an error on a method. A
+method of an `impl` may carry a [declared one](#methods); a method of a trait
+may not, since it has no body to name.
 
 ## Declaring an annotation
 
@@ -95,6 +95,57 @@ fun main(): int32 {
     return routes.at(0).function(Request { body: "abcd" }) - 4
 }
 ```
+
+A parameter written `&T` fits where the target says `&var T`, since a shared
+borrow can always be lent from a mutable one. The reverse does not fit, and
+the entry's `function` keeps the target's type either way.
+
+#### Methods
+
+A method is marked as the function it is as a
+[value](functions.md#methods-as-values): its receiver first, `&Type`, or
+`&var Type` for a `mutating` method. One `&var Server` target so marks both
+kinds, and its entries are called with the receiver:
+
+```kflat
+struct Request {
+    val path: String
+}
+
+struct Server {
+    var hits: int32
+}
+
+annotation handler(path: String) on (&var Server, Request) -> int32
+
+impl Server {
+    @handler("/users")
+    fun users(r: Request): int32 { return self.hits }
+
+    @handler("/login")
+    mutating fun login(r: Request): int32 {
+        self.hits = self.hits + 1
+        return 0
+    }
+}
+
+fun serve(s: &var Server, r: Request): int32 {
+    while h in &annotated<handler>() {
+        if h.args.path == r.path { return h.function(s, r) }
+    }
+    return -1
+}
+
+fun main(): int32 {
+    var s = Server { hits: 0 }
+    serve(&var s, Request { path: "/login" })
+    println(serve(&var s, Request { path: "/users" }))   // 1
+    return 0
+}
+```
+
+A method's entry is named `Server.users`. A method of a generic type cannot
+carry a function-type annotation, since a value has one type.
 
 `on` may instead name kinds of declaration: `fun`, `struct`, `enum` and
 `trait`. `on fun` marks every function, whatever its signature, and `on any`
