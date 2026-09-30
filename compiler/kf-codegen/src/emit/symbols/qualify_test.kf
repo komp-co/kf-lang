@@ -506,3 +506,16 @@ fun Type.named(): String {
         _ => String.from("")
     }
 }
+
+@test fun the_owner_before_a_method_keeps_an_underscored_argument(): void {
+    val owner = static_callee_owner_before("List__AnnotatedItem__is_shown_new", "new")
+    assert_eq(owner.as_str(), "List__AnnotatedItem__is_shown", "the argument is not cut at its `_`")
+}
+
+@test fun the_owner_before_a_method_stops_at_the_trait_tail(): void {
+    assert_eq(static_callee_owner_before("Cel_from__From__int32", "from").as_str(), "Cel", "the tail is not the owner")
+}
+
+@test fun the_owner_before_an_absent_method_is_empty(): void {
+    assert_eq(static_callee_owner_before("Cel_into", "from").as_str(), "", "no method segment")
+}

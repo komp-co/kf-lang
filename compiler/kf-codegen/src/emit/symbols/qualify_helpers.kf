@@ -133,28 +133,33 @@ fun no_callee_tail(): CalleeTail {
 }
 
 pub fun static_callee_tail(callee: str, method: str): String {
+    val found = method_segment_at(callee, method) ?: return ""
+    return callee.substring(found + method.byte_len() + 1, callee.byte_len())
+}
+
+/// Everything before the method segment: `List__is_shown_new` under `new` is
+/// `List__is_shown`, where the first single `_` would cut the argument. ""
+/// when the method is absent.
+pub fun static_callee_owner_before(callee: str, method: str): String {
+    val found = method_segment_at(callee, method) ?: return ""
+    return callee.substring(0, found)
+}
+
+/// Where the last `_<method>` starts: the trait tail follows the method
+/// segment.
+fun method_segment_at(callee: str, method: str): uint64? {
     val n = callee.byte_len()
     var needle = String.from("_")
     needle.append(method)
     val m = needle.as_str().byte_len()
-    if m > n { return "" }
-    // The last match wins: the trait tail follows the method segment.
-    var found: uint64 = n
+    if m > n { return null }
+    var found: uint64? = null
     var i = 0
     while i + m <= n {
-        var same = true
-        var j = 0
-        while j < m {
-            val a = callee.byte_at(i + j)
-            val b = needle.as_str().byte_at(j)
-            if a != b { same = false }
-            j = j + 1
-        }
-        if same { found = i }
+        if callee.substring(i, i + m).as_str() == needle.as_str() { found = i }
         i = i + 1
     }
-    if found == n { return "" }
-    return callee.substring(found + m, n)
+    return found
 }
 
 /// "" unless the receiver is a bare type or trait name.
@@ -197,7 +202,7 @@ fun rebuild_static_callee(ep: Ptr<Expr>, recv: Ptr<Expr>, method: Sym, recv_befo
             // The receiver's type arguments come from the callee, where
             // typecheck already split them from the method's own: folding the
             // whole written list in gave `B__int32_of__int32` for `B_of__int32`.
-            val owner_mangled = static_callee_owner_mangled(unsafe { ep.mangled_callee.as_str() })
+            val owner_mangled = static_callee_owner_before(unsafe { ep.mangled_callee.as_str() }, method.as_str())
             val recv_suffix = mangle_suffix_after(owner_mangled.as_str(), recv_before.as_str())
             if recv_suffix.matched {
                 concrete.append(subst_mangled_name(recv_suffix.text.as_str(), names, repls).as_str())
