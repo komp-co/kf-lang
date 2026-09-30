@@ -70,15 +70,30 @@ pub struct Annotation {
     pub val span: Span
 }
 
+/// A kind of declaration an annotation may mark by kind.
+@derive(Clone, Equal)
+pub enum MarkKind {
+    Function
+    Struct
+    Enum
+    Trait
+}
+
+/// One kind in `on struct: Plugin, enum`, and the traits a marked type of
+/// that kind implements.
+@derive(Clone)
+pub struct KindTarget {
+    pub val kind: MarkKind
+    pub val bounds: List<TypeRef>
+}
+
 /// What a declared annotation may mark.
 @derive(Clone)
 pub enum MarkTarget {
     /// `on (A) -> R`: a function of exactly that type.
     Function(Box<TypeRef>)
-    /// `on struct`, `on enum`, `on type`: a type implementing every bound.
-    Struct(List<TypeRef>)
-    Enum(List<TypeRef>)
-    AnyType(List<TypeRef>)
+    /// `on fun, struct: Plugin`: any declaration of a listed kind.
+    Kinds(List<KindTarget>)
 }
 
 /// What a bare `annotation NAME` marks: a `() -> void` function.

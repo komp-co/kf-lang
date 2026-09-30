@@ -1,7 +1,7 @@
 //! run: exit 0
 //! deps: core, alloc
 // A function target lists each function as a value of the target type; a
-// struct, enum or type target lists each type by name, with its module.
+// kind target lists each declaration by name, with its module and kind.
 
 trait Plugin {
     fun start(): int32
@@ -14,7 +14,7 @@ struct Request {
 annotation route(path: String) on (Request) -> int32
 annotation plugin(order: int32) on struct: Plugin
 annotation mode on enum
-annotation shown on type
+annotation shown on struct, enum
 
 @route("/len")
 fun length(r: Request): int32 { return r.body.byte_len() as int32 }
@@ -46,5 +46,6 @@ fun main(): int32 {
     val shown = annotated<shown>()
     if shown.size() != 2 { return 5 }
     if shown.at(0).module != "annotated_lists_each_target_kind" { return 6 }
+    if shown.at(0).kind != AnnotatedKind.Struct || shown.at(1).kind != AnnotatedKind.Enum { return 7 }
     return 0
 }

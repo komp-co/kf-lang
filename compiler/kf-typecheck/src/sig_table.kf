@@ -197,15 +197,16 @@ pub struct DeclaredAnnotation {
     pub val is_pub: bool
     pub val params: List<Param>
     pub val target: MarkTarget
-    /// A function target's type, resolved; poison for a type target.
+    /// A function target's type, resolved; poison for a kind target.
     pub val function_type: Type
 }
 
-/// A function or type of the crate being compiled carrying a declared
+/// A declaration of the crate being compiled carrying a declared
 /// annotation, which indexes `SigTable.annotations`.
 pub struct AnnotatedItem {
     pub val annotation: uint64
     pub val item: Sym
+    pub val kind: MarkKind
     pub val module: Sym
     /// The use's argument values, in parameter order.
     pub val args: List<Expr>

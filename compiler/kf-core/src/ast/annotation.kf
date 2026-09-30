@@ -77,41 +77,47 @@ fun escaped(text: str, quote: uint8): String {
     return out
 }
 
-impl MarkTarget {
-    /// `function`, `struct`, `enum` or `type`: what follows `on`.
-    pub fun target_word(): str {
+impl MarkKind {
+    /// `fun`, `struct`, `enum` or `trait`, as written after `on`.
+    pub fun word(): str {
         return when (self) {
-            Function(_ty) => "function"
-            Struct(_bounds) => "struct"
-            Enum(_bounds) => "enum"
-            AnyType(_bounds) => "type"
+            Function => "fun"
+            Struct => "struct"
+            Enum => "enum"
+            Trait => "trait"
         }
-    }
-
-    /// The function's type, or the bounds.
-    pub fun target_types(): List<TypeRef> {
-        var types = List.new<TypeRef>()
-        when (self) {
-            Function(ty) => types.push((*ty).clone())
-            Struct(bounds) => types = bounds.clone()
-            Enum(bounds) => types = bounds.clone()
-            AnyType(bounds) => types = bounds.clone()
-        }
-        return types
     }
 }
 
-/// The target `target_word` and `target_types` describe; a bare function
-/// target when the word is unknown.
-pub fun mark_target_of(word: str, types: List<TypeRef>, span: Span): MarkTarget {
+/// The kind `word` names; null for anything else.
+pub fun mark_kind_of(word: str): MarkKind? {
     return when word {
-        "function" => {
-            if types.size() != 1 { return default_mark_target(span) }
-            MarkTarget.Function(Box.new(types.at(0).clone()))
+        "fun" => MarkKind.Function
+        "struct" => MarkKind.Struct
+        "enum" => MarkKind.Enum
+        "trait" => MarkKind.Trait
+        _ => null
+    }
+}
+
+/// `on any`: every kind, without bounds.
+pub fun any_kind_target(): MarkTarget {
+    var kinds = List.new<KindTarget>()
+    kinds.push(KindTarget { kind: MarkKind.Function, bounds: List.new<TypeRef>() })
+    kinds.push(KindTarget { kind: MarkKind.Struct, bounds: List.new<TypeRef>() })
+    kinds.push(KindTarget { kind: MarkKind.Enum, bounds: List.new<TypeRef>() })
+    kinds.push(KindTarget { kind: MarkKind.Trait, bounds: List.new<TypeRef>() })
+    return MarkTarget.Kinds(kinds)
+}
+
+impl MarkTarget {
+    /// The listed kinds; empty for a function type.
+    pub fun kinds(): List<KindTarget> {
+        var kinds = List.new<KindTarget>()
+        when (self) {
+            Kinds(listed) => kinds = listed.clone()
+            _ => {}
         }
-        "struct" => MarkTarget.Struct(types)
-        "enum" => MarkTarget.Enum(types)
-        "type" => MarkTarget.AnyType(types)
-        _ => default_mark_target(span)
+        return kinds
     }
 }

@@ -1,0 +1,32 @@
+// An annotation's target in its interface record: the function type's
+// source, "" for a list of kinds, and the kinds, each with its bounds:
+//
+//     "function":"","kinds":[{"kind":"struct","bounds":["Plugin"]}]
+
+import alloc.list.*
+
+import kf_core.ast.*
+import json.writer.JsonWriter
+
+fun MarkTarget.function_source(): String {
+    return when (self) {
+        Function(ty) => (*ty).tyref_to_source()
+        _ => String.from("")
+    }
+}
+
+fun MarkTarget.kinds_json(): String {
+    var kinds = JsonWriter.array()
+    val listed = self.kinds()
+    while target in &listed {
+        var o = JsonWriter.object()
+        o.field_string("kind", target.kind.word())
+        var bounds = JsonWriter.array()
+        while bound in &target.bounds {
+            bounds.write_string(bound.tyref_to_source().as_str())
+        }
+        o.field_raw("bounds", bounds.finish().as_str())
+        kinds.write_raw(o.finish().as_str())
+    }
+    return kinds.finish()
+}

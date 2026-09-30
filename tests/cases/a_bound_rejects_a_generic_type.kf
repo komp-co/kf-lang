@@ -1,9 +1,13 @@
 //! build: fail
 //! deps: core, alloc
 // Whether `Holder<T>` meets a bound can depend on `T`, so a generic type
-// cannot carry a type-target annotation.
+// cannot carry an annotation whose kind has a bound.
 
-annotation shown on type
+trait Shown {
+    fun show(): int32
+}
+
+annotation shown on struct: Shown
 
 @shown
 struct Holder<T> {

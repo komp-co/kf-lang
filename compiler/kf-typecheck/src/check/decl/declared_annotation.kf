@@ -78,8 +78,10 @@ fun TopDecl.register_annotation_use(annotation: &Annotation, sigs: Ptr<SigTable>
     while listed in &table.annotated {
         if listed.annotation == index && listed.item.id == self.name.id { return }
     }
-    val item = AnnotatedItem { annotation: index, item: self.name, module: self.module_path, args: arguments.values }
-    table.annotated.push(item)
+    val marked = self.mark_kind() ?: return
+    table.annotated.push(AnnotatedItem {
+        annotation: index, item: self.name, kind: marked, module: self.module_path, args: arguments.values
+    })
 }
 
 /// A dependency's annotation has no parameters of its own in the interface;

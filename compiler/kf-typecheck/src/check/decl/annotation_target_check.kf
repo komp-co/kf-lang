@@ -1,5 +1,5 @@
 // What a declared annotation may mark: a function of exactly its target
-// type, or a struct or enum implementing every bound.
+// type, or a declaration of a listed kind implementing that kind's bounds.
 
 import alloc.list.*
 
@@ -33,16 +33,17 @@ fun TopDecl.declaration_ctx(sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): 
     return ctx
 }
 
-/// Each bound of this crate's type target names a trait, without arguments.
+/// Each bound of this crate's kind target names a trait, without arguments.
 pub fun MarkTarget.check_bounds(table: &SigTable, diags: &var List<Diagnostic>): void {
-    if self.target_word() == "function" { return }
-    val bounds = self.target_types()
-    while bound in &bounds {
-        val trait_name = bound.bare_name()
-        if trait_name.as_str().equals("") {
-            diags.push(error_at(bound.span, "an annotation's bound names a trait without type arguments"))
-        } else if table.find_trait(trait_name.as_str()) == null {
-            diags.push(error_at(bound.span, "cannot find trait `${trait_name.as_str()}` for this bound"))
+    val kinds = self.kinds()
+    while listed in &kinds {
+        while bound in &listed.bounds {
+            val trait_name = bound.bare_name()
+            if trait_name.as_str().equals("") {
+                diags.push(error_at(bound.span, "an annotation's bound names a trait without type arguments"))
+            } else if table.find_trait(trait_name.as_str()) == null {
+                diags.push(error_at(bound.span, "cannot find trait `${trait_name.as_str()}` for this bound"))
+            }
         }
     }
 }
@@ -74,22 +75,57 @@ pub fun TopDecl.fits_target(kind: str, declared: &DeclaredAnnotation, table: &Si
             }
             return true
         }
-        Struct(bounds) => return self.fits_type_target(kind, self.is_struct(), "a struct", &bounds, table, diags)
-        Enum(bounds) => return self.fits_type_target(kind, self.is_enum(), "an enum", &bounds, table, diags)
-        AnyType(bounds) => {
-            val is_type = self.is_struct() || self.is_enum()
-            return self.fits_type_target(kind, is_type, "a struct or an enum", &bounds, table, diags)
+        Kinds(kinds) => {
+            while listed in &kinds {
+                if self.is_kind(listed.kind) {
+                    return self.meets_bounds(kind, &listed.bounds, table, diags)
+                }
+            }
+            diags.push(error_at(at, "`@${kind}` can only annotate ${kinds.phrase().as_str()}"))
+            return false
         }
     }
 }
 
-fun TopDecl.fits_type_target(kind: str, right_kind: bool, phrase: str, bounds: &List<TypeRef>, table: &SigTable,
-    diags: &var List<Diagnostic>): bool {
-    val at = self.decl_name_span()
-    if !right_kind {
-        diags.push(error_at(at, "`@${kind}` can only annotate ${phrase}"))
-        return false
+/// "a function, a struct or an enum": the listed kinds, in order.
+fun List<KindTarget>.phrase(): String {
+    var out = String.from("")
+    while i in 0..self.size() {
+        if i > 0 { out.append(if i + 1 == self.size() { " or " } else { ", " }) }
+        out.append(self.at(i).kind.phrase())
     }
+    return out
+}
+
+fun MarkKind.phrase(): str {
+    return when (self) {
+        Function => "a function"
+        Struct => "a struct"
+        Enum => "an enum"
+        Trait => "a trait"
+    }
+}
+
+fun TopDecl.is_kind(wanted: MarkKind): bool {
+    val own = self.mark_kind() ?: return false
+    return own == wanted
+}
+
+/// The kind of a top-level function, struct, enum or trait; null otherwise.
+fun TopDecl.mark_kind(): MarkKind? {
+    return when (self.kind) {
+        Function(_p, _r, _b, _pub, _u, _mut, _st) => MarkKind.Function
+        Struct(_f, _pub) => MarkKind.Struct
+        EnumDecl(_v, _pub) => MarkKind.Enum
+        TraitDecl(_m, _pub, _supers) => MarkKind.Trait
+        _ => null
+    }
+}
+
+/// Whether this type implements every bound, each reported when it does not.
+fun TopDecl.meets_bounds(kind: str, bounds: &List<TypeRef>, table: &SigTable, diags: &var List<Diagnostic>): bool {
+    if bounds.size() == 0 { return true }
+    val at = self.decl_name_span()
     if self.generics.size() > 0 {
         val why = "whether it meets the bounds depends on its arguments"
         diags.push(error_at(at, "`@${kind}` cannot annotate a generic type: ${why}"))
@@ -112,20 +148,6 @@ fun TopDecl.is_plain_function(): bool {
     if self.generics.size() > 0 || !self.ext_name.as_str().equals("") { return false }
     return when (self.kind) {
         Function(_p, _r, _b, _pub, _u, _mut, _st) => true
-        _ => false
-    }
-}
-
-fun TopDecl.is_struct(): bool {
-    return when (self.kind) {
-        Struct(_f, _pub) => true
-        _ => false
-    }
-}
-
-fun TopDecl.is_enum(): bool {
-    return when (self.kind) {
-        EnumDecl(_v, _pub) => true
         _ => false
     }
 }

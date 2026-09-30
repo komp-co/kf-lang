@@ -3,7 +3,7 @@
 // CONSTRAINT: records are read key-by-key in a fixed order and an unexpected
 // key poisons the record, so any added field is a hard version bump.
 pub fun interface_format_version(): int64 {
-    return 15
+    return 16
 }
 
 pub fun interface_compiler_abi(): str {
