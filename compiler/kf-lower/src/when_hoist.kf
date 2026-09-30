@@ -146,6 +146,9 @@ fun hoist_self(ep: Ptr<Expr>, temps: &var WhenTemps, out: &var List<Stmt>): void
 
     var v = new_expr(span, ExprKind.Variable(temp))
     v.ty = value_ty
+    // The value's coercion now applies to the temporary: a borrow of it for a
+    // trait object, say.
+    v.coerce = node.coerce
     // CONSTRAINT: a raw store, which does not drop: the subject and arms now
     // belong to the statements pushed above.
     unsafe { *ep = v }

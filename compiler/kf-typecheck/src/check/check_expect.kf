@@ -19,6 +19,9 @@ pub mutating fun Expr.apply_expected(expected: Type, ctx: &var TypeCtx): bool {
     if self.pin_at_first_use(expected.clone(), ctx) { return true }
     if self.retarget_list_literal(expected.clone(), ctx) { return true }
     val _typed_by_slot = self.pin_open_binding(expected.clone(), ctx)
+    // A `when` of one type becomes one trait object after it is lowered to a
+    // temporary; an object per arm would borrow what lives only in its arm.
+    if self.is_when_expr() && !self.ty.is_poison() && try_dyn_coerce(self, expected.clone(), ctx) { return true }
     // Each branch independently.
     var was_if = false
     var if_hit = false
@@ -274,6 +277,13 @@ fun apply_expected_to_tail(stmts: &List<Stmt>, expected: Type, ctx: &var TypeCtx
             return hit
         }
         _ => return false
+    }
+}
+
+fun Expr.is_when_expr(): bool {
+    return when (self.kind) {
+        WhenExpr(_subject, _arms) => true
+        _ => false
     }
 }
 
