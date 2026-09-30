@@ -4,9 +4,16 @@
 
 import alloc.list.*
 
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.diagnostic.*
 import kf_typecheck.*
+
+pub fun unknown_annotation(kind: str, at: Span): Diagnostic {
+    val built_in = known_annotations_summary()
+    val message = "unknown annotation `@${kind}`: declare it with `annotation ${kind}`, or use ${built_in.as_str()}"
+    return new_diagnostic(Severity.Error, new_label(at, message))
+}
 
 pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): void {
     val table = unsafe { &var *sigs }
@@ -44,6 +51,7 @@ pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: Ptr<Lis
             if kind.equals("") || annotation_is_known(kind) { continue }
             td.register_annotation_use(annotation, sigs, diags, table, &var found)
         }
+        td.reject_declared_on_members(sigs, table, &var found)
     }
     while diag in &found {
         unsafe { diags.push(diag) }
@@ -58,9 +66,7 @@ fun TopDecl.register_annotation_use(annotation: &Annotation, sigs: Ptr<SigTable>
     val file = self.span.file_id
     val found = table.find_annotation(kind, file, self.crate, self.module_path)
     if found == null {
-        val built_in = known_annotations_summary()
-        val message = "unknown annotation `@${kind}`: declare it with `annotation ${kind}`, or use ${built_in.as_str()}"
-        diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
+        diags.push(unknown_annotation(kind, self.decl_name_span()))
         return
     }
     val index = found ?: return

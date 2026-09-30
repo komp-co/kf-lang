@@ -13,6 +13,7 @@ pub fun Module.validate_annotations(diags: Ptr<List<Diagnostic>>): void {
         while item in &td.annotations {
             td.validate_one_annotation(item, diags)
         }
+        if td.crate.raw == self.crate.raw { td.validate_member_annotations(diags) }
     }
 }
 

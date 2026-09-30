@@ -1,0 +1,17 @@
+//! build: fail
+//! deps: core, alloc
+// A method is not a function value yet, so `annotated<bench>()` could not list
+// it; marking one is an error rather than a silent omission.
+
+annotation bench
+
+struct Counter {
+    val n: int32
+}
+
+impl Counter {
+    @bench
+    fun tick(): void {}
+}
+
+fun main(): int32 { return 0 }

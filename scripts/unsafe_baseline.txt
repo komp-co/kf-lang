@@ -127,7 +127,7 @@
 5 compiler/kf-parse/src/parser/top_decl/annotation_decl.kf
 7 compiler/kf-parse/src/parser/top_decl/annotation_use.kf
 17 compiler/kf-parse/src/parser/top_decl/extension.kf
-34 compiler/kf-parse/src/parser/top_decl/impl.kf
+35 compiler/kf-parse/src/parser/top_decl/impl.kf
 13 compiler/kf-parse/src/parser/top_decl/top_decl.kf
 48 compiler/kf-parse/src/parser/top_decl/types.kf
 38 compiler/kf-parse/src/parser/type_ref.kf
@@ -176,6 +176,7 @@
 1 compiler/kf-typecheck/src/check/decl/duplicate_methods.kf
 13 compiler/kf-typecheck/src/check/decl/extension_decl.kf
 1 compiler/kf-typecheck/src/check/decl/lang_check.kf
+1 compiler/kf-typecheck/src/check/decl/method_annotation.kf
 4 compiler/kf-typecheck/src/check/decl/no_mangle_check.kf
 23 compiler/kf-typecheck/src/check/decl/rewrite_option.kf
 2 compiler/kf-typecheck/src/check/decl/unused_import.kf

@@ -7,6 +7,11 @@ has `@test`, `@test_disabled`, `@allow(...)`, `@derive(...)`, `@no_mangle`,
 
 A declaration may carry several, one per line.
 
+A method of an `impl` or a trait may carry `@allow(...)`, which then covers
+only that method. Every other built-in annotation is an error on a method, and
+so is a declared one: a method is not yet a value that `annotated<A>()` could
+hand back.
+
 ## Declaring an annotation
 
 `annotation NAME` declares `@NAME`, and `annotated<NAME>()` lists everything
@@ -204,9 +209,11 @@ the type must not implement `Drop`. See [Copy](memory.md#copy).
 it annotates:
 
 ```kflat
-@allow(unused_import, dead_code)
+@allow(unused_import, unused_variable)
 fun scratch(): void { }
 ```
+
+On a method, it covers that method and nothing else in its `impl`.
 
 The names are the ones a diagnostic reports as its `code`. `lint.toml` sets
 the same levels for a whole crate, and `-A`/`-W`/`-D` set them for one build;
