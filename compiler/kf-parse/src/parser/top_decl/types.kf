@@ -218,7 +218,10 @@ impl Parser {
                     self.parse_err(self.peek().span, String.from("unclosed struct body: missing `}` before the end of the file"))
                     break
                 }
-                fields.push(self.parse_field())
+                val annotations = self.parse_annotation_run()
+                var field = self.parse_field()
+                field.annotations = annotations
+                fields.push(field)
                 self.skip_newlines()
                 if is_op(self.peek(), Operator.Comma) {
                     unsafe { self.advance() }
@@ -257,7 +260,10 @@ impl Parser {
                     self.parse_err(self.peek().span, String.from("unclosed enum body: missing `}` before the end of the file"))
                     break
                 }
-                variants.push(self.parse_variant())
+                val annotations = self.parse_annotation_run()
+                var variant = self.parse_variant()
+                variant.annotations = annotations
+                variants.push(variant)
                 self.skip_newlines()
                 if is_op(self.peek(), Operator.Comma) {
                     unsafe { self.advance() }

@@ -78,6 +78,8 @@ fun MarkKind.phrase(): str {
         Struct => "a struct"
         Enum => "an enum"
         Trait => "a trait"
+        Field => "a field"
+        Variant => "a variant"
     }
 }
 

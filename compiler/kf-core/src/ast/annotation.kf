@@ -48,7 +48,8 @@ impl Annotation {
     }
 }
 
-/// A name, a literal or `Enum.Variant`; any other expression renders as `_`.
+/// A name, a literal, a negation or `Enum.Variant`; any other expression
+/// renders as `_`.
 fun Expr.argument_source(): String {
     return when (self.kind) {
         Variable(name) => name.as_string()
@@ -58,6 +59,10 @@ fun Expr.argument_source(): String {
         LitFloat(spelling) => spelling.clone()
         LitBool(b) => if b { String.from("true") } else { String.from("false") }
         FieldAccess(owner, member) => "${owner.argument_source().as_str()}.${member.as_str()}"
+        Unary(op, inner) => when (op) {
+            Neg => "-${inner.argument_source().as_str()}"
+            Not => "!${inner.argument_source().as_str()}"
+        }
         _ => String.from("_")
     }
 }
@@ -78,13 +83,24 @@ fun escaped(text: str, quote: uint8): String {
 }
 
 impl MarkKind {
-    /// `fun`, `struct`, `enum` or `trait`, as written after `on`.
+    /// `fun`, `struct`, `field`..., as written after `on`.
     pub fun word(): str {
         return when (self) {
             Function => "fun"
             Struct => "struct"
             Enum => "enum"
             Trait => "trait"
+            Field => "field"
+            Variant => "variant"
+        }
+    }
+
+    /// A struct's field or an enum's variant, as against a declaration.
+    pub fun is_member(): bool {
+        return when (self) {
+            Field => true
+            Variant => true
+            _ => false
         }
     }
 }
@@ -96,11 +112,13 @@ pub fun mark_kind_of(word: str): MarkKind? {
         "struct" => MarkKind.Struct
         "enum" => MarkKind.Enum
         "trait" => MarkKind.Trait
+        "field" => MarkKind.Field
+        "variant" => MarkKind.Variant
         _ => null
     }
 }
 
-/// `on any`: every kind, without bounds.
+/// `on any`: every declaration kind, without bounds.
 pub fun any_kind_target(): MarkTarget {
     var kinds = List.new<KindTarget>()
     kinds.push(KindTarget { kind: MarkKind.Function, bounds: List.new<TypeRef>() })

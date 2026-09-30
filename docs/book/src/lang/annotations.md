@@ -249,8 +249,9 @@ never names is an error. A name close to a type in scope, such as `Pont` with
 `Point` declared, is warned about, since it is likelier a typo.
 
 `on` may instead name kinds of declaration: `fun`, `struct`, `enum` and
-`trait`. `on fun` marks every function, whatever its signature, and `on any`
-marks all four kinds. Several kinds are separated by `,`. A struct or an enum
+`trait`, or of member, `field` and `variant`. `on fun` marks every function,
+whatever its signature, and `on any` marks the four declaration kinds. Several
+kinds are separated by `,`. A struct or an enum
 kind may take a bound after `:`, which every marked declaration of that kind
 must implement:
 
@@ -311,6 +312,43 @@ arguments.
 Without `on`, an annotation marks functions of type `() -> void`. Entries
 are an `AnnotatedFunction<bench, F>` for a function type, or an
 `AnnotatedItem<bench>` for kinds, from alloc.
+
+#### Fields and variants
+
+The kinds `field` and `variant` mark a struct's fields and an enum's variants.
+They are members, not declarations, so `on any` leaves them out; name them,
+as in `on <field, variant>`. A use goes above the member, as it would above a
+declaration:
+
+```kflat
+annotation skip on field
+annotation rename(name: String) on field
+annotation tag(code: int32) on variant
+
+struct User {
+    @rename("id")
+    val user_id: int64
+    @skip
+    val password: String
+}
+
+enum Shape {
+    @tag(1)
+    Circle(float64)
+    Square
+}
+
+fun main(): int32 {
+    val _user = User { user_id: 7, password: "hunter2" }
+    return 0
+}
+```
+
+A member's uses are checked like any other, arguments and target, and kept
+with its type, in a library's interface too. `annotated` does not list them,
+since nothing names a field on its own at run time, and querying an
+annotation that marks only members is an error. A built-in annotation cannot
+mark a member.
 
 ### Across modules and crates
 

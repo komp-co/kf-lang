@@ -42,6 +42,7 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
                 fo.field_string("type", fty.tyref_to_source().as_str())
                 fo.field_bool("var", f.is_var)
                 fo.field_bool("pub", f.is_pub)
+                fo.field_raw("annotations", annotations_json(&f.annotations).as_str())
                 arr.write_raw(fo.finish().as_str())
             }
             o.field_raw("fields", arr.finish().as_str())
@@ -67,6 +68,7 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
                     payloads.write_string(item.tyref_to_source().as_str())
                 }
                 vo.field_raw("payloads", payloads.finish().as_str())
+                vo.field_raw("annotations", annotations_json(&v.annotations).as_str())
                 arr.write_raw(vo.finish().as_str())
             }
             o.field_raw("variants", arr.finish().as_str())
@@ -277,4 +279,13 @@ fun borrow_origin_of(params: &List<Param>, ret: &TypeRef, has_self: bool): int32
         types.push(unsafe { *p.ty })
     }
     return type_ref_borrow_origin(&types, ret, has_self)
+}
+
+/// A member's annotation uses, each as written without the `@`.
+fun annotations_json(annotations: &List<Annotation>): String {
+    var out = JsonWriter.array()
+    while annotation in &annotations {
+        out.write_string(annotation.to_source().as_str())
+    }
+    return out.finish()
 }

@@ -131,12 +131,7 @@ impl Parser {
 
     /// A member, with the `@...` run above it recorded on it.
     mutating fun parse_one_impl_method(methods: &var List<TopDecl>): bool {
-        var annotations = List.new<Annotation>()
-        while is_op(self.peek(), Operator.At) {
-            unsafe { self.advance() } // consume `@`
-            annotations.push(self.parse_annotation())
-            self.skip_newlines()
-        }
+        val annotations = self.parse_annotation_run()
         val before = methods.size()
         val parsed = self.parse_impl_member(methods)
         if methods.size() > before {
