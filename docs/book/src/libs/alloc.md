@@ -502,12 +502,12 @@ when (m.get(&key)) {
 }
 ```
 
-## AnnotatedFunction and AnnotatedType
+## AnnotatedFunction and AnnotatedItem
 
 The entries of `annotated<A>()`: declarations carrying a
 [declared annotation](../lang/annotations.md#declaring-an-annotation), and the
-arguments each was given. A function target lists `AnnotatedFunction`, a type
-target `AnnotatedType`.
+arguments each was given. A function-type target lists `AnnotatedFunction`,
+a kind target `AnnotatedItem`.
 
 ```kflat
 pub struct AnnotatedFunction<A, F> {
@@ -517,9 +517,13 @@ pub struct AnnotatedFunction<A, F> {
     pub val function: F         // the target's function type
 }
 
-pub struct AnnotatedType<A> {
+pub struct AnnotatedItem<A> {
     pub val name: String
     pub val module: String
+    pub val kind: AnnotatedKind // Function, Struct, Enum or Trait
     pub val args: A
 }
 ```
+
+`AnnotatedKind` is `Copy` and `Equal`, so an entry's kind can be compared:
+`entry.kind == AnnotatedKind.Trait`.

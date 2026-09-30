@@ -132,13 +132,8 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             o.field_bool("hidden", hidden)
             o.field_string("name", td.name.as_str())
             o.field_bool("pub", is_pub)
-            o.field_string("on", target.target_word())
-            var types = JsonWriter.array()
-            val target_types = target.target_types()
-            while item in &target_types {
-                types.write_string(item.tyref_to_source().as_str())
-            }
-            o.field_raw("types", types.finish().as_str())
+            o.field_string("function", target.function_source().as_str())
+            o.field_raw("kinds", target.kinds_json().as_str())
             return o.finish()
         }
         _ => return String.from("{}")

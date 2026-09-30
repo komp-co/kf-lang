@@ -60,24 +60,55 @@ fun round_trip_target(m: Module): MarkTarget {
             }
         }
     }
-    return MarkTarget.Enum(List.new<TypeRef>())
+    return MarkTarget.Kinds(List.new<KindTarget>())
+}
+
+fun MarkTarget.function_text(): String {
+    return when (self) {
+        Function(ty) => (*ty).tyref_to_source()
+        _ => String.from("kinds")
+    }
+}
+
+/// `struct:Plugin+Default,enum:`, each kind with its bounds.
+fun MarkTarget.kinds_text(): String {
+    var out = String.from("")
+    val kinds = self.kinds()
+    while listed in &kinds {
+        if out.byte_len() > 0 { out.append(",") }
+        out.append("${listed.kind.word()}:")
+        while i in 0..listed.bounds.size() {
+            if i > 0 { out.append("+") }
+            out.append(listed.bounds.at(i).tyref_to_source().as_str())
+        }
+    }
+    return out
+}
+
+fun kind(kind: MarkKind, bounds: List<TypeRef>): KindTarget {
+    return KindTarget { kind: kind, bounds: bounds }
 }
 
 @test
 fun a_function_target_crosses_with_its_type(): void {
     val target = round_trip_target(targeted_module(true, default_mark_target(no_span())))
-    val source = target.target_types().at(0).tyref_to_source()
-    assert_eq(source.as_str(), "() -> void", "the function type is written and read back")
+    assert_eq(target.function_text().as_str(), "() -> void", "the function type is written and read back")
 }
 
 @test
-fun a_struct_target_crosses_with_its_bounds(): void {
-    val target = round_trip_target(targeted_module(true, MarkTarget.Struct([named("Plugin"), named("Default")])))
-    assert_eq("${target.target_word()}:${target.target_types().size()}", "struct:2", "kind and both bounds")
+fun kinds_cross_with_their_bounds(): void {
+    var bounds = List.new<TypeRef>()
+    bounds.push(named("Plugin"))
+    bounds.push(named("Default"))
+    var kinds = List.new<KindTarget>()
+    kinds.push(kind(MarkKind.Struct, bounds))
+    kinds.push(kind(MarkKind.Enum, List.new<TypeRef>()))
+    val target = round_trip_target(targeted_module(true, MarkTarget.Kinds(kinds)))
+    assert_eq(target.kinds_text().as_str(), "struct:Plugin+Default,enum:", "each kind and its bounds")
 }
 
 @test
-fun a_type_target_crosses_as_either_kind(): void {
-    val target = round_trip_target(targeted_module(true, MarkTarget.AnyType(List.new<TypeRef>())))
-    assert_eq(target.target_word(), "type", "struct or enum")
+fun any_crosses_as_every_kind(): void {
+    val target = round_trip_target(targeted_module(true, any_kind_target()))
+    assert_eq(target.kinds_text().as_str(), "fun:,struct:,enum:,trait:", "all four")
 }

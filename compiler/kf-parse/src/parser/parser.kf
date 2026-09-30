@@ -188,6 +188,13 @@ impl Parser {
         return false
     }
 
+    /// Consumes `o` when it is next; whether it was.
+    pub mutating fun take_op(o: Operator): bool {
+        if !self.peek().is_op(o) { return false }
+        unsafe { self.advance() }
+        return true
+    }
+
     pub mutating fun expr_expected_err(span: Span, found: String): void {
         self.parse_err(span, "expected an expression, found ${found}")
     }

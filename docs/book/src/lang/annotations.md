@@ -96,8 +96,11 @@ fun main(): int32 {
 }
 ```
 
-`on struct`, `on enum` and `on type` (either one) mark types, and a bound
-after `:` requires every marked type to implement those traits:
+`on` may instead name kinds of declaration: `fun`, `struct`, `enum` and
+`trait`. `on fun` marks every function, whatever its signature, and `on any`
+marks all four kinds. Several kinds are separated by `,`. A struct or an enum
+kind may take a bound after `:`, which every marked declaration of that kind
+must implement:
 
 ```kflat
 trait Plugin {
@@ -105,8 +108,11 @@ trait Plugin {
 }
 
 annotation plugin(order: int32) on struct: Plugin
+annotation hook on <struct: Plugin, enum>
+annotation deprecated(since: String) on any
 
 @plugin(1)
+@hook
 struct Logger {
     val level: int32
 }
@@ -115,21 +121,44 @@ impl Plugin for Logger {
     fun start(): int32 { return self.level }
 }
 
+@hook
+@deprecated("0.4")
+enum Level {
+    Low
+    High
+}
+
+@deprecated("0.3")
+trait Named {
+    fun name(): String
+}
+
 fun main(): int32 {
     while p in &annotated<plugin>() {
         println("${p.module}.${p.name}, order ${p.args.order}")
+    }
+    while d in &annotated<deprecated>() {
+        if d.kind == AnnotatedKind.Trait {
+            println("trait ${d.name}, since ${d.args.since}")
+        }
     }
     return 0
 }
 ```
 
-A type entry has no value to call: nothing at run time refers to a type.
-A generic type cannot carry a type-target annotation, since whether it meets
-a bound can depend on its arguments. A bound names a trait without type
+A list of kinds with a bound goes in `<...>`, as a type's generic parameters
+do: `on <struct: Plugin + Default, enum>`. A bound on `fun` or `trait` is an
+error, since neither implements a trait.
+
+An entry of a kind target has the declaration's `kind`, but nothing to call:
+it may name a type, a trait, or a function of any signature. A generic type
+cannot carry an annotation whose kind has a bound, since whether it meets the
+bound can depend on its arguments. A bound names a trait without type
 arguments.
 
 Without `on`, an annotation marks functions of type `() -> void`. Entries
-are an `AnnotatedFunction<bench, F>` or an `AnnotatedType<bench>` from alloc.
+are an `AnnotatedFunction<bench, F>` for a function type, or an
+`AnnotatedItem<bench>` for kinds, from alloc.
 
 ### Across modules and crates
 
@@ -151,9 +180,9 @@ The query only reaches the crate it is written in. A `measure` function
 calling `annotated<bench>()` sees `measure`'s functions, not the ones of the
 crate that imported `bench`.
 
-The name of a built-in annotation cannot be declared. `annotation` and `on`
-are not reserved words; they are read this way only in an annotation's
-declaration.
+The name of a built-in annotation cannot be declared. `annotation`, `on`
+and `any` are not reserved words; they are read this way only in an
+annotation's declaration.
 
 ## @test
 

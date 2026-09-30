@@ -29,8 +29,8 @@ impl Parser {
         return td
     }
 
-    /// `on (A) -> R`, or `on struct`, `on enum` or `on type` with an optional
-    /// `: Trait + Trait`, consuming `on`.
+    /// `on (A) -> R`, `on any`, `on KIND, KIND` or `on <KIND: Bound, KIND>`,
+    /// consuming `on`. A kind with a bound in a list needs the brackets.
     mutating fun parse_mark_target(): MarkTarget {
         unsafe { self.advance() } // consume `on`
         val at = self.peek().span
@@ -45,26 +45,83 @@ impl Parser {
             }
             return MarkTarget.Function(function)
         }
-        val kind = when (self.peek().kind) {
-            KeywordTok(k) => when (k) {
-                Struct => 1
-                Enum => 2
-                TypeKw => 3
-                _ => 0
+        if self.at_word("any") {
+            unsafe { self.advance() }
+            return any_kind_target()
+        }
+        val bracketed = self.take_op(Operator.Lt)
+        var kinds = List.new<KindTarget>()
+        while self.parse_kind_target(&var kinds) && self.take_op(Operator.Comma) {}
+        if bracketed {
+            if !self.take_op(Operator.Gt) {
+                val found = tok_str(self.peek())
+                self.parse_err(self.peek().span, "expected `,` or `>` in the list of kinds, found ${found}")
             }
-            _ => 0
+        } else if kinds.size() > 1 && kinds.any_bound() {
+            val example = "`on <struct: Plugin, enum>`"
+            self.parse_err(at, "a list of kinds with a bound goes in brackets: ${example}")
         }
-        if kind == 0 {
+        if kinds.size() == 0 { return default_mark_target(at) }
+        return MarkTarget.Kinds(kinds)
+    }
+
+    /// `KIND` or `KIND: Bound + Bound` onto `kinds`; false, reported, when
+    /// the token is not a kind.
+    mutating fun parse_kind_target(kinds: &var List<KindTarget>): bool {
+        val at = self.peek().span
+        val kind = self.peek_mark_kind()
+        if kind == null {
             val found = tok_str(self.peek())
-            self.parse_err(at, "expected a function type, `struct`, `enum` or `type` after `on`, found ${found}")
-            return default_mark_target(at)
+            val expected = "a function type, `any`, `fun`, `struct`, `enum` or `trait`"
+            self.parse_err(at, "expected ${expected} after `on`, found ${found}")
+            return false
         }
+        val marked = kind ?: return false
         unsafe { self.advance() }
-        val bounds = self.parse_supertraits()
-        return when kind {
-            1 => MarkTarget.Struct(bounds)
-            2 => MarkTarget.Enum(bounds)
-            _ => MarkTarget.AnyType(bounds)
+        var bounds = List.new<TypeRef>()
+        if self.take_op(Operator.Colon) {
+            while true {
+                val bound = self.parse_type_ref_ptr()
+                bounds.push(unsafe { *bound })
+                if !self.take_op(Operator.Plus) { break }
+            }
+            if !marked.takes_bounds() {
+                val why = "only a struct or an enum implements a trait"
+                self.parse_err(at, "a `${marked.word()}` target takes no bound: ${why}")
+            }
+        }
+        while listed in &kinds {
+            if listed.kind == marked { self.parse_err(at, "`${marked.word()}` is listed twice") }
+        }
+        kinds.push(KindTarget { kind: marked, bounds: bounds })
+        return true
+    }
+
+    fun peek_mark_kind(): MarkKind? {
+        when (self.peek().kind) {
+            KeywordTok(k) => return when (k) {
+                Fun => MarkKind.Function
+                Struct => MarkKind.Struct
+                Enum => MarkKind.Enum
+                Trait => MarkKind.Trait
+                _ => null
+            }
+            _ => return null
         }
     }
+}
+
+fun MarkKind.takes_bounds(): bool {
+    return when (self) {
+        Struct => true
+        Enum => true
+        _ => false
+    }
+}
+
+fun List<KindTarget>.any_bound(): bool {
+    while listed in &self {
+        if listed.bounds.size() > 0 { return true }
+    }
+    return false
 }

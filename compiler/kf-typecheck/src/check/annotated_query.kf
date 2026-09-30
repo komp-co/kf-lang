@@ -4,7 +4,8 @@
 //
 //     AnnotatedFunction<bench, F> { name, module, args: bench { ... }, function: f }
 //
-// and a type target `AnnotatedType<bench> { name, module, args }`.
+// and a kind target `AnnotatedItem<bench> { name, module, kind, args }`,
+// `kind` an `AnnotatedKind` variant.
 
 import alloc.list.*
 
@@ -19,7 +20,10 @@ pub fun annotated_prefix(): str { return "annotated__" }
 
 /// CONSTRAINT: by name until a release's seed knows a lang key for them.
 fun entry_type_name(target: &MarkTarget): str {
-    return if target.target_word() == "function" { "AnnotatedFunction" } else { "AnnotatedType" }
+    return when (target) {
+        Function(_ty) => "AnnotatedFunction"
+        _ => "AnnotatedItem"
+    }
 }
 
 pub mutating fun Expr.expand_annotated(args: &List<Expr>, ctx: &var TypeCtx): void {
@@ -71,7 +75,7 @@ fun Expr.single_type_name(): Sym {
 }
 
 /// `<bench, (Request) -> Response>` for a function target, `<bench>` for a
-/// type target.
+/// kind target.
 fun entry_type_args(declared: &DeclaredAnnotation, span: Span): List<TypeRef> {
     var args = List.new<TypeRef>()
     args.push(new_type_ref(span, TypeRefKind.Named(declared.name, List.new<TypeRef>())))
@@ -97,7 +101,11 @@ fun annotated_entry(listed: &AnnotatedItem, declared: &DeclaredAnnotation, span:
             ctx.note_fn_type(&reference.ty)
             fields.push(FieldInit { span: span, name: intern("function"), value: Box.new(reference) })
         }
-        _ => {}
+        _ => {
+            val kind_type = new_expr(span, ExprKind.Variable(intern("AnnotatedKind")))
+            val variant = new_expr(span, ExprKind.FieldAccess(Box.new(kind_type), listed.kind.variant_name()))
+            fields.push(FieldInit { span: span, name: intern("kind"), value: Box.new(variant) })
+        }
     }
     var entry = new_expr(span, ExprKind.StructLit(intern(entry_type_name(&declared.target)), fields))
     entry.type_args = entry_type_args(declared, span)
@@ -119,4 +127,13 @@ fun arguments_literal(listed: &AnnotatedItem, declared: &DeclaredAnnotation, spa
         fields.push(FieldInit { span: value.span, name: declared.params.at(i).name, value: Box.new(value) })
     }
     return new_expr(span, ExprKind.StructLit(declared.name, fields))
+}
+
+fun MarkKind.variant_name(): Sym {
+    return when (self) {
+        Function => intern("Function")
+        Struct => intern("Struct")
+        Enum => intern("Enum")
+        Trait => intern("Trait")
+    }
 }

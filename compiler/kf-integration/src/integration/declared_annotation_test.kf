@@ -10,7 +10,8 @@ import std.fs.scratch_root
 extern "C" fun system(cmd: str): int32
 
 /// `marks` declares `bench`, `sized(n)`, `route(path) on (Request) -> int32`
-/// and `plugin(order) on struct: Plugin`, all `pub`, and a private `hidden`;
+/// `plugin(order) on struct: Plugin`, `hook on <struct: Plugin, enum>` and
+/// `shown on any`, all `pub`, and a private `hidden`;
 /// the app's `inner` module holds `inner_body`.
 fun prepare_annotation_fixture(name: str, main_body: str, inner_body: str): int32 {
     val root = "${scratch_root()}/${name}"
@@ -48,6 +49,10 @@ pub trait Plugin {
 pub annotation route(path: String) on (Request) -> int32
 
 pub annotation plugin(order: int32) on struct: Plugin
+
+pub annotation hook on <struct: Plugin, enum>
+
+pub annotation shown on any
 """)
     val app_deps = "${libs}marks = { path = \"../marks\" }\n"
     val app_toml = "[project]\nname = \"app\"\nkind = \"bin\"\n\n[dependencies]\n${app_deps}"
@@ -173,4 +178,59 @@ fun an_imported_annotation_checks_its_target(): void {
     val inner = "import marks.Request\nimport marks.route\n\n@route(\"/x\")\nfun ignore(r: Request): void {}\n"
     assert_eq(prepare_annotation_fixture("kf_ann_target_bad", main, inner), 0, "fixture prepared")
     assert_eq(build_annotated_app("kf_ann_target_bad") != 0, true, "the target's function type crosses the boundary")
+}
+
+@test
+fun an_imported_kind_list_carries_every_kind(): void {
+    val main = """import marks.shown
+
+@shown
+trait Named {
+    fun name(): int32
+}
+
+@shown
+enum Speed {
+    Fast
+}
+
+fun main(): int32 {
+    val entries = annotated<shown>()
+    if entries.size() != 2 { return 1 }
+    if entries.at(0).kind != AnnotatedKind.Trait { return 2 }
+    return 0
+}
+"""
+    assert_eq(prepare_annotation_fixture("kf_ann_kinds", main, ""), 0, "fixture prepared")
+    assert_eq(build_and_run_annotated("kf_ann_kinds"), 0, "a trait and an enum")
+}
+
+@test
+fun an_imported_kind_list_checks_its_bounds(): void {
+    val main = """import marks.hook
+
+@hook
+struct Silent {
+    val n: int32
+}
+
+fun main(): int32 { return 0 }
+"""
+    assert_eq(prepare_annotation_fixture("kf_ann_kinds_bad", main, ""), 0, "fixture prepared")
+    assert_eq(build_annotated_app("kf_ann_kinds_bad") != 0, true, "the struct's bound crosses the boundary")
+}
+
+@test
+fun an_imported_kind_list_takes_an_unbounded_kind(): void {
+    val main = """import marks.hook
+
+@hook
+enum Speed {
+    Fast
+}
+
+fun main(): int32 { return annotated<hook>().size() as int32 - 1 }
+"""
+    assert_eq(prepare_annotation_fixture("kf_ann_kinds_enum", main, ""), 0, "fixture prepared")
+    assert_eq(build_and_run_annotated("kf_ann_kinds_enum"), 0, "the enum needs no bound")
 }
