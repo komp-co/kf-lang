@@ -1,0 +1,64 @@
+// An annotation on a method of an impl, a trait impl or a trait. `@allow` is
+// honoured there; any other built-in, and a declared annotation until methods
+// are function values, is an error.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_core.diagnostic.*
+import kf_typecheck.*
+
+pub fun TopDecl.validate_member_annotations(diags: Ptr<List<Diagnostic>>): void {
+    when (self.kind) {
+        ImplBlock(methods) => validate_members(&methods, diags)
+        TraitImpl(_trait, methods) => validate_members(&methods, diags)
+        TraitDecl(members, _pub, _supers) => validate_members(&members, diags)
+        _ => {}
+    }
+}
+
+fun validate_members(members: &List<TopDecl>, diags: Ptr<List<Diagnostic>>): void {
+    while member in &members {
+        while annotation in &member.annotations {
+            val kind = annotation.name.as_str()
+            if kind.equals("") || !annotation_is_known(kind) { continue }
+            if kind == "allow" {
+                member.validate_allow_names(&annotation.words(), diags)
+            } else {
+                val message = "`@${kind}` cannot annotate a method"
+                unsafe { diags.push(new_diagnostic(Severity.Error, new_label(member.decl_name_span(), message))) }
+            }
+        }
+    }
+}
+
+/// A declared annotation on one of this declaration's methods, resolved so
+/// an unknown name is reported as one.
+pub fun TopDecl.reject_declared_on_members(sigs: Ptr<SigTable>, table: &SigTable, diags: &var List<Diagnostic>): void {
+    when (self.kind) {
+        ImplBlock(methods) => reject_declared(&methods, sigs, table, diags)
+        TraitImpl(_trait, methods) => reject_declared(&methods, sigs, table, diags)
+        TraitDecl(members, _pub, _supers) => reject_declared(&members, sigs, table, diags)
+        _ => {}
+    }
+}
+
+fun reject_declared(members: &List<TopDecl>, sigs: Ptr<SigTable>, table: &SigTable,
+    diags: &var List<Diagnostic>): void {
+    while member in &members {
+        while annotation in &member.annotations {
+            val kind = annotation.name.as_str()
+            if kind.equals("") || annotation_is_known(kind) { continue }
+            val at = member.decl_name_span()
+            val found = table.find_annotation(kind, member.span.file_id, member.crate, member.module_path)
+            if found == null {
+                diags.push(unknown_annotation(kind, at))
+                continue
+            }
+            val index = found ?: continue
+            val declared = table.annotations.at(index)
+            note_import_use_named(sigs, member.span.file_id, declared.module, declared.name)
+            diags.push(new_diagnostic(Severity.Error, new_label(at, "`@${kind}` cannot annotate a method yet")))
+        }
+    }
+}

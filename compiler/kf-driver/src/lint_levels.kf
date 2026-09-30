@@ -115,8 +115,25 @@ fun Module.declaration_allows(name: str, span: Span): bool {
     if span.is_none() { return false }
     while td in &self.decls {
         if td.decl_covers(span) {
-            if td.allows_lint(name) { return true }
+            if td.allows_lint(name) || td.member_allows(name, span) { return true }
         }
+    }
+    return false
+}
+
+/// An `@allow` on the impl or trait method the evidence is in.
+fun TopDecl.member_allows(name: str, span: Span): bool {
+    return when (self.kind) {
+        ImplBlock(methods) => methods.any_allows(name, span)
+        TraitImpl(_trait, methods) => methods.any_allows(name, span)
+        TraitDecl(members, _pub, _supers) => members.any_allows(name, span)
+        _ => false
+    }
+}
+
+fun List<TopDecl>.any_allows(name: str, span: Span): bool {
+    while member in &self {
+        if member.decl_covers(span) && member.allows_lint(name) { return true }
     }
     return false
 }

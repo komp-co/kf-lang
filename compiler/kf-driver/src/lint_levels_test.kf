@@ -179,6 +179,32 @@ fun a_declaration_with_no_allow_suppresses_nothing(): void {
     assert_eq(apply_lint_levels(a_lint(inside_decl()), &m, &new_lint_config()).size(), 1, "unannotated")
 }
 
+/// An impl spanning bytes 0..200 of file 1 whose one method, 10..100,
+/// carries `@allow(unused_import)`.
+fun impl_with_allowing_method(): Module {
+    var methods = List.new<TopDecl>()
+    methods.push(annotated_decl("allow", [String.from("unused_import")]))
+    val header = Span { file_id: 1, start: 0, end: 5 }
+    var impl_decl = new_top_decl(header, String.from("Counter"), TopDeclKind.ImplBlock(methods))
+    impl_decl.decl_end = 200
+    return module_with_decl(impl_decl)
+}
+
+@test
+fun an_allow_on_a_method_suppresses_inside_it(): void {
+    val m = impl_with_allowing_method()
+    assert_eq(apply_lint_levels(a_lint(inside_decl()), &m, &new_lint_config()).size(), 0,
+        "the method's own `@allow` is honoured")
+}
+
+@test
+fun an_allow_on_a_method_does_not_reach_the_rest_of_its_impl(): void {
+    val m = impl_with_allowing_method()
+    val after_the_method = Span { file_id: 1, start: 150, end: 160 }
+    assert_eq(apply_lint_levels(a_lint(after_the_method), &m, &new_lint_config()).size(), 1,
+        "inside the impl, outside the method")
+}
+
 @test
 fun allow_coexists_with_test_on_one_declaration(): void {
     // `@test` survives beside a suppression.
