@@ -90,6 +90,7 @@ pub fun check_decl_module(m: &var Module,
 
     // Impl headers, once identities and traits are registered.
     m.check_impl_headers(sig_ptr, diags)
+    m.check_sealed_impls(diags)
 
     // Struct layouts, generic templates first: resolving `Option<Ptr<Expr>>`
     // instantiates from the template's layout, and a missed instantiation is
