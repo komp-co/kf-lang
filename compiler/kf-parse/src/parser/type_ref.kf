@@ -143,15 +143,35 @@ impl Parser {
                 break
             }
             val before: uint64 = self.pos
-            val arg_ptr = self.parse_type_ref_ptr()
-            args.push(unsafe { *arg_ptr })
-            unsafe { dealloc<TypeRef>(arg_ptr) }
+            args.push(self.parse_type_argument())
             if is_op(self.peek(), Operator.Comma) {
                 unsafe { self.advance() }
             }
             if self.pos == before { break }
         }
         return args
+    }
+
+    /// A type, or the value a value parameter takes: `7`, `-7`.
+    pub mutating fun parse_type_argument(): TypeRef {
+        val negative = is_op(self.peek(), Operator.Minus)
+        val start = self.peek().span
+        val literal = if negative { self.peek_at(1) } else { self.peek() }
+        val span = start.merge(literal.span)
+        val magnitude = when (literal.kind) {
+            IntLiteral(v) => v
+            _ => -1
+        }
+        if magnitude >= 0 {
+            self.advance()
+            if negative { self.advance() }
+            val value = if negative { 0 - magnitude } else { magnitude }
+            return new_type_ref(span, TypeRefKind.Value(value))
+        }
+        val arg_ptr = self.parse_type_ref_ptr()
+        val arg = unsafe { *arg_ptr }
+        unsafe { dealloc<TypeRef>(arg_ptr) }
+        return arg
     }
 
     /// `(A, B) -> R`, at the `(`. `(T)` with no arrow is `T`, grouped, so

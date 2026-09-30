@@ -97,8 +97,11 @@ pub fun trait_method_suffix(trait_ref: TypeRef, sigs: Ptr<SigTable>): String {
     }
 }
 
+/// A value parameter's bound is its type, not a trait; `register_value_params`
+/// records it instead.
 pub fun register_bounds(owner: String, tps: &List<TypeParam>, sig_ptr: Ptr<SigTable>): void {
     while tp in &tps {
+        if tp.value_type(tps) != null { continue }
         while bound in &tp.bounds {
             when (bound.kind) {
                 Named(name, args) => {
@@ -114,5 +117,13 @@ pub fun register_bounds(owner: String, tps: &List<TypeParam>, sig_ptr: Ptr<SigTa
                 _ => {}
             }
         }
+    }
+}
+
+pub fun register_value_params(owner: String, tps: &List<TypeParam>, sig_ptr: Ptr<SigTable>): void {
+    while tp in &tps {
+        val value_type = tp.value_type(tps) ?: continue
+        val info = ValueParamInfo { owner: owner.clone(), param: tp.name.as_string(), ty: value_type }
+        unsafe { sig_ptr.value_params.push(info) }
     }
 }

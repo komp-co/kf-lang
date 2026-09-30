@@ -33,6 +33,7 @@ fun tyref_is_poison(tr: TypeRef): bool {
         // `List.new<F.Out>()` is a type-argument list; the owner is the
         // checker's concern.
         Projection(_owner, _member) => false
+        Value(_v) => false
         Poison => true
     }
 }
@@ -71,6 +72,7 @@ fun TypeRef.tyref_mangle_frag(): String {
             val inner = (unsafe { &*owner }).tyref_mangle_frag()
             return projection_mangle_frag(inner.as_str(), member.as_str())
         }
+        Value(v) => return value_frag(v)
         Poison => return String.from("poison")
     }
 }
@@ -169,9 +171,7 @@ impl Parser {
                 unsafe { self.advance() } // consume `>` (empty/trailing)
                 break
             }
-            val arg_ptr = self.parse_type_ref_ptr()
-            val tr = unsafe { *arg_ptr }
-            unsafe { dealloc<TypeRef>(arg_ptr) }
+            val tr = self.parse_type_argument()
             val is_poison: bool = tyref_is_poison(tr)
             if is_poison {
                 ok = false

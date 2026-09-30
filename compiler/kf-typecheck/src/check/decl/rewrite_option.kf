@@ -43,6 +43,7 @@ fun TypeRef.rewrite_option_tref(option_name: Sym): TypeRef {
             unsafe { *oq = osub }
             return new_type_ref(self.span, TypeRefKind.Projection(oq, member))
         }
+        Value(v) => return new_type_ref(self.span, TypeRefKind.Value(v))
         Poison => return type_ref_poison(self.span)
     }
 }

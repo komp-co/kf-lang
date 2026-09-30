@@ -60,6 +60,8 @@ fun Type.register_returned_instance(span: Span, ctx: &var TypeCtx): void {
 fun String.tref_from_frag(span: Span, ctx: &var TypeCtx): TypeRef {
     val function = ctx.fn_type_for(self.as_str())
     if function != null { return function!!.type_to_type_ref(span) }
+    val value = value_from_frag(self.as_str())
+    if value != null { return new_type_ref(span, TypeRefKind.Value(value ?: 0)) }
     val named = new_type_ref(span, TypeRefKind.Named(intern(self.as_str()), List.new<TypeRef>()))
     if unsafe { (*ctx.sigs).find_struct(self.as_str(), ctx.owner_crate) }.is_some() { return named }
     if unsafe { (*ctx.sigs).find_enum(self.as_str(), ctx.owner_crate) }.is_some() { return named }

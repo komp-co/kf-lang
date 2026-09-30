@@ -207,6 +207,7 @@ fun is_heap_ty_rc(ty: Type): bool {
         FnTy(_) => false
         // Mono resolves every projection.
         Projection(_, _) => false
+        Value(_) => false
         Poison => false
     }
 }

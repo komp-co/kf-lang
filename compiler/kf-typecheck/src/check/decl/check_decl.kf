@@ -227,6 +227,7 @@ pub fun TopDecl.register_type_identity(sig_ptr: Ptr<SigTable>): void {
     if gnames.size() > 0 {
         unsafe { sig_ptr.insert_generic_info(GenericInfo { name: self.name.as_string(), type_params: gnames, owner_crate: self.crate }) }
     }
+    register_value_params(self.name.as_string(), self.generics, sig_ptr)
 }
 
 fun is_builtin_type_name(name: str): bool {
@@ -263,6 +264,7 @@ pub fun register_sigs(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: Ptr<List<
             // Bounds first: a signature naming a bounded type checks its
             // arguments against them.
             register_bounds(td.name.as_string(), td.generics, sig_ptr)
+            register_value_params(td.name.as_string(), td.generics, sig_ptr)
             register_fn_sig(td, td.name.as_string(), params, ret_ptr, type_param_names(td.generics), td.crate, td.module_path, td.span.file_id, is_runner_visible, sig_ptr, diags, table)
         }
         Extern(params, ret_ptr, is_pub, _variadic) => {
@@ -395,6 +397,8 @@ fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &va
             val bound_owner = method_body_owner(struct_name.clone(), td.name.as_string())
             register_bounds(bound_owner.clone(), td.generics, sig_ptr)
             register_bounds(bound_owner.clone(), &impl_tps, sig_ptr)
+            register_value_params(bound_owner.clone(), td.generics, sig_ptr)
+            register_value_params(bound_owner.clone(), &impl_tps, sig_ptr)
             ctx0.fn_owner = bound_owner
             // The impl's generics and the method's own, so `&A` resolves to
             // `RefTo(Generic("A"))`, not a nominal `A`.

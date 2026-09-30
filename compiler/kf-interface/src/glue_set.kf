@@ -85,6 +85,7 @@ fun collect_type_ref(ty: TypeRef, m: &Module, crate: CrateId, out: &var List<Own
         Function(_params, _ret) => {}
         Array(_element, _size) => {}
         Projection(_owner, _member) => {}
+        Value(_v) => {}
         Poison => {}
     }
 }

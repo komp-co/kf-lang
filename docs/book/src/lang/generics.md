@@ -148,6 +148,76 @@ src/main.kf:7:13: error: type `Option<Unique>` does not implement trait `Clone` 
 struct, as does `==` on the same bound. Primitives satisfy `Equal`, `Compare`
 and `Display` intrinsically, with no `impl` to find.
 
+## Value parameters
+
+A parameter can stand for a value instead of a type. Its bound tells the two
+apart: a bound naming a trait makes a type parameter, and a bound naming a
+type makes a value parameter of that type.
+
+```kflat
+struct Residue<M: uint64> {
+    val value: uint64
+}
+
+fun wrap<M: uint64>(v: uint64): Residue<M> {
+    return Residue<M> { value: v % M }
+}
+
+fun main(): int32 {
+    val x: Residue<7> = wrap<7>(12)
+    return x.value as int32    // 5
+}
+```
+
+Inside the body, `M` is a constant of its type. The argument is an integer
+literal, negative ones included (`Residue<-3>`, given a signed type). A value
+parameter's type is a primitive integer, or another parameter of the same
+declaration bounded by core's `Integer`:
+
+```kflat
+struct Residue<I: Integer, M: I> {
+    val value: I
+}
+
+fun wrap<I: Integer, M: I>(v: I): Residue<I, M> {
+    return Residue<I, M> { value: v % M }
+}
+
+fun modulus_of<I: Integer, M: I>(r: &Residue<I, M>): I { return M }
+
+fun main(): int32 {
+    val x: Residue<int32, 9> = wrap(16)
+    return x.value + modulus_of(&x)    // 7 + 9
+}
+```
+
+Value arguments are inferred like type arguments: `wrap(16)` takes `I` and
+`M` from the declared type of `x`, and `modulus_of(&x)` reads them off its
+argument. Each set of arguments is its own instance, so `Residue<int32, 9>`,
+`Residue<int32, 7>` and `Residue<int64, 9>` are three different types.
+
+An argument is checked against its parameter like a literal against a slot:
+
+```kflat
+struct Tiny<N: uint8> {
+    val x: int32
+}
+
+fun main(): int32 {
+    val t = Tiny<300> { x: 1 }
+    return 0
+}
+```
+
+```console
+$ komp check .
+src/main.kf:6:18: error: `300` does not fit in `uint8`, the type of `N` on `Tiny`
+```
+
+A type where a value belongs, or a value where a type belongs, is an error
+too. There is no arithmetic in a type: `Residue<M + 1>` cannot be
+written.
+
 ## Monomorphization
 
 KFlat does not erase type parameters at runtime. When the compiler sees

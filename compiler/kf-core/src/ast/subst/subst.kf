@@ -237,6 +237,7 @@ fun TypeRef.tref_to_type_shallow(): Type {
             val result = tref_to_type_shallow(&*ret)
             return fn_ty(values, result, Provenance.Inferred(no_span()))
         }
+        Value(v) => return Type { kind: TypeKind.Value(v), provenance: Provenance.Inferred(no_span()) }
         _ => return poison_ty()
     }
 }
