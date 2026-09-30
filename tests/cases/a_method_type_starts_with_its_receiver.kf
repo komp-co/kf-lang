@@ -1,7 +1,7 @@
 //! build: fail
 //! deps: core, alloc
-// A method is not a function value yet, so `annotated<bench>()` could not list
-// it; marking one is an error rather than a silent omission.
+// `tick` is a `(&Counter) -> void`, so it does not fit `@bench`'s
+// `() -> void`.
 
 annotation bench
 

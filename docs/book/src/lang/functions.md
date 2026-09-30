@@ -205,10 +205,42 @@ $ komp check .
 src/main.kf:4:13: error: generic function `id` cannot be used as a value: a function value has one type
 ```
 
-Only free functions are values; a method, an extension function or a lambda
-is not. A lambda is a struct of its own, passed to a `Call` bound (see
-[Lambdas](lambdas.md)); to hand a function value to one, wrap it:
-`xs.map(|x| double(x))`. Function values cannot be compared with `==`.
+### Methods as values
+
+`Type.method` names a method as a value. Its receiver becomes the first
+parameter: `&Type`, or `&var Type` for a `mutating` method. A `static` method
+has no receiver:
+
+```kflat
+struct Counter {
+    var n: int32
+}
+
+impl Counter {
+    static fun make(): Counter { return Counter { n: 1 } }
+    fun get(): int32 { return self.n }
+    mutating fun bump(by: int32): void { self.n = self.n + by }
+}
+
+fun main(): int32 {
+    val make: () -> Counter = Counter.make
+    val bump: (&var Counter, int32) -> void = Counter.bump
+    val get: (&Counter) -> int32 = Counter.get
+    var c = make()
+    bump(&var c, 4)
+    println(get(&c))   // 5
+    return 0
+}
+```
+
+A trait impl's method is named the same way, `Counter.show`, as long as only
+one of the type's traits provides `show`. A method of a generic type, or one
+with type parameters of its own, is not a value, since a value has one type.
+
+An extension function or a lambda is not a value. A lambda is a struct of its
+own, passed to a `Call` bound (see [Lambdas](lambdas.md)); to hand a function
+value to one, wrap it: `xs.map(|x| double(x))`. Function values cannot be
+compared with `==`.
 
 ## Extension functions
 

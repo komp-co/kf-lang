@@ -205,7 +205,10 @@ pub struct DeclaredAnnotation {
 /// annotation, which indexes `SigTable.annotations`.
 pub struct AnnotatedItem {
     pub val annotation: uint64
+    /// The symbol a value names: `length`, or `Counter_get` for a method.
     pub val item: Sym
+    /// As listed: `length`, or `Counter.get`.
+    pub val name: String
     pub val kind: MarkKind
     pub val module: Sym
     /// The use's argument values, in parameter order.
