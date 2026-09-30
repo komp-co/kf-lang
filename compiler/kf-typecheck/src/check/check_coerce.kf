@@ -115,6 +115,8 @@ pub fun ty_from_mangle_frag(frag: String, span: Span, string_name: Sym): Type {
     if borrowed.byte_len() > 0 {
         return borrow_of(ty_from_mangle_frag(borrowed, span, string_name), borrow_frag_is_mut(s), span)
     }
+    val value = value_from_frag(s)
+    if value != null { return Type { kind: TypeKind.Value(value ?: 0), provenance: Provenance.Inferred(span) } }
     when s {
         "int8" => return Type { kind: TypeKind.Int8, provenance: Provenance.Inferred(span) }
         "int16" => return Type { kind: TypeKind.Int16, provenance: Provenance.Inferred(span) }

@@ -189,6 +189,14 @@ pub struct BoundInfo {
     pub val span: Span
 }
 
+/// A value parameter `N: uint64` on an owner, keyed as `BoundInfo` is.
+@derive(Clone)
+pub struct ValueParamInfo {
+    pub val owner: String
+    pub val param: String
+    pub val ty: TypeRef
+}
+
 /// An `annotation NAME(params)` declaration, in this crate or a dependency.
 pub struct DeclaredAnnotation {
     pub val name: Sym
@@ -235,6 +243,7 @@ pub struct SigTable {
     pub var assoc_bindings: List<AssocBindingInfo>
     pub var method_links: List<MethodLink>
     pub var bounds: List<BoundInfo>
+    pub var value_params: List<ValueParamInfo>
     pub var type_identities: List<TypeIdentity>
     pub var insts: List<GenericInst>
     /// Per-file imports as parallel lists: file, target module, and the one
@@ -300,6 +309,7 @@ pub fun new_sig_table(): SigTable {
         assoc_bindings: List.new<AssocBindingInfo>(),
         method_links: List.new<MethodLink>(),
         bounds: List.new<BoundInfo>(),
+        value_params: List.new<ValueParamInfo>(),
         type_identities: List.new<TypeIdentity>(),
         insts: List.new<GenericInst>(),
         caller_files: List.new<uint32>(),

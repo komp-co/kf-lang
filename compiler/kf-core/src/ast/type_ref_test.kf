@@ -25,6 +25,7 @@ import kf_core.span.*
         Reference(_, _) => fail("expected Poison, got Reference")
         Array(_, _) => fail("expected Poison, got Array")
         Projection(_, _) => fail("expected Poison, got Projection")
+        Value(_) => fail("expected Poison, got Value")
     }
 }
 

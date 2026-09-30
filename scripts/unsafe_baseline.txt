@@ -115,7 +115,7 @@
 53 compiler/kf-parse/src/lexer/operator.kf
 20 compiler/kf-parse/src/parser/expression/expression.kf
 5 compiler/kf-parse/src/parser/expression/index.kf
-46 compiler/kf-parse/src/parser/expression/postfix.kf
+44 compiler/kf-parse/src/parser/expression/postfix.kf
 31 compiler/kf-parse/src/parser/expression/primary.kf
 9 compiler/kf-parse/src/parser/lambda.kf
 5 compiler/kf-parse/src/parser/module.kf
@@ -125,9 +125,9 @@
 18 compiler/kf-parse/src/parser/statement/statement.kf
 2 compiler/kf-parse/src/parser/statement/terminator.kf
 6 compiler/kf-parse/src/parser/top_decl/annotation_decl.kf
-7 compiler/kf-parse/src/parser/top_decl/annotation_use.kf
+6 compiler/kf-parse/src/parser/top_decl/annotation_use.kf
 17 compiler/kf-parse/src/parser/top_decl/extension.kf
-35 compiler/kf-parse/src/parser/top_decl/impl.kf
+34 compiler/kf-parse/src/parser/top_decl/impl.kf
 3 compiler/kf-parse/src/parser/top_decl/signature_target.kf
 13 compiler/kf-parse/src/parser/top_decl/top_decl.kf
 48 compiler/kf-parse/src/parser/top_decl/types.kf
@@ -205,8 +205,9 @@
 2 compiler/kf-typecheck/src/check/rebind_static_call.kf
 1 compiler/kf-typecheck/src/check/self_recursion.kf
 2 compiler/kf-typecheck/src/check/stored_lambda_value.kf
-14 compiler/kf-typecheck/src/check/subscript_mut.kf
+13 compiler/kf-typecheck/src/check/subscript_mut.kf
 6 compiler/kf-typecheck/src/check/untyped_receiver.kf
+2 compiler/kf-typecheck/src/check/value_args.kf
 5 compiler/kf-typecheck/src/check/written_type_ref.kf
 6 compiler/kf-typecheck/src/context.kf
 2 compiler/kf-typecheck/src/lib.kf
@@ -227,7 +228,7 @@
 4 compiler/kf-typecheck/src/traits/traits.kf
 1 compiler/kf-typecheck/src/types/borrow_storage.kf
 17 compiler/kf-typecheck/src/types/coerce.kf
-4 compiler/kf-typecheck/src/types/decl_generics.kf
+5 compiler/kf-typecheck/src/types/decl_generics.kf
 4 compiler/kf-typecheck/src/types/recv_generics.kf
 27 compiler/kf-typecheck/src/types/resolve_ty.kf
 10 compiler/kf-typecheck/src/types/subst_projection_type_ref.kf

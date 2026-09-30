@@ -48,6 +48,7 @@ pub fun Type.type_to_type_ref(span: Span): TypeRef {
             if ret.type_ref_is_poison() { return poison_ref(span) }
             return new_type_ref(span, TypeRefKind.Function(params, ret))
         }
+        Value(v) => return new_type_ref(span, TypeRefKind.Value(v))
         _ => return poison_ref(span)
     }
 }

@@ -33,7 +33,7 @@ pub fun MarkTarget.check_bounds(table: &SigTable, diags: &var List<Diagnostic>):
 }
 
 /// `Name` for a bare named type, else "".
-fun TypeRef.bare_name(): String {
+pub fun TypeRef.bare_name(): String {
     return when (self.kind) {
         Named(name, args) => if args.size() == 0 { name.as_string() } else { String.from("") }
         _ => String.from("")

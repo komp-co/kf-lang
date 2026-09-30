@@ -262,6 +262,7 @@ pub fun TypeRef.tyref_to_source(): String {
             return out
         }
         Array(_e, _n) => return String.from("poison")
+        Value(v) => return "${v}"
         Projection(owner, member) => {
             val owner_tr: TypeRef = unsafe { *owner }
             var out = owner_tr.tyref_to_source()

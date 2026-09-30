@@ -54,6 +54,7 @@ impl Type {
                 val inner = unsafe { *owner }.mangle_frag()
                 return projection_mangle_frag(inner.as_str(), member.as_str())
             }
+            Value(v) => return value_frag(v)
             Poison => return String.from("poison")
         }
     }

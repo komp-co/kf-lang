@@ -52,6 +52,7 @@ fun subst_proj_tref_ptr(p: Ptr<TypeRef>, self_name: str, trait_name: str, trait_
                 _ => unsafe { *p = chosen }
             }
         }
+        Value(_v) => return
         Poison => return
     }
 }

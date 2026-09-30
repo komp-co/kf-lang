@@ -98,6 +98,7 @@ pub fun type_mangle(t: Type): String {
             val inner = type_mangle(unsafe { *owner })
             return projection_mangle_frag(inner.as_str(), member.as_str())
         }
+        Value(v) => return value_frag(v)
         Poison => return String.from("poison")
     }
 }

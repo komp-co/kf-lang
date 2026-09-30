@@ -11,6 +11,7 @@ import kf_resolve.*
 import kf_typecheck.traits.assoc_owner_key
 import kf_typecheck.check.mangle_base_name
 import kf_typecheck.check.check_generic_bounds
+import kf_typecheck.check.check_generic_arg_kinds
 import kf_core.ast.dyn_meta.dyn_trait_type
 import kf_typecheck.note_import_use
 
@@ -102,6 +103,7 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
                         ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
                         return poison_ty()
                     }
+                    if !check_generic_arg_kinds(s, &info.type_params, args, ctx) { return poison_ty() }
                 }
                 None => { }
             }
@@ -186,6 +188,7 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
             }
         }
         Array(_, _) => return poison_ty()
+        Value(v) => return Type { kind: TypeKind.Value(v), provenance: Provenance.Declared(self.span) }
         Projection(owner_ptr, member) => {
             val owner_tr: TypeRef = unsafe { *owner_ptr }
             val owner_ty = owner_tr.resolve_type_ref(ctx)

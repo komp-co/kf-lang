@@ -31,6 +31,7 @@ fun TypeRef.expanded_type(x: &var Expansion): TypeRef {
         Array(element, count) => {
             return new_type_ref(self.span, TypeRefKind.Array(Box.new(element.expanded_type(x)), count))
         }
+        Value(v) => return new_type_ref(self.span, TypeRefKind.Value(v))
         Poison => return type_ref_poison(self.span)
     }
 }

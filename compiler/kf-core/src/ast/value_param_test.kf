@@ -1,0 +1,30 @@
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.span.no_span
+
+fun bounded(name: str, bound: str): TypeParam {
+    var tp = new_type_param(no_span(), String.from(name))
+    tp.bounds.push(new_type_ref(no_span(), TypeRefKind.Named(intern(bound), List.new<TypeRef>())))
+    return tp
+}
+
+@test
+fun an_integer_bound_makes_a_value_parameter(): void {
+    val n = bounded("N", "uint64")
+    assert_eq(n.value_type(&List.new<TypeParam>()) != null, true, "`N: uint64`")
+}
+
+@test
+fun a_trait_bound_makes_a_type_parameter(): void {
+    val t = bounded("T", "Clone")
+    assert_eq(t.value_type(&List.new<TypeParam>()) == null, true, "`T: Clone`")
+}
+
+@test
+fun a_sibling_bound_makes_a_value_parameter(): void {
+    var params = List.new<TypeParam>()
+    params.push(bounded("I", "Integer"))
+    params.push(bounded("M", "I"))
+    assert_eq(params.at(1).value_type(&params) != null, true, "`M: I`")
+}

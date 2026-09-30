@@ -236,3 +236,26 @@ pub fun borrow_frag_inner(frag: str): String {
 pub fun borrow_frag_is_mut(frag: str): bool {
     return frag.starts_with("kf__mut__")
 }
+
+/// A value argument's fragment: its digits, behind `0m` when negative. A
+/// leading digit keeps it apart from every type's fragment.
+pub fun value_frag(value: int64): String {
+    if value >= 0 { return "${value}" }
+    val magnitude = (0 - (value + 1)) as uint64 + 1
+    return "0m${magnitude}"
+}
+
+/// The value `value_frag` spelled, or None for any other fragment.
+pub fun value_from_frag(frag: str): int64? {
+    val negative = frag.starts_with("0m")
+    val digits = if negative { frag.substring(2, frag.byte_len()) } else { String.from(frag) }
+    if digits.byte_len() == 0 { return null }
+    var magnitude: uint64 = 0
+    while i in 0..digits.byte_len() {
+        val b = digits.byte_at(i)
+        if b < 48 || b > 57 { return null }
+        magnitude = magnitude * 10 + (b - 48) as uint64
+    }
+    if negative { return 0 - ((magnitude - 1) as int64) - 1 }
+    return magnitude as int64
+}

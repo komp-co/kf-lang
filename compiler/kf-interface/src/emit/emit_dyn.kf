@@ -95,6 +95,7 @@ pub fun Type.dyn_type_to_source(): String {
         }
         FnTy(signature) => return dyn_function_type_source(unsafe { &*signature })
         Projection(_, _) => return String.from("poison")
+        Value(v) => return "${v}"
         Poison => return String.from("poison")
     }
 }

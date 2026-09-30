@@ -158,6 +158,7 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
             }
         }
     }
+    if !check_generic_arg_kinds(sig.name.as_str(), &gnames, type_args, ctx) { return poison_ty() }
     var inf_tys = List.new<Type>()
     var g0 = 0
     while g0 < gnames.size() {
