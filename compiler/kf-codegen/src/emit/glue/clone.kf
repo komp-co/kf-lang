@@ -131,6 +131,7 @@ fun TopDecl.copied_top_decl(kind: TopDeclKind): TopDecl {
     out.name_span = self.name_span
     out.ext_name = self.ext_name
     out.resolves_in = self.resolves_in
+    out.is_sealed = self.is_sealed
     return out
 }
 

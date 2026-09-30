@@ -5,6 +5,19 @@ import kf_core.ast.*
 import kf_parse.parser.*
 
 impl Parser {
+    /// `sealed trait`: `sealed` is a word only here, so a name `sealed`
+    /// elsewhere is untouched.
+    fun at_sealed_trait(): bool {
+        return self.at_word("sealed") && is_keyword(self.peek_at(1), Keyword.Trait)
+    }
+
+    mutating fun parse_sealed_trait(span: Span, is_pub: bool): TopDecl {
+        self.advance() // consume `sealed`
+        var td = self.parse_trait(span, is_pub)
+        td.is_sealed = true
+        return td
+    }
+
     mutating fun parse_trait(span: Span, is_pub: bool): TopDecl {
         unsafe { self.advance() } // consume `trait`
         // Read before the name is interned; a Sym has no position.

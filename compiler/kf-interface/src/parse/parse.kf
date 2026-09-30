@@ -325,6 +325,8 @@ mutating fun JsonReader.load_trait(crate: CrateId, path: str, hidden: bool): Top
     val name = self.read_string()
     if !self.expect_key("pub") { return poison_decl() }
     val is_pub = self.read_bool()
+    if !self.expect_key("sealed") { return poison_decl() }
+    val is_sealed = self.read_bool()
     if !self.expect_key("lang") { return poison_decl() }
     val lang = self.read_string()
     if !self.expect_key("supertraits") { return poison_decl() }
@@ -341,6 +343,7 @@ mutating fun JsonReader.load_trait(crate: CrateId, path: str, hidden: bool): Top
     val methods = self.load_method_list(crate, path, false, hidden)
     if self.object_has_next() { return poison_decl() }
     var decl = new_top_decl(no_span(), name, TopDeclKind.TraitDecl(methods, is_pub, supers))
+    decl.is_sealed = is_sealed
     if !lang.as_str().equals("") { decl.annotations.push(lang_annotation(lang.as_str())) }
     return stamp_imported(decl, crate, path, "", hidden)
 }

@@ -220,6 +220,40 @@ A trait with requirements cannot be used as a
 [trait object](trait-objects.md). See
 [limitations](../limitations.md#supertraits).
 
+## Sealed traits
+
+`sealed` before `trait` keeps the set of implementers to the trait's own
+crate. Any crate that sees the trait may bound by it and call its methods;
+only its crate may write `impl ... for` it.
+
+```kflat
+pub sealed trait Endian {
+    fun swaps(): bool
+}
+
+pub struct Little {}
+pub struct Big {}
+
+impl Endian for Little { fun swaps(): bool { return false } }
+impl Endian for Big { fun swaps(): bool { return true } }
+```
+
+In another crate, `fun read<E: Endian>(order: &E)` is fine, and an impl is
+not:
+
+```console
+error: `Endian` is sealed: only its crate, `bytes`, implements it
+    impl Endian for Middle { fun swaps(): bool { return true } }
+    ^~~~
+```
+
+Seal a trait when its implementers are a closed list: the choices an API
+offers, or a promise that `unsafe` code relies on. It also leaves the trait
+free to grow, since adding a method breaks no impl outside the crate. The
+boundary is the crate, not the module, so the impls may live anywhere in it.
+`sealed` is a word only there; a function or variable may still be named
+`sealed`.
+
 ## Trait-qualified calls
 
 When two traits provide methods with the same name, qualify the call with the
