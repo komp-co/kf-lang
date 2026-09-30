@@ -36,20 +36,27 @@ pub struct Field {
     pub val ty: Box<TypeRef>
     pub val is_var: bool
     pub val is_pub: bool
+    /// The `@...` run above the field.
+    pub var annotations: List<Annotation>
 }
 
 pub fun new_field(span: Span, name: String, ty: Ptr<TypeRef>, is_var: bool, is_pub: bool): Field {
-    return Field { span: span, name: intern(name.as_str()), ty: ty, is_var: is_var, is_pub: is_pub }
+    return Field {
+        span: span, name: intern(name.as_str()), ty: ty, is_var: is_var, is_pub: is_pub,
+        annotations: List.new<Annotation>()
+    }
 }
 
 pub struct Variant {
     pub val span: Span
     pub val name: Sym
     pub var payloads: List<TypeRef>
+    /// The `@...` run above the variant.
+    pub var annotations: List<Annotation>
 }
 
 pub fun new_variant(span: Span, name: String, payloads: List<TypeRef>): Variant {
-    return Variant { span: span, name: intern(name.as_str()), payloads: payloads }
+    return Variant { span: span, name: intern(name.as_str()), payloads: payloads, annotations: List.new<Annotation>() }
 }
 
 /// One argument of `@name(...)`: `Clone`, `"string"`, `iterations = 100`.
@@ -70,13 +77,16 @@ pub struct Annotation {
     pub val span: Span
 }
 
-/// A kind of declaration an annotation may mark by kind.
+/// A kind of declaration, or of a type's member, an annotation may mark by
+/// kind.
 @derive(Clone, Equal)
 pub enum MarkKind {
     Function
     Struct
     Enum
     Trait
+    Field
+    Variant
 }
 
 /// One kind in `on struct: Plugin, enum`, and the traits a marked type of

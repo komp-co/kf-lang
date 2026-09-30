@@ -52,14 +52,18 @@ pub fun TopDecl.deep_clone_top_decl(): TopDecl {
             while field in &fields {
                 val ty: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
                 unsafe { *ty = clone_type_ref(&*field.ty) }
-                clone_fields.push(new_field(field.span, field.name.as_string(), ty, field.is_var, field.is_pub))
+                var copied = new_field(field.span, field.name.as_string(), ty, field.is_var, field.is_pub)
+                copied.annotations = field.annotations.clone()
+                clone_fields.push(copied)
             }
             return self.copied_top_decl(TopDeclKind.Struct(clone_fields, is_pub))
         }
         EnumDecl(variants, is_pub) => {
             var clone_variants = List.new<Variant>()
             while variant in &variants {
-                clone_variants.push(new_variant(variant.span, variant.name.as_string(), clone_tref_vec(&variant.payloads)))
+                var copied = new_variant(variant.span, variant.name.as_string(), clone_tref_vec(&variant.payloads))
+                copied.annotations = variant.annotations.clone()
+                clone_variants.push(copied)
             }
             return self.copied_top_decl(TopDeclKind.EnumDecl(clone_variants, is_pub))
         }

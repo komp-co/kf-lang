@@ -130,6 +130,10 @@ mutating fun Expr.queried_annotation(args: &List<Expr>, sigs: &SigTable, ctx: &v
     val index = found ?: return self.query_error("cannot find annotation `${name.as_str()}` in this scope", ctx)
     val declared = sigs.annotations.at(index)
     note_import_use_named(ctx.sigs, ctx.owner_file, declared.module, declared.name)
+    if declared.target.marks_only_members() {
+        val why = "`annotated` lists declarations, not fields or variants"
+        return self.query_error("`@${name.as_str()}` marks only members: ${why}", ctx)
+    }
     val pin_refs = self.queried_type_args()
     val wanted = declared.type_params.size()
     if wanted == 0 && pin_refs.size() > 0 {
@@ -223,11 +227,22 @@ fun arguments_literal(listed: &AnnotatedItem, declared: &DeclaredAnnotation, spa
     return new_expr(span, ExprKind.StructLit(declared.name, fields))
 }
 
+fun MarkTarget.marks_only_members(): bool {
+    val kinds = self.kinds()
+    if kinds.size() == 0 { return false }
+    while listed in &kinds {
+        if !listed.kind.is_member() { return false }
+    }
+    return true
+}
+
 fun MarkKind.variant_name(): Sym {
     return when (self) {
         Function => intern("Function")
         Struct => intern("Struct")
         Enum => intern("Enum")
         Trait => intern("Trait")
+        // Only declarations are listed.
+        _ => intern("")
     }
 }

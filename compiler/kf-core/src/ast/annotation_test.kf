@@ -55,3 +55,15 @@ fun annotation_with(args: List<AnnotationArg>): Annotation {
     args.push(argument("", ExprKind.LitInt(3)))
     assert_eq(annotation_with(args).words().size(), 0, "a number is not a word")
 }
+
+@test fun field_and_variant_are_member_kinds(): void {
+    assert_eq(MarkKind.Field.is_member() && MarkKind.Variant.is_member(), true, "both are members")
+}
+
+@test fun struct_is_not_a_member_kind(): void {
+    assert_eq(MarkKind.Struct.is_member(), false, "a declaration kind")
+}
+
+@test fun field_is_read_from_its_word(): void {
+    assert_eq(mark_kind_of("field") == MarkKind.Field, true, "`field` after `on`")
+}

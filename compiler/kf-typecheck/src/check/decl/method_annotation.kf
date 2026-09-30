@@ -64,8 +64,8 @@ fun validate_members(members: &List<TopDecl>, diags: Ptr<List<Diagnostic>>): voi
     }
 }
 
-/// Each declared annotation on this declaration's methods: registered for an
-/// impl's, reported for a trait's.
+/// Each declared annotation on this declaration's members: registered for an
+/// impl's method, reported for a trait's, checked on a field or a variant.
 pub fun TopDecl.register_member_annotations(sigs: Ptr<SigTable>, pass_diags: Ptr<List<Diagnostic>>,
     table: &var SigTable, diags: &var List<Diagnostic>): void {
     val is_generic = self.generics.size() > 0
@@ -80,6 +80,8 @@ pub fun TopDecl.register_member_annotations(sigs: Ptr<SigTable>, pass_diags: Ptr
             register_members(&methods, &owner, sigs, pass_diags, table, diags)
         }
         TraitDecl(members, _pub, _supers) => reject_on_trait_members(&members, sigs, table, diags)
+        Struct(_fields, _pub) => self.check_member_uses(sigs, table, diags)
+        EnumDecl(_variants, _pub) => self.check_member_uses(sigs, table, diags)
         _ => {}
     }
 }
