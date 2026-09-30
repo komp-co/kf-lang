@@ -42,9 +42,11 @@ fun TypeRef.bare_name(): String {
 
 /// Whether this declaration, a method of `owner` or top-level, may carry
 /// `@kind`, reported when it may not. `sigs` is `table`, and `pass_diags` the
-/// pass's list, for resolving the function's type.
+/// pass's list, for resolving the function's type; `bound` receives what the
+/// annotation's type parameters stand for.
 pub fun TopDecl.fits_target(kind: str, declared: &DeclaredAnnotation, owner: &MethodOwner, table: &SigTable,
-    sigs: Ptr<SigTable>, pass_diags: Ptr<List<Diagnostic>>, diags: &var List<Diagnostic>): bool {
+    sigs: Ptr<SigTable>, pass_diags: Ptr<List<Diagnostic>>, bound: &var List<Type>,
+    diags: &var List<Diagnostic>): bool {
     val at = self.decl_name_span()
     when (declared.target) {
         Kinds(kinds) => {
@@ -56,7 +58,7 @@ pub fun TopDecl.fits_target(kind: str, declared: &DeclaredAnnotation, owner: &Me
             diags.push(error_at(at, "`@${kind}` can only annotate ${kinds.phrase().as_str()}"))
             return false
         }
-        _ => return self.fits_signature(kind, declared, owner, sigs, pass_diags, diags)
+        _ => return self.fits_signature(kind, declared, owner, table, sigs, pass_diags, bound, diags)
     }
 }
 

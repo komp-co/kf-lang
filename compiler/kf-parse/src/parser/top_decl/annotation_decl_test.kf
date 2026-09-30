@@ -193,3 +193,24 @@ fun has_errors(src: str): bool {
 @test fun a_signature_without_a_result_is_an_error(): void {
     assert_eq(has_errors("annotation flag on (bool, ..)"), true, "`->` is required")
 }
+
+fun type_param_summary(src: str): String {
+    var p = parser_for(src)
+    val td = p.parse_top_decl()
+    var out = String.from("")
+    while tp in &td.generics {
+        if out.byte_len() > 0 { out.append(",") }
+        out.append("${tp.name.as_str()}:${tp.bounds.size()}")
+    }
+    return out
+}
+
+@test fun an_annotation_declares_bounded_type_parameters(): void {
+    val summary = type_param_summary("annotation <T: Display + Clone, S> shown on (T, &S) -> String")
+    assert_eq(summary.as_str(), "T:2,S:0", "each with its bounds")
+}
+
+@test fun type_parameters_come_before_the_name(): void {
+    var p = parser_for("annotation <T: Display> shown on (T) -> String")
+    assert_eq(p.parse_top_decl().name.as_str(), "shown", "the name follows the list")
+}

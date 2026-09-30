@@ -64,7 +64,7 @@
 1 compiler/kf-interface/src/emit/emit_generics.kf
 2 compiler/kf-interface/src/glue_set.kf
 5 compiler/kf-interface/src/parse/parse.kf
-1 compiler/kf-interface/src/parse/parse_annotation.kf
+2 compiler/kf-interface/src/parse/parse_annotation.kf
 7 compiler/kf-interface/src/parse/parse_dyn.kf
 1 compiler/kf-interface/src/parse/parse_support.kf
 42 compiler/kf-interface/src/reference_walk.kf
@@ -165,6 +165,7 @@
 22 compiler/kf-typecheck/src/check/control/check_when.kf
 6 compiler/kf-typecheck/src/check/control/exhaustive.kf
 17 compiler/kf-typecheck/src/check/control/string_pattern.kf
+1 compiler/kf-typecheck/src/check/decl/annotation_type_params.kf
 56 compiler/kf-typecheck/src/check/decl/check_decl.kf
 15 compiler/kf-typecheck/src/check/decl/check_function_body.kf
 8 compiler/kf-typecheck/src/check/decl/check_impl_header.kf
