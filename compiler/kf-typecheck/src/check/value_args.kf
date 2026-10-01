@@ -68,6 +68,12 @@ fun TypeRef.names_generic_in_scope(ctx: &TypeCtx): bool {
 fun TypeRef.fits_value_param(owner: str, param: str, written: &TypeRef, params: &List<String>, args: &List<TypeRef>,
     ctx: &var TypeCtx): bool {
     val value = self.value_argument()
+    if self.is_wildcard() {
+        val message = String.from("the array's length is left out here; only a binding initialized by a literal ") +
+            String.from("or another array can leave it out")
+        ctx.emit(error_at(self.span, message))
+        return false
+    }
     if value == null {
         // A parameter of the enclosing scope; its instances are checked.
         if self.names_generic_in_scope(ctx) { return true }

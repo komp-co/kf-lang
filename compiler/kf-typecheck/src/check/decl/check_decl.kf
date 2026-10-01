@@ -50,11 +50,14 @@ pub fun check_decl_module(m: &var Module,
         decl.register_type_identity(sig_ptr)
     }
     m.record_no_mangle_types(sig_ptr)
+    unsafe { (*sig_ptr).views = m.view_type_names() }
     unsafe { (*sig_ptr).lang_string = m.lang_type_name(lang_string_key()) }
     unsafe { (*sig_ptr).lang_option = m.lang_type_name(lang_option_key()) }
     unsafe { (*sig_ptr).lang_list = m.lang_type_name(lang_list_key()) }
-    // The `?` placeholder becomes the real option name.
-    m.rewrite_option_module(unsafe { (*sig_ptr).lang_option })
+    unsafe { (*sig_ptr).lang_array = m.lang_type_name(lang_array_key()) }
+    // The `?` and `[N]` placeholders become the real option and array names.
+    val heads = LangHeads { option: unsafe { (*sig_ptr).lang_option }, array: unsafe { (*sig_ptr).lang_array } }
+    m.rewrite_placeholder_module(heads)
     while td in &m.decls {
         when (td.kind) {
             TraitDecl(_members, _is_pub, _supers) => {
@@ -320,7 +323,7 @@ fun register_omitted_defaults(struct_name: String, methods: &List<TopDecl>, suff
                             ptys.push(subst_generic(req.params.at(pi), String.from("Self"), self_ty.clone()))
                         }
                         val ret_ty = req.ret.subst_generic(String.from("Self"), self_ty.clone())
-                        val borrows = infer_borrow_origin(&ptys, &ret_ty, !req.is_static)
+                        val borrows = infer_borrow_origin(&ptys, &ret_ty, !req.is_static, sig_ptr)
                         unsafe { sig_ptr.insert(FnSignature { name: mangled, params: ptys, ret: ret_ty, generics: List.new<String>(), is_static: req.is_static, is_mutating: req.is_mutating, owner_module: td.module_path, owner_crate: td.crate, is_pub: true, borrows: borrows, is_prelude: false, is_extern: false }) }
                     }
                 }
@@ -360,7 +363,7 @@ fun register_fn_sig(metadata_owner: Ptr<TopDecl>, fn_name: String, params: List<
     }
     val sp = sig_ptr
     reject_unsayable_origin(&ptys, &ret_ty, false, ret_tr.span, &var ctx0)
-    val borrows = infer_borrow_origin(&ptys, &ret_ty, false)
+    val borrows = infer_borrow_origin(&ptys, &ret_ty, false, sp)
     val owner = unsafe { &*metadata_owner }
     insert_fn_sig(sp, metadata_owner, FnSignature { name: fn_name, params: ptys, ret: ret_ty, generics: generics, is_static: false, is_mutating: false, owner_module: owner_module, owner_crate: owner_crate, is_pub: is_pub, borrows: borrows, is_prelude: owner.has_annotation("prelude"),
         is_extern: owner.is_extern_decl() })
@@ -440,7 +443,7 @@ fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &va
                 }) }
             }
             reject_unsayable_origin(&ptys, &ret_ty, !is_static, ret_tr.span, &var ctx0)
-            val borrows = infer_borrow_origin(&ptys, &ret_ty, !is_static)
+            val borrows = infer_borrow_origin(&ptys, &ret_ty, !is_static, sp)
             unsafe { sp.insert(FnSignature { name: mangled, params: ptys, ret: ret_ty, generics: all_generics, is_static: is_static, is_mutating: is_mutating, owner_module: td.module_path, owner_crate: td.crate, is_pub: true, borrows: borrows, is_prelude: (&td).has_annotation("prelude"), is_extern: false }) }
         }
         _ => { }

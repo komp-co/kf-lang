@@ -76,6 +76,8 @@ fun TypeRef.tref_infects(names: &List<String>, list_name: Sym): bool {
             }
             return false
         }
+        // An array's storage, by its elements.
+        Array(element, _length) => return element.tref_infects(names, list_name)
         _ => return false
     }
 }

@@ -118,13 +118,15 @@ impl Parser {
                 unsafe { *ptr = type_ref_poison(t.span) }
             }
         }
+        val type_span = t.span
+        self.parse_array_suffixes(ptr)
         // `T?` is `Option<T>`, an ordinary generic enum.
         if is_op(self.peek(), Operator.Question) {
             unsafe { self.advance() }
             val base: TypeRef = unsafe { *ptr }
             var oargs = List.new<TypeRef>()
             oargs.push(base)
-            unsafe { *ptr = new_type_ref(t.span, TypeRefKind.Named(lang_placeholder(lang_option_key()), oargs)) }
+            unsafe { *ptr = new_type_ref(type_span, TypeRefKind.Named(lang_placeholder(lang_option_key()), oargs)) }
         }
         return ptr
     }
@@ -150,6 +152,29 @@ impl Parser {
             if self.pos == before { break }
         }
         return args
+    }
+
+    /// `T[N]` is `Array<T, N>`, and `T[]` is `Array<T, _>`, its length taken
+    /// from what initializes it. Both name core's array by its lang key.
+    mutating fun parse_array_suffixes(ptr: Ptr<TypeRef>): void {
+        while is_op(self.peek(), Operator.LBracket) {
+            val span = self.peek().span
+            self.advance()
+            val length = if is_op(self.peek(), Operator.RBracket) {
+                new_type_ref(span, TypeRefKind.Named(intern("_"), List.new<TypeRef>()))
+            } else {
+                self.parse_type_argument()
+            }
+            if !is_op(self.peek(), Operator.RBracket) {
+                self.parse_err(self.peek().span, String.from("expected `]` to close an array's length"))
+                return
+            }
+            self.advance()
+            var args = List.new<TypeRef>()
+            args.push(unsafe { *ptr })
+            args.push(length)
+            unsafe { *ptr = new_type_ref(span, TypeRefKind.Named(lang_placeholder(lang_array_key()), args)) }
+        }
     }
 
     /// A type, or the value a value parameter takes: `7`, `-7`.

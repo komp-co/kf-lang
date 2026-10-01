@@ -15,6 +15,7 @@ import kf_typecheck.check.borrow.borrow_written_deref
 
 pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
     e.name_empty_list_literal(ctx)
+    if e.builds_array_without_list(ctx) { return }
     // The parser's written-`&` tag is cleared here: Lower reads
     // `coerce == none` before inserting an auto-clone.
     val written = e.coerce
@@ -160,20 +161,33 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
             val struct_name = struct_name_sym.as_string()
             val n_targs: uint64 = e.type_args.size()
             if n_targs > 0 || struct_name.as_str().equals("Self") {
-                e.ty = e.check_generic_struct_lit(struct_name, &var fields, ctx)
+                e.ty = e.check_generic_struct_lit(struct_name, &var fields, false, ctx)
             } else {
-                e.ty = check_struct_lit(struct_name.as_str(), &var fields, e.span, ctx)
+                val inferred = e.infer_struct_type_args(struct_name.as_str(), &var fields, ctx)
+                if inferred == null {
+                    e.ty = check_struct_lit(struct_name.as_str(), &var fields, e.span, false, ctx)
+                } else if inferred == Option.Some(true) {
+                    e.ty = e.check_generic_struct_lit(struct_name, &var fields, true, ctx)
+                } else {
+                    e.ty = poison_ty()
+                }
             }
             // Written back: the checkers reorder initialisers into declaration
             // order, and `when` bound the payload by value.
             e.kind = ExprKind.StructLit(struct_name_sym, fields)
+            e.reject_split_view_origin(ctx)
         }
         Cast(inner_ptr, ty_ptr) => {
+            val operand = unsafe { &var *inner_ptr }
+            val borrowed = operand.coerce == coerce_written_amp() || operand.coerce == coerce_written_amp_var()
             // The operand is typed so a nested receiver can be mangled.
-            check_expr(unsafe { &var *inner_ptr }, ctx)
+            check_expr(operand, ctx)
+            // `(&x) as Ptr<T>` is x's address; a reference or pointer is one
+            // already.
+            val tag = operand.ty.kind.kind_tag()
+            if borrowed && tag != TAG_REF() && tag != TAG_PTR() { operand.coerce = coerce_addr_of() }
             val tr = unsafe { *ty_ptr }
             e.ty = tr.resolve_type_ref(ctx)
-            val operand = unsafe { &*inner_ptr }
             // The cast converts a literal of any width.
             if is_integer_literal(operand) { note_literal_sized(operand.span, ctx) }
             reject_enum_to_number_cast(operand.ty.clone(), e.ty.clone(), e.span, ctx)

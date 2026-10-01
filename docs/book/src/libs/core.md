@@ -639,6 +639,47 @@ spelling compiles and then hands back an untyped element. For the same reason
 `chain` widens and the nesting above gets a method form, without changing what
 any existing caller wrote.
 
+## Array
+
+`Array<T, N>`, written `T[N]`, holds `N` elements of `T` inline: on the
+stack, or inside the struct that has one, with no allocation. The
+[arrays chapter](../lang/arrays.md) covers the syntax. The length is a
+[value parameter](../lang/generics.md#value-parameters), so it is part of the
+type. Core declares it as a lang item and writes its methods in KFlat; the
+compiler supplies only the storage, laid out as C's `T items[N]`.
+
+```kflat
+fun total(xs: &Array<int32, 4>): int32 {
+    var sum = 0
+    while x in xs {
+        sum = sum + x
+    }
+    return sum
+}
+
+fun main(): int32 {
+    var nums = Array<int32, 4> {}
+    nums[0] = 1
+    nums[3] = 4
+    return total(&nums) + nums.size() as int32    // 5 + 4
+}
+```
+
+| method | does |
+|---|---|
+| `size()` | `N` |
+| `at(i)`, `at_mut(i)`, `xs[i]` | a borrow of element `i`; out of range panics |
+| `iter()` | an `ArrayIter<T>`, a cursor valid while the array is alive and unmoved |
+
+A list literal where an array is expected builds it in place, with exactly
+`N` elements: `val rgb: Array<uint8, 3> = [255, 128, 0]`. In a crate without
+alloc there is no list, so a literal anywhere is an array of its first
+element's type.
+
+`Array<T, N>` is `Copy` when `T` is, and `Clone` when `T` is. Otherwise it
+moves, and dropping it drops each element. `Array<T, N> {}` starts with every
+element zeroed.
+
 ## Path
 
 `Path` represents a filesystem path. It wraps a `String`, so it lives in

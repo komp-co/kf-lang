@@ -111,6 +111,8 @@ fun add_byval_dep(deps: &var List<String>, tr: TypeRef, m: &Module): void {
                 if is_user_type_name(mangled, m) { deps.push(mangled) }
             }
         }
+        // An array's storage holds its elements by value.
+        Array(element, _length) => add_byval_dep(deps, (*element).clone(), m)
         _ => {}
     }
 }

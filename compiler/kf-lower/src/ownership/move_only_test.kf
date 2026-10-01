@@ -1,0 +1,22 @@
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.span.no_span
+import kf_core.ast.*
+
+fun storage_of(element: str): TypeRef {
+    val inner = new_type_ref(no_span(), TypeRefKind.Named(intern(element), List.new<TypeRef>()))
+    return new_type_ref(no_span(), TypeRefKind.Array(Box.new(inner), 2))
+}
+
+@test
+fun array_storage_owns_what_its_elements_own(): void {
+    var names = List.new<String>()
+    names.push(String.from("Owned"))
+    assert_eq(storage_of("Owned").tref_infects(&names, intern("List")), true, "two `Owned`s move with the array")
+}
+
+@test
+fun array_storage_of_scalars_owns_nothing(): void {
+    assert_eq(storage_of("int32").tref_infects(&List.new<String>(), intern("List")), false, "copied with the array")
+}

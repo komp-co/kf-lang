@@ -25,6 +25,7 @@ impl Parser {
                 if self.at_annotation_decl() { return self.parse_annotation_decl(t.span, false) }
                 if self.at_template_decl() { return self.parse_template_decl(t.span) }
                 if self.at_sealed_trait() { return self.parse_sealed_trait(t.span, false) }
+                if self.at_view_type() { return self.parse_view_type(t.span, false) }
                 self.parse_err(t.span, "expected a declaration (`fun`, `struct`, `enum`, `impl`, `trait`, `extern`, `import`), found ${tok_str(self.peek())}")
                 unsafe { self.advance() }
                 self.sync_to_newline()
@@ -169,6 +170,9 @@ impl Parser {
         }
         if self.at_sealed_trait() {
             return self.parse_sealed_trait(span, true)
+        }
+        if self.at_view_type() {
+            return self.parse_view_type(span, true)
         }
         if self.at_annotation_decl() {
             return self.parse_annotation_decl(span, true)

@@ -76,6 +76,12 @@ src/main.kf:3:13: error: lambda parameter `x` needs a type annotation (its type 
 ```
 
 
+## Arrays
+
+An array implements no traits but `Clone` and `Copy`: `==`, `Hash` and
+`Display` do not apply to one, and `@derive(Equal)`, `Hash` and `Default` fail
+on a struct holding one ([#299]). Compare or print the elements instead.
+
 ## Function values
 
 - **A borrowing loop over a list of them fails in cc.** `while f in &handlers`
@@ -216,3 +222,4 @@ not agree with it in every case.
 [#290]: https://github.com/komp-co/komp/issues/290
 [#296]: https://github.com/komp-co/komp/issues/296
 [#297]: https://github.com/komp-co/komp/issues/297
+[#299]: https://github.com/komp-co/komp/issues/299
