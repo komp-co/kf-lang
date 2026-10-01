@@ -30,16 +30,26 @@ struct Pair<A, B> {
 }
 ```
 
-Write the type arguments **on the literal**, not only on the binding:
+A literal reads its type arguments off its fields, as a call reads them off
+its arguments, through `&T`, `Ptr<T>` and nested instances as well as a bare
+`T`:
 
 ```kflat
-val p = Pair<int32, bool> { first: 1, second: true }
+val p = Pair { first: 1, second: true }               // Pair<int32, bool>
+val q = Pair<int64, bool> { first: 1, second: true }  // written out
 ```
 
-`val p: Pair<int32, bool> = Pair { ... }` — arguments on the annotation, bare
-name on the literal — is rejected: the literal is checked against the
-template, so a field reads as `A` rather than `int32` ([#3]). Until that is
-fixed, put the arguments on the literal every time.
+A parameter no field mentions cannot be read off anything, so it has to be
+written:
+
+```text
+error: cannot infer `T` for `Tagged` from its fields: write the type arguments, as `Tagged<...> { ... }`
+```
+
+The binding's annotation is not consulted: `val p: Pair<int64, bool> = Pair {
+first: 1, second: true }` reads `first` as `int32` and is rejected ([#3]).
+Write the arguments on the literal when the fields alone would pick a
+different type.
 
 Enum variants work the same way:
 

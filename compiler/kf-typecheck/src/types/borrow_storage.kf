@@ -1,7 +1,7 @@
 // A borrow may not be stored in a struct field or enum payload, where it
 // would outlive what it borrows. A container argument counts: `List<str>`
-// keeps the borrow as surely as `str`. Passing a borrow into a function is
-// fine.
+// keeps the borrow as surely as `str`, and so does a view type. Passing a
+// borrow into a function is fine.
 
 import kf_core.ast.*
 import kf_core.diagnostic.new_label
@@ -16,8 +16,8 @@ pub fun TypeRef.validate_borrow_storage(position: str, ctx: &var TypeCtx): void 
 /// `outer` is the declared type, `tr` the part under test, so the message
 /// names both.
 fun TypeRef.check_stored_type(outer: &TypeRef, position: str, ctx: &var TypeCtx): void {
-    if type_ref_is_borrow(self) {
-        val message = self.stored_borrow_message(outer, position)
+    if self.stores_borrow(ctx) {
+        val message = self.stored_borrow_message(outer, position, ctx)
         ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
         return
     }
@@ -35,11 +35,29 @@ fun TypeRef.check_stored_type(outer: &TypeRef, position: str, ctx: &var TypeCtx)
     }
 }
 
-fun TypeRef.stored_borrow_message(outer: &TypeRef, position: str): String {
+fun TypeRef.stores_borrow(ctx: &var TypeCtx): bool {
+    return type_ref_is_borrow(self) || self.names_view_type(ctx)
+}
+
+fun TypeRef.names_view_type(ctx: &var TypeCtx): bool {
+    val name = when (self.kind) {
+        Named(n, _args) => n
+        _ => intern("")
+    }
+    if name.as_str() == "" { return false }
+    return unsafe { (ctx.sigs as uint64) != 0 && (*ctx.sigs).declares_view(name.as_str()) }
+}
+
+fun TypeRef.stored_borrow_message(outer: &TypeRef, position: str, ctx: &var TypeCtx): String {
     val rendered = self.display_type_ref()
-    if type_ref_is_borrow(outer) {
-        return "`${rendered.as_str()}` cannot be stored in ${position}: a borrow is only valid for the call that made it"
+    val noun = if self.names_view_type(ctx) { "a view" } else { "a borrow" }
+    val lasts = "is only valid for the call that made it"
+    if outer.stores_borrow(ctx) {
+        val subject = "`${rendered.as_str()}` cannot be stored in ${position}"
+        if self.names_view_type(ctx) { return "${subject}: it is a view, and a view ${lasts}" }
+        return "${subject}: a borrow ${lasts}"
     }
     val whole = outer.display_type_ref()
-    return "`${whole.as_str()}` cannot be stored in ${position}: `${rendered.as_str()}` is a borrow, and a borrow is only valid for the call that made it"
+    return "`${whole.as_str()}` cannot be stored in ${position}: " +
+        "`${rendered.as_str()}` is ${noun}, and ${noun} ${lasts}"
 }

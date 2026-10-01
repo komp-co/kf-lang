@@ -11,16 +11,18 @@ import kf_typecheck.note_import_use
 
 // `Pair<int32,int32> { ... }`: the concrete layout is instantiated, fields
 // checked against it, and the mangled name stored on mangled_callee.
-mutating fun Expr.check_generic_struct_lit(struct_name: String, fields: &var List<FieldInit>, ctx: &var TypeCtx): Type {
+/// `prechecked` when the initializers were checked to infer the arguments.
+mutating fun Expr.check_generic_struct_lit(struct_name: String, fields: &var List<FieldInit>, prechecked: bool,
+    ctx: &var TypeCtx): Type {
     val ttr = new_type_ref(self.span, TypeRefKind.Named(intern(struct_name.as_str()), self.type_args.clone()))
     val rty = ttr.resolve_type_ref(ctx)
     val eff = struct_name_of(rty)
     val eff_empty = eff.as_str().equals("")
     if eff_empty {
-        return check_struct_lit(struct_name.as_str(), fields, self.span, ctx)
+        return check_struct_lit(struct_name.as_str(), fields, self.span, prechecked, ctx)
     }
     self.mangled_callee = intern(eff.as_str())
-    return check_struct_lit(eff.as_str(), fields, self.span, ctx)
+    return check_struct_lit(eff.as_str(), fields, self.span, prechecked, ctx)
 }
 
 fun struct_name_of(t: Type): String {
@@ -30,7 +32,8 @@ fun struct_name_of(t: Type): String {
     }
 }
 
-fun check_struct_lit(struct_name: str, fields: &var List<FieldInit>, span: Span, ctx: &var TypeCtx): Type {
+fun check_struct_lit(struct_name: str, fields: &var List<FieldInit>, span: Span, prechecked: bool,
+    ctx: &var TypeCtx): Type {
     val sp = ctx.sigs
     val layout = unsafe { sp.find_struct(struct_name, ctx.owner_crate) } ?: return poison_ty()
     // Naming a type in a literal is a use of its module's import.
@@ -45,7 +48,7 @@ fun check_struct_lit(struct_name: str, fields: &var List<FieldInit>, span: Span,
             if lf.name.as_str().equals(fi.name.as_str()) {
                 // Through the pointer, so `.ty` lands on the real node.
                 val v_ptr: Ptr<Expr> = fi.value
-                check_expr(unsafe { &var *v_ptr }, ctx)
+                if !prechecked { check_expr(unsafe { &var *v_ptr }, ctx) }
                 if reject_stored_lambda_transfer(unsafe { &*v_ptr }, "a struct field", ctx) {
                     saw_error = true
                 }
@@ -65,7 +68,7 @@ fun check_struct_lit(struct_name: str, fields: &var List<FieldInit>, span: Span,
         }
         if !found {
             val v_ptr: Ptr<Expr> = fi.value
-            check_expr(unsafe { &var *v_ptr }, ctx)
+            if !prechecked { check_expr(unsafe { &var *v_ptr }, ctx) }
             val msg = "struct `${struct_name}` has no field `${fi.name.as_str()}`"
             ctx.emit(new_diagnostic(Severity.Error, new_label(fi.span, msg)))
             saw_error = true

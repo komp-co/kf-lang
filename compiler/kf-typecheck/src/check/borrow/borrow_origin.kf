@@ -24,14 +24,24 @@ pub fun Type.type_is_borrow(): bool {
     }
 }
 
+/// A borrow, or a value of a view type, which borrows as one does.
+pub fun Type.type_borrows(sigs: Ptr<SigTable>): bool {
+    return self.type_is_borrow() || self.type_is_view(sigs)
+}
+
+/// An instance of a generic view counts by its template's name.
+pub fun Type.type_is_view(sigs: Ptr<SigTable>): bool {
+    return unsafe { (sigs as uint64) != 0 && (*sigs).holds_view(self) }
+}
+
 /// An index into `params` (`self` is 0 on an instance method), or static.
-pub fun infer_borrow_origin(params: &List<Type>, ret: &Type, has_self: bool): int32 {
-    if !ret.type_is_borrow() { return borrow_origin_static() }
+pub fun infer_borrow_origin(params: &List<Type>, ret: &Type, has_self: bool, sigs: Ptr<SigTable>): int32 {
+    if !ret.type_borrows(sigs) { return borrow_origin_static() }
     if has_self { return 0 }
     var found = borrow_origin_static()
     while i in 0..params.size() {
         val p = *params.at(i)
-        if p.type_is_borrow() {
+        if p.type_borrows(sigs) {
             // Two candidates: reported by the signature check, which has the
             // span.
             if found != borrow_origin_static() { return borrow_origin_static() }
@@ -42,10 +52,10 @@ pub fun infer_borrow_origin(params: &List<Type>, ret: &Type, has_self: bool): in
 }
 
 /// Two or more is rejected outright.
-pub fun borrow_candidate_count(params: &List<Type>): uint64 {
+pub fun borrow_candidate_count(params: &List<Type>, sigs: Ptr<SigTable>): uint64 {
     var n: uint64 = 0
     while p in &params {
-        if p.type_is_borrow() { n = n + 1 }
+        if p.type_borrows(sigs) { n = n + 1 }
     }
     return n
 }
@@ -54,9 +64,9 @@ pub fun borrow_candidate_count(params: &List<Type>): uint64 {
 /// without lifetime syntax, so it is rejected; return an owned value or an
 /// index instead.
 pub fun reject_unsayable_origin(params: &List<Type>, ret: &Type, has_self: bool, span: Span, ctx: &var TypeCtx): void {
-    if !ret.type_is_borrow() { return }
+    if !ret.type_borrows(ctx.sigs) { return }
     if has_self { return }
-    if borrow_candidate_count(params) < 2 { return }
+    if borrow_candidate_count(params, ctx.sigs) < 2 { return }
     val message = String.from("cannot tell which parameter this borrow comes from: more than one could be its origin, and the origin cannot be written down — return an owned value or an index instead")
     ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
 }
@@ -64,13 +74,13 @@ pub fun reject_unsayable_origin(params: &List<Type>, ret: &Type, has_self: bool,
 /// `return <owned local>` read as a borrow outlives the local. A local that
 /// is itself a borrow is fine.
 pub fun Expr.check_returned_borrow(span: Span, ctx: &var TypeCtx): void {
-    if !ctx.return_ty.type_is_borrow() { return }
+    if !ctx.return_ty.type_borrows(ctx.sigs) { return }
     val root = expr_borrow_root(self)
     if root.as_str() == "" { return }
     if ctx.ctx_is_param(root.as_str()) { return }
     if !ctx.is_declared(root.as_str()) { return }
     val bound = ctx.lookup(root.as_str())
-    if bound.type_is_borrow() { return }
+    if bound.type_borrows(ctx.sigs) { return }
     val message = "cannot return a borrow of `${root.as_str()}`: it is owned by this function and is dropped at the return"
     ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
 }

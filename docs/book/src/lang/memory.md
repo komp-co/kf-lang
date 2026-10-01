@@ -365,6 +365,65 @@ fun bump(slot: &var int32): void { ... }    // fine
 fun read(value: &dyn Score): int32 { ... }  // fine
 ```
 
+## View types
+
+A `view struct` or `view enum` is a borrow of your own design. Its fields may
+hold borrows, which no other struct may, and in exchange its values follow the
+rules of `&T`:
+
+```kflat
+view struct Window {
+    val text: str
+    val from: uint64
+}
+
+impl Window {
+    fun length(): uint64 { return self.text.byte_len() - self.from }
+}
+
+struct Text {
+    var bytes: String
+}
+
+impl Text {
+    fun window(from: uint64): Window { return Window { text: self.bytes.as_str(), from: from } }
+}
+```
+
+`view` is a word only before `struct` or `enum`, so a binding named `view`
+elsewhere is untouched. `pub view struct` exports one.
+
+`text.window(1)` borrows from `text`, as `text.bytes.as_str()` would, and
+everything below applies to it unchanged: a view cannot be stored in a struct
+that is not itself a view, it freezes what it borrows while it is used, it
+cannot be returned past its origin, and a stored lambda cannot capture it.
+
+```kflat
+struct Holder {
+    val window: Window     // error: it is a view, and a view is only valid
+}                          //        for the call that made it
+```
+
+A view built in place borrows what its fields were lent, so
+`Window { text: owned.as_str(), from: 0 }` freezes `owned` like the method
+does. A view borrows from one place: fields lent from two different bindings
+are rejected, since freezing either one would leave the other free.
+
+```kflat
+view struct Pair {
+    val a: str
+    val b: str
+}
+
+val p = Pair { a: x.as_str(), b: y.as_str() }   // error: borrows from both `x` and `y`
+val q = Pair { a: x.as_str(), b: x.as_str() }   // fine: one place
+```
+
+A view holding another view borrows what the inner one does. An instance of a
+generic view, such as `Cursor<int32>` from
+`view struct Cursor<T> { val first: &T }`, is a view too, and a view keeps
+being one in another crate.
+
 ## Returning a borrow
 
 A function may return a borrow, and where it comes from is never written
@@ -423,6 +482,14 @@ val view = out.as_str()        // view borrows out
 out.append("b")                // error: may reallocate; view would dangle
 if view == "a" { ... }
 ```
+
+A call's result has the origin of the one argument it was lent, the receiver
+of an extension included, so `first_word(&out)` and `out.peek()` (for
+`fun String.peek(): str`) borrow `out` just as `out.as_str()` does.
+
+A borrow bound to another borrow keeps the first one's origin: after
+`val b = a` where `a` borrows `out`, `out` stays frozen for as long as `b` is
+used.
 
 Reassigning the origin is rejected for the same reason — it drops the buffer
 outright rather than moving it.

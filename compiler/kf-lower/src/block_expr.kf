@@ -77,6 +77,8 @@ fun Stmt.carries_a_block_value(): bool {
         Return(value) => value_carries_a_block(&value)
         LetVal(_n, _ty, init) => value_carries_a_block(&init)
         LetVar(_n, _ty, init) => value_carries_a_block(&init)
+        Assign(_n, value) => value.carries_a_block()
+        AssignTo(_place, value) => value.carries_a_block()
         If(_c, then_body, else_body) => stmts_carry_a_block(&then_body) || stmts_carry_a_block(&else_body)
         While(_c, body) => stmts_carry_a_block(&body)
         ForEach(_b, _s, body) => stmts_carry_a_block(&body)
@@ -139,8 +141,22 @@ fun block_expr_stmt(s: Stmt, temps: &var BlockTemps, out: &var List<Stmt>): void
             }
             out.push(new_stmt(s.span, StmtKind.When(subj_ptr, new_arms)))
         }
-        Assign(_, _) => out.push(s)
-        AssignTo(_, _) => out.push(s)
+        Assign(name, value_ptr) => {
+            if !value_ptr.carries_a_block() {
+                out.push(s)
+                return
+            }
+            val value = expand_block_value(value_ptr, s.span, temps, out)
+            out.push(new_stmt(s.span, StmtKind.Assign(name, value)))
+        }
+        AssignTo(place, value_ptr) => {
+            if !value_ptr.carries_a_block() {
+                out.push(s)
+                return
+            }
+            val value = expand_block_value(value_ptr, s.span, temps, out)
+            out.push(new_stmt(s.span, StmtKind.AssignTo(place, value)))
+        }
         Expression(_) => out.push(s)
         Switch(_, _) => out.push(s)
         Drop(_) => out.push(s)
@@ -162,8 +178,18 @@ fun expand_block_let(s: Stmt, name: Sym, ty: Box<TypeRef>?, init_ptr: Ptr<Expr>?
         out.push(s)
         return
     }
-    val span = s.span
-    val value_ty = unsafe { ip.ty }
+    val vp = expand_block_value(ip, s.span, temps, out)
+    if is_val {
+        out.push(new_stmt(s.span, StmtKind.LetVal(name, ty, vp)))
+    } else {
+        out.push(new_stmt(s.span, StmtKind.LetVar(name, ty, vp)))
+    }
+}
+
+/// `var __blkN: T` and the statements that fill it from `value`; the
+/// temporary's name, as an expression, takes the value's place.
+fun expand_block_value(value: Ptr<Expr>, span: Span, temps: &var BlockTemps, out: &var List<Stmt>): Ptr<Expr> {
+    val value_ty = unsafe { value.ty }
     val temp = temps.fresh_block_temp()
 
     // Declared without a value; the annotation is required.
@@ -171,7 +197,7 @@ fun expand_block_let(s: Stmt, name: Sym, ty: Box<TypeRef>?, init_ptr: Ptr<Expr>?
     unsafe { *ann = type_to_type_ref(&value_ty, span) }
     out.push(new_stmt(span, StmtKind.LetVar(temp, ann, null)))
 
-    val expanded = value_stmts(ip, false, temp, temps)
+    val expanded = value_stmts(value, false, temp, temps)
     while item in &expanded {
         out.push(item)
     }
@@ -180,11 +206,7 @@ fun expand_block_let(s: Stmt, name: Sym, ty: Box<TypeRef>?, init_ptr: Ptr<Expr>?
     var v = new_expr(span, ExprKind.Variable(temp))
     v.ty = value_ty
     unsafe { *vp = v }
-    if is_val {
-        out.push(new_stmt(span, StmtKind.LetVal(name, ty, vp)))
-    } else {
-        out.push(new_stmt(span, StmtKind.LetVar(name, ty, vp)))
-    }
+    return vp
 }
 
 /// A block anywhere the value can come from, through if-expression branches.
