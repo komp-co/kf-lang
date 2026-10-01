@@ -208,7 +208,7 @@ impl Parser {
     }
 
     /// `struct Name { val field1: Type, var field2: Type }`, consuming
-    /// `struct`.
+    /// `struct`. A struct with no fields may end at the line: `struct Name`.
     mutating fun parse_struct(span: Span, is_pub: bool): TopDecl {
         unsafe { self.advance() } // consume `struct`
         val name_at = self.peek().span
@@ -240,8 +240,8 @@ impl Parser {
                     unsafe { self.advance() }
                 }
             }
-        } else {
-            self.parse_err(self.peek().span, "expected `{` to open the struct body, found ${tok_str(self.peek())}")
+        } else if !self.at_newline() && !self.at_eof() {
+            self.parse_err(self.peek().span, "expected `{` or the end of the line after the struct name, found ${tok_str(self.peek())}")
         }
 
         var td = new_top_decl(span, name, TopDeclKind.Struct(fields, is_pub))
