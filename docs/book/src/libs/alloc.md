@@ -106,12 +106,13 @@ var later = []
 later.push(7)                        // a List<int32>
 ```
 
-A literal is not tied to `List`. Written where another collection is
-expected, it builds that one instead, through core's `FromElements`: the
-type's `new()`, then one `push` per element. Where core's
-[`Array<T, N>`](core.md#array) is expected, it builds the array in place, with
-exactly `N` elements. Your own collection opts in by implementing
-`FromElements`:
+A literal is not tied to `List`. Written where another type is expected, it
+converts through that type's `From`: the literal is built as an array, an
+`int32[3]` for `[4, 5, 6]`, and handed to `from`. A string literal converts
+through `From<str>` the same way. Only a literal converts; any other value
+calls `from` itself. Where core's [`Array<T, N>`](core.md#array) is expected,
+the literal builds the array in place, with exactly `N` elements. Your own
+type opts in by implementing `From` over an array of any length:
 
 ```kflat
 struct Bag {
@@ -119,20 +120,23 @@ struct Bag {
     pub var count: int32
 }
 
-impl FromElements<int32> for Bag {
-    static fun new(): Bag { return Bag { total: 0, count: 0 } }
-    mutating fun push(item: int32): void {
-        self.total = self.total + item
-        self.count = self.count + 1
+impl<N: uint64> From<int32[N]> for Bag {
+    static fun from(items: int32[N]): Bag {
+        var bag = Bag { total: 0, count: 0 }
+        while item in &items {
+            bag.total = bag.total + item
+            bag.count = bag.count + 1
+        }
+        return bag
     }
 }
 
 val bag: Bag = [4, 5, 6]             // total 15, count 3
 ```
 
-A type with a `push` of its own keeps it: written calls still reach it, and
-the trait's `push` can simply call it. A slot whose type does not implement
-`FromElements` is reported as such.
+A type implementing core's `FromElements` instead is built with its `new()`,
+then one `push` per element. A slot whose type implements neither is reported
+as not implementing `FromElements`.
 
 ## Adding and reading elements
 
