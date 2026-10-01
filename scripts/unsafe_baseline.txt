@@ -131,7 +131,7 @@
 3 compiler/kf-parse/src/parser/top_decl/signature_target.kf
 13 compiler/kf-parse/src/parser/top_decl/top_decl.kf
 48 compiler/kf-parse/src/parser/top_decl/types.kf
-38 compiler/kf-parse/src/parser/type_ref.kf
+40 compiler/kf-parse/src/parser/type_ref.kf
 6 compiler/kf-resolve/src/import_validation.kf
 1 compiler/kf-resolve/src/resolve_body.kf
 1 compiler/kf-resolve/src/resolver.kf
@@ -157,7 +157,7 @@
 40 compiler/kf-typecheck/src/check/check_lambda.kf
 12 compiler/kf-typecheck/src/check/check_method_call.kf
 7 compiler/kf-typecheck/src/check/check_method_expr.kf
-35 compiler/kf-typecheck/src/check/check_stmt.kf
+36 compiler/kf-typecheck/src/check/check_stmt.kf
 7 compiler/kf-typecheck/src/check/check_struct_lit.kf
 5 compiler/kf-typecheck/src/check/check_unknown_bounds.kf
 2 compiler/kf-typecheck/src/check/check_value_call.kf
@@ -166,7 +166,7 @@
 6 compiler/kf-typecheck/src/check/control/exhaustive.kf
 17 compiler/kf-typecheck/src/check/control/string_pattern.kf
 1 compiler/kf-typecheck/src/check/decl/annotation_type_params.kf
-57 compiler/kf-typecheck/src/check/decl/check_decl.kf
+58 compiler/kf-typecheck/src/check/decl/check_decl.kf
 15 compiler/kf-typecheck/src/check/decl/check_function_body.kf
 8 compiler/kf-typecheck/src/check/decl/check_impl_header.kf
 3 compiler/kf-typecheck/src/check/decl/check_pub_signature.kf
@@ -180,7 +180,7 @@
 1 compiler/kf-typecheck/src/check/decl/lang_check.kf
 2 compiler/kf-typecheck/src/check/decl/method_annotation.kf
 4 compiler/kf-typecheck/src/check/decl/no_mangle_check.kf
-23 compiler/kf-typecheck/src/check/decl/rewrite_option.kf
+23 compiler/kf-typecheck/src/check/decl/rewrite_placeholders.kf
 2 compiler/kf-typecheck/src/check/decl/unused_import.kf
 2 compiler/kf-typecheck/src/check/decl/wildcard_import.kf
 8 compiler/kf-typecheck/src/check/extension_bounds.kf

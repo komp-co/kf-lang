@@ -641,8 +641,9 @@ any existing caller wrote.
 
 ## Array
 
-`Array<T, N>` holds `N` elements of `T` inline: on the stack, or inside the
-struct that has one, with no allocation. The length is a
+`Array<T, N>`, written `T[N]`, holds `N` elements of `T` inline: on the
+stack, or inside the struct that has one, with no allocation. The
+[arrays chapter](../lang/arrays.md) covers the syntax. The length is a
 [value parameter](../lang/generics.md#value-parameters), so it is part of the
 type. Core declares it as a lang item and writes its methods in KFlat; the
 compiler supplies only the storage, laid out as C's `T items[N]`.

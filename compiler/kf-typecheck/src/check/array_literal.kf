@@ -132,3 +132,23 @@ fun array_type_ref(element: TypeRef, length: uint64, array_name: Sym, span: Span
     args.push(new_type_ref(span, TypeRefKind.Value(length as int64)))
     return new_type_ref(span, TypeRefKind.Named(array_name, args))
 }
+
+/// `T[]` given the length of what initializes it: a literal's element count,
+/// or the length of the array it copies. Left as written otherwise, for the
+/// argument check to report.
+fun TypeRef.with_initializer_length(init: &Expr, ctx: &var TypeCtx): TypeRef {
+    when (self.kind) {
+        Named(head, args) => {
+            if head.id != ctx.array_name().id || args.size() != 2 || !args.at(1).is_wildcard() { return self.clone() }
+            val length = init.initializer_length(ctx) ?: return self.clone()
+            return array_type_ref(args.at(0).clone(), length, head, self.span)
+        }
+        _ => return self.clone()
+    }
+}
+
+fun Expr.initializer_length(ctx: &var TypeCtx): uint64? {
+    if self.is_list_literal(ctx) || self.is_array_literal() { return self.literal_elements().size() }
+    val shape = self.ty.array_shape(ctx) ?: return null
+    return shape.length
+}

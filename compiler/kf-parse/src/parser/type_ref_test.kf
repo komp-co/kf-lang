@@ -161,3 +161,34 @@ fun a_negative_type_argument_is_a_value(): void {
 fun a_type_argument_is_not_a_value(): void {
     assert_eq(value_argument_of("fun f(r: Residue<int32, 7>): void {}", 0) == null, true, "`int32` is a type")
 }
+
+/// The head and argument count of the first parameter's type.
+fun first_param_shape(src: str): String {
+    var p = parser_for(src)
+    val td = p.parse_top_decl()
+    when (td.kind) {
+        Function(params, _, _, _, _, _, _) => {
+            val ty = unsafe { *params.at(0).ty }
+            return when (ty.kind) {
+                Named(name, args) => "${name.lang_placeholder_key()}/${args.size()}"
+                _ => String.from("?")
+            }
+        }
+        _ => return String.from("?")
+    }
+}
+
+@test
+fun an_array_suffix_names_the_array_lang_item(): void {
+    assert_eq(first_param_shape("fun f(xs: int32[3]): void {}").as_str(), "array/2", "`T[N]` is `Array<T, N>`")
+}
+
+@test
+fun an_empty_array_suffix_leaves_the_length_out(): void {
+    assert_eq(first_param_shape("fun f(xs: int32[]): void {}").as_str(), "array/2", "`T[]` is `Array<T, _>`")
+}
+
+@test
+fun an_optional_array_is_an_option_of_the_array(): void {
+    assert_eq(first_param_shape("fun f(xs: int32[3]?): void {}").as_str(), "option/1", "`[N]` binds before `?`")
+}
