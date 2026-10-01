@@ -30,6 +30,9 @@ pub fun check_field_access(receiver_ty: Type, field_name: String, _span: Span, c
     if !is_struct { return poison_ty() }
     val sname = recv_ty.kind.struct_name()
     val sp = ctx.sigs
+    // An instance only ever named inside another's fields, `Pair<I, M>` holding
+    // a `Residue<I, M>`, gets its layout on first use.
+    recv_ty.register_returned_instance(_span, ctx)
     val layout = unsafe { sp.find_struct(sname.as_str(), ctx.owner_crate) } ?: {
         // Enums resolve to Struct(name), so a missing struct layout may name a
         // known enum. An unmaterialized layout stays silent.

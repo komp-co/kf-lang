@@ -9,12 +9,13 @@ import kf_core.diagnostic.*
 
 pub mutating fun Module.move_check_module(diags: Ptr<List<Diagnostic>>, mob_count: Ptr<MobCount>, smap: Ptr<SourceMap>, lints: Ptr<List<Diagnostic>>, list_name: Sym): void {
     val names = self.compute_move_only_names(list_name)
+    val copies = self.copy_type_names()
     // Built once and shared by pointer: it holds move-only lists.
     var param_table = self.build_param_table()
     // Module-scoped: mono turns one source line into many functions.
     var warnings = self.new_warn_state()
     while i in 0..self.decls.size() {
-        self.decls.at_mut(i).move_check_top_decl(diags, names, &var param_table, mob_count, smap, &var warnings)
+        self.decls.at_mut(i).move_check_top_decl(diags, names, &copies, &var param_table, mob_count, smap, &var warnings)
     }
     // Hands the module's advisories to the caller's channel, which the driver
     // levels and prints. Each is copied explicitly: pushing one by value
@@ -24,23 +25,27 @@ pub mutating fun Module.move_check_module(diags: Ptr<List<Diagnostic>>, mob_coun
     }
 }
 
-mutating fun TopDecl.move_check_top_decl(diags: Ptr<List<Diagnostic>>, names: List<String>, ptable: Ptr<List<ParamEntry>>, mob_count: Ptr<MobCount>, smap: Ptr<SourceMap>, warn: Ptr<WarnState>): void {
-    self.move_check_top_decl_in(diags, names, ptable, mob_count, smap, "", warn)
+mutating fun TopDecl.move_check_top_decl(diags: Ptr<List<Diagnostic>>, names: List<String>, copies: &List<String>,
+    ptable: Ptr<List<ParamEntry>>, mob_count: Ptr<MobCount>, smap: Ptr<SourceMap>, warn: Ptr<WarnState>): void {
+    self.move_check_top_decl_in(diags, names, copies, ptable, mob_count, smap, "", warn)
 }
 
 /// `self_owner` is the enclosing impl's target, or "" at the top level.
-mutating fun TopDecl.move_check_top_decl_in(diags: Ptr<List<Diagnostic>>, names: List<String>, ptable: Ptr<List<ParamEntry>>, mob_count: Ptr<MobCount>, smap: Ptr<SourceMap>, self_owner: str, warn: Ptr<WarnState>): void {
+mutating fun TopDecl.move_check_top_decl_in(diags: Ptr<List<Diagnostic>>, names: List<String>, copies: &List<String>,
+    ptable: Ptr<List<ParamEntry>>, mob_count: Ptr<MobCount>, smap: Ptr<SourceMap>, self_owner: str,
+    warn: Ptr<WarnState>): void {
     when (self.kind) {
         Function(params, _, body, _, _, _, _) => {
             var ctx = new_move_ctx(diags, clone_str_list(names), ptable, mob_count, self.name.as_string(), smap, warn)
             ctx.self_owner = String.from(self_owner)
+            ctx.copy_names = clone_str_list(copies)
             declare_owned_value_params(params, &var ctx)
             move_check_stmt_list(&var body, &var ctx)
         }
         ImplBlock(methods) => {
             while i in 0..methods.size() {
-                methods.at_mut(i).move_check_top_decl_in(diags, names, ptable, mob_count, smap, self.name.as_str(),
-                    warn)
+                methods.at_mut(i).move_check_top_decl_in(diags, names, copies, ptable, mob_count, smap,
+                    self.name.as_str(), warn)
             }
         }
         Struct(_, _) => return
@@ -76,7 +81,7 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
             if borrow_init {
                 ctx.declare_borrowed(let_name)
             } else {
-                val heap = init.ty.is_heap_ty()
+                val heap = ctx.tracks(&init.ty)
                 if heap { ctx.declare_owned(let_name) }
             }
         }
@@ -91,7 +96,7 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
             if borrow_init && !init.reads_through_a_raw_pointer() {
                 init.mark_auto_clone(String.from("<var binding>"), 0, ctx)
             }
-            if init.ty.is_heap_ty() { ctx.declare_owned(var_name) }
+            if ctx.tracks(&init.ty) { ctx.declare_owned(var_name) }
         }
         Assign(asn_name, expr_ptr) => {
             move_check_expr_value(unsafe { &var *expr_ptr }, ctx)
@@ -104,7 +109,7 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
             if borrow_init {
                 ctx.declare_borrowed(asn_name)
             } else {
-                val heap = rhs.ty.is_heap_ty()
+                val heap = ctx.tracks(&rhs.ty)
                 if heap { ctx.declare_owned(asn_name) }
             }
         }

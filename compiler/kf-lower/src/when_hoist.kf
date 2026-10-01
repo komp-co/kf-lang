@@ -146,6 +146,9 @@ fun hoist_self(ep: Ptr<Expr>, temps: &var WhenTemps, out: &var List<Stmt>): void
 
     var v = new_expr(span, ExprKind.Variable(temp))
     v.ty = value_ty
+    // The value's coercion now applies to the temporary: a borrow of it for a
+    // trait object, say.
+    v.coerce = node.coerce
     // CONSTRAINT: a raw store, which does not drop: the subject and arms now
     // belong to the statements pushed above.
     unsafe { *ep = v }
@@ -157,8 +160,8 @@ mutating fun Expr.hoist_list_literal(temps: &var WhenTemps, out: &var List<Stmt>
     val span = self.span
     val value_ty = self.ty.clone()
     val temp = temps.fresh_when_temp()
-    val ann: Box<TypeRef>? = Box.new(type_to_type_ref(&value_ty, span))
-    out.push(new_stmt(span, StmtKind.LetVar(temp, ann, null)))
+    // Bound with its value, not assigned later, so the temporary is owned and
+    // dropped like any local, even when only borrowed.
     when (self.kind) {
         Block(stmts) => {
             while i in 0..stmts.size() {
@@ -167,7 +170,10 @@ mutating fun Expr.hoist_list_literal(temps: &var WhenTemps, out: &var List<Stmt>
                     out.push(stmt.clone())
                 } else {
                     when (stmt.kind) {
-                        Expression(tail) => out.push(new_stmt(span, StmtKind.Assign(temp, Box.new(tail.clone()))))
+                        Expression(tail) => {
+                            val ann: Box<TypeRef>? = Box.new(type_to_type_ref(&value_ty, span))
+                            out.push(new_stmt(span, StmtKind.LetVal(temp, ann, Box.new(tail.clone()))))
+                        }
                         _ => { }
                     }
                 }
@@ -177,5 +183,7 @@ mutating fun Expr.hoist_list_literal(temps: &var WhenTemps, out: &var List<Stmt>
     }
     var read = new_expr(span, ExprKind.Variable(temp))
     read.ty = value_ty
+    // As for a `when`: `&[...]` borrows the temporary.
+    read.coerce = self.coerce
     *self = read
 }
