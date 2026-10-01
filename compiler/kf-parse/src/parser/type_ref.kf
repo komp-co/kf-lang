@@ -1,3 +1,4 @@
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_parse.lexer.*
 
@@ -79,8 +80,8 @@ impl Parser {
                             unsafe { self.advance() } // consume `var`
                             mutable = true
                         }
-                        val inner_ptr = self.parse_type_ref_ptr()
-                        unsafe { *ptr = new_type_ref(t.span, TypeRefKind.Reference(mutable, inner_ptr)) }
+                        val inner: Box<TypeRef> = self.parse_type_ref_ptr()
+                        unsafe { *ptr = borrow_type_ref(t.span, mutable, inner) }
                     }
                     LParen => unsafe { *ptr = self.parse_function_type_ref() }
                     _ => {
@@ -226,5 +227,28 @@ impl Parser {
         unsafe { self.advance() } // consume `->`
         val ret = self.parse_type_ref_ptr()
         return new_type_ref(span, TypeRefKind.Function(params, ret))
+    }
+}
+
+/// `&T` or `&var T`, except that a borrow of `T[]`, an array of no stated
+/// length, is a slice: `&T[]` is `Slice<T>` and `&var T[]` is `SliceMut<T>`,
+/// named by their lang keys.
+fun borrow_type_ref(span: Span, mutable: bool, inner: Box<TypeRef>): TypeRef {
+    val element = inner.unsized_array_element() ?: return new_type_ref(span, TypeRefKind.Reference(mutable, inner))
+    val key = if mutable { lang_slice_mut_key() } else { lang_slice_key() }
+    var args = List.new<TypeRef>()
+    args.push(element)
+    return new_type_ref(span, TypeRefKind.Named(lang_placeholder(key), args))
+}
+
+/// `T` when this is `T[]`.
+fun TypeRef.unsized_array_element(): TypeRef? {
+    when (self.kind) {
+        Named(head, args) => {
+            if head.id != lang_placeholder(lang_array_key()).id || args.size() != 2 { return null }
+            if !args.at(1).is_wildcard() { return null }
+            return args.at(0).clone()
+        }
+        _ => return null
     }
 }

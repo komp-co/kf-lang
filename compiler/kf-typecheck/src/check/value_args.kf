@@ -70,7 +70,7 @@ fun TypeRef.fits_value_param(owner: str, param: str, written: &TypeRef, params: 
     val value = self.value_argument()
     if self.is_wildcard() {
         val message = String.from("the array's length is left out here; only a binding initialized by a literal ") +
-            String.from("or another array can leave it out")
+            String.from("or another array can leave it out, and any length is taken as a slice, `&T[]`")
         ctx.emit(error_at(self.span, message))
         return false
     }

@@ -189,6 +189,22 @@ fun an_empty_array_suffix_leaves_the_length_out(): void {
 }
 
 @test
+fun a_borrow_of_an_array_of_no_length_is_a_slice(): void {
+    assert_eq(first_param_shape("fun f(xs: &int32[]): void {}").as_str(), "slice/1", "`&T[]` is `Slice<T>`")
+}
+
+@test
+fun a_mutable_borrow_of_an_array_of_no_length_is_a_mutable_slice(): void {
+    val shape = first_param_shape("fun f(xs: &var int32[]): void {}")
+    assert_eq(shape.as_str(), "slice_mut/1", "`&var T[]` is `SliceMut<T>`")
+}
+
+@test
+fun a_borrow_of_a_sized_array_stays_a_borrow(): void {
+    assert_eq(first_param_shape("fun f(xs: &int32[3]): void {}").as_str(), "?", "`&T[N]` borrows the array")
+}
+
+@test
 fun an_optional_array_is_an_option_of_the_array(): void {
     assert_eq(first_param_shape("fun f(xs: int32[3]?): void {}").as_str(), "option/1", "`[N]` binds before `?`")
 }

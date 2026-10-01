@@ -84,16 +84,24 @@ fun display_wrapped_type(prefix: str, inner: &Type, suffix: str, ctx: &TypeCtx):
 fun Sym.display_named_type(ctx: &TypeCtx): String {
     val sigs = ctx.sigs
     return when (unsafe { sigs.find_inst(self.as_str()) }) {
-        // An array is shown as written: `int32[3]`.
-        Some(inst) => if inst.base.as_str() == ctx.array_name().as_str() && inst.args.size() == 2 {
-            "${inst.args.at(0).display_type_ref()}[${inst.args.at(1).display_type_ref()}]"
-        } else {
-            inst.display_generic_inst()
-        }
+        Some(inst) => inst.display_instance(ctx)
         // A deferred projection's bracketed spelling is internal; shown as
         // `Owner.Member`.
         None => projection_mangle_display(type_identity_display(Sym { id: self.id }).as_str())
     }
+}
+
+/// Arrays and slices as written: `int32[3]`, `&int32[]`, `&var int32[]`.
+fun GenericInst.display_instance(ctx: &TypeCtx): String {
+    val base = self.base.as_str()
+    if base == ctx.array_name().as_str() && self.args.size() == 2 {
+        return "${self.args.at(0).display_type_ref()}[${self.args.at(1).display_type_ref()}]"
+    }
+    if self.args.size() == 1 {
+        if base == ctx.slice_name().as_str() { return "&${self.args.at(0).display_type_ref()}[]" }
+        if base == ctx.slice_mut_name().as_str() { return "&var ${self.args.at(0).display_type_ref()}[]" }
+    }
+    return self.display_generic_inst()
 }
 
 fun GenericInst.display_generic_inst(): String {

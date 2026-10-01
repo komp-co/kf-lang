@@ -1,9 +1,9 @@
 //! build: fail
 //! deps: core
 // `T[]` takes its length from what initializes a binding; a parameter has
-// nothing to take it from.
+// nothing to take it from, and takes any length as a slice, `&T[]`.
 
-fun first(xs: &int32[]): int32 {
+fun first(xs: int32[]): int32 {
     return xs[0]
 }
 

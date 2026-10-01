@@ -14,14 +14,15 @@ val zs: float64[] = [1.5, 2.5]        // float64[2]: the literal gives the lengt
 `T?` is sugar for `Option<T>`. `N` is the array's length, a
 [value parameter](generics.md#value-parameters) of type `uint64`. `T[]`
 leaves the length to the initializer, so it is written only on a `val` or
-`var` initialized with an array literal or another array; anywhere else the
+`var` initialized with an array literal or another array. A parameter that
+takes any length is a [slice](#any-length-slices), `&T[]`; anywhere else the
 length must be written:
 
 ```console
 $ komp check .
-src/main.kf:1:21: error: the array's length is left out here; only a binding initialized by a literal or another array can leave it out
-    fun first(xs: &int32[]): int32 {
-                        ^
+src/main.kf:1:20: error: the array's length is left out here; only a binding initialized by a literal or another array can leave it out, and any length is taken as a slice, `&T[]`
+    fun first(xs: int32[]): int32 {
+                       ^
 ```
 
 Suffixes read left to right: `int32[2][3]` is three `int32[2]`, `int32?[2]`
@@ -59,9 +60,65 @@ val count = grid.size()                  // 2
 
 Writing through `xs[i]` needs `xs` to be a `var`, or a `&var` borrow of one.
 
-## Any length
+## Any length: slices
 
-A function taking an array names its length. Generic over the length, it
+`&T[]` is a slice: a borrowed view of elements laid out in a row, whose
+length is known only when the program runs. A function taking one takes an
+array of any length, a list, or a literal:
+
+```kflat
+fun total(xs: &int32[]): int32 {
+    var sum = 0
+    while x in xs { sum = sum + x }
+    return sum
+}
+
+fun fill(xs: &var int32[], value: int32): void {
+    while i in 0..xs.size() { xs[i] = value }
+}
+
+fun main(): int32 {
+    var four: int32[4] = [0, 0, 0, 0]
+    fill(four, 2)
+    val three: int32[3] = [1, 2, 3]
+    return total(four) + total(&three) + total([5, 5])   // 8 + 6 + 10
+}
+```
+
+Where a slice is expected, an array or a list, or a borrow of either, lends
+itself as one, and a literal builds an array in place and lends that, with
+no allocation. `&var T[]` writes through to what it views, so its source
+must be a `var` or a `&var` borrow. A slice's element is inferred like any
+other type argument: `fun count<T>(xs: &T[])` takes an `int64[4]` as
+`&int64[]`.
+
+`&T[]` is sugar for core's [`Slice<T>`](../libs/core.md#slice) and
+`&var T[]` for `SliceMut<T>`. Each is a [view](memory.md#view-types): it
+follows the rules of the borrow it stands for. It cannot be returned past
+the array it views, cannot be stored in a struct, and while it is still used
+its source cannot change:
+
+```console
+$ komp build .
+src/main.kf:7:5: error: `list` cannot be changed here: `view` borrows it and is still used afterwards
+        list.push(2)
+        ^~~~~~~~~~~~
+```
+
+`slice(range)` narrows a slice to part of the same elements, and an array or
+list names its own slices with `as_slice()` and `as_slice_mut()`:
+
+```kflat
+fun main(): int32 {
+    val scores: int32[5] = [7, 3, 9, 4, 8]
+    val middle = scores.as_slice().slice(1..4)     // 3, 9, 4
+    return middle[1] + middle.size() as int32      // 9 + 3
+}
+```
+
+## Any length, known when compiling
+
+A function that needs the length as part of the type is generic over it. It
 takes an array of any length, one instance per length used:
 
 ```kflat
