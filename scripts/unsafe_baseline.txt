@@ -15,7 +15,7 @@
 6 compiler/kf-codegen/src/emit/expr/expr_operators.kf
 12 compiler/kf-codegen/src/emit/fn.kf
 14 compiler/kf-codegen/src/emit/glue/clone.kf
-5 compiler/kf-codegen/src/emit/glue/emit_struct_glue.kf
+3 compiler/kf-codegen/src/emit/glue/emit_struct_glue.kf
 3 compiler/kf-codegen/src/emit/glue/emit_type_decls.kf
 4 compiler/kf-codegen/src/emit/instances/instance_support.kf
 34 compiler/kf-codegen/src/emit/instances/instance_support_scan.kf
@@ -152,7 +152,7 @@
 7 compiler/kf-typecheck/src/check/check_call.kf
 7 compiler/kf-typecheck/src/check/check_coerce.kf
 13 compiler/kf-typecheck/src/check/check_expect.kf
-37 compiler/kf-typecheck/src/check/check_expr.kf
+36 compiler/kf-typecheck/src/check/check_expr.kf
 3 compiler/kf-typecheck/src/check/check_field_access.kf
 40 compiler/kf-typecheck/src/check/check_lambda.kf
 12 compiler/kf-typecheck/src/check/check_method_call.kf
