@@ -6,78 +6,105 @@ import kf_resolve.*
 import kf_typecheck.types.*
 import kf_typecheck.*
 import kf_core.span.*
+import kf_core.ast.subst.subst_stmt_list
 import kf_typecheck.check.check_stmt
 import kf_typecheck.check.control.when_is_exhaustive
 import kf_typecheck.check.value_params_of
 
-fun check_fn_body(metadata_owner: Ptr<TopDecl>, owner: String, owner_crate: CrateId, owner_module: Sym, owner_file: uint32, self_name: String, impl_target: String, impl_trait: String, impl_trait_args: String, impl_method: String, self_mutable: bool, generics: List<String>, params: List<Param>, ret_ptr: Ptr<TypeRef>, body: &var List<Stmt>, diags: Ptr<List<Diagnostic>>, sigs: Ptr<SigTable>): void {
-    var ctx = new_type_ctx(void_ty(no_span()), diags, Option.None, sigs)
-    ctx.fn_owner = owner
-    ctx.owner_crate = owner_crate
-    ctx.owner_module = owner_module
-    ctx.owner_file = owner_file
-    ctx.metadata_owner = metadata_owner
-    ctx.impl_trait = impl_trait
-    ctx.impl_trait_args = impl_trait_args
-    ctx.impl_method = impl_method
-    ctx.seed_generics(generics)
-    ctx.declare_value_params()
-    if !impl_target.as_str().equals("") {
-        ctx.self_ty = impl_target_ty(impl_target.as_str(), no_span(), ctx.string_name())
-    }
-    val ret_tr: TypeRef = unsafe { *ret_ptr }
-    ctx.return_ty = ret_tr.resolve_type_ref(&var ctx)
-    val is_free = self_name.as_str().equals("")
-    if !is_free {
-        ctx.params.push(String.from("self"))
-        // Resolved, not assumed a struct: `impl Display for str` has a
-        // primitive target.
-        var self_ty = poison_ty()
-        if ctx.self_ty.is_poison() {
-            val self_tr = new_type_ref(no_span(), TypeRefKind.Named(intern(self_name.as_str()), List.new<TypeRef>()))
-            self_ty = self_tr.resolve_type_ref(&var ctx)
-        } else {
-            self_ty = ctx.self_ty.clone()
+/// Checked again from a fresh copy while uses decide a binding after earlier
+/// uses saw its provisional type, each time with every decision so far.
+fun check_fn_body(metadata_owner: Ptr<TopDecl>, owner: String, owner_crate: CrateId, owner_module: Sym,
+    owner_file: uint32, self_name: String, impl_target: String, impl_trait: String, impl_trait_args: String,
+    impl_method: String, self_mutable: bool, generics: List<String>, params: List<Param>, ret_ptr: Ptr<TypeRef>,
+    body: &var List<Stmt>, diags: Ptr<List<Diagnostic>>, sigs: Ptr<SigTable>): void {
+    var no_names = List.new<String>()
+    var no_types = List.new<TypeRef>()
+    val pristine = subst_stmt_list(body, &var no_names, &var no_types)
+    var presets = List.new<OpenDecision>()
+    while attempt in 0..4 {
+        val reported = (*diags).size()
+        var ctx = new_type_ctx(void_ty(no_span()), diags, Option.None, sigs)
+        ctx.presets = presets.clone()
+        ctx.fn_owner = owner.clone()
+        ctx.impl_trait = impl_trait.clone()
+        ctx.impl_trait_args = impl_trait_args.clone()
+        ctx.impl_method = impl_method.clone()
+        ctx.seed_generics(generics.clone())
+        ctx.owner_crate = owner_crate
+        ctx.owner_module = owner_module
+        ctx.owner_file = owner_file
+        ctx.metadata_owner = metadata_owner
+        ctx.declare_value_params()
+        if !impl_target.as_str().equals("") {
+            ctx.self_ty = impl_target_ty(impl_target.as_str(), no_span(), ctx.string_name())
         }
-        if self_mutable {
-            ctx.declare(String.from("self"), self_ty)
-        } else {
-            ctx.declare_val(String.from("self"), self_ty)
+        val ret_tr: TypeRef = unsafe { *ret_ptr }
+        ctx.return_ty = ret_tr.resolve_type_ref(&var ctx)
+        val is_free = self_name.as_str().equals("")
+        if !is_free {
+            ctx.params.push(String.from("self"))
+            // Resolved, not assumed a struct: `impl Display for str` has a
+            // primitive target.
+            var self_ty = poison_ty()
+            if ctx.self_ty.is_poison() {
+                val self_kind = TypeRefKind.Named(intern(self_name.as_str()), List.new<TypeRef>())
+                val self_tr = new_type_ref(no_span(), self_kind)
+                self_ty = self_tr.resolve_type_ref(&var ctx)
+            } else {
+                self_ty = ctx.self_ty.clone()
+            }
+            if self_mutable {
+                ctx.declare(String.from("self"), self_ty)
+            } else {
+                ctx.declare_val(String.from("self"), self_ty)
+            }
         }
+        // Parameters are immutable; mutating the caller's value needs `&var` in
+        // the type.
+        var i = 0
+        while i < params.size() {
+            val p = *params.at(i)
+            val ty_ptr: Ptr<TypeRef> = p.ty
+            val p_tr: TypeRef = unsafe { *ty_ptr }
+            val pty = p_tr.resolve_type_ref(&var ctx)
+            ctx.params.push(p.name.as_string())
+            ctx.declare_val(p.name.as_string(), pty)
+            i = i + 1
+        }
+        val decisions = ctx.check_fn_statements(body, ret_tr.span, owner.clone())
+        if decisions.size() == 0 || attempt == 3 { return }
+        while (*diags).size() > reported { (*diags).pop() }
+        while decision in &decisions { presets.push(decision.clone()) }
+        *body = subst_stmt_list(&pristine, &var no_names, &var no_types)
     }
-    // Parameters are immutable; mutating the caller's value needs `&var` in
-    // the type.
-    var i = 0
-    while i < params.size() {
-        val p = *params.at(i)
-        val ty_ptr: Ptr<TypeRef> = p.ty
-        val p_tr: TypeRef = unsafe { *ty_ptr }
-        val pty = p_tr.resolve_type_ref(&var ctx)
-        ctx.params.push(p.name.as_string())
-        ctx.declare_val(p.name.as_string(), pty)
-        i = i + 1
-    }
+}
+
+/// The decisions uses made after earlier uses, which need another check.
+mutating fun TypeCtx.check_fn_statements(body: &var List<Stmt>, ret_span: Span, owner: String): List<OpenDecision> {
     while j in 0..body.size() {
-        (body.at_mut(j)).check_stmt(&var ctx)
+        (body.at_mut(j)).check_stmt(self)
     }
     // Every slot has been applied; a `null` still untyped never will be.
-    ctx.report_untyped_nulls()
+    self.report_untyped_nulls()
     // A wide literal no slot sized is left at `int32`, where it does not fit.
-    ctx.report_unsized_wide_literals()
-    // Likewise a static call on a generic type only a slot could complete.
-    ctx.report_open_calls()
+    self.report_unsized_wide_literals()
+    // Likewise a static call on a generic type only a slot could complete,
+    // and a literal whose elements only a slot could make agree.
+    self.report_open_calls()
+    self.report_unsettled_literals()
     // Non-void functions must return on every path. `Void`, `Never` and
     // `Poison` are exempt.
-    when (ctx.return_ty.kind) {
+    when (self.return_ty.kind) {
         Void => { }
         Never => { }
         Poison => { }
         _ => {
-            if !all_paths_return(body, &var ctx) {
-                emit_missing_return_err(diags, ret_tr.span, owner.clone())
+            if !all_paths_return(body, self) {
+                emit_missing_return_err(self.diags, ret_span, owner.clone())
             }
         }
     }
+    return self.decisions.clone()
 }
 
 // Control leaves `stmts` only by return or divergence. Conservative: unsure

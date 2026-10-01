@@ -464,8 +464,9 @@ the program are an error, since their C names would collide.
 
 `@lang("key")` is how the standard library tells the compiler which of its
 types the language itself builds on. alloc's `String` carries
-`@lang("string")`, which makes it the type a string literal becomes, the type
-`${...}` renders into, and the type a `str` converts up into.
+`@lang("string")`, which makes it the type a string literal becomes where an
+owned string is needed, the type `${...}` renders into, and the type a `str`
+converts up into.
 
 The compiler knows the keys, not the type names.
 

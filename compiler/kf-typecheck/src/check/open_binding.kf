@@ -1,6 +1,6 @@
 // An unannotated binding of an open generic call, `var xs = List.new()`, is
-// typed by its first use: a method call whose arguments fix every type
-// parameter (`xs.push(3)` makes it a `List<int32>`), or a slot of known type
+// typed by its uses: a method call whose arguments fix every type parameter
+// (`xs.push(3)` makes it a `List<int32>`), or a slot of known type
 // (`fill(&var xs)`, `return xs`). A `null` binding is typed by an optional
 // slot the same way. Otherwise the initializer stays open and is reported at
 // the end of the body.
@@ -11,15 +11,16 @@ import kf_core.ast.*
 import kf_typecheck.types.bind_generic_from_param
 import kf_typecheck.types.open_call_pending
 import kf_typecheck.types.type_to_type_ref
+import kf_typecheck.types.resolve_type_ref
 
 /// How many arguments were checked on the way, for `pretyped_args`: none
-/// unless the receiver is an open binding at its first use.
-/// CONSTRAINT: after the receiver is checked, which records its first use.
+/// unless the receiver is an open binding.
+/// CONSTRAINT: after the receiver is checked, which records its use.
 mutating fun Expr.pin_open_receiver(method_name: str, args: &var List<Expr>, ctx: &var TypeCtx): uint64 {
     val name = self.variable_name()
     if name.byte_len() == 0 { return 0 }
-    val init_ptr = ctx.flexible_init_at(name.as_str(), self.span) ?: return 0
-    // The binding's own initializer, which the flexible binding points at.
+    val init_ptr = ctx.open_init(name.as_str()) ?: return 0
+    // The binding's own initializer, which the open binding points at.
     val init: &var Expr = unsafe { &var *init_ptr }
     val base = init.open_call_base(ctx)
     if base.byte_len() == 0 { return 0 }
@@ -39,10 +40,12 @@ mutating fun Expr.pin_open_receiver(method_name: str, args: &var List<Expr>, ctx
         if bound.is_poison() { return args.size() }
         type_args.push(bound.type_to_type_ref(self.span))
     }
+    val written = new_type_ref(self.span, TypeRefKind.Named(intern(base.as_str()), type_args.clone()))
+    if self.decides_on_recheck(init.span, written.resolve_type_ref(ctx), ctx) { return args.size() }
     val inst = GenericInst { mangled: String.from(""), base: base.clone(), args: type_args }
     if !init.rebind_static_call(&inst, ctx) { return args.size() }
     val pinned = init.ty.clone()
-    ctx.pin_binding(name.as_str(), pinned.clone())
+    ctx.decide_binding(name.as_str(), pinned.clone(), self.span)
     self.ty = pinned
     return args.size()
 }
@@ -51,21 +54,34 @@ mutating fun Expr.pin_open_receiver(method_name: str, args: &var List<Expr>, ctx
 pub mutating fun Expr.pin_open_binding(expected: Type, ctx: &var TypeCtx): bool {
     val name = self.variable_name()
     if name.byte_len() == 0 { return false }
-    val init_ptr = ctx.flexible_init_at(name.as_str(), self.span) ?: return false
+    val slot = autoderef_ty(expected)
+    val inst = slot.expected_inst(ctx) ?: return false
+    val init_ptr = ctx.open_init(name.as_str()) ?: return self.conflicts_with_same_template(&slot, &inst, ctx)
     val init: &var Expr = unsafe { &var *init_ptr }
-    val inst = autoderef_ty(expected).expected_inst(ctx) ?: return false
-    if init.is_bare_null() {
-        if !inst.inst_is_option(ctx) { return false }
-        init.rewrite_null_to_none(&inst, ctx)
-    } else {
+    val is_null = init.is_bare_null()
+    if is_null && !inst.inst_is_option(ctx) { return false }
+    if !is_null {
         val base = init.open_call_base(ctx)
         if base.byte_len() == 0 || inst.base.as_str() != base.as_str() { return false }
-        if !init.rebind_static_call(&inst, ctx) { return false }
+    }
+    if self.decides_on_recheck(init.span, slot.clone(), ctx) { return true }
+    if is_null {
+        init.rewrite_null_to_none(&inst, ctx)
+    } else if !init.rebind_static_call(&inst, ctx) {
+        return false
     }
     val pinned = init.ty.clone()
-    ctx.pin_binding(name.as_str(), pinned.clone())
+    ctx.decide_binding(name.as_str(), pinned.clone(), self.span)
     self.ty = pinned
     return true
+}
+
+/// A slot of the decided binding's template with other arguments conflicts
+/// with the use that decided it.
+mutating fun Expr.conflicts_with_same_template(slot: &Type, inst: &GenericInst, ctx: &var TypeCtx): bool {
+    val decided = self.ty.expected_inst(ctx) ?: return false
+    if decided.base.as_str() != inst.base.as_str() { return false }
+    return self.conflicts_with_decision(slot.clone(), ctx)
 }
 
 /// A method call on a binding whose open call no use has typed: its element
@@ -76,7 +92,7 @@ fun Expr.receiver_still_open(ctx: &TypeCtx): bool {
         _ => String.from("")
     }
     if recv.byte_len() == 0 { return false }
-    val init = ctx.flexible_init_of(recv.as_str()) ?: return false
+    val init = ctx.open_init(recv.as_str()) ?: return false
     return open_call_pending(unsafe { init.span }, ctx)
 }
 

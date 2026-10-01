@@ -84,11 +84,11 @@ val b: int64 = 42   // int64, because you asked for it
 Without the annotation, `42` defaults to `int32` — but only if nothing better
 is available.
 
-### A literal takes its type from its first use
+### A literal takes its type from its uses
 
 An unannotated binding whose initializer is a number literal stays open until
-it is first read. If that read has a type of its own, the literal adopts it, so
-a counter does not need the annotation its comparison implies:
+a use needs a type of its own. The literal adopts that type, so a counter
+does not need the annotation its comparison implies:
 
 ```kflat
 var i = 0
@@ -97,23 +97,52 @@ while i < xs.size() {      // xs.size() is uint64, so i is uint64
 }
 ```
 
-A call argument, a `return`, an assignment into a typed place, and the other
-operand of an operator all count as such a read. If the first read has no type
-of its own the default stands, so `small + 1` leaves `small` an `int32`. Only
-the FIRST read decides; every later one sees what it settled.
+A call argument, a `return`, a store into the binding, an assignment into a
+typed place, and the other operand of an operator all need a type of their
+own. A use that works at any width, such as `n + n` or printing `n`, decides
+nothing, and a later use still can. If no use decides, the default stands, so
+`small + 1` alone leaves `small` an `int32`.
 
-Two shapes are not covered yet: a first read inside a sub-expression
-(`while i + 1 < n` looks at `i + 1`, which has no type of its own) and a first
-read that is a store rather than a read (`var era = 0` then `era = y / 400`).
-Annotate those.
+Once a use has decided, every other use must agree, and one that does not is
+reported with the use that decided:
 
-### A literal never becomes a type its crate cannot see
+```console
+$ komp check .
+src/main.kf:4:12: error: `n` is `uint64`, as an earlier use decided, but this use needs `int8`
+        narrow(n)
+               ^
+  = note: decided `uint64` here (at src/main.kf:3:10)
+          wide(n)
+               ^
+```
 
-`String` lives in `alloc`. A bare string literal becomes a `String` where that
-is visible, and stays a `str` where it is not — so core, and any crate without
-`alloc` in its dependency graph, can write `val s = "text"` and get the `str`
-its functions take. Before this the binding claimed a type the crate could not
-name, and the C compiler was the first to say so.
+One shape is not covered yet: a use inside a sub-expression (`while i + 1 < n`
+looks at `i + 1`, which has no type of its own). Annotate that.
+
+### A string literal is a `str` until a use needs more
+
+`val s = "text"` binds a `str`, the literal's own type, and allocates
+nothing. A use that needs more decides otherwise: a `String` slot or a method
+only `String` has makes it a `String`, and a slot of another type converting
+from `str` makes it that type, the literal converted once where it is bound.
+
+```kflat
+var out = ""
+out.append("ab")         // append is String's, so out is a String
+
+val owned = "abc"
+takes_view(owned)        // takes_view(s: str): a String serves this too
+takes_owned(owned)       // takes_owned(s: String): owned is a String
+```
+
+A `str` use decides nothing, since a `String` serves it as well, but it rules
+out the other types: a `str` slot followed by a `Name` slot, where `Name`
+implements `From<str>`, is reported with both uses. Crates without `alloc`
+have no `String`, so there a string literal is always a `str`.
+
+A list literal works the same way: `val xs = [1, 2]` is an `int32[2]` until a
+use needs a `List`, such as `xs.push(3)`; see
+[alloc](../libs/alloc.md#list-literals).
 
 The type of a binding cannot change after declaration. If you annotate a type,
 the initializer must match it or the compiler reports a type error.

@@ -281,6 +281,8 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                 val receiver: &var Expr = unsafe { &var *recv_ptr }
                 check_expr(receiver, ctx)
                 val pretyped = receiver.pin_open_receiver(method_name.as_str(), args, ctx)
+                receiver.narrow_open_text_receiver(method_name.as_str(), ctx)
+                receiver.narrow_open_array_receiver(method_name.as_str(), ctx)
                 val recv = unsafe { *recv_ptr }
                 if dyn_or_extension_call(e, recv_ptr, &recv, method_name_sym, args, ctx) { return }
                 if e.call_through_field(recv_ptr, recv.ty, method_name_sym, args, ctx) { return }

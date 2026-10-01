@@ -1,7 +1,8 @@
 //! run: exit 0
 //! deps: core, alloc
-// `[a, b, c]`: a List unless the slot wants another collection, which it
-// builds through `FromElements`; an empty `[]` is typed by its first use.
+// `[a, b, c]`: an array unless a slot or a use wants a List or another
+// collection, which it builds through `From<T[N]>`; an empty `[]` is typed by
+// its slot or its uses.
 
 import alloc.list.*
 
@@ -11,15 +12,18 @@ struct Bag {
     pub var count: int32
 }
 
-impl FromElements<int32> for Bag {
-    static fun new(): Bag { return Bag { total: 0, count: 0 } }
-    mutating fun push(item: int32): void {
-        self.total = self.total + item
-        self.count = self.count + 1
+impl<N: uint64> From<int32[N]> for Bag {
+    static fun from(items: int32[N]): Bag {
+        var bag = Bag { total: 0, count: 0 }
+        while item in &items {
+            bag.total = bag.total + item
+            bag.count = bag.count + 1
+        }
+        return bag
     }
 }
 
-// A generic one with a `push` of its own, which its FromElements impl calls.
+// A generic one with a `push` of its own, which its From impl calls.
 struct Ring<T> {
     pub var items: List<T>
     pub var pushes: int32
@@ -33,9 +37,12 @@ impl Ring<T> {
     }
 }
 
-impl FromElements<T> for Ring<T> {
-    static fun new(): Ring<T> { return Ring.new<T>() }
-    mutating fun push(item: T): void { self.push(item) }
+impl<T: Copy, N: uint64> From<T[N]> for Ring<T> {
+    static fun from(items: T[N]): Ring<T> {
+        var ring = Ring.new<T>()
+        while item in &items { ring.push(item) }
+        return ring
+    }
 }
 
 struct Holder { pub var items: List<int64> }
@@ -49,7 +56,7 @@ fun sum(xs: List<int32>): int32 {
 fun bag_total(bag: Bag): int32 { return bag.total }
 
 fun main(): int32 {
-    // Defaults to a List.
+    // An array, until `sum` needs a List.
     val xs = [1, 2, 3]
     if sum(xs) != 6 { return 1 }
     // Retargeted by the slot.
@@ -66,7 +73,7 @@ fun main(): int32 {
     if direct.pushes != 1 { return 16 }
     val h = Holder { items: [1, 2] }
     if h.items.get(1) != 2 { return 6 }
-    // Empty: typed by the slot or by the first push.
+    // Empty: typed by the slot or by a push.
     var empty = []
     empty.push(7)
     if empty.size() != 1 { return 7 }
@@ -74,7 +81,7 @@ fun main(): int32 {
     if typed_empty.size() != 0 { return 8 }
     if sum([]) != 0 { return 9 }
     // Anywhere an expression goes.
-    val nested = [[1, 2], [3]]
+    val nested: List<List<int32>> = [[1, 2], [3]]
     if nested.at(1).size() != 1 { return 10 }
     if [1, 2, 3].size() != 3 { return 11 }
     var i = 0
@@ -83,7 +90,7 @@ fun main(): int32 {
     var total = 0
     while x in [1, 2, 3] { total = total + x }
     if total != 6 { return 13 }
-    var assigned = [1]
+    var assigned: List<int32> = [1]
     assigned = [4, 5]
     if assigned.get(0) != 4 { return 14 }
     val names = [

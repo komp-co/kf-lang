@@ -1,4 +1,4 @@
-// An open generic call typed by its binding's first use. Shares
+// An open generic call typed by its binding's uses. Shares
 // open_generic_call_test.kf's `Bag<T>`.
 
 import core.assert.assert_eq
@@ -60,11 +60,18 @@ fun open_bag_diags(uses: List<Stmt>): List<Diagnostic> {
     assert_eq(open_bag_diags(uses).size(), 0, "put(3) says what the Bag holds")
 }
 
-// A later use does not reach back past the first.
-@test fun a_binding_used_first_elsewhere_stays_open(): void {
+// A use that decides nothing leaves the binding open for a later one.
+@test fun a_later_use_types_a_binding_the_first_left_open(): void {
     var uses = List.new<Stmt>()
     uses.push(new_stmt(no_span(), StmtKind.Expression(b_at(10))))
     uses.push(put_stmt(20, ExprKind.LitInt(3)))
+    assert_eq(open_bag_diags(uses).size(), 0, "put(3) says what the Bag holds")
+}
+
+// With no use deciding it, the call stays open and is reported.
+@test fun a_binding_no_use_decides_stays_open(): void {
+    var uses = List.new<Stmt>()
+    uses.push(new_stmt(no_span(), StmtKind.Expression(b_at(10))))
     val diags = open_bag_diags(uses)
     assert_eq(diag_mentions(&diags, "cannot tell what `Bag.make()` is over"), true, "the call stays open")
 }

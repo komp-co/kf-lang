@@ -11,7 +11,6 @@ import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.type_eq
 import kf_typecheck.types.resolve_type_ref
 import kf_typecheck.types.display_type
-import kf_typecheck.types.type_to_type_ref
 
 /// The method a source calls to lend itself as the slice `expected` is, and
 /// the element both hold.
@@ -49,9 +48,9 @@ mutating fun Expr.lend_literal_as_slice(expected: &Type, ctx: &var TypeCtx): boo
     val lend = expected.slice_lend(ctx) ?: return false
     if lend.method.as_str() != "as_slice" { return false }
     val text_length = self.text_literal_length(&lend.element)
-    if text_length == null && !self.is_list_literal(ctx) && !self.is_array_literal() { return false }
+    if text_length == null && !self.is_empty_list_literal(ctx) && !self.is_array_literal() { return false }
     val length = text_length ?: self.literal_elements().size()
-    val element = lend.element.type_to_type_ref(self.span)
+    val element = lend.element.written_instance(self.span, ctx)
     val array = array_type_ref(element, length, ctx.array_name(), self.span).resolve_type_ref(ctx)
     val built = if text_length != null { self.retarget_string_literal(array.clone(), ctx) } else {
         self.retarget_array_literal(array, ctx)
