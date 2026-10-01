@@ -723,6 +723,54 @@ fun main(): int32 {
 | `SliceMut`: `set(i, v)`, `swap(i, j)` | store or exchange in place |
 | `SliceMut`: `slice_mut(range)`, `as_slice()` | a narrower mutable view, a shared view |
 
+### Algorithms
+
+Searching, sorting and rearranging are written once, on slices. An array or
+a list has each of them too: a method it lacks but its slice has is called
+through the slice it lends, the mutable one when the method writes, so
+`xs.sort()` on a `var` array reads as `xs.as_slice_mut().sort()`.
+
+```kflat
+struct Word {
+    val letter: char
+    val rank: int32
+}
+
+fun main(): int32 {
+    var scores: int32[6] = [7, 3, 9, 3, 1, 8]
+    scores.sort()                                   // 1 3 3 7 8 9
+    val at = scores.binary_search(&7).unwrap()      // 3
+    var words: Word[3] = [Word { letter: 'b', rank: 2 }, Word { letter: 'a', rank: 1 },
+        Word { letter: 'c', rank: 2 }]
+    words.sort_by_key(|w: &Word| w.rank)            // a, b, c: b stays before c
+    var runs = 0
+    while run in scores.chunks(4) { runs = runs + 1 }   // 1 3 3 7, then 8 9
+    return at as int32 + runs + scores.max()!!      // 3 + 2 + 9
+}
+```
+
+| on `&var T[]` | does |
+|---|---|
+| `sort()`, `sort_by(order)`, `sort_by_key(key)` | ascending, **stable**: equal elements keep their order; O(n log² n), no allocation |
+| `sort_unstable()` | ascending by `Compare`, a heapsort: O(n log n), equal elements in any order |
+| `reverse()`, `rotate_left(k)`, `rotate_right(k)` | in place |
+| `fill(x)`, `copy_from(other)` | every element a copy of `x`, or of `other`'s at the same place; `other` of another length panics |
+
+| on `&T[]` | does |
+|---|---|
+| `contains(&x)`, `index_of(&x)`, `last_index_of(&x)` | membership, by `Equal`; the places are `uint64?` |
+| `starts_with(other)`, `ends_with(other)` | the first or last elements are `other`'s |
+| `binary_search(&x)` | in an ascending slice, `Ok(place)` holding `x`, or `Err(place)` where it would go |
+| `binary_search_by(place)` | the same, where `place(e)` is negative before what is sought, zero at it, positive after |
+| `is_sorted()` | each element no greater than the next |
+| `min()`, `max()`, `min_by_key(key)`, `max_by_key(key)`, `first()`, `last()` | a copy, `T?`, null when empty; the first of several equal |
+| `split_at(i)` | `left` holds `[0, i)` and `right` the rest, both views of the same elements |
+| `chunks(n)`, `windows(n)` | lazy views: runs of `n`, the last maybe shorter; or every `n` in a row, sliding by one |
+
+`order(a, b)` answers like `compare`: negative when `a` goes first. Both
+callables, and `key`, take each element by borrow, so an owning element is
+never copied to compare it. A key is computed afresh at each comparison.
+
 A `Slice` is `Copy`, like the shared borrow it stands for; a `SliceMut`
 moves. `Slice.from_raw(ptr, len)` and `SliceMut.from_raw` build one from a
 pointer inside `unsafe`, where the caller vouches that the elements outlive
