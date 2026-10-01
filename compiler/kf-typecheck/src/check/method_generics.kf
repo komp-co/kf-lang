@@ -89,18 +89,14 @@ fun FnSignature.check_method_generics(recv: &RecvBinding, sname: String, method_
     // type args.
     if mgnames.size() > 0 {
         if call.type_args.size() == 0 {
-            var flats = List.new<String>()
+            var written = List.new<TypeRef>()
             var ok = true
             while mbinding in &mbindings {
-                val flat = mbinding.ty_flat_ref_name()
-                if flat.as_str().equals("") { ok = false }
-                flats.push(flat)
+                val tr = mbinding.ty_written_ref(_span, ctx.sigs)
+                if tr.type_ref_is_poison() { ok = false }
+                written.push(tr)
             }
-            if ok {
-                while item in &flats {
-                    call.type_args.push(new_type_ref(_span, TypeRefKind.Named(intern(item.as_str()), List.new<TypeRef>())))
-                }
-            }
+            if ok { call.type_args = written }
         }
     }
     // The callee gets the specialization's suffix (`Terminal_draw__DrawProbe`),

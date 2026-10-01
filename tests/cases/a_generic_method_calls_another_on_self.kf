@@ -1,7 +1,8 @@
-//! run: exit 5
+//! run: exit 7
 //! deps: core
 // Inside a generic method, a call on `self` to another generic method is
-// instantiated for the same receiver.
+// instantiated for the same receiver, including one whose type argument is
+// an instance of the impl's own parameter.
 
 struct Tag<T> {
     val n: int32
@@ -14,7 +15,7 @@ struct Holder<T> {
 impl Holder<T> {
     fun inner<F>(f: F, n: int32): int32 { return n + 1 }
 
-    fun outer<F>(f: F): int32 { return self.inner(f, 3) }
+    fun outer<F>(f: F): int32 { return self.inner(f, 3) + self.inner(Tag<T> { n: 0 }, 1) }
 }
 
 fun main(): int32 {
