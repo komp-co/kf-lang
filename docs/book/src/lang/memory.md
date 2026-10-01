@@ -465,6 +465,10 @@ out.append("b")                // error: may reallocate; view would dangle
 if view == "a" { ... }
 ```
 
+A call's result has the origin of the one argument it was lent, the receiver
+of an extension included, so `first_word(&out)` and `out.peek()` (for
+`fun String.peek(): str`) borrow `out` just as `out.as_str()` does.
+
 Reassigning the origin is rejected for the same reason — it drops the buffer
 outright rather than moving it.
 

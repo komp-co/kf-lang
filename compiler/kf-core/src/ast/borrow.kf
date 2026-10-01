@@ -43,16 +43,43 @@ pub fun type_ref_borrow_origin(param_types: &List<TypeRef>, ret: &TypeRef, has_s
 }
 
 /// The binding a borrow ultimately reads from, or "" when it bottoms out in a
-/// literal or a call. Field reads, derefs, method calls and coercions keep
-/// pointing into the same storage.
+/// literal or an owned value. Field reads, derefs, method calls and coercions
+/// keep pointing into the same storage, and a call's result into the one
+/// argument it was lent.
 pub fun Expr.expr_borrow_root(): String {
     when (self.kind) {
         Variable(name) => return name.as_string()
         FieldAccess(base, _) => return expr_borrow_root(unsafe { &*base })
         Deref(inner) => return expr_borrow_root(unsafe { &*inner })
         MethodCall(receiver, _, _) => return expr_borrow_root(unsafe { &*receiver })
+        Call(_name, args) => return lent_argument_root(&args)
         DynCoerce(inner, _) => return expr_borrow_root(unsafe { &*inner })
         Cast(inner, _) => return expr_borrow_root(unsafe { &*inner })
         _ => return ""
+    }
+}
+
+/// A returned borrow comes from the single borrow parameter, so from the one
+/// argument passed as a borrow. With none or several there is no one root.
+fun lent_argument_root(args: &List<Expr>): String {
+    var root = String.from("")
+    var lent: uint64 = 0
+    while arg in &args {
+        if arg.is_lent() {
+            lent = lent + 1
+            root = arg.expr_borrow_root()
+        }
+    }
+    return if lent == 1 { root } else { String.from("") }
+}
+
+/// Passed as a borrow: borrow-typed, or lent with `&` written or implied.
+fun Expr.is_lent(): bool {
+    val c = self.coerce
+    if c == coerce_addr_of() || c == coerce_written_amp() || c == coerce_written_amp_var() { return true }
+    when (self.ty.kind) {
+        StrTy => return true
+        RefTo(_, _) => return true
+        _ => return false
     }
 }
