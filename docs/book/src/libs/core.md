@@ -670,6 +670,11 @@ fun main(): int32 {
 | `at(i)`, `at_mut(i)`, `xs[i]` | a borrow of element `i`; out of range panics |
 | `iter()` | an `ArrayIter<T>`, a cursor valid while the array is alive and unmoved |
 
+A list literal where an array is expected builds it in place, with exactly
+`N` elements: `val rgb: Array<uint8, 3> = [255, 128, 0]`. In a crate without
+alloc there is no list, so a literal anywhere is an array of its first
+element's type.
+
 `Array<T, N>` is `Copy` when `T` is, and `Clone` when `T` is. Otherwise it
 moves, and dropping it drops each element. `Array<T, N> {}` starts with every
 element zeroed.

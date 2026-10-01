@@ -81,7 +81,10 @@ fun Expr.emit_expr_base(): String {
         Binary(lp, op, rp) => return emit_binop(lp, op, rp)
         Unary(op, ip) => return emit_unop(op, ip)
         Deref(ip) => return emit_deref(ip)
-        Call(name, args) => return emit_call(name.as_string(), self.mangled_callee.as_string(), args, self.is_intrinsic)
+        Call(name, args) => {
+            if name.as_str() == array_literal_callee() { return self.emit_array_literal(&args) }
+            return emit_call(name.as_string(), self.mangled_callee.as_string(), args, self.is_intrinsic)
+        }
         FnRef(name) => return pick_callee(name.as_string(), self.mangled_callee.as_string())
         CallValue(callee_p, args) => return emit_call_value(callee_p, args)
         MethodCall(recv_p, mname, margs) => {
