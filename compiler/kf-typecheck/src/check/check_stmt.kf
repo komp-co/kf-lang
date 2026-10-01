@@ -202,10 +202,10 @@ fun check_let(name: String, ann: Ptr<TypeRef>?, init_ptr: Ptr<Expr>, mutable: bo
             }
         }
     }
-    // Its uses may choose a literal's width or text type, an open call's type
-    // arguments, or what a `null` is absent from.
-    val flexible = is_numeric_literal(init) || is_lit_str_expr(*init) || open_call_pending(init.span, ctx) ||
-        init.is_bare_null()
+    // Its uses may choose a literal's width, text or collection type, an open
+    // call's type arguments, or what a `null` is absent from.
+    val flexible = is_numeric_literal(init) || is_lit_str_expr(*init) || init.is_array_literal() ||
+        open_call_pending(init.span, ctx) || init.is_bare_null()
     if ann.is_none() && flexible {
         ctx.declare_flexible(name, ty, mutable, init_ptr)
         return

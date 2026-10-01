@@ -140,6 +140,10 @@ out the other types: a `str` slot followed by a `Name` slot, where `Name`
 implements `From<str>`, is reported with both uses. Crates without `alloc`
 have no `String`, so there a string literal is always a `str`.
 
+A list literal works the same way: `val xs = [1, 2]` is an `int32[2]` until a
+use needs a `List`, such as `xs.push(3)`; see
+[alloc](../libs/alloc.md#list-literals).
+
 The type of a binding cannot change after declaration. If you annotate a type,
 the initializer must match it or the compiler reports a type error.
 

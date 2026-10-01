@@ -88,8 +88,10 @@ mutating fun TypeCtx.check_fn_statements(body: &var List<Stmt>, ret_span: Span, 
     self.report_untyped_nulls()
     // A wide literal no slot sized is left at `int32`, where it does not fit.
     self.report_unsized_wide_literals()
-    // Likewise a static call on a generic type only a slot could complete.
+    // Likewise a static call on a generic type only a slot could complete,
+    // and a literal whose elements only a slot could make agree.
     self.report_open_calls()
+    self.report_unsettled_literals()
     // Non-void functions must return on every path. `Void`, `Never` and
     // `Poison` are exempt.
     when (self.return_ty.kind) {

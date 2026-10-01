@@ -4,8 +4,8 @@ import alloc.list.*
 fun count(names: List<String>): uint64 { return names.size() }
 
 fun main(): int32 {
-    val names = [String.from("ada"), String.from("grace")]
-    val nested = [[String.from("a")], [String.from("b"), String.from("c")]]
+    val names: List<String> = [String.from("ada"), String.from("grace")]
+    val nested: List<List<String>> = [[String.from("a")], [String.from("b"), String.from("c")]]
     val passed = count([String.from("x")])
     var empty = []
     empty.push(String.from("later"))

@@ -1,47 +1,20 @@
-// What `[a, b, c]` parses to, and how the checker recognises it:
-//
-//     [a, b]  ->  { var __list_literal_N = List.new()
-//                   __list_literal_N.push(a)
-//                   __list_literal_N.push(b)
-//                   __list_literal_N }
-//     []      ->  __empty_list_literal.new()
-//
-// `N` is the literal's source offset, so nested literals do not share a
-// binder. The checker names the collection: `List`, or the type the slot
-// expects.
+// What `[a, b, c]` parses to: an array literal, its elements the call's
+// arguments, which the checker types as an array of the first element's type
+// and a slot may retarget or convert. `[]` has no element to type it by, so it
+// is `__empty_list_literal.new()` until the checker names what it builds.
 
 import alloc.list.*
 
 import kf_core.span.Span
 
-pub fun list_literal_prefix(): str { return "__list_literal_" }
-
 /// The receiver an empty literal's `new()` is written against until the
 /// checker names its type.
 pub fun empty_list_literal_receiver(): str { return "__empty_list_literal" }
 
-/// As parsed: the collection is left to the checker to name.
+/// As parsed: the array literal of `elements`, or the empty literal's call.
 pub fun list_literal_expr(span: Span, elements: &List<Expr>): Expr {
-    val receiver = if elements.size() == 0 { empty_list_literal_receiver() } else { "List" }
-    return collection_literal_expr(span, elements, collection_new_call(span, intern(receiver)))
-}
-
-/// `new_call` alone for no elements; otherwise the block that pushes each.
-pub fun collection_literal_expr(span: Span, elements: &List<Expr>, new_call: Expr): Expr {
-    if elements.size() == 0 { return new_call }
-    val binder = intern("${list_literal_prefix()}${span.start as int64}")
-    var stmts = List.new<Stmt>()
-    val init: Box<Expr>? = Box.new(new_call)
-    stmts.push(new_stmt(span, StmtKind.LetVar(binder, null, init)))
-    while element in &elements {
-        var args = List.new<Expr>()
-        args.push(element.clone())
-        val receiver = Box.new(new_expr(element.span, ExprKind.Variable(binder)))
-        val push = Box.new(new_expr(element.span, ExprKind.MethodCall(receiver, intern("push"), args)))
-        stmts.push(new_stmt(element.span, StmtKind.Expression(push)))
-    }
-    stmts.push(new_stmt(span, StmtKind.Expression(Box.new(new_expr(span, ExprKind.Variable(binder))))))
-    return new_expr(span, ExprKind.Block(stmts))
+    if elements.size() == 0 { return collection_new_call(span, intern(empty_list_literal_receiver())) }
+    return new_expr(span, ExprKind.Call(intern(array_literal_callee()), elements.clone()))
 }
 
 /// `Type.new()`, with no type arguments of its own.
@@ -50,48 +23,7 @@ pub fun collection_new_call(span: Span, type_name: Sym): Expr {
     return new_expr(span, ExprKind.MethodCall(receiver, intern("new"), List.new<Expr>()))
 }
 
-/// The binder of a non-empty literal's block, or "".
-pub fun Expr.list_literal_binder(): String {
-    when (self.kind) {
-        Block(stmts) => {
-            if stmts.size() == 0 { return String.from("") }
-            when (stmts.at(0).kind) {
-                LetVar(name, _ann, _init) => {
-                    if name.as_str().starts_with(list_literal_prefix()) { return name.as_string() }
-                }
-                _ => { }
-            }
-        }
-        _ => { }
-    }
-    return String.from("")
-}
-
-/// The elements of a literal, in order: what its pushes pass.
-pub fun Expr.list_literal_elements(): List<Expr> {
-    var out = List.new<Expr>()
-    when (self.kind) {
-        Block(stmts) => {
-            while stmt in &stmts {
-                when (stmt.kind) {
-                    Expression(call) => {
-                        when (call.kind) {
-                            MethodCall(_receiver, _method, args) => {
-                                if args.size() == 1 { out.push(args.at(0).clone()) }
-                            }
-                            _ => { }
-                        }
-                    }
-                    _ => { }
-                }
-            }
-        }
-        _ => { }
-    }
-    return out
-}
-
-/// The call an array literal becomes once its slot names the array: its
-/// arguments are the elements, and codegen writes them as the array's C
-/// initializer. Reserved-prefixed, so no function can share it.
+/// The call an array literal is: its arguments are the elements, and codegen
+/// writes them as the array's C initializer. Reserved-prefixed, so no
+/// function can share it.
 pub fun array_literal_callee(): str { return "kf__array_literal" }

@@ -22,7 +22,6 @@ Every operator trait lives in `core.traits`, one module per group:
 | `core.traits.call` | `Call0`-`Call3`, `CallMut0`-`CallMut3` | Lambda invocation |
 | `core.traits.iter` | `Iterable`, `Iterator` | `while x in xs` |
 | `core.traits.index` | `Index`, `IndexMut`, `IndexValue` | `a[i]` |
-| `core.traits.from_elements` | `FromElements` | `[a, b, c]` in a slot of the type |
 | `core.traits.try` | `Try`, `FromResidual` | postfix `?` |
 | `core.display` | `Display` | `println`, string interpolation |
 
@@ -672,10 +671,9 @@ fun main(): int32 {
 | `iter()` | an `ArrayIter<T>`, a cursor valid while the array is alive and unmoved |
 | `as_slice()`, `as_slice_mut()` | a [slice](#slice) of every element |
 
-A list literal where an array is expected builds it in place, with exactly
-`N` elements: `val rgb: Array<uint8, 3> = [255, 128, 0]`. In a crate without
-alloc there is no list, so a literal anywhere is an array of its first
-element's type.
+A list literal is an array of its first element's type, built in place; where
+an array is expected it has exactly `N` elements:
+`val rgb: Array<uint8, 3> = [255, 128, 0]`.
 
 `Array<T, N>` is `Copy` when `T` is, and `Clone` when `T` is. Otherwise it
 moves, and dropping it drops each element. `Array<T, N> {}` starts with every

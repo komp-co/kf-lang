@@ -57,8 +57,23 @@ mutating fun TypeCtx.decide_by_store(name: str, value: &Expr, span: Span, target
     place.ty = target.clone()
     if is_numeric(value.ty) {
         if !place.narrow_open_number(value.ty.clone(), self) { return target }
-    } else if place.narrow_open_text(value.ty.clone(), self) {
+    } else if place.narrow_open_text(value.ty.clone(), self) || place.narrow_open_array(value.ty.clone(), self) {
         return target
     }
     return self.lookup(name)
+}
+
+/// A type an earlier use ruled out: it needed the binding as `needed`, which
+/// `target` is not. True when reported.
+mutating fun Expr.conflicts_with_narrowing(target: &Type, needed: str, ctx: &var TypeCtx): bool {
+    val name = self.variable_name()
+    val narrowed_at = ctx.binding_narrowed_at(name.as_str())
+    if narrowed_at.is_none() { return false }
+    val shown = target.display_type(ctx)
+    val message = "`${name}` cannot be `${shown}` here: an earlier use needs it as ${needed}, which `${shown}` is not"
+    var diagnostic = new_diagnostic(Severity.Error, new_label(self.span, message))
+    diagnostic.secondary.push(new_label(narrowed_at, "used as ${needed} here"))
+    ctx.emit(diagnostic)
+    self.ty = poison_ty()
+    return true
 }

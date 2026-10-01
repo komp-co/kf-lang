@@ -82,24 +82,25 @@ A list no use types is an error, naming both repairs.
 
 ## List literals
 
-`[a, b, c]` builds a list with its elements in it, in order. Its element type
-comes from the elements, or from the slot it is written in:
+`[a, b, c]` is an array of its elements: `[1, 2, 3]` is an `int32[3]`, built
+in place, with no allocation. It becomes a `List` where one is needed: in a
+`List` slot, or bound without a type and then used as a list, say by `push`.
+Its element type comes from the elements, or from the slot:
 
 ```kflat
-val xs = [1, 2, 3]                   // List<int32>
+val xs = [1, 2, 3]                   // int32[3]
+var grows = [1, 2]
+grows.push(3)                        // push is List's, so grows is a List<int32>
 val wide: List<int64> = [1, 2]       // the slot's element type
-val names = [
-    String.from("ada"),
-    String.from("grace"),
-]
 total([10, 20])                      // total(xs: List<int32>)
-if [1, 2, 3].size() != 3 { ... }
 ```
 
-Every element must have the list's type: `[1, true]` is reported at `true`,
-as "this element is `bool`, but the list holds `int32`".
+Every element must have the literal's type: `[1, true]` is reported at `true`,
+as "this element is `bool`, but the array holds `int32`". A slot may still ask
+one type of them all, so `[[1, 2], [3]]` is fine where a `List<List<int32>>`
+is expected.
 
-An empty `[]` is typed like `List.new()`: by its slot, or by its first use.
+An empty `[]` is typed like `List.new()`: by its slot, or by its uses.
 
 ```kflat
 val none: List<uint8> = []
@@ -108,8 +109,8 @@ later.push(7)                        // a List<int32>
 ```
 
 A literal is not tied to `List`. Written where another type is expected, it
-converts through that type's `From`: the literal is built as an array, an
-`int32[3]` for `[4, 5, 6]`, and handed to `from`. A string literal converts
+converts through that type's `From`: the array is handed to `from`, which is
+how a `List` is built too. A string literal converts
 through `From<str>` the same way. Only a literal converts; any other value
 calls `from` itself. Where core's [`Array<T, N>`](core.md#array) is expected,
 the literal builds the array in place, with exactly `N` elements. Your own
@@ -135,9 +136,7 @@ impl<N: uint64> From<int32[N]> for Bag {
 val bag: Bag = [4, 5, 6]             // total 15, count 3
 ```
 
-A type implementing core's `FromElements` instead is built with its `new()`,
-then one `push` per element. A slot whose type implements neither is reported
-as not implementing `FromElements`.
+A slot whose type does not implement `From<T[N]>` is reported as such.
 
 ## Adding and reading elements
 

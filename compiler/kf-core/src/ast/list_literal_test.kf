@@ -30,25 +30,29 @@ fun literal_of(values: List<int64>): Expr {
     assert_eq(receiver_name.as_str(), empty_list_literal_receiver(), "the checker names its type")
 }
 
-@test fun a_literal_binds_a_name_from_its_offset(): void {
-    var values = List.new<int64>()
-    values.push(1)
-    assert_eq(literal_of(values).list_literal_binder().as_str(), "__list_literal_40", "one binder per literal")
-}
-
-@test fun a_block_that_is_not_a_literal_has_no_binder(): void {
-    val block = new_expr(at(0), ExprKind.Block(List.new<Stmt>()))
-    assert_eq(block.list_literal_binder().byte_len(), 0, "an ordinary block")
-}
-
-@test fun a_literal_gives_back_its_elements_in_order(): void {
+@test fun a_literal_is_an_array_literal_of_its_elements(): void {
     var values = List.new<int64>()
     values.push(3)
     values.push(9)
-    val elements = literal_of(values).list_literal_elements()
-    val second = when (elements.at(1).kind) {
-        LitInt(n) => n
+    val callee = when (literal_of(values).kind) {
+        Call(name, _args) => name.as_string()
+        _ => String.from("")
+    }
+    assert_eq(callee.as_str(), array_literal_callee(), "the array literal call")
+}
+
+@test fun a_literal_keeps_its_elements_in_order(): void {
+    var values = List.new<int64>()
+    values.push(3)
+    values.push(9)
+    val second = when (literal_of(values).kind) {
+        Call(_name, args) => {
+            when (args.at(1).kind) {
+                LitInt(n) => n
+                _ => 0
+            }
+        }
         _ => 0
     }
-    assert_eq(second, 9, "the second push passes 9")
+    assert_eq(second, 9, "the second argument is 9")
 }

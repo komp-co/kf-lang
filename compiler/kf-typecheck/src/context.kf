@@ -94,6 +94,8 @@ pub struct TypeCtx {
     /// those a previous check decided.
     pub var decisions: List<OpenDecision>
     pub var presets: List<OpenDecision>
+    /// Element mismatches in literals no slot has typed yet.
+    pub var deferred_literals: List<DeferredLiteral>
 }
 
 pub fun new_type_ctx(return_ty: Type, diags: Ptr<List<Diagnostic>>, table: Ptr<DeclTable>?, sigs: Ptr<SigTable>): TypeCtx {
@@ -130,7 +132,8 @@ pub fun new_type_ctx(return_ty: Type, diags: Ptr<List<Diagnostic>>, table: Ptr<D
         pinned_callee: String.from(""),
         through_module: Sym { id: 0 },
         decisions: List.new<OpenDecision>(),
-        presets: List.new<OpenDecision>()
+        presets: List.new<OpenDecision>(),
+        deferred_literals: List.new<DeferredLiteral>()
     }
 }
 
