@@ -135,6 +135,10 @@ impl TypeCtx {
         return unsafe { (*self.sigs).lang_list }
     }
 
+    pub fun array_name(): Sym {
+        return unsafe { (*self.sigs).lang_array }
+    }
+
     pub fun lang_trait_name(key: str): Sym {
         return unsafe { (*self.sigs).lang_trait_name(key) }
     }

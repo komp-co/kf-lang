@@ -53,8 +53,10 @@ pub fun check_decl_module(m: &var Module,
     unsafe { (*sig_ptr).lang_string = m.lang_type_name(lang_string_key()) }
     unsafe { (*sig_ptr).lang_option = m.lang_type_name(lang_option_key()) }
     unsafe { (*sig_ptr).lang_list = m.lang_type_name(lang_list_key()) }
-    // The `?` placeholder becomes the real option name.
-    m.rewrite_option_module(unsafe { (*sig_ptr).lang_option })
+    unsafe { (*sig_ptr).lang_array = m.lang_type_name(lang_array_key()) }
+    // The `?` and `[N]` placeholders become the real option and array names.
+    val heads = LangHeads { option: unsafe { (*sig_ptr).lang_option }, array: unsafe { (*sig_ptr).lang_array } }
+    m.rewrite_placeholder_module(heads)
     while td in &m.decls {
         when (td.kind) {
             TraitDecl(_members, _is_pub, _supers) => {

@@ -274,6 +274,8 @@ pub fun ty_needs_drop_deep(t: TypeRef, m: &Module): bool {
             if type_has_user_drop(inst.clone(), m) { return true }
             return declared_type_owns_heap(inst.as_str(), m)
         }
+        // An array's storage owns what its elements own.
+        Array(element, _length) => return ty_needs_drop_deep((*element).clone(), m)
         _ => return false
     }
 }

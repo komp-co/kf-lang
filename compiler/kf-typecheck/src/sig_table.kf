@@ -275,6 +275,7 @@ pub struct SigTable {
     pub var lang_string: Sym
     /// The `@lang("option")` type, or the empty name.
     pub var lang_option: Sym
+    pub var lang_array: Sym
     /// The `@lang("list")` type, or the empty name.
     pub var lang_list: Sym
     /// `@lang(...)` traits as parallel (key, name) lists.
@@ -327,6 +328,7 @@ pub fun new_sig_table(): SigTable {
         no_mangle_types: List.new<String>(),
         lang_string: intern(""),
         lang_option: intern(""),
+        lang_array: intern(""),
         lang_list: intern(""),
         lang_trait_keys: List.new<String>(),
         lang_trait_names: List.new<Sym>(),

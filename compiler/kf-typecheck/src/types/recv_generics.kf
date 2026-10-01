@@ -38,16 +38,21 @@ pub fun recv_type_bindings(sname: String, span: Span, ctx: &var TypeCtx): RecvBi
                     val was_quiet = ctx.quiet
                     ctx.quiet = true
                     var concrete = true
+                    // Only a row whose every argument is its own parameter is
+                    // the template; `Pair<int32, B>` in a scope with its own
+                    // `B` is an instance.
+                    var own_names: uint64 = 0
                     while i in 0..gi.type_params.size() {
                         if i < inst.args.size() {
                             val arg = (*inst.args.at(i)).resolve_type_ref(ctx)
                             val frag = mangle_type(arg.clone())
                             if frag.as_str().equals("poison") { concrete = false }
-                            if frag.as_str().equals(gi.type_params.at(i).as_str()) { concrete = false }
+                            if frag.as_str().equals(gi.type_params.at(i).as_str()) { own_names = own_names + 1 }
                             names.push(*gi.type_params.at(i))
                             types.push(arg)
                         }
                     }
+                    if own_names == gi.type_params.size() { concrete = false }
                     ctx.quiet = was_quiet
                     if !concrete {
                         return RecvBinding { names: List.new<String>(), types: List.new<Type>() }

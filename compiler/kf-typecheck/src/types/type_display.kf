@@ -84,7 +84,12 @@ fun display_wrapped_type(prefix: str, inner: &Type, suffix: str, ctx: &TypeCtx):
 fun Sym.display_named_type(ctx: &TypeCtx): String {
     val sigs = ctx.sigs
     return when (unsafe { sigs.find_inst(self.as_str()) }) {
-        Some(inst) => inst.display_generic_inst()
+        // An array is shown as written: `int32[3]`.
+        Some(inst) => if inst.base.as_str() == ctx.array_name().as_str() && inst.args.size() == 2 {
+            "${inst.args.at(0).display_type_ref()}[${inst.args.at(1).display_type_ref()}]"
+        } else {
+            inst.display_generic_inst()
+        }
         // A deferred projection's bracketed spelling is internal; shown as
         // `Owner.Member`.
         None => projection_mangle_display(type_identity_display(Sym { id: self.id }).as_str())
