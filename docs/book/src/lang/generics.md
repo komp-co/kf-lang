@@ -283,6 +283,33 @@ val none: Option<int32> = Option.None       // no payload — the annotation car
 `Option.None<int32>` is not the way to write a typed `None`; annotate the
 binding instead.
 
+A static call's arguments bind the type's parameters the way a generic
+function's do, so `Pair.of(4, true)` needs nothing written:
+
+```kflat
+struct Pair<A, B> {
+    val first: A
+    val second: B
+}
+
+impl<A, B> Pair<A, B> {
+    static fun of(first: A, second: B): Pair<A, B> {
+        return Pair<A, B> { first: first, second: second }
+    }
+}
+
+fun main(): int32 {
+    val p = Pair.of(4, true)          // a Pair<int32, bool>
+    return if p.second { p.first } else { 0 }
+}
+```
+
+The arguments decide: `Pair.of(4, true)` is a `Pair<int32, bool>` even where a
+`Pair<int64, bool>` is expected, so write `4 as int64` there. Every parameter
+must be bound by some argument; when one is not, as `B` in a
+`static fun of(first: A): Half<A, B>`, write them all:
+`Half.of<int32, bool>(4)`.
+
 A static call with no value argument has nothing of its own to go on, so the
 slot is what types it. All four of these work:
 
