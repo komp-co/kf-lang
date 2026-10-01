@@ -8,6 +8,7 @@ import kf_core.span.no_span
 import kf_core.ast.subst.clone_type_ref
 import kf_core.ast.dyn_meta.*
 import kf_typecheck.check.decl.no_mangle_type_recorded
+import kf_typecheck.check.decl.trait_arg_params
 
 mutating fun TopDecl.register_trait_impl(trait_ref: &TypeRef, sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): void {
     when (trait_ref.kind) {
@@ -41,7 +42,7 @@ mutating fun TopDecl.register_trait_impl(trait_ref: &TypeRef, sigs: Ptr<SigTable
                         receiver_identity: receiver,
                         trait_name: trait_name,
                         trait_args: args_key,
-                        generics: type_param_key(&self.generics),
+                        generics: type_param_key(&self.generics_with_trait_arg_params()),
                         arg_count: trait_args.size()
                     }) }
                 }
@@ -85,6 +86,8 @@ pub mutating fun TopDecl.register_dyn_vtable_decl(sigs: Ptr<SigTable>, diags: Pt
 }
 
 mutating fun TopDecl.register_concrete_dyn_vtable(trait_ref: TypeRef, members: &List<TopDecl>, sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): void {
+    // One vtable per length, which the impl does not have until a call names it.
+    if self.trait_arg_params().size() > 0 { return }
     when (trait_ref.kind) {
         Named(trait_name, type_refs) => {
             when (unsafe { sigs.find_unique_trait(trait_name.as_str()) }) {
@@ -233,4 +236,12 @@ pub fun type_param_key(tps: &List<TypeParam>): String {
         text.append(tps.at(i).name.as_str())
     }
     return text
+}
+
+/// The impl's own parameters and those its trait's arguments supplied: both
+/// match whatever a use instantiates them to.
+fun TopDecl.generics_with_trait_arg_params(): List<TypeParam> {
+    var all = self.generics.clone()
+    while tp in &self.trait_arg_params() { all.push(tp.clone()) }
+    return all
 }

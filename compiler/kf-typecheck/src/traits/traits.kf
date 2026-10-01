@@ -194,7 +194,15 @@ fun trait_ref_arg_names(trait_ref: TypeRef): List<String> {
 fun TraitMethodReq.check_named_method_types(tname: &String, trait_ref: &TypeRef, target: str, self_ty: &Type, methods: List<TopDecl>, diags: Ptr<List<Diagnostic>>, ctx: &var TypeCtx): void {
     while method in &methods {
         if method.name.as_str().equals(self.name.as_str()) {
+            // The method's own parameters, `N` lifted from the trait's
+            // arguments among them, are in scope for its signature.
+            val outer_owner = ctx.fn_owner.clone()
+            val outer_generics = ctx.generics.clone()
+            ctx.fn_owner = "${target}_${method.name.as_str()}"
+            while tp in &method.generics { ctx.generics.push(tp.name.as_string()) }
             self.check_impl_method_types(tname, trait_ref, target, self_ty, method, diags, ctx)
+            ctx.fn_owner = outer_owner
+            ctx.generics = outer_generics
             return
         }
     }

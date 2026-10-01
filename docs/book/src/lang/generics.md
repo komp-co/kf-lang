@@ -125,7 +125,41 @@ impl<A: Show, B> Show for Pair<A, B> {
 ```
 
 Every parameter the target uses must be declared in the list, and every
-declared one used. The older spelling puts the bound in the target's own list,
+declared one used, by the target or by the trait's arguments. A parameter only
+the trait's arguments name is taken from each call: `N` below is the length of
+whatever array is passed, and each length gets its own `from`.
+
+```kflat
+struct Total {
+    val sum: int64
+}
+
+impl<N: uint64> From<int64[N]> for Total {
+    static fun from(items: int64[N]): Total {
+        var sum: int64 = 0
+        while x in items { sum = sum + x }
+        return Total { sum: sum }
+    }
+}
+
+fun main(): int32 {
+    val two: int64[2] = [1, 2]
+    val three: int64[3] = [3, 4, 5]
+    return (Total.from(two).sum + Total.from(three).sum) as int32   // 3 + 12
+}
+```
+
+Such an impl has no `&dyn` form: there is one per length, and none until a
+call names it.
+
+```console
+$ komp check .
+src/main.kf:7:9: error: `B` is declared in `impl<...>` but neither the target nor the trait's arguments use it
+    impl<A, B> Show for Pair<A> {
+            ^
+```
+
+The older spelling puts the bound in the target's own list,
 `impl Show for Pair<A: Show, B>`, and means the same; a parameter may be
 bounded in one of the two places, not both.
 
