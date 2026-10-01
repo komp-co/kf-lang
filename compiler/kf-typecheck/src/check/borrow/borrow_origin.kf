@@ -24,7 +24,7 @@ pub fun Type.type_is_borrow(): bool {
     }
 }
 
-/// A borrow, or a value of a `@view` type, which borrows as one does.
+/// A borrow, or a value of a view type, which borrows as one does.
 pub fun Type.type_borrows(sigs: Ptr<SigTable>): bool {
     return self.type_is_borrow() || self.type_is_view(sigs)
 }

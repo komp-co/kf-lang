@@ -18,6 +18,22 @@ impl Parser {
         return td
     }
 
+    /// `view struct` or `view enum`: `view` is a word only here, so a name
+    /// `view` elsewhere is untouched.
+    fun at_view_type(): bool {
+        if !self.at_word("view") { return false }
+        val next = self.peek_at(1)
+        return is_keyword(next, Keyword.Struct) || is_keyword(next, Keyword.Enum)
+    }
+
+    mutating fun parse_view_type(span: Span, is_pub: bool): TopDecl {
+        self.advance() // consume `view`
+        val is_struct = is_keyword(self.peek(), Keyword.Struct)
+        var td = if is_struct { self.parse_struct(span, is_pub) } else { self.parse_enum(span, is_pub) }
+        td.is_view = true
+        return td
+    }
+
     mutating fun parse_trait(span: Span, is_pub: bool): TopDecl {
         unsafe { self.advance() } // consume `trait`
         // Read before the name is interned; a Sym has no position.

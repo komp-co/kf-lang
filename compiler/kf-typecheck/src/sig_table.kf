@@ -276,7 +276,7 @@ pub struct SigTable {
     pub var used_names: List<Sym>
     /// `@no_mangle` types, whose impls share one C namespace.
     pub var no_mangle_types: List<String>
-    /// `@view` types by declared name, dependencies' included.
+    /// View types by declared name, dependencies' included.
     pub var views: List<String>
     /// The `@lang("string")` type, or the empty name.
     pub var lang_string: Sym

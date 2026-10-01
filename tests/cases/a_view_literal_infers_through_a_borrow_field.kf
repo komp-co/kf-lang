@@ -1,8 +1,7 @@
 //! run: exit 9
 // `&T` in a view's field binds `T` like any other position.
 
-@view
-struct Cursor<T> {
+view struct Cursor<T> {
     val first: &T
 }
 

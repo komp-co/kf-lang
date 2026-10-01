@@ -2,8 +2,7 @@
 //! deps: core, alloc
 // A view of a binding the function owns would outlive it.
 
-@view
-struct Window {
+view struct Window {
     val text: str
 }
 

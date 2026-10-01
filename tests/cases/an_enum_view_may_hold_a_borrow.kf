@@ -1,8 +1,7 @@
 //! run: exit 3
-// A `@view` enum's payloads may be borrows.
+// A `view enum`'s payloads may be borrows.
 
-@view
-enum Piece {
+view enum Piece {
     Word(str)
     Gap
 }

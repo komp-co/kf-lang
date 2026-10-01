@@ -2,7 +2,7 @@
 
 Annotations start with `@` and apply to the declaration that follows. KFlat
 has `@test`, `@test_disabled`, `@allow(...)`, `@derive(...)`, `@no_mangle`,
-`@view`, `@lang(...)` and `@prelude` built in, and a crate may
+`@lang(...)` and `@prelude` built in, and a crate may
 [declare its own](#declaring-an-annotation). Any other annotation is an error.
 
 A declaration may carry several, one per line.
@@ -459,13 +459,6 @@ pub struct Pair {
 The C type is `Pair`, and its methods are `Pair_<method>`. It may only annotate
 a struct or an enum, and two `@no_mangle` types with the same name anywhere in
 the program are an error, since their C names would collide.
-
-## @view
-
-`@view` marks a struct or an enum whose values borrow from somewhere, the way
-`str` and `&T` do. Its own fields and payloads may hold borrows, and every
-borrow rule applies to its values. It may only annotate a struct or an enum.
-[Memory](memory.md#view-types) has the rules.
 
 ## @lang
 

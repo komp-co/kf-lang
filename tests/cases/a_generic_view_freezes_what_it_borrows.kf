@@ -1,8 +1,7 @@
 //! build: fail
 // An instance of a generic view is a view too.
 
-@view
-struct Cursor<T> {
+view struct Cursor<T> {
     val first: &T
 }
 

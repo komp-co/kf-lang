@@ -22,7 +22,7 @@ pub struct MutatingMethod {
 /// What every check in a module consults.
 struct LivenessFacts {
     val muts: List<MutatingMethod>
-    /// `@view` types, whose values borrow as `&T` does.
+    /// View types, whose values borrow as `&T` does.
     val views: List<String>
 }
 

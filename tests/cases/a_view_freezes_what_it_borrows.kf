@@ -2,8 +2,7 @@
 //! deps: core, alloc
 // While a view of `text` is still used, `text` may not be changed.
 
-@view
-struct Window {
+view struct Window {
     val text: str
 }
 

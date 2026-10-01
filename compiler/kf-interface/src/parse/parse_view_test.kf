@@ -11,12 +11,12 @@ import kf_interface.emit.emit_interface
 fun interface_round_trip_restores_a_view(): void {
     var m = interface_test_module()
     var marked = *m.decls.at(0)
-    marked.annotations.push(view_annotation())
+    marked.is_view = true
     m.decls.set(0, marked)
     val encoded = m.emit_interface(String.from("sample"), &List.new<String>())
     val loaded = parse_interface(encoded.as_str())
     val point = *loaded.modules.at(0).decls.at(0)
-    assert_eq(point.is_view(), true, "a consumer treats the type's values as borrows")
+    assert_eq(point.is_view_type(), true, "a consumer treats the type's values as borrows")
 }
 
 @test
@@ -24,5 +24,5 @@ fun interface_round_trip_invents_no_view(): void {
     val m = interface_test_module()
     val loaded = parse_interface(m.emit_interface(String.from("sample"), &List.new<String>()).as_str())
     val point = *loaded.modules.at(0).decls.at(0)
-    assert_eq(point.is_view(), false, "an unmarked type stays an owned one")
+    assert_eq(point.is_view_type(), false, "an unmarked type stays an owned one")
 }

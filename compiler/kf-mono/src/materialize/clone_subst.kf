@@ -208,8 +208,7 @@ fun clone_subst_method(meth: &TopDecl, names: &var List<String>, repls: &var Lis
 
 /// An instance of a view type is a view too.
 fun TopDecl.carry_view(instance: TopDecl): TopDecl {
-    if !self.is_view() { return instance }
     var marked = instance
-    marked.annotations.push(view_annotation())
+    marked.is_view = self.is_view
     return marked
 }

@@ -1,10 +1,9 @@
 //! run: exit 4
 //! deps: core, alloc
-// A `@view` struct may hold borrows, and a method returns one borrowing from
+// A `view struct` may hold borrows, and a method returns one borrowing from
 // its receiver, as it would a `str`.
 
-@view
-struct Window {
+view struct Window {
     val text: str
     val from: uint64
 }

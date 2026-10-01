@@ -1,8 +1,7 @@
 //! build: fail
 // A stored lambda owns its captures, and a view cannot be owned.
 
-@view
-struct IntCursor {
+view struct IntCursor {
     val first: &int32
 }
 

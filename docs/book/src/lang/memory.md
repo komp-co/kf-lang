@@ -367,13 +367,12 @@ fun read(value: &dyn Score): int32 { ... }  // fine
 
 ## View types
 
-A struct or enum marked `@view` is a borrow of your own design. Its fields may
+A `view struct` or `view enum` is a borrow of your own design. Its fields may
 hold borrows, which no other struct may, and in exchange its values follow the
 rules of `&T`:
 
 ```kflat
-@view
-struct Window {
+view struct Window {
     val text: str
     val from: uint64
 }
@@ -391,6 +390,9 @@ impl Text {
 }
 ```
 
+`view` is a word only before `struct` or `enum`, so a binding named `view`
+elsewhere is untouched. `pub view struct` exports one.
+
 `text.window(1)` borrows from `text`, as `text.bytes.as_str()` would, and
 everything below applies to it unchanged: a view cannot be stored in a struct
 that is not itself a view, it freezes what it borrows while it is used, it
@@ -403,7 +405,7 @@ struct Holder {
 ```
 
 An instance of a generic view, such as `Cursor<int32>` from
-`@view struct Cursor<T> { val first: &T }`, is a view too, and a view keeps
+`view struct Cursor<T> { val first: &T }`, is a view too, and a view keeps
 being one in another crate.
 
 ## Returning a borrow

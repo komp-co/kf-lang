@@ -35,7 +35,7 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             o.field_string("c_type_name", cname.as_str())
             o.field_bool("no_mangle", unmangled)
             o.field_string("lang", (&td).lang_key_of().as_str())
-            o.field_bool("view", td.is_view())
+            o.field_bool("view", td.is_view_type())
             var arr = JsonWriter.array()
             while f in &fields {
                 var fo = JsonWriter.object()
@@ -61,7 +61,7 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             o.field_string("c_type_name", cname.as_str())
             o.field_bool("no_mangle", unmangled)
             o.field_string("lang", (&td).lang_key_of().as_str())
-            o.field_bool("view", td.is_view())
+            o.field_bool("view", td.is_view_type())
             var arr = JsonWriter.array()
             while v in &variants {
                 var vo = JsonWriter.object()

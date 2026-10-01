@@ -1,8 +1,7 @@
 //! build: fail
 // A view borrows, so a struct that is not itself a view cannot keep one.
 
-@view
-struct Window {
+view struct Window {
     val text: str
 }
 

@@ -1,6 +1,6 @@
 // A borrow may not be stored in a struct field or enum payload, where it
 // would outlive what it borrows. A container argument counts: `List<str>`
-// keeps the borrow as surely as `str`, and so does a `@view` type. Passing a
+// keeps the borrow as surely as `str`, and so does a view type. Passing a
 // borrow into a function is fine.
 
 import kf_core.ast.*

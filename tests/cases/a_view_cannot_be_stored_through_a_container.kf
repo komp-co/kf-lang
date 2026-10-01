@@ -4,8 +4,7 @@
 
 import alloc.list.*
 
-@view
-struct Window {
+view struct Window {
     val text: str
 }
 

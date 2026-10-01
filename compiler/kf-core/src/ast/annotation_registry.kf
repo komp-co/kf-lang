@@ -7,7 +7,7 @@ import alloc.list.*
 pub enum AnnotationTarget {
     /// `@test`, `@test_disabled`.
     Function
-    /// `@derive`, `@no_mangle`, `@view`.
+    /// `@derive`, `@no_mangle`.
     StructOrEnum
     /// `@lang` — a type or trait the language builds on.
     StructEnumOrTrait
@@ -50,11 +50,6 @@ pub fun annotation_registry(): List<AnnotationInfo> {
     })
     out.push(AnnotationInfo {
         name: String.from("no_mangle"),
-        target: AnnotationTarget.StructOrEnum,
-        takes_args: false
-    })
-    out.push(AnnotationInfo {
-        name: String.from("view"),
         target: AnnotationTarget.StructOrEnum,
         takes_args: false
     })

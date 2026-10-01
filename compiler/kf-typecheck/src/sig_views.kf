@@ -1,4 +1,4 @@
-// Which types are `@view`, asked of the table that recorded them.
+// Which types are views, asked of the table that recorded them.
 
 import kf_core.ast.*
 

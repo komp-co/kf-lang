@@ -1,23 +1,14 @@
-// View types: a struct or enum marked `@view` borrows from somewhere, as `str`
+// View types: a `view struct` or `view enum` borrows from somewhere, as `str`
 // and `&T` do, so the borrow rules treat its values as borrows.
 
 import alloc.list.*
 
-import kf_core.span.no_span
-
-pub fun view_annotation_name(): str { return "view" }
-
-/// `@view`, for a declaration read back from an interface or made by mono.
-pub fun view_annotation(): Annotation {
-    return new_annotation(no_span(), view_annotation_name(), List.new<String>())
-}
-
 impl TopDecl {
     /// Its values borrow, and its own fields may hold borrows.
-    pub fun is_view(): bool {
+    pub fun is_view_type(): bool {
         when (self.kind) {
-            Struct(_fields, _is_pub) => return self.has_annotation(view_annotation_name())
-            EnumDecl(_variants, _is_pub) => return self.has_annotation(view_annotation_name())
+            Struct(_fields, _is_pub) => return self.is_view
+            EnumDecl(_variants, _is_pub) => return self.is_view
             _ => return false
         }
     }
@@ -28,7 +19,7 @@ impl Module {
     pub fun view_type_names(): List<String> {
         var out = List.new<String>()
         while td in &self.decls {
-            if td.is_view() { out.push(td.name.as_string()) }
+            if td.is_view_type() { out.push(td.name.as_string()) }
         }
         return out
     }

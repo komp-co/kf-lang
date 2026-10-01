@@ -1,4 +1,4 @@
-// A `@view` type crosses a crate boundary as a borrow, read from the
+// A view type crosses a crate boundary as a borrow, read from the
 // interface alone too. Needs two crates, so not a tests/cases file.
 
 import core.assert.assert_eq
@@ -14,8 +14,7 @@ fun prepare_view_fixture(app_main: str): int32 {
     val prep = unsafe { system("rm -rf ${dep} ${app} && mkdir -p ${dep}/src ${app}/src") }
     if prep != 0 { return prep }
     write_file("${dep}/kf.toml".as_str(), "[project]\nname = \"view_dep\"\nkind = \"lib\"\n")
-    write_file("${dep}/src/lib.kf".as_str(), """@view
-pub struct Window {
+    write_file("${dep}/src/lib.kf".as_str(), """pub view struct Window {
     pub val text: str
 }
 
