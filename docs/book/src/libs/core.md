@@ -334,7 +334,7 @@ can say it and reach it:
 | `Zero`, `One` | `T.zero()` and `T.one()` — the identity a fold starts from |
 | `Num` | `Add`, `Sub`, `Mul`, `Div`, `Zero`, `One`, as one name |
 | `Bounded` | `T.min_value()`, `T.max_value()` |
-| `Float` | `Num`, plus `T.pi()`, `T.e()`, `T.epsilon()` |
+| `Float` | `Num`, plus `T.pi()`, `T.e()`, `T.epsilon()`: `float32` and `float64`, sealed |
 | `Integer` | `Num`, `Equal`, `Compare`, `Mod` and `Copy`: the eight integer types, sealed |
 
 They are static methods because a constant is not something the language
