@@ -331,6 +331,14 @@ impl SigTable {
     }
 
     /// As `caller` sees it.
+    /// A generic struct's layout, written in its own parameters, and those
+    /// parameters.
+    pub fun generic_struct(name: str, caller: CrateId): GenericStruct? {
+        val info = self.find_generic_info(name, caller) ?: return null
+        val layout = self.find_struct(name, caller) ?: return null
+        return GenericStruct { layout: layout, type_params: info.type_params }
+    }
+
     pub fun find_generic_info(name: str, caller: CrateId): GenericInfo? {
         val own_only = self.crate_declares_type(name, caller)
         while i in 0..self.generic_infos.size() {

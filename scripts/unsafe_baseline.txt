@@ -206,6 +206,7 @@
 2 compiler/kf-typecheck/src/check/rebind_static_call.kf
 1 compiler/kf-typecheck/src/check/self_recursion.kf
 2 compiler/kf-typecheck/src/check/stored_lambda_value.kf
+2 compiler/kf-typecheck/src/check/struct_lit_inference.kf
 13 compiler/kf-typecheck/src/check/subscript_mut.kf
 6 compiler/kf-typecheck/src/check/untyped_receiver.kf
 2 compiler/kf-typecheck/src/check/value_args.kf

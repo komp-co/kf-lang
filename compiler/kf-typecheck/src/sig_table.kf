@@ -68,6 +68,11 @@ pub struct GenericInfo {
     pub val owner_crate: CrateId // as in StructLayout
 }
 
+pub struct GenericStruct {
+    pub val layout: StructLayout
+    pub val type_params: List<String>
+}
+
 /// A materialized instance under its mangled name, with its template and
 /// arguments, so they need not be split back out of the name.
 @derive(Clone)
