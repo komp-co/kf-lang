@@ -354,8 +354,8 @@ count(List.new())                                  // a parameter
 fun empty_of<T>(): List<T> { return List.new() }   // a generic function's own
 ```
 
-Without an annotation, the binding's **first use** decides instead: a method
-call whose arguments fix every type argument, or a slot of known type. A
+Without an annotation, the binding's **uses** decide instead: the first
+method call whose arguments fix every type argument, or slot of known type. A
 `null` bound the same way is typed by the first optional slot it reaches:
 
 ```kflat
@@ -372,8 +372,8 @@ val none = null
 takes(none)                  // takes(p: int32?)
 ```
 
-Only the first use counts. A use that says nothing, such as `xs.size()`
-before any `push`, leaves the call open, and an open call is reported,
+A use that says nothing, such as `xs.size()` before any `push`, leaves the
+call open for a later use. One that no use ever completes is reported,
 naming both repairs:
 
 ```console
@@ -384,7 +384,7 @@ $ komp check .
 check: found errors
 ```
 
-Once the first use has decided, later ones are checked against it:
+Once a use has decided, every other is checked against it:
 `xs.push(true)` after `xs.push(1)` is an error.
 
 [#2]: https://github.com/komp-co/komp/issues/2

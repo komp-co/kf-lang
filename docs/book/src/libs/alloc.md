@@ -75,7 +75,7 @@ var xs = List.new<int32>()
 ```
 
 No allocation happens until the first `push`. Without a type argument, the
-list's first use supplies one: `var xs = List.new()` followed by `xs.push(10)`
+list's uses supply one: `var xs = List.new()` followed by `xs.push(10)`
 is a `List<int32>`, and so is one passed where a `List<int32>` is expected.
 A list no use types is an error, naming both repairs.
 

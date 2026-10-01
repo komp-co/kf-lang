@@ -2,6 +2,7 @@ import kf_core.ast.*
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.check.control.yields_only_numeric_literals
+import kf_typecheck.types.type_eq
 
 fun is_integer_literal(e: &Expr): bool {
     when (e.kind) {
@@ -90,23 +91,24 @@ fun Expr.operand_takes_other_type(ctx: &var TypeCtx): bool {
     when (self.kind) {
         // A literal's binding, not an open call's or a `null`'s.
         Variable(name) => {
-            return ctx.flexible_init_at(name.as_str(), self.span).is_some() && is_numeric(self.ty)
+            return ctx.open_init(name.as_str()).is_some() && is_numeric(self.ty)
         }
         _ => return false
     }
 }
 
-/// Hands the slot's type back to the literal initializer; true when it did.
-mutating fun Expr.pin_at_first_use(expected: Type, ctx: &var TypeCtx): bool {
-    when (self.kind) {
-        Variable(name) => {
-            val init = ctx.flexible_init_at(name.as_str(), self.span) ?: return false
-            if !is_numeric(expected) { return false }
-            if !apply_expected(unsafe { &var *init }, expected.clone(), ctx) { return false }
-            ctx.pin_binding(name.as_str(), expected.clone())
-            self.ty = expected
-            return true
-        }
-        _ => return false
-    }
+/// A numeric slot decides a number literal's binding: in place at its first
+/// use, otherwise on the body's next check. True when it did, or when the
+/// slot conflicts with what an earlier use decided.
+mutating fun Expr.narrow_open_number(expected: Type, ctx: &var TypeCtx): bool {
+    val name = self.variable_name()
+    if name.byte_len() == 0 || !is_numeric(expected) { return false }
+    val init_ptr = ctx.open_init(name.as_str()) ?: return self.conflicts_with_decision(expected, ctx)
+    val init: &var Expr = unsafe { &var *init_ptr }
+    if !is_numeric(self.ty) { return false }
+    if self.decides_on_recheck(init.span, expected.clone(), ctx) { return true }
+    if !self.ty.type_eq(expected) && !init.apply_expected(expected.clone(), ctx) { return false }
+    ctx.decide_binding(name.as_str(), expected.clone(), self.span)
+    self.ty = expected
+    return true
 }

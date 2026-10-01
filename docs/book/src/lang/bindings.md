@@ -84,11 +84,11 @@ val b: int64 = 42   // int64, because you asked for it
 Without the annotation, `42` defaults to `int32` — but only if nothing better
 is available.
 
-### A literal takes its type from its first use
+### A literal takes its type from its uses
 
 An unannotated binding whose initializer is a number literal stays open until
-it is first read. If that read has a type of its own, the literal adopts it, so
-a counter does not need the annotation its comparison implies:
+a use needs a type of its own. The literal adopts that type, so a counter
+does not need the annotation its comparison implies:
 
 ```kflat
 var i = 0
@@ -97,15 +97,27 @@ while i < xs.size() {      // xs.size() is uint64, so i is uint64
 }
 ```
 
-A call argument, a `return`, an assignment into a typed place, and the other
-operand of an operator all count as such a read. If the first read has no type
-of its own the default stands, so `small + 1` leaves `small` an `int32`. Only
-the FIRST read decides; every later one sees what it settled.
+A call argument, a `return`, a store into the binding, an assignment into a
+typed place, and the other operand of an operator all need a type of their
+own. A use that works at any width, such as `n + n` or printing `n`, decides
+nothing, and a later use still can. If no use decides, the default stands, so
+`small + 1` alone leaves `small` an `int32`.
 
-Two shapes are not covered yet: a first read inside a sub-expression
-(`while i + 1 < n` looks at `i + 1`, which has no type of its own) and a first
-read that is a store rather than a read (`var era = 0` then `era = y / 400`).
-Annotate those.
+Once a use has decided, every other use must agree, and one that does not is
+reported with the use that decided:
+
+```console
+$ komp check .
+src/main.kf:4:12: error: `n` is `uint64`, as an earlier use decided, but this use needs `int8`
+        narrow(n)
+               ^
+  = note: decided `uint64` here (at src/main.kf:3:10)
+          wide(n)
+               ^
+```
+
+One shape is not covered yet: a use inside a sub-expression (`while i + 1 < n`
+looks at `i + 1`, which has no type of its own). Annotate that.
 
 ### A literal never becomes a type its crate cannot see
 

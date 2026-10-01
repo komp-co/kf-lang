@@ -157,6 +157,7 @@ fun check_let(name: String, ann: Ptr<TypeRef>?, init_ptr: Ptr<Expr>, mutable: bo
     val written = unsafe { init_ptr.coerce }
     val live = unsafe { &var *init_ptr }
     check_local_initializer(live, ctx)
+    if ann.is_none() && live.declares_decided(name.clone(), mutable, ctx) { return }
     // The live node: the rewrites below replace what a copy would still hold.
     val init: &Expr = unsafe { &*init_ptr }
 
@@ -209,8 +210,8 @@ fun check_let(name: String, ann: Ptr<TypeRef>?, init_ptr: Ptr<Expr>, mutable: bo
             }
         }
     }
-    // Its first use may choose a literal's width, an open call's type
-    // arguments, or what a `null` is absent from.
+    // Its uses may choose a literal's width, an open call's type arguments,
+    // or what a `null` is absent from.
     val flexible = is_numeric_literal(init) || open_call_pending(init.span, ctx) || init.is_bare_null()
     if ann.is_none() && flexible {
         ctx.declare_flexible(name, ty, mutable, init_ptr)
@@ -246,10 +247,11 @@ fun check_assign(name: String, expr_ptr: Ptr<Expr>, span: Span, ctx: &var TypeCt
             ctx.emit(new_diagnostic(Severity.Error, lab))
         }
     }
+    val stored = ctx.decide_by_store(name.as_str(), &expr, span, target)
     // The target is a slot: `v = 5` against `var v: int32?` becomes
     // `Option.Some(5)`.
-    val want = target.clone()
-    if !expect_or_reject(unsafe { &var *expr_ptr }, target, ctx) {
+    val want = stored.clone()
+    if !expect_or_reject(unsafe { &var *expr_ptr }, stored, ctx) {
         emit_assign_mismatch(name.clone(), want, unsafe { expr_ptr.ty }, span, ctx)
     }
 }

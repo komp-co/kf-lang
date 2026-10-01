@@ -64,9 +64,13 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
                 return
             }
             if op.binary_uses_same_type_rhs() && !op.is_pointer_offset(checked_lhs.ty, checked_rhs.ty) {
-                if checked_lhs.operand_takes_other_type(ctx) && !checked_rhs.operand_takes_other_type(ctx) {
+                // Two open operands decide nothing about each other: `n + n`
+                // works at every width.
+                val lhs_open = checked_lhs.operand_takes_other_type(ctx)
+                val rhs_open = checked_rhs.operand_takes_other_type(ctx)
+                if lhs_open && !rhs_open {
                     apply_expected(unsafe { &var *lhs_ptr }, checked_rhs.ty.clone(), ctx)
-                } else {
+                } else if !lhs_open || !rhs_open {
                     apply_expected(unsafe { &var *rhs_ptr }, checked_lhs.ty.clone(), ctx)
                 }
             }
