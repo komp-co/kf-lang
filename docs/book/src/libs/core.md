@@ -770,6 +770,8 @@ fun main(): int32 {
 `order(a, b)` answers like `compare`: negative when `a` goes first. Both
 callables, and `key`, take each element by borrow, so an owning element is
 never copied to compare it. A key is computed afresh at each comparison.
+`alloc` adds `join(sep)` and `concat()` for slices of strings, and `concat()`
+for slices of lists.
 
 A `Slice` is `Copy`, like the shared borrow it stands for; a `SliceMut`
 moves. `Slice.from_raw(ptr, len)` and `SliceMut.from_raw` build one from a
