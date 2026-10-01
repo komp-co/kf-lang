@@ -22,6 +22,9 @@ pub struct LocalBinding {
     pub var last_use: Span
     /// The use that decided an open binding's type; `no_span()` otherwise.
     pub var decided_at: Span
+    /// The first use that narrowed it without deciding: a `str` slot rules out
+    /// every other type a string literal converts to.
+    pub var narrowed_at: Span
 }
 
 pub struct TypeCtx {
@@ -176,16 +179,16 @@ impl TypeCtx {
 
     // A mutable binding. Only `declare_val` sites are enforced.
     pub mutating fun declare(name: String, ty: Type): void {
-        self.locals.push(LocalBinding { name: name, ty: ty, is_var: true, flexible_init: null, uses: 0, last_use: no_span(), decided_at: no_span() })
+        self.locals.push(LocalBinding { name: name, ty: ty, is_var: true, flexible_init: null, uses: 0, last_use: no_span(), decided_at: no_span(), narrowed_at: no_span() })
     }
 
     // An immutable binding: `val`, params, `self` in a non-mutating method.
     pub mutating fun declare_val(name: String, ty: Type): void {
-        self.locals.push(LocalBinding { name: name, ty: ty, is_var: false, flexible_init: null, uses: 0, last_use: no_span(), decided_at: no_span() })
+        self.locals.push(LocalBinding { name: name, ty: ty, is_var: false, flexible_init: null, uses: 0, last_use: no_span(), decided_at: no_span(), narrowed_at: no_span() })
     }
 
     pub mutating fun declare_flexible(name: String, ty: Type, is_var: bool, init: Ptr<Expr>): void {
-        self.locals.push(LocalBinding { name: name, ty: ty, is_var: is_var, flexible_init: init, uses: 0, last_use: no_span(), decided_at: no_span() })
+        self.locals.push(LocalBinding { name: name, ty: ty, is_var: is_var, flexible_init: init, uses: 0, last_use: no_span(), decided_at: no_span(), narrowed_at: no_span() })
     }
 
     /// A node checked again is not a second use.

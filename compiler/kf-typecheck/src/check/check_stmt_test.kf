@@ -4,6 +4,7 @@ import core.assert.fail
 import alloc.list.*
 
 import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.diagnostic.*
 import kf_resolve.*
@@ -11,6 +12,8 @@ import kf_typecheck.check.control.enum_or_struct_name
 import kf_typecheck.new_sig_table
 import kf_typecheck.new_type_ctx
 import kf_typecheck.ret_op
+import kf_typecheck.types.TAG_STR
+import kf_typecheck.types.kind_tag
 
 @test fun enum_or_struct_name_returns_owned_str(): void {
     val name: String = TypeKind.EnumTy(intern("Choice")).enum_or_struct_name()
@@ -62,17 +65,13 @@ fun str_type_list(): List<Type> {
     }
 }
 
-@test fun let_val_str_literal_auto_boxes(): void {
+@test fun an_unannotated_string_literal_binds_a_str(): void {
     var ctx = mk_stmt_ctx()
     val init_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *init_ptr = new_expr(no_span(), ExprKind.LitStr(String.from("hi"))) }
     var s = new_stmt(no_span(), StmtKind.LetVal(intern("s"), null, init_ptr))
     s.check_stmt(&var ctx)
-    val ty = ctx.lookup("s")
-    when (ty.kind) {
-        Struct(name) => assert_eq(name.as_str(), "String", "s is String")
-        _ => fail("expected s: String")
-    }
+    assert_eq(ctx.lookup("s").kind.kind_tag(), TAG_STR(), "s is a str until a use needs more")
 }
 
 // Without `String`, the literal stays `str`.
@@ -94,29 +93,19 @@ fun str_type_list(): List<Type> {
     }
 }
 
-// An unannotated literal becomes String on both binding and node.
-@test fun let_val_str_literal_writes_string_to_node(): void {
+// A `String` slot decides the binding and rewrites its literal.
+@test fun a_string_slot_rewrites_an_open_literal_to_string_from(): void {
     var ctx = mk_stmt_ctx()
     val init_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *init_ptr = new_expr(no_span(), ExprKind.LitStr(String.from("hi"))) }
+    unsafe { *init_ptr = new_expr(Span { file_id: 1, start: 4, end: 8 }, ExprKind.LitStr(String.from("hi"))) }
     var s = new_stmt(no_span(), StmtKind.LetVal(intern("s"), null, init_ptr))
     s.check_stmt(&var ctx)
-    val node = unsafe { *init_ptr }
-    when (node.ty.kind) {
-        Struct(name) => assert_eq(name.as_str(), "String", "init node retyped to String")
-        _ => fail("expected init node ty String")
-    }
-}
-
-@test fun let_val_str_literal_rewrites_to_string_from(): void {
-    var ctx = mk_stmt_ctx()
-    val init_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *init_ptr = new_expr(no_span(), ExprKind.LitStr(String.from("hi"))) }
-    var s = new_stmt(no_span(), StmtKind.LetVal(intern("s"), null, init_ptr))
-    s.check_stmt(&var ctx)
+    var read = new_expr(Span { file_id: 1, start: 20, end: 21 }, ExprKind.Variable(intern("s")))
+    check_expr(&var read, &var ctx)
+    val _decided = read.apply_expected(ctx.string_name().lang_struct_ty(no_span()), &var ctx)
     val node = unsafe { *init_ptr }
     when (node.kind) {
-        MethodCall(_recv, name, _args) => assert_eq(name.as_str(), "from", "inferred String uses From.from")
+        MethodCall(_recv, name, _args) => assert_eq(name.as_str(), "from", "the literal becomes String.from")
         _ => fail("expected String.from call")
     }
 }

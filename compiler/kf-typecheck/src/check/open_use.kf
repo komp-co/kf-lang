@@ -49,12 +49,16 @@ mutating fun Expr.declares_decided(name: String, mutable: bool, ctx: &var TypeCt
     return true
 }
 
-/// The binding's type once `value` is stored into it: an open number binding
-/// takes a typed value's type, as a read in that slot would.
+/// The binding's type once `value` is stored into it: an open binding takes a
+/// typed value's type, as a read in that slot would.
 mutating fun TypeCtx.decide_by_store(name: str, value: &Expr, span: Span, target: Type): Type {
-    if !is_numeric(value.ty) || value.ty.type_eq(target) || value.operand_takes_other_type(self) { return target }
+    if value.ty.type_eq(target) || value.operand_takes_other_type(self) { return target }
     var place = new_expr(span, ExprKind.Variable(intern(name)))
     place.ty = target.clone()
-    if !place.narrow_open_number(value.ty.clone(), self) { return target }
+    if is_numeric(value.ty) {
+        if !place.narrow_open_number(value.ty.clone(), self) { return target }
+    } else if place.narrow_open_text(value.ty.clone(), self) {
+        return target
+    }
     return self.lookup(name)
 }

@@ -187,14 +187,6 @@ fun check_let(name: String, ann: Ptr<TypeRef>?, init_ptr: Ptr<Expr>, mutable: bo
             if init.yields_only_numeric_literals() {
                 val _pinned = live.apply_expected(init.ty.clone(), ctx)
             }
-            // An unannotated literal defaults to String through the same
-            // `From<str>` rewrite.
-            val is_lit_str: bool = is_lit_str_expr(*init) && ctx.string_is_visible()
-            if is_lit_str {
-                if apply_expected(unsafe { &var *init_ptr }, ctx.string_name().lang_struct_ty(init.span), ctx) {
-                    ty = ctx.string_name().lang_struct_ty(init.span)
-                }
-            }
             // `val b = &xs` binds a borrow, like `val b: &List<int32> = &xs`;
             // otherwise it would move. An initializer already a reference is
             // bound as is.
@@ -210,9 +202,10 @@ fun check_let(name: String, ann: Ptr<TypeRef>?, init_ptr: Ptr<Expr>, mutable: bo
             }
         }
     }
-    // Its uses may choose a literal's width, an open call's type arguments,
-    // or what a `null` is absent from.
-    val flexible = is_numeric_literal(init) || open_call_pending(init.span, ctx) || init.is_bare_null()
+    // Its uses may choose a literal's width or text type, an open call's type
+    // arguments, or what a `null` is absent from.
+    val flexible = is_numeric_literal(init) || is_lit_str_expr(*init) || open_call_pending(init.span, ctx) ||
+        init.is_bare_null()
     if ann.is_none() && flexible {
         ctx.declare_flexible(name, ty, mutable, init_ptr)
         return
@@ -281,10 +274,4 @@ fun is_lit_str_expr(e: Expr): bool {
         LitStr(_) => true
         _ => false
     }
-}
-
-/// Without a lang string in the graph, a literal stays `str` rather than
-/// becoming a type the crate cannot name.
-mutating fun TypeCtx.string_is_visible(): bool {
-    return !self.string_name().as_str().equals("")
 }

@@ -19,7 +19,8 @@ core's. Types and traits still resolve by name with no import at all.
 
 `String` is an owned, growable UTF-8 buffer. It is the language's string:
 alloc marks it [`@lang("string")`](../lang/annotations.md#lang), so it is what
-a string literal and `${...}` produce.
+`${...}` produces, and what a string literal becomes where an owned string is
+needed; a literal bound with no such use stays a `str`.
 
 ```kflat
 var s = String.from("hello")

@@ -119,13 +119,26 @@ src/main.kf:4:12: error: `n` is `uint64`, as an earlier use decided, but this us
 One shape is not covered yet: a use inside a sub-expression (`while i + 1 < n`
 looks at `i + 1`, which has no type of its own). Annotate that.
 
-### A literal never becomes a type its crate cannot see
+### A string literal is a `str` until a use needs more
 
-`String` lives in `alloc`. A bare string literal becomes a `String` where that
-is visible, and stays a `str` where it is not — so core, and any crate without
-`alloc` in its dependency graph, can write `val s = "text"` and get the `str`
-its functions take. Before this the binding claimed a type the crate could not
-name, and the C compiler was the first to say so.
+`val s = "text"` binds a `str`, the literal's own type, and allocates
+nothing. A use that needs more decides otherwise: a `String` slot or a method
+only `String` has makes it a `String`, and a slot of another type converting
+from `str` makes it that type, the literal converted once where it is bound.
+
+```kflat
+var out = ""
+out.append("ab")         // append is String's, so out is a String
+
+val owned = "abc"
+takes_view(owned)        // takes_view(s: str): a String serves this too
+takes_owned(owned)       // takes_owned(s: String): owned is a String
+```
+
+A `str` use decides nothing, since a `String` serves it as well, but it rules
+out the other types: a `str` slot followed by a `Name` slot, where `Name`
+implements `From<str>`, is reported with both uses. Crates without `alloc`
+have no `String`, so there a string literal is always a `str`.
 
 The type of a binding cannot change after declaration. If you annotate a type,
 the initializer must match it or the compiler reports a type error.

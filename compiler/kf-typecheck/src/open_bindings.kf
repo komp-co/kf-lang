@@ -47,6 +47,20 @@ impl TypeCtx {
         return self.locals.at(i).decided_at
     }
 
+    /// The first use that narrowed the binding without deciding it, or
+    /// `no_span()`.
+    pub fun binding_narrowed_at(name: str): Span {
+        val i = self.binding_index(name) ?: return no_span()
+        return self.locals.at(i).narrowed_at
+    }
+
+    /// Records the use at `at` as narrowing the binding, unless one already did.
+    pub mutating fun narrow_binding(name: str, at: Span): void {
+        val i = self.binding_index(name) ?: return
+        val binding = self.locals.at_mut(i)
+        if binding.narrowed_at.is_none() { binding.narrowed_at = at }
+    }
+
     /// Closes the binding as `ty`, decided by the use at `at`.
     pub mutating fun decide_binding(name: str, ty: Type, at: Span): void {
         val i = self.binding_index(name) ?: return

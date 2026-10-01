@@ -55,3 +55,17 @@ fun open_literal(): Ptr<Expr> {
     next.presets = ctx.decisions.clone()
     assert_eq(next.preset_for(at(8)) == null, true, "another binding's initializer")
 }
+
+@test fun the_first_narrowing_use_is_kept(): void {
+    var ctx = open_ctx()
+    ctx.declare_flexible(String.from("s"), str_ty(no_span()), false, open_literal())
+    ctx.narrow_binding("s", at(10))
+    ctx.narrow_binding("s", at(20))
+    assert_eq(ctx.binding_narrowed_at("s").start, 10 as uint32, "the earlier str use")
+}
+
+@test fun an_unnarrowed_binding_has_no_narrowing_use(): void {
+    var ctx = open_ctx()
+    ctx.declare_flexible(String.from("s"), str_ty(no_span()), false, open_literal())
+    assert_eq(ctx.binding_narrowed_at("s").is_none(), true, "no use yet")
+}
