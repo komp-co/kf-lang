@@ -199,7 +199,12 @@ fun Expr.collect_insts_in_expr(gps: &List<String>, marities: &List<MethodArity>,
     val n_ta: uint64 = self.type_args.size()
     when (self.kind) {
         Call(name, args) => {
-            if n_ta > 0 && !tref_vec_has_generic(self.type_args, gps) { work.push(free_inst(String.from(name.as_str()), clone_tref_vec(self.type_args))) }
+            if name.as_str() == array_literal_callee() {
+                // The array a literal builds, which may be named nowhere else.
+                while t in &self.type_args { t.collect_insts_in_tyref(gps, marities, work) }
+            } else if n_ta > 0 && !tref_vec_has_generic(self.type_args, gps) {
+                work.push(free_inst(String.from(name.as_str()), clone_tref_vec(self.type_args)))
+            }
             collect_insts_in_expr_list(args, gps, marities, work)
         }
         StructLit(name, finits) => {
