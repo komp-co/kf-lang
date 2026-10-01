@@ -92,7 +92,7 @@ fun bl_check_top_decl(td: &TopDecl, facts: &LivenessFacts, ptable: Ptr<List<Para
 fun check_stmt_list(stmts: &List<Stmt>, facts: &LivenessFacts, ptable: Ptr<List<ParamEntry>>, params: &List<String>, diags: Ptr<List<Diagnostic>>): void {
     while i in 0..stmts.size() {
         (stmts.at(i)).check_nested_blocks(facts, ptable, params, diags)
-        val origin = (stmts.at(i)).borrow_binding_origin(&facts.views)
+        val origin = owning_origin(stmts, i, (stmts.at(i)).borrow_binding_origin(&facts.views), &facts.views)
         if origin.as_str() != "" {
             val bound = (stmts.at(i)).binding_name()
             if !name_in(params, origin.as_str()) {
@@ -110,6 +110,22 @@ fun check_stmt_list(stmts: &List<Stmt>, facts: &LivenessFacts, ptable: Ptr<List<
             }
         }
     }
+}
+
+/// Through bindings that are borrows themselves to the one that owns: with
+/// `val a = owned.as_str()` then `val b = a`, `b` keeps `owned` in place.
+fun owning_origin(stmts: &List<Stmt>, at: uint64, origin: String, views: &List<String>): String {
+    var current = origin
+    var j = at
+    while j > 0 {
+        j = j - 1
+        if (stmts.at(j)).binding_name().as_str() == current.as_str() {
+            val further = (stmts.at(j)).borrow_binding_origin(views)
+            if further.as_str() == "" { return current }
+            current = further
+        }
+    }
+    return current
 }
 
 fun Stmt.emit_outlives_error(borrow: str, origin: str, diags: Ptr<List<Diagnostic>>): void {
