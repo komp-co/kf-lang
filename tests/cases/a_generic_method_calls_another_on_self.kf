@@ -1,0 +1,23 @@
+//! run: exit 5
+//! deps: core
+// Inside a generic method, a call on `self` to another generic method is
+// instantiated for the same receiver.
+
+struct Tag<T> {
+    val n: int32
+}
+
+struct Holder<T> {
+    val v: T
+}
+
+impl Holder<T> {
+    fun inner<F>(f: F, n: int32): int32 { return n + 1 }
+
+    fun outer<F>(f: F): int32 { return self.inner(f, 3) }
+}
+
+fun main(): int32 {
+    val h = Holder<int32> { v: 3 }
+    return h.outer(Tag<bool> { n: 1 }) + 1
+}
