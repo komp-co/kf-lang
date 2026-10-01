@@ -474,8 +474,7 @@ types the language itself builds on. alloc's `String` carries
 `@lang("string")`, which makes it the type a string literal becomes, the type
 `${...}` renders into, and the type a `str` converts up into.
 
-The compiler knows the keys, not the type names. `string` is the only key so
-far.
+The compiler knows the keys, not the type names.
 
 Only `core`, `alloc` and `std` may use it, only on a struct or an enum, and
 each key may be declared once in a program. Your own crates cannot use it:
