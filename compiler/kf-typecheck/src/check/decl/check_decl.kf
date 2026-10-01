@@ -51,12 +51,8 @@ pub fun check_decl_module(m: &var Module,
     }
     m.record_no_mangle_types(sig_ptr)
     unsafe { (*sig_ptr).views = m.view_type_names() }
-    unsafe { (*sig_ptr).lang_string = m.lang_type_name(lang_string_key()) }
-    unsafe { (*sig_ptr).lang_option = m.lang_type_name(lang_option_key()) }
-    unsafe { (*sig_ptr).lang_list = m.lang_type_name(lang_list_key()) }
-    unsafe { (*sig_ptr).lang_array = m.lang_type_name(lang_array_key()) }
-    // The `?` and `[N]` placeholders become the real option and array names.
-    val heads = LangHeads { option: unsafe { (*sig_ptr).lang_option }, array: unsafe { (*sig_ptr).lang_array } }
+    // The `?`, `[N]` and `&T[]` placeholders become the library's names.
+    val heads = unsafe { (*sig_ptr).note_lang_types(&m) }
     m.rewrite_placeholder_module(heads)
     while td in &m.decls {
         when (td.kind) {

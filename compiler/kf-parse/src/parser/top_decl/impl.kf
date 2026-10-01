@@ -37,16 +37,18 @@ impl Parser {
         }
         if is_trait_impl {
             unsafe { self.advance() } // consume `for`
+            val written_args = trait_args.clone()
             val trait_ref_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *trait_ref_ptr = new_type_ref(span, TypeRefKind.Named(intern(first.as_str()), trait_args)) }
             val target = self.expect_name("impl target")
             val target_at = unsafe { self.peek().span }
             unsafe { self.advance() }
             val tps = self.parse_type_params()
-            val methods = self.parse_brace_methods()
+            var methods = self.parse_brace_methods()
+            val by_trait = lift_trait_arg_params(&declared, &tps, &written_args, &var methods)
             var td = new_top_decl(span, target, TopDeclKind.TraitImpl(trait_ref_ptr, methods))
             td.name_span = target_at
-            td.generics = if has_list { self.merge_declared_params(&declared, &tps) } else { tps }
+            td.generics = if has_list { self.merge_declared_params(&declared, &tps, &by_trait) } else { tps }
             return td
         }
         self.pos = after_first
@@ -65,14 +67,22 @@ impl Parser {
             val methods = self.parse_brace_methods()
             var td = new_top_decl(span, target, TopDeclKind.TraitImpl(trait_ref_ptr, methods))
             td.name_span = target_at
-            td.generics = if has_list { self.merge_declared_params(&declared, &tps) } else { tps }
+            td.generics = if has_list {
+                self.merge_declared_params(&declared, &tps, &List.new<TypeParam>())
+            } else {
+                tps
+            }
             return td
         }
 
         val methods = self.parse_brace_methods()
         var td = new_top_decl(span, first, TopDeclKind.ImplBlock(methods))
         td.name_span = first_at
-        td.generics = if has_list { self.merge_declared_params(&declared, &first_tps) } else { first_tps }
+        td.generics = if has_list {
+            self.merge_declared_params(&declared, &first_tps, &List.new<TypeParam>())
+        } else {
+            first_tps
+        }
         return td
     }
 

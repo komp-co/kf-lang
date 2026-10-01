@@ -12,6 +12,7 @@ import kf_typecheck.types.display_type
 import kf_typecheck.types.type_eq
 import kf_typecheck.types.resolve_type_ref
 import kf_typecheck.types.type_to_type_ref
+import kf_typecheck.types.clone_type_args
 
 /// What an `Array<T, N>` instance holds.
 struct ArrayShape {
@@ -25,6 +26,13 @@ fun Type.array_shape(ctx: &var TypeCtx): ArrayShape? {
     if inst.base.as_str() != ctx.array_name().as_str() || inst.args.size() != 2 { return null }
     val length = inst.args.at(1).written_length() ?: return null
     return ArrayShape { element: inst.args.at(0).resolve_type_ref(ctx), length: length }
+}
+
+/// An instance as its template and arguments, the form mono collects:
+/// `Array<int32, 3>`, not its mangled name.
+fun Type.written_instance(span: Span, ctx: &var TypeCtx): TypeRef {
+    val inst = self.expected_inst(ctx) ?: return self.type_to_type_ref(span)
+    return new_type_ref(span, TypeRefKind.Named(intern(inst.base.as_str()), clone_type_args(&inst.args)))
 }
 
 fun TypeRef.written_length(): uint64? {
@@ -49,14 +57,26 @@ mutating fun Expr.retarget_array_literal(expected: Type, ctx: &var TypeCtx): boo
         self.ty = poison_ty()
         return true
     }
+    self.become_array_literal(elements, expected, &shape, ctx)
+    return true
+}
+
+/// The array literal of `elements`, each checked against the element type.
+mutating fun Expr.become_array_literal(
+    elements: List<Expr>,
+    expected: Type,
+    shape: &ArrayShape,
+    ctx: &var TypeCtx
+): void {
+    var checked = elements
     var fits = true
-    while i in 0..elements.size() {
-        if !check_array_element(&var elements, i, shape.element.clone(), ctx) { fits = false }
+    while i in 0..checked.size() {
+        if !check_array_element(&var checked, i, shape.element.clone(), ctx) { fits = false }
     }
     val span = self.span
-    *self = new_expr(span, ExprKind.Call(intern(array_literal_callee()), elements))
+    *self = new_expr(span, ExprKind.Call(intern(array_literal_callee()), checked))
+    self.type_args.push(expected.written_instance(span, ctx))
     self.ty = if fits { expected } else { poison_ty() }
-    return true
 }
 
 /// `[a, b]` where `Array<T, N>?` is expected: the array, in `Some`.
@@ -121,6 +141,7 @@ mutating fun Expr.builds_array_without_list(ctx: &var TypeCtx): bool {
     val span = self.span
     val array = array_type_ref(first.type_to_type_ref(span), elements.size(), ctx.array_name(), span)
     *self = new_expr(span, ExprKind.Call(intern(array_literal_callee()), elements))
+    self.type_args.push(array.clone())
     self.ty = if fits { array.resolve_type_ref(ctx) } else { poison_ty() }
     return true
 }
@@ -133,21 +154,23 @@ fun array_type_ref(element: TypeRef, length: uint64, array_name: Sym, span: Span
     return new_type_ref(span, TypeRefKind.Named(array_name, args))
 }
 
-/// `T[]` given the length of what initializes it: a literal's element count,
-/// or the length of the array it copies. Left as written otherwise, for the
+/// `T[]` given the length of what initializes it: a literal's element count
+/// (a string's bytes or characters), or the length of the array it copies. Left as written otherwise, for the
 /// argument check to report.
 fun TypeRef.with_initializer_length(init: &Expr, ctx: &var TypeCtx): TypeRef {
     when (self.kind) {
         Named(head, args) => {
             if head.id != ctx.array_name().id || args.size() != 2 || !args.at(1).is_wildcard() { return self.clone() }
-            val length = init.initializer_length(ctx) ?: return self.clone()
+            val length = init.initializer_length(&args.at(0).resolve_type_ref(ctx), ctx) ?: return self.clone()
             return array_type_ref(args.at(0).clone(), length, head, self.span)
         }
         _ => return self.clone()
     }
 }
 
-fun Expr.initializer_length(ctx: &var TypeCtx): uint64? {
+fun Expr.initializer_length(element: &Type, ctx: &var TypeCtx): uint64? {
+    val text_length = self.text_literal_length(element)
+    if text_length != null { return text_length }
     if self.is_list_literal(ctx) || self.is_array_literal() { return self.literal_elements().size() }
     val shape = self.ty.array_shape(ctx) ?: return null
     return shape.length

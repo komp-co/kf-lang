@@ -43,6 +43,8 @@ pub mutating fun Stmt.check_stmt(ctx: &var TypeCtx): void {
                     val lab = new_label(self.span, "cannot assign to field `${bad_field}"
                         + String.from("`: it is declared `val`; declare it `var`"))
                     ctx.emit(new_diagnostic(Severity.Error, lab))
+                } else if (&*place_ptr).is_computed_subscript() {
+                    (&*place_ptr).report_write_to_computed_subscript(self.span, ctx)
                 } else if place_root_name(unsafe { *place_ptr }).as_str().equals("self") {
                     val lab = new_label(self.span, String.from("cannot mutate `self` here; mark the enclosing method `mutating`"))
                     ctx.emit(new_diagnostic(Severity.Error, lab))

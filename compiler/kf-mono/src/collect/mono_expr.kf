@@ -59,7 +59,7 @@ pub fun mono_expr_in(e: &var Expr, owner: str): void {
             // args. A non-generic call keeps its bare name, or the link name
             // typecheck pinned.
             val n_ta: uint64 = e.type_args.size()
-            if n_ta > 0 {
+            if n_ta > 0 && name_sym.as_str() != array_literal_callee() {
                 if e.mangled_callee.as_str() == "" {
                     val base = generic_call_base(name_sym.as_str())
                     e.apply_generic_mangle(base.as_str(), false)

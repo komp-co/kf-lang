@@ -15,6 +15,8 @@ import kf_typecheck.check.borrow.borrow_written_deref
 
 pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
     e.name_empty_list_literal(ctx)
+    // Built and typed by the checker itself, and so already checked.
+    if e.is_array_literal() { return }
     if e.builds_array_without_list(ctx) { return }
     // The parser's written-`&` tag is cleared here: Lower reads
     // `coerce == none` before inserting an auto-clone.
@@ -78,6 +80,7 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
             e.ty = check_unary(op, inner, e.span, ctx)
         }
         Deref(inner_ptr) => {
+            if e.index_by_value(ctx) { return }
             check_expr(unsafe { &var *inner_ptr }, ctx)
             val inner = unsafe { *inner_ptr }
             e.ty = check_deref(inner, e.span, ctx)

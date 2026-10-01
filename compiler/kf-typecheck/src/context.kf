@@ -123,29 +123,42 @@ pub fun new_type_ctx(return_ty: Type, diags: Ptr<List<Diagnostic>>, table: Ptr<D
 }
 
 impl TypeCtx {
+    /// The table every check reads, which outlives the context.
+    pub fun sig_table(): &SigTable {
+        return unsafe { &*self.sigs }
+    }
+
     pub fun string_name(): Sym {
-        return unsafe { (*self.sigs).lang_string }
+        return self.sig_table().lang_string
     }
 
     pub fun option_name(): Sym {
-        return unsafe { (*self.sigs).lang_option }
+        return self.sig_table().lang_option
     }
 
     pub fun list_name(): Sym {
-        return unsafe { (*self.sigs).lang_list }
+        return self.sig_table().lang_list
     }
 
     pub fun array_name(): Sym {
-        return unsafe { (*self.sigs).lang_array }
+        return self.sig_table().lang_array
+    }
+
+    pub fun slice_name(): Sym {
+        return self.sig_table().lang_slice
+    }
+
+    pub fun slice_mut_name(): Sym {
+        return self.sig_table().lang_slice_mut
     }
 
     pub fun lang_trait_name(key: str): Sym {
-        return unsafe { (*self.sigs).lang_trait_name(key) }
+        return self.sig_table().lang_trait_name(key)
     }
 
     /// Clone, Drop or Equal, by key.
     pub fun is_auto_trait(name: str): bool {
-        return unsafe { (*self.sigs).is_auto_trait(name) }
+        return self.sig_table().is_auto_trait(name)
     }
 
     pub fun fits(from: &Type, to: &Type): bool {

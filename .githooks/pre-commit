@@ -1,14 +1,8 @@
 #!/bin/sh
-# Refuse a commit whose staged .kf files are not formatted, as CI would.
-# Skipped when komp-fmt is not installed (`komp tool install komp_fmt`).
+# Refuse a commit whose staged .kf files are not formatted, or whose crates
+# do not lint clean, as CI would: `scripts/preflight.sh --staged`. Formatting
+# is skipped when komp-fmt is not installed (`komp tool install komp_fmt`),
+# and the lints when no komp is found (see the script).
 #
 # Bypass: git commit --no-verify
-fmt="${KFLAT_HOME:-$HOME/.kflat}/bin/komp-fmt"
-[ -x "$fmt" ] || exit 0
-files=$(git diff --cached --name-only --diff-filter=ACM -- 'compiler/*.kf' 'libs/*.kf')
-[ -n "$files" ] || exit 0
-# shellcheck disable=SC2086
-unformatted=$("$fmt" --check $files) && exit 0
-echo "These files are not formatted; run \`komp fmt\` on them and stage the result:"
-echo "$unformatted" | sed 's/^/  /'
-exit 1
+exec sh "$(git rev-parse --show-toplevel)/scripts/preflight.sh" --staged

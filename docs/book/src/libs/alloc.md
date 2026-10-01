@@ -106,12 +106,13 @@ var later = []
 later.push(7)                        // a List<int32>
 ```
 
-A literal is not tied to `List`. Written where another collection is
-expected, it builds that one instead, through core's `FromElements`: the
-type's `new()`, then one `push` per element. Where core's
-[`Array<T, N>`](core.md#array) is expected, it builds the array in place, with
-exactly `N` elements. Your own collection opts in by implementing
-`FromElements`:
+A literal is not tied to `List`. Written where another type is expected, it
+converts through that type's `From`: the literal is built as an array, an
+`int32[3]` for `[4, 5, 6]`, and handed to `from`. A string literal converts
+through `From<str>` the same way. Only a literal converts; any other value
+calls `from` itself. Where core's [`Array<T, N>`](core.md#array) is expected,
+the literal builds the array in place, with exactly `N` elements. Your own
+type opts in by implementing `From` over an array of any length:
 
 ```kflat
 struct Bag {
@@ -119,20 +120,23 @@ struct Bag {
     pub var count: int32
 }
 
-impl FromElements<int32> for Bag {
-    static fun new(): Bag { return Bag { total: 0, count: 0 } }
-    mutating fun push(item: int32): void {
-        self.total = self.total + item
-        self.count = self.count + 1
+impl<N: uint64> From<int32[N]> for Bag {
+    static fun from(items: int32[N]): Bag {
+        var bag = Bag { total: 0, count: 0 }
+        while item in &items {
+            bag.total = bag.total + item
+            bag.count = bag.count + 1
+        }
+        return bag
     }
 }
 
 val bag: Bag = [4, 5, 6]             // total 15, count 3
 ```
 
-A type with a `push` of its own keeps it: written calls still reach it, and
-the trait's `push` can simply call it. A slot whose type does not implement
-`FromElements` is reported as such.
+A type implementing core's `FromElements` instead is built with its `new()`,
+then one `push` per element. A slot whose type implements neither is reported
+as not implementing `FromElements`.
 
 ## Adding and reading elements
 
@@ -181,6 +185,32 @@ reaches the element's own field:
 ```kflat
 holders.at_mut(0).tags.push(String.from("x"))
 ```
+
+## Slices
+
+A list lends its elements as a [slice](../lang/arrays.md#any-length-slices),
+`&T[]`, wherever one is expected, so a function written once takes a list
+or an array of any length:
+
+```kflat
+fun total(xs: &int32[]): int32 {
+    var sum = 0
+    while x in xs { sum = sum + x }
+    return sum
+}
+
+fun main(): int32 {
+    var xs = List.new<int32>()
+    xs.push(10)
+    xs.push(20)
+    val fixed: int32[2] = [1, 2]
+    return total(xs) + total(fixed)     // 30 + 3
+}
+```
+
+`as_slice()` and `as_slice_mut()` name the slices directly. While a slice of
+a list is still used the list cannot grow or shrink, since that may move the
+elements the slice points at.
 
 ## Indexing: `xs[i]`
 
@@ -246,6 +276,33 @@ locals either.
 
 An annotation you write yourself still wins: `range<int32>(0, 3, 1)` in a
 `Range<uint64>` slot is a mismatch to report, not a spelling to correct.
+
+### Computed elements: `IndexValue`
+
+`Index` lends an element, so only a type that stores its elements can
+implement it: a bit in a bitset has no address to borrow. Such a type
+implements `IndexValue` instead, which hands back the element itself, and
+`bits[i]` is `bits.index_value(i)`:
+
+```kflat
+struct Bits {
+    var words: List<uint64>
+}
+
+impl IndexValue<uint64> for Bits {
+    type Out = bool
+    fun index_value(k: uint64): bool {
+        return ((self.words.get(k / 64) >> (k % 64)) & 1) == 1
+    }
+}
+
+val set = bits[2]                  // a bool, not a borrow of one
+```
+
+A computed element has no place, so nothing can be written through it:
+`bits[2] = true` is reported. A type implementing both `Index` and
+`IndexValue` is rejected wherever it is indexed, since `[]` would have two
+meanings.
 
 ### `xs[i] = v`
 

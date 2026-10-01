@@ -13,3 +13,12 @@ pub trait Index<K> {
 pub trait IndexMut<K>: Index<K> {
     mutating fun index_mut(k: K): &var Self.Out
 }
+
+/// Indexing that produces its element rather than lending it, for a sequence
+/// whose elements are computed: a bit has no address to borrow. `a[i]` is
+/// `a.index_value(i)` on a type implementing this and not `Index`; a type may
+/// not implement both. Nothing can be written through it.
+pub trait IndexValue<K> {
+    type Out
+    fun index_value(k: K): Out
+}

@@ -422,7 +422,8 @@ val q = Pair { a: x.as_str(), b: x.as_str() }   // fine: one place
 A view holding another view borrows what the inner one does. An instance of a
 generic view, such as `Cursor<int32>` from
 `view struct Cursor<T> { val first: &T }`, is a view too, and a view keeps
-being one in another crate.
+being one in another crate. Core's [slices](arrays.md#any-length-slices),
+`&T[]` and `&var T[]`, are views written this way.
 
 ## Returning a borrow
 

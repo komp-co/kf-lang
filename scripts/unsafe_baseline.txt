@@ -167,7 +167,7 @@
 6 compiler/kf-typecheck/src/check/control/exhaustive.kf
 17 compiler/kf-typecheck/src/check/control/string_pattern.kf
 1 compiler/kf-typecheck/src/check/decl/annotation_type_params.kf
-59 compiler/kf-typecheck/src/check/decl/check_decl.kf
+54 compiler/kf-typecheck/src/check/decl/check_decl.kf
 15 compiler/kf-typecheck/src/check/decl/check_function_body.kf
 8 compiler/kf-typecheck/src/check/decl/check_impl_header.kf
 3 compiler/kf-typecheck/src/check/decl/check_pub_signature.kf
@@ -208,11 +208,12 @@
 2 compiler/kf-typecheck/src/check/stored_lambda_value.kf
 2 compiler/kf-typecheck/src/check/struct_lit_inference.kf
 13 compiler/kf-typecheck/src/check/subscript_mut.kf
+2 compiler/kf-typecheck/src/check/subscript_value.kf
 6 compiler/kf-typecheck/src/check/untyped_receiver.kf
 2 compiler/kf-typecheck/src/check/value_args.kf
 1 compiler/kf-typecheck/src/check/view_literal.kf
 5 compiler/kf-typecheck/src/check/written_type_ref.kf
-7 compiler/kf-typecheck/src/context.kf
+2 compiler/kf-typecheck/src/context.kf
 2 compiler/kf-typecheck/src/lib.kf
 2 compiler/kf-typecheck/src/sig_fn_types.kf
 23 compiler/kf-typecheck/src/sig_table_imports.kf

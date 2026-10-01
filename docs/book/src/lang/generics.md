@@ -125,7 +125,41 @@ impl<A: Show, B> Show for Pair<A, B> {
 ```
 
 Every parameter the target uses must be declared in the list, and every
-declared one used. The older spelling puts the bound in the target's own list,
+declared one used, by the target or by the trait's arguments. A parameter only
+the trait's arguments name is taken from each call: `N` below is the length of
+whatever array is passed, and each length gets its own `from`.
+
+```kflat
+struct Total {
+    val sum: int64
+}
+
+impl<N: uint64> From<int64[N]> for Total {
+    static fun from(items: int64[N]): Total {
+        var sum: int64 = 0
+        while x in items { sum = sum + x }
+        return Total { sum: sum }
+    }
+}
+
+fun main(): int32 {
+    val two: int64[2] = [1, 2]
+    val three: int64[3] = [3, 4, 5]
+    return (Total.from(two).sum + Total.from(three).sum) as int32   // 3 + 12
+}
+```
+
+Such an impl has no `&dyn` form: there is one per length, and none until a
+call names it.
+
+```console
+$ komp check .
+src/main.kf:7:9: error: `B` is declared in `impl<...>` but neither the target nor the trait's arguments use it
+    impl<A, B> Show for Pair<A> {
+            ^
+```
+
+The older spelling puts the bound in the target's own list,
 `impl Show for Pair<A: Show, B>`, and means the same; a parameter may be
 bounded in one of the two places, not both.
 
@@ -282,6 +316,33 @@ val none: Option<int32> = Option.None       // no payload — the annotation car
 
 `Option.None<int32>` is not the way to write a typed `None`; annotate the
 binding instead.
+
+A static call's arguments bind the type's parameters the way a generic
+function's do, so `Pair.of(4, true)` needs nothing written:
+
+```kflat
+struct Pair<A, B> {
+    val first: A
+    val second: B
+}
+
+impl<A, B> Pair<A, B> {
+    static fun of(first: A, second: B): Pair<A, B> {
+        return Pair<A, B> { first: first, second: second }
+    }
+}
+
+fun main(): int32 {
+    val p = Pair.of(4, true)          // a Pair<int32, bool>
+    return if p.second { p.first } else { 0 }
+}
+```
+
+The arguments decide: `Pair.of(4, true)` is a `Pair<int32, bool>` even where a
+`Pair<int64, bool>` is expected, so write `4 as int64` there. Every parameter
+must be bound by some argument; when one is not, as `B` in a
+`static fun of(first: A): Half<A, B>`, write them all:
+`Half.of<int32, bool>(4)`.
 
 A static call with no value argument has nothing of its own to go on, so the
 slot is what types it. All four of these work:

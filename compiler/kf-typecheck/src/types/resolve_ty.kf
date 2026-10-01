@@ -30,7 +30,10 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
             if name.lang_placeholder_key().as_str().equals(lang_option_key()) {
                 s = ctx.option_name().as_str()
             }
-            if name.lang_placeholder_key().as_str() == lang_array_key() { s = ctx.array_name().as_str() }
+            val placeholder = name.lang_placeholder_key()
+            if placeholder.as_str() == lang_array_key() { s = ctx.array_name().as_str() }
+            if placeholder.as_str() == lang_slice_key() { s = ctx.slice_name().as_str() }
+            if placeholder.as_str() == lang_slice_mut_key() { s = ctx.slice_mut_name().as_str() }
             // A builtin name a crate also declares (the lang string) still
             // counts as a use of that crate's import.
             val is_lang_string = is_lang_name(s, ctx.string_name())

@@ -46,6 +46,15 @@ impl List<T> {
     pub fun size(): uint64 {
         return self.len
     }
+    /// A shared view of the elements, borrowing the list: it cannot grow
+    /// while the view is in use.
+    pub fun as_slice(): Slice<T> {
+        return unsafe { Slice.from_raw<T>(self.data, self.len) }
+    }
+    /// A mutable view of the elements, borrowing the list.
+    pub mutating fun as_slice_mut(): SliceMut<T> {
+        return unsafe { SliceMut.from_raw<T>(self.data, self.len) }
+    }
     pub fun is_empty(): bool {
         return self.len == 0
     }

@@ -36,6 +36,8 @@ pub fun TypeRef.tref_name_key(): String {
         Reference(is_mut, inner) => {
             return borrow_frag(is_mut, (unsafe { &*inner }).tref_name_key().as_str())
         }
+        // `Make<T[2]>` keys its length as an instance name does.
+        Value(v) => return value_frag(v)
         _ => return ""
     }
 }

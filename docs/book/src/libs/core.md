@@ -21,7 +21,7 @@ Every operator trait lives in `core.traits`, one module per group:
 | `core.traits.convert` | `From` | `T.from(x)` |
 | `core.traits.call` | `Call0`-`Call3`, `CallMut0`-`CallMut3` | Lambda invocation |
 | `core.traits.iter` | `Iterable`, `Iterator` | `while x in xs` |
-| `core.traits.index` | `Index`, `IndexMut` | `a[i]` |
+| `core.traits.index` | `Index`, `IndexMut`, `IndexValue` | `a[i]` |
 | `core.traits.from_elements` | `FromElements` | `[a, b, c]` in a slot of the type |
 | `core.traits.try` | `Try`, `FromResidual` | postfix `?` |
 | `core.display` | `Display` | `println`, string interpolation |
@@ -670,6 +670,7 @@ fun main(): int32 {
 | `size()` | `N` |
 | `at(i)`, `at_mut(i)`, `xs[i]` | a borrow of element `i`; out of range panics |
 | `iter()` | an `ArrayIter<T>`, a cursor valid while the array is alive and unmoved |
+| `as_slice()`, `as_slice_mut()` | a [slice](#slice) of every element |
 
 A list literal where an array is expected builds it in place, with exactly
 `N` elements: `val rgb: Array<uint8, 3> = [255, 128, 0]`. In a crate without
@@ -679,6 +680,55 @@ element's type.
 `Array<T, N>` is `Copy` when `T` is, and `Clone` when `T` is. Otherwise it
 moves, and dropping it drops each element. `Array<T, N> {}` starts with every
 element zeroed.
+
+## Slice
+
+`Slice<T>`, written `&T[]`, is a shared view of elements laid out in a row,
+and `SliceMut<T>`, written `&var T[]`, a mutable one. The length is known
+only when the program runs, so one function takes an array of any length or
+a list; the [arrays chapter](../lang/arrays.md#any-length-slices) covers the
+syntax and how an array, a list or a literal is lent as one. Both are
+[view types](../lang/memory.md#view-types) holding a pointer and a length,
+written in KFlat with no help from the compiler beyond the `&T[]` spelling.
+
+```kflat
+fun largest(xs: Slice<int32>): int32 {
+    var best = xs[0]
+    while x in xs.slice(1..xs.size()) {
+        if x > best { best = x }
+    }
+    return best
+}
+
+fun reverse(xs: SliceMut<int32>): void {
+    var i: uint64 = 0
+    while i < xs.size() / 2 {
+        xs.swap(i, xs.size() - 1 - i)
+        i = i + 1
+    }
+}
+
+fun main(): int32 {
+    var nums: int32[4] = [3, 9, 2, 5]
+    reverse(nums.as_slice_mut())
+    return largest(nums.as_slice()) + nums[0]    // 9 + 5
+}
+```
+
+| method | does |
+|---|---|
+| `size()`, `is_empty()` | the length |
+| `at(i)`, `xs[i]` | a borrow of element `i`; out of range panics |
+| `slice(range)` | the elements in `range`, viewing the same source; past the end panics |
+| `iter()` | an `ArrayIter<T>` over the elements |
+| `SliceMut`: `at_mut(i)`, `xs[i] = v` | a mutable borrow of element `i` |
+| `SliceMut`: `set(i, v)`, `swap(i, j)` | store or exchange in place |
+| `SliceMut`: `slice_mut(range)`, `as_slice()` | a narrower mutable view, a shared view |
+
+A `Slice` is `Copy`, like the shared borrow it stands for; a `SliceMut`
+moves. `Slice.from_raw(ptr, len)` and `SliceMut.from_raw` build one from a
+pointer inside `unsafe`, where the caller vouches that the elements outlive
+it.
 
 ## Path
 
