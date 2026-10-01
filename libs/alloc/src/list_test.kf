@@ -122,3 +122,19 @@ fun a_free_helper_in_this_crate_is_callable(): void {
     *(xs.index_mut(0)) = 9
     assert_eq(xs[0], 9, "the mutable accessor")
 }
+
+@test
+fun a_list_lends_its_elements_as_a_slice(): void {
+    var xs = List.new<int32>()
+    xs.push(4)
+    xs.push(5)
+    assert_eq(xs.as_slice()[1], 5, "the slice views the buffer")
+}
+
+@test
+fun a_list_writes_through_a_mutable_slice(): void {
+    var xs = List.new<int32>()
+    xs.push(4)
+    xs.as_slice_mut().set(0, 6)
+    assert_eq(xs[0], 6, "the list sees the store")
+}
