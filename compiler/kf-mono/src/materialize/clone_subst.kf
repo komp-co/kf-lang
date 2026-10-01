@@ -36,7 +36,7 @@ pub fun clone_subst_decl(tmpl: &TopDecl, args: &List<TypeRef>, mangled: String):
                 nf.push(new_field(f.span, f.name.as_string(), nty, f.is_var, f.is_pub))
             }
             val result = new_owned_top_decl(tmpl.crate, tmpl.span, mangled.as_str(), TopDeclKind.Struct(nf, is_pub))
-            val attached = tmpl.attach_subst_dyn_metadata(result, &var names, &var repls)
+            val attached = tmpl.attach_subst_dyn_metadata(tmpl.carry_view(result), &var names, &var repls)
             return attached
         }
         EnumDecl(variants, is_pub) => {
@@ -52,7 +52,7 @@ pub fun clone_subst_decl(tmpl: &TopDecl, args: &List<TypeRef>, mangled: String):
                 nv.push(new_variant(v.span, v.name.as_string(), npay))
             }
             val result = new_owned_top_decl(tmpl.crate, tmpl.span, mangled.as_str(), TopDeclKind.EnumDecl(nv, is_pub))
-            val attached = tmpl.attach_subst_dyn_metadata(result, &var names, &var repls)
+            val attached = tmpl.attach_subst_dyn_metadata(tmpl.carry_view(result), &var names, &var repls)
             return attached
         }
         Function(_params, _ret_ptr, _body, _pub, _u, _m, _s) => {
@@ -204,4 +204,12 @@ fun clone_subst_method(meth: &TopDecl, names: &var List<String>, repls: &var Lis
         }
         _ => return new_owned_top_decl(meth.crate, meth.span, "", TopDeclKind.Poison)
     }
+}
+
+/// An instance of a view type is a view too.
+fun TopDecl.carry_view(instance: TopDecl): TopDecl {
+    if !self.is_view() { return instance }
+    var marked = instance
+    marked.annotations.push(view_annotation())
+    return marked
 }

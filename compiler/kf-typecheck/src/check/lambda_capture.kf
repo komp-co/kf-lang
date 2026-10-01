@@ -6,7 +6,7 @@ import alloc.list.*
 import kf_core.span.*
 import kf_core.ast.*
 import kf_core.diagnostic.*
-import kf_typecheck.check.borrow.type_is_borrow
+import kf_typecheck.check.borrow.type_borrows
 
 pub enum CaptureMode {
     Shared
@@ -157,7 +157,7 @@ pub fun own_stored_captures(captures: &var List<LambdaCapture>, span: Span, ctx:
         val name = captures.at(i).name.clone()
         val mode = captures.at(i).mode
         val ty = ctx.lookup(name.as_str())
-        if ty.capture_type_cannot_escape() {
+        if ty.capture_type_cannot_escape(ctx.sigs) {
             val message = "stored lambda cannot capture borrow-typed `${name}`; pass the lambda directly to a call instead"
             val label = new_label(span, message)
             unsafe { ctx.diags.push(new_diagnostic(Severity.Error, label)) }
@@ -173,8 +173,8 @@ pub fun own_stored_captures(captures: &var List<LambdaCapture>, span: Span, ctx:
     return true
 }
 
-fun Type.capture_type_cannot_escape(): bool {
-    if self.type_is_borrow() { return true }
+fun Type.capture_type_cannot_escape(sigs: Ptr<SigTable>): bool {
+    if self.type_borrows(sigs) { return true }
     return when (self.kind) {
         Generic(_) => true
         DynTraitTy(_) => true

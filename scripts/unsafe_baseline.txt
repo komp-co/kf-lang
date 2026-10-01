@@ -144,6 +144,7 @@
 1 compiler/kf-typecheck/src/check/alias_call.kf
 1 compiler/kf-typecheck/src/check/annotated_query.kf
 6 compiler/kf-typecheck/src/check/borrow/borrow_args.kf
+1 compiler/kf-typecheck/src/check/borrow/borrow_origin.kf
 8 compiler/kf-typecheck/src/check/borrow/deref.kf
 1 compiler/kf-typecheck/src/check/borrow/deref_temporary.kf
 5 compiler/kf-typecheck/src/check/bound_inference.kf
@@ -166,7 +167,7 @@
 6 compiler/kf-typecheck/src/check/control/exhaustive.kf
 17 compiler/kf-typecheck/src/check/control/string_pattern.kf
 1 compiler/kf-typecheck/src/check/decl/annotation_type_params.kf
-58 compiler/kf-typecheck/src/check/decl/check_decl.kf
+59 compiler/kf-typecheck/src/check/decl/check_decl.kf
 15 compiler/kf-typecheck/src/check/decl/check_function_body.kf
 8 compiler/kf-typecheck/src/check/decl/check_impl_header.kf
 3 compiler/kf-typecheck/src/check/decl/check_pub_signature.kf
@@ -226,7 +227,7 @@
 22 compiler/kf-typecheck/src/traits/trait_dispatch.kf
 11 compiler/kf-typecheck/src/traits/trait_registry.kf
 4 compiler/kf-typecheck/src/traits/traits.kf
-1 compiler/kf-typecheck/src/types/borrow_storage.kf
+2 compiler/kf-typecheck/src/types/borrow_storage.kf
 17 compiler/kf-typecheck/src/types/coerce.kf
 5 compiler/kf-typecheck/src/types/decl_generics.kf
 4 compiler/kf-typecheck/src/types/recv_generics.kf

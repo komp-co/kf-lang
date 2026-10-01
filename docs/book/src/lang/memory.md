@@ -365,6 +365,47 @@ fun bump(slot: &var int32): void { ... }    // fine
 fun read(value: &dyn Score): int32 { ... }  // fine
 ```
 
+## View types
+
+A struct or enum marked `@view` is a borrow of your own design. Its fields may
+hold borrows, which no other struct may, and in exchange its values follow the
+rules of `&T`:
+
+```kflat
+@view
+struct Window {
+    val text: str
+    val from: uint64
+}
+
+impl Window {
+    fun length(): uint64 { return self.text.byte_len() - self.from }
+}
+
+struct Text {
+    var bytes: String
+}
+
+impl Text {
+    fun window(from: uint64): Window { return Window { text: self.bytes.as_str(), from: from } }
+}
+```
+
+`text.window(1)` borrows from `text`, as `text.bytes.as_str()` would, and
+everything below applies to it unchanged: a view cannot be stored in a struct
+that is not itself a view, it freezes what it borrows while it is used, it
+cannot be returned past its origin, and a stored lambda cannot capture it.
+
+```kflat
+struct Holder {
+    val window: Window     // error: it is a view, and a view is only valid
+}                          //        for the call that made it
+```
+
+An instance of a generic view, such as `Cursor<int32>` from
+`@view struct Cursor<T> { val first: &T }`, is a view too, and a view keeps
+being one in another crate.
+
 ## Returning a borrow
 
 A function may return a borrow, and where it comes from is never written

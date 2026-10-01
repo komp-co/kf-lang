@@ -19,14 +19,22 @@ pub struct MutatingMethod {
     pub val mangled: String
 }
 
+/// What every check in a module consults.
+struct LivenessFacts {
+    val muts: List<MutatingMethod>
+    /// `@view` types, whose values borrow as `&T` does.
+    val views: List<String>
+}
+
 pub fun Module.borrow_liveness_module(diags: Ptr<List<Diagnostic>>): void {
     var muts = List.new<MutatingMethod>()
     self.collect_mutating_methods(&var muts)
+    val facts = LivenessFacts { muts: muts, views: self.view_type_names() }
     // Which parameters consume their argument. By pointer: it holds move-only
     // lists.
     var param_table = self.build_param_table()
     while decl in &self.decls {
-        bl_check_top_decl(decl, &muts, &var param_table, diags)
+        bl_check_top_decl(decl, &facts, &var param_table, diags)
     }
 }
 
@@ -56,7 +64,7 @@ fun collect_mutating_in_impl(owner: str, methods: &List<TopDecl>, out: &var List
     }
 }
 
-fun bl_check_top_decl(td: &TopDecl, muts: &List<MutatingMethod>, ptable: Ptr<List<ParamEntry>>, diags: Ptr<List<Diagnostic>>): void {
+fun bl_check_top_decl(td: &TopDecl, facts: &LivenessFacts, ptable: Ptr<List<ParamEntry>>, diags: Ptr<List<Diagnostic>>): void {
     when (td.kind) {
         Function(params, _r, body, _pub, _u, _mut, _st) => {
             var names = List.new<String>()
@@ -64,16 +72,16 @@ fun bl_check_top_decl(td: &TopDecl, muts: &List<MutatingMethod>, ptable: Ptr<Lis
             while param in &params {
                 names.push(param.name.as_string())
             }
-            check_stmt_list(&body, muts, ptable, &names, diags)
+            check_stmt_list(&body, facts, ptable, &names, diags)
         }
         ImplBlock(methods) => {
             while method in &methods {
-                bl_check_top_decl(method, muts, ptable, diags)
+                bl_check_top_decl(method, facts, ptable, diags)
             }
         }
         TraitImpl(_tref, methods) => {
             while method in &methods {
-                bl_check_top_decl(method, muts, ptable, diags)
+                bl_check_top_decl(method, facts, ptable, diags)
             }
         }
         _ => { }
@@ -81,19 +89,19 @@ fun bl_check_top_decl(td: &TopDecl, muts: &List<MutatingMethod>, ptable: Ptr<Lis
 }
 
 /// A borrow is checked within the block that declared it.
-fun check_stmt_list(stmts: &List<Stmt>, muts: &List<MutatingMethod>, ptable: Ptr<List<ParamEntry>>, params: &List<String>, diags: Ptr<List<Diagnostic>>): void {
+fun check_stmt_list(stmts: &List<Stmt>, facts: &LivenessFacts, ptable: Ptr<List<ParamEntry>>, params: &List<String>, diags: Ptr<List<Diagnostic>>): void {
     while i in 0..stmts.size() {
-        (stmts.at(i)).check_nested_blocks(muts, ptable, params, diags)
-        val origin = (stmts.at(i)).borrow_binding_origin()
+        (stmts.at(i)).check_nested_blocks(facts, ptable, params, diags)
+        val origin = (stmts.at(i)).borrow_binding_origin(&facts.views)
         if origin.as_str() != "" {
             val bound = (stmts.at(i)).binding_name()
             if !name_in(params, origin.as_str()) {
-                report_returned_borrow_of_local(stmts, i, bound.as_str(), origin.as_str(), diags)
+                report_returned_borrow_of_local(stmts, i, bound.as_str(), origin.as_str(), &facts.views, diags)
             }
             val last = last_use_index(stmts, bound.as_str(), i)
             var j = i + 1
             while j <= last {
-                if (stmts.at(j)).stmt_disturbs(origin.as_str(), muts) {
+                if (stmts.at(j)).stmt_disturbs(origin.as_str(), &facts.muts) {
                     (stmts.at(j)).emit_outlives_error(bound.as_str(), origin.as_str(), diags)
                 } else if (stmts.at(j)).stmt_moves(origin.as_str(), ptable) {
                     (stmts.at(j)).emit_moved_error(bound.as_str(), origin.as_str(), diags)
@@ -111,10 +119,11 @@ fun Stmt.emit_outlives_error(borrow: str, origin: str, diags: Ptr<List<Diagnosti
 
 /// `val view = text.as_str()` then `return view`: TypeCheck catches the
 /// direct form; here the origin is known, so the bound form is caught too.
-fun report_returned_borrow_of_local(stmts: &List<Stmt>, from: uint64, bound: str, origin: str, diags: Ptr<List<Diagnostic>>): void {
+fun report_returned_borrow_of_local(stmts: &List<Stmt>, from: uint64, bound: str, origin: str, views: &List<String>,
+    diags: Ptr<List<Diagnostic>>): void {
     var i = from + 1
     while i < stmts.size() {
-        if (stmts.at(i)).stmt_returns(bound) {
+        if (stmts.at(i)).stmt_returns(bound, views) {
             val message = "cannot return `${bound}`: it borrows `${origin}`, which this function owns and drops at the return"
             unsafe { diags.push(new_diagnostic(Severity.Error, new_label(stmts.at(i).span, message))) }
             return
@@ -136,18 +145,18 @@ fun Stmt.emit_moved_error(borrow: str, origin: str, diags: Ptr<List<Diagnostic>>
 }
 
 /// The local a `val`/`var` initializer borrows from, or "".
-fun Stmt.borrow_binding_origin(): String {
+fun Stmt.borrow_binding_origin(views: &List<String>): String {
     when (self.kind) {
-        LetVal(_n, _t, init) => return init_borrow_origin(init.view())
-        LetVar(_n, _t, init) => return init_borrow_origin(init.view())
+        LetVal(_n, _t, init) => return init_borrow_origin(init.view(), views)
+        LetVar(_n, _t, init) => return init_borrow_origin(init.view(), views)
         _ => return ""
     }
 }
 
-fun init_borrow_origin(init_opt: Ptr<Expr>?): String {
+fun init_borrow_origin(init_opt: Ptr<Expr>?, views: &List<String>): String {
     val init = init_opt ?: return ""
     val e = unsafe { *init }
-    if !e.ty.bl_ty_is_borrow() { return "" }
+    if !e.ty.bl_ty_is_borrow(views) { return "" }
     return expr_borrow_root(&e)
 }
 
@@ -159,10 +168,12 @@ fun Stmt.binding_name(): String {
     }
 }
 
-fun Type.bl_ty_is_borrow(): bool {
+fun Type.bl_ty_is_borrow(views: &List<String>): bool {
     when (self.kind) {
         StrTy => return true
         RefTo(_, _) => return true
+        Struct(name) => return names_view(views, name.as_str())
+        EnumTy(name) => return names_view(views, name.as_str())
         _ => return false
     }
 }
@@ -203,22 +214,22 @@ fun Type.bl_ty_base_name(): String {
     }
 }
 
-fun Stmt.check_nested_blocks(muts: &List<MutatingMethod>, ptable: Ptr<List<ParamEntry>>, params: &List<String>, diags: Ptr<List<Diagnostic>>): void {
+fun Stmt.check_nested_blocks(facts: &LivenessFacts, ptable: Ptr<List<ParamEntry>>, params: &List<String>, diags: Ptr<List<Diagnostic>>): void {
     when (self.kind) {
         If(_c, then_body, else_body) => {
-            check_stmt_list(&then_body, muts, ptable, params, diags)
-            check_stmt_list(&else_body, muts, ptable, params, diags)
+            check_stmt_list(&then_body, facts, ptable, params, diags)
+            check_stmt_list(&else_body, facts, ptable, params, diags)
         }
-        While(_c, body) => check_stmt_list(&body, muts, ptable, params, diags)
-        ForEach(_b, _s, body) => check_stmt_list(&body, muts, ptable, params, diags)
+        While(_c, body) => check_stmt_list(&body, facts, ptable, params, diags)
+        ForEach(_b, _s, body) => check_stmt_list(&body, facts, ptable, params, diags)
         When(_s, arms) => {
             while arm in &arms {
-                check_stmt_list(arm.body, muts, ptable, params, diags)
+                check_stmt_list(arm.body, facts, ptable, params, diags)
             }
         }
         Switch(_s, arms) => {
             while arm in &arms {
-                check_stmt_list(arm.body, muts, ptable, params, diags)
+                check_stmt_list(arm.body, facts, ptable, params, diags)
             }
         }
         _ => { }

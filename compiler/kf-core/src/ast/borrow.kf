@@ -13,18 +13,28 @@ pub fun TypeRef.type_ref_is_borrow(): bool {
     }
 }
 
+/// A borrow, or a value of one of `views`.
+pub fun TypeRef.type_ref_borrows(views: &List<String>): bool {
+    if self.type_ref_is_borrow() { return true }
+    when (self.kind) {
+        Named(name, _args) => return names_view(views, name.as_str())
+        _ => return false
+    }
+}
+
 /// The parameter index a returned borrow comes from, or -1 when it borrows
 /// nothing the caller owns. An instance method borrows from `self`;
 /// otherwise the single borrow parameter is the origin. With none, the borrow
 /// can only be a literal. With several, the origin cannot be named and the
 /// signature is rejected where it is checked.
-pub fun type_ref_borrow_origin(param_types: &List<TypeRef>, ret: &TypeRef, has_self: bool): int32 {
-    if !ret.type_ref_is_borrow() { return 0 - 1 }
+pub fun type_ref_borrow_origin(param_types: &List<TypeRef>, ret: &TypeRef, has_self: bool,
+    views: &List<String>): int32 {
+    if !ret.type_ref_borrows(views) { return 0 - 1 }
     if has_self { return 0 }
     var found: int32 = 0 - 1
     while i in 0..param_types.size() {
         val p = *param_types.at(i)
-        if p.type_ref_is_borrow() {
+        if p.type_ref_borrows(views) {
             if found != 0 - 1 { return 0 - 1 }
             found = i as int32
         }

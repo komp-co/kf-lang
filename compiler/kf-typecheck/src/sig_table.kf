@@ -271,6 +271,8 @@ pub struct SigTable {
     pub var used_names: List<Sym>
     /// `@no_mangle` types, whose impls share one C namespace.
     pub var no_mangle_types: List<String>
+    /// `@view` types by declared name, dependencies' included.
+    pub var views: List<String>
     /// The `@lang("string")` type, or the empty name.
     pub var lang_string: Sym
     /// The `@lang("option")` type, or the empty name.
@@ -326,6 +328,7 @@ pub fun new_sig_table(): SigTable {
         used_modules: List.new<Sym>(),
         used_names: List.new<Sym>(),
         no_mangle_types: List.new<String>(),
+        views: List.new<String>(),
         lang_string: intern(""),
         lang_option: intern(""),
         lang_array: intern(""),
