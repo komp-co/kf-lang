@@ -45,6 +45,25 @@ With no array expected, `[1, 2, 3]` is still a `List<int32>`; see
 [alloc](../libs/alloc.md#list-literals). A crate without alloc has no list to
 build, so there the same literal is an `int32[3]`, typed by its first element.
 
+A string literal written where a `uint8` or `char` array is expected builds
+that array: its UTF-8 bytes, or its characters, one per element. A `&uint8[]`
+or `&char[]` argument takes one the same way. With no such array expected, a
+string literal stays text.
+
+```kflat
+val magic: uint8[] = "PNG"      // uint8[3]: 80, 78, 71
+val letters: char[] = "héllo"   // char[5]; as bytes it would be uint8[6]
+```
+
+The count must match a written length, as for a list literal:
+
+```console
+$ komp check .
+src/main.kf:2:25: error: this string has 3 bytes, but `uint8[4]` holds 4
+        val tag: uint8[4] = "PNG"
+                            ^~~~~
+```
+
 ## Elements
 
 `xs[i]` borrows element `i`, like a list's. The index is a `uint64`, checked
