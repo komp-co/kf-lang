@@ -327,7 +327,7 @@ exact equality is almost never what you want.
 
 ### What a number is
 
-Four traits name what the primitives have in common, so a generic function
+Five traits name what the primitives have in common, so a generic function
 can say it and reach it:
 
 | trait | what it provides |
@@ -336,6 +336,7 @@ can say it and reach it:
 | `Num` | `Add`, `Sub`, `Mul`, `Div`, `Zero`, `One`, as one name |
 | `Bounded` | `T.min_value()`, `T.max_value()` |
 | `Float` | `Num`, plus `T.pi()`, `T.e()`, `T.epsilon()` |
+| `Integer` | `Num`, `Equal`, `Compare`, `Mod` and `Copy`: the eight integer types, sealed |
 
 They are static methods because a constant is not something the language
 has, and because a static method is what a bound can reach:

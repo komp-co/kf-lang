@@ -23,6 +23,8 @@ pub enum TypeRefKind {
     Reference(bool, Box<TypeRef>)
     /// `[T; N]`.
     Array(Box<TypeRef>, uint64)
+    /// `7` or `-7` as a type argument: what a value parameter stands for.
+    Value(int64)
     /// `C.Iter`: an associated type of a type or parameter (`Self` inside a
     /// trait). Typecheck resolves it to the impl's choice.
     Projection(Box<TypeRef>, Sym)

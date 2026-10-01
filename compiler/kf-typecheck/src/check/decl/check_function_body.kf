@@ -8,6 +8,7 @@ import kf_typecheck.*
 import kf_core.span.*
 import kf_typecheck.check.check_stmt
 import kf_typecheck.check.control.when_is_exhaustive
+import kf_typecheck.check.value_params_of
 
 fun check_fn_body(metadata_owner: Ptr<TopDecl>, owner: String, owner_crate: CrateId, owner_module: Sym, owner_file: uint32, self_name: String, impl_target: String, impl_trait: String, impl_trait_args: String, impl_method: String, self_mutable: bool, generics: List<String>, params: List<Param>, ret_ptr: Ptr<TypeRef>, body: &var List<Stmt>, diags: Ptr<List<Diagnostic>>, sigs: Ptr<SigTable>): void {
     var ctx = new_type_ctx(void_ty(no_span()), diags, Option.None, sigs)
@@ -20,6 +21,7 @@ fun check_fn_body(metadata_owner: Ptr<TopDecl>, owner: String, owner_crate: Crat
     ctx.impl_trait_args = impl_trait_args
     ctx.impl_method = impl_method
     ctx.seed_generics(generics)
+    ctx.declare_value_params()
     if !impl_target.as_str().equals("") {
         ctx.self_ty = impl_target_ty(impl_target.as_str(), no_span(), ctx.string_name())
     }
@@ -265,4 +267,13 @@ fun emit_take_reserved_err(diags: Ptr<List<Diagnostic>>, span: Span): void {
 fun emit_builtin_type_name_reserved_err(diags: Ptr<List<Diagnostic>>, span: Span, name: String): void {
     val message = "`${name}` is reserved for a builtin type; a free function cannot be named `" + name + "` (rename it)"
     unsafe { diags.push(new_diagnostic(Severity.Error, new_label(span, message))) }
+}
+
+/// Each of the owner's value parameters is a constant of its type.
+mutating fun TypeCtx.declare_value_params(): void {
+    val found = self.value_params_of(self.fn_owner.as_str())
+    while info in &found {
+        val ty = info.ty.resolve_type_ref(self)
+        self.declare_val(info.param.clone(), ty)
+    }
 }

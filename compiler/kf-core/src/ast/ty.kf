@@ -46,6 +46,8 @@ pub enum TypeKind {
     /// through a `C: Producer` bound) has no TypeRef to substitute; Mono
     /// resolves it once the owner is pinned, and nothing after Mono sees one.
     Projection(Ptr<Type>, Sym)
+    /// A value parameter's argument: the `7` in `Mod<int32, 7>`.
+    Value(int64)
     Poison
 }
 
@@ -241,6 +243,7 @@ impl Type {
             BoxOf(_) => false
             RefTo(_, _) => false
             FnTy(_) => false
+            Value(_) => false
         }
     }
 }

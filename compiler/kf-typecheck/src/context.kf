@@ -229,6 +229,14 @@ impl TypeCtx {
         return true
     }
 
+    /// Whether a local, parameter or binder named `name` is in scope.
+    pub fun has_local(name: str): bool {
+        while b in &self.locals {
+            if b.name.as_str() == name { return true }
+        }
+        return false
+    }
+
     /// A parameter's mutability fix is `&var` in its type.
     pub fun is_param(name: str): bool {
         while param in &self.params {

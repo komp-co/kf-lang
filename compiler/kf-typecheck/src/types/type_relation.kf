@@ -29,6 +29,7 @@ fun TAG_POISON(): uint64 { return 24 }
 fun TAG_BOX(): uint64 { return 25 }
 pub fun TAG_PROJECTION(): uint64 { return 26 }
 fun TAG_DYN_TRAIT(): uint64 { return 27 }
+fun TAG_VALUE(): uint64 { return 28 }
 
 pub fun Type.type_eq(b: &Type): bool {
     if self.is_poison() || b.is_poison() {
@@ -84,6 +85,7 @@ fun TypeKind.kind_eq_flat(b: TypeKind): bool {
         return ai.type_eq(bi)
     }
     if tag == TAG_FN() { return fn_types_eq(*self, b) }
+    if tag == TAG_VALUE() { return self.value_arg() == b.value_arg() }
     if tag == TAG_REF() {
         val am: bool = self.ref_mut()
         val bm: bool = b.ref_mut()
@@ -132,6 +134,7 @@ pub fun TypeKind.kind_tag(): uint64 {
         RefTo(_, _) => return TAG_REF()
         FnTy(_) => return TAG_FN()
         Projection(_, _) => return TAG_PROJECTION()
+        Value(_) => return TAG_VALUE()
         Poison => return TAG_POISON()
     }
 }
@@ -224,5 +227,13 @@ fun TypeKind.ref_inner(): Type {
     return when (self) {
         RefTo(_, p) => unsafe { *p }
         _ => poison_ty()
+    }
+}
+
+/// The value a `Value` kind carries; 0 for any other kind.
+fun TypeKind.value_arg(): int64 {
+    return when (self) {
+        Value(v) => v
+        _ => 0
     }
 }

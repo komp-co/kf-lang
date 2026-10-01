@@ -125,3 +125,39 @@ fun first_param_type(src: str): TypeRef {
     val _td = p.parse_top_decl()
     assert_eq(p.diags.size() > 0, true, "two types in parentheses without `->` are an error")
 }
+
+/// The value of the `index`th type argument of the first parameter's type.
+fun value_argument_of(src: str, index: uint64): int64? {
+    var p = parser_for(src)
+    val td = p.parse_top_decl()
+    when (td.kind) {
+        Function(params, _, _, _, _, _, _) => {
+            val ty = unsafe { *params.at(0).ty }
+            when (ty.kind) {
+                Named(_, args) => {
+                    when (args.at(index).kind) {
+                        Value(v) => return v
+                        _ => return null
+                    }
+                }
+                _ => return null
+            }
+        }
+        _ => return null
+    }
+}
+
+@test
+fun an_integer_type_argument_is_a_value(): void {
+    assert_eq(value_argument_of("fun f(r: Residue<int32, 7>): void {}", 1) ?: 0, 7, "`7` in a type-argument list")
+}
+
+@test
+fun a_negative_type_argument_is_a_value(): void {
+    assert_eq(value_argument_of("fun f(r: Residue<int64, -3>): void {}", 1) ?: 0, -3, "`-3` in a type-argument list")
+}
+
+@test
+fun a_type_argument_is_not_a_value(): void {
+    assert_eq(value_argument_of("fun f(r: Residue<int32, 7>): void {}", 0) == null, true, "`int32` is a type")
+}

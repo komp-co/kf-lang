@@ -31,6 +31,7 @@ fun TypeRef.tref_is_concrete(gps: &List<String>): bool {
         }
         Reference(_m, inner) => return (unsafe { &*inner }).tref_is_concrete(gps)
         Array(inner, _s) => return (unsafe { &*inner }).tref_is_concrete(gps)
+        Value(_v) => return true
         Function(params, ret) => {
             while param in &params {
                 if !(param).tref_is_concrete(gps) { return false }
@@ -181,6 +182,7 @@ fun TypeRef.collect_insts_in_tyref(gps: &List<String>, marities: &List<MethodAri
         }
         Reference(_mutable, inner) => (unsafe { &*inner }).collect_insts_in_tyref(gps, marities, work)
         Array(inner, _size) => (unsafe { &*inner }).collect_insts_in_tyref(gps, marities, work)
+        Value(_v) => { }
         Function(params, ret) => {
             while param in &params {
                 (param).collect_insts_in_tyref(gps, marities, work)

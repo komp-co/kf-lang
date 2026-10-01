@@ -39,6 +39,8 @@ pub fun lang_option_key(): str { return "option" }
 
 pub fun lang_list_key(): str { return "list" }
 
+pub fun lang_array_key(): str { return "array" }
+
 /// Every key the compiler consumes, in "expected"-list order. An unknown key
 /// is an error, so a typo cannot silently leave a type unmarked.
 pub fun known_lang_keys(): List<String> {
@@ -59,6 +61,7 @@ pub fun known_lang_keys(): List<String> {
     out.push(String.from(lang_div_key()))
     out.push(String.from(lang_option_key()))
     out.push(String.from(lang_list_key()))
+    out.push(String.from(lang_array_key()))
     return out
 }
 

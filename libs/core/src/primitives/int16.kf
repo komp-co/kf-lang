@@ -56,6 +56,8 @@ impl One for int16 { static fun one(): int16 { return 1 } }
 
 impl Num for int16 { }
 
+impl Integer for int16 { }
+
 impl Bounded for int16 {
     static fun min_value(): int16 { return -32767 - 1 }
     static fun max_value(): int16 { return 32767 }

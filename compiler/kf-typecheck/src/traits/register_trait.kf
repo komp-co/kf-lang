@@ -23,6 +23,10 @@ pub fun register_struct(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: Ptr<Lis
             ctx0.owner_module = td.module_path
             ctx0.owner_file = td.span.file_id
             ctx0.metadata_owner = td
+            ctx0.fn_owner = td.name.as_string()
+            // Bounds first: a payload naming a bounded type checks its
+            // arguments against them.
+            register_bounds(td.name.as_string(), td.generics, sig_ptr)
             val gnames = type_param_names(td.generics)
             ctx0.seed_generics(gnames)
             var vs = List.new<VariantInfo>()
@@ -38,7 +42,6 @@ pub fun register_struct(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: Ptr<Lis
             }
             val sp = sig_ptr
             unsafe { sp.insert_enum(EnumLayout { name: td.name.as_string(), variants: vs, owner_crate: td.crate }) }
-            register_bounds(td.name.as_string(), td.generics, sig_ptr)
         }
         Struct(fields, _is_pub) => {
             var ctx0 = new_type_ctx(void_ty(no_span()), diags, eff_table, sig_ptr)
@@ -46,6 +49,9 @@ pub fun register_struct(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: Ptr<Lis
             ctx0.owner_module = td.module_path
             ctx0.owner_file = td.span.file_id
             ctx0.metadata_owner = td
+            ctx0.fn_owner = td.name.as_string()
+            // Bounds first, as for an enum.
+            register_bounds(td.name.as_string(), td.generics, sig_ptr)
             val gnames = type_param_names(td.generics)
             ctx0.seed_generics(gnames)
             var fs = List.new<StructFieldInfo>()
@@ -59,7 +65,6 @@ pub fun register_struct(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: Ptr<Lis
             }
             val sp = sig_ptr
             unsafe { sp.insert_struct(StructLayout { name: td.name.as_string(), fields: fs, is_refcounted: false, owner_crate: td.crate }) }
-            register_bounds(td.name.as_string(), td.generics, sig_ptr)
         }
         TraitImpl(tref, _methods) => {
             // Recorded in the first pre-pass, before any generic layout

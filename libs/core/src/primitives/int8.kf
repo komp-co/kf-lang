@@ -56,6 +56,8 @@ impl One for int8 { static fun one(): int8 { return 1 } }
 
 impl Num for int8 { }
 
+impl Integer for int8 { }
+
 impl Bounded for int8 {
     static fun min_value(): int8 { return 0 - 127 - 1 }
     static fun max_value(): int8 { return 127 }

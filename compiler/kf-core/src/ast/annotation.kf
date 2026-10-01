@@ -167,6 +167,7 @@ impl TypeRef {
             Reference(_is_mutable, inner) => return inner.mentions_wildcard()
             Array(element, _size) => return element.mentions_wildcard()
             Projection(owner, _member) => return owner.mentions_wildcard()
+            Value(_v) => return false
             Poison => return false
         }
     }

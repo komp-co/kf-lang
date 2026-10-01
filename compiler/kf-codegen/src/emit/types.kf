@@ -30,6 +30,7 @@ pub fun TypeRef.c_type(): String {
         Array(_e, _n) => return String.from("/* array */ void*")
         // Unresolved: emitted like poison.
         Projection(_owner, _member) => return String.from("/* poison */ void")
+        Value(_v) => return String.from("/* poison */ void")
         Poison => return String.from("/* poison */ void")
     }
 }
@@ -145,6 +146,7 @@ pub fun TypeRef.tyref_mangle(): String {
         Array(_e, _n) => return String.from("array")
         // Unresolved: emitted like poison.
         Projection(_owner, _member) => return String.from("poison")
+        Value(v) => return value_frag(v)
         Poison => return String.from("poison")
     }
 }
@@ -194,6 +196,7 @@ pub fun Type.c_type_of_type(): String {
         }
         // Emitted like poison so cc rejects it; Mono resolves projections.
         Projection(_, _) => return String.from("/* projection */ void")
+        Value(_) => return String.from("void")
         Poison => return String.from("void")
     }
 }
@@ -253,6 +256,7 @@ pub fun ty_needs_drop(t: TypeRef, m: &Module): bool {
         Array(_, _) => return false
         // Unresolved: treated like poison.
         Projection(_owner, _member) => return false
+        Value(_v) => return false
         Poison => return false
     }
 }

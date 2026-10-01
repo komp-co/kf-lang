@@ -44,6 +44,8 @@ pub struct MoveCtx {
     // Names consumed by this statement, cleared at each statement boundary.
     // `moved` cannot answer this: a borrow read resets a moved name to owned.
     pub var consumed_here: List<Sym>
+    // Types implementing `Copy`: read, never moved.
+    pub var copy_names: List<String>
 }
 
 @derive(Copy)
@@ -61,7 +63,7 @@ pub struct MobCount {
 }
 
 pub fun new_move_ctx(diags: Ptr<List<Diagnostic>>, move_only_names: List<String>, ptable: Ptr<List<ParamEntry>>, mob_count: Ptr<MobCount>, cur_fn: String, smap: Ptr<SourceMap>, warn: Ptr<WarnState>): MoveCtx {
-    return MoveCtx { owned: List.new<Sym>(), moved: List.new<MovedEntry>(), diags: diags, move_only_names: move_only_names, borrowed: List.new<Sym>(), ptable: ptable, mob_count: mob_count, self_owner: "", cur_fn: cur_fn, smap: smap, warn: warn, consumed_here: List.new<Sym>() }
+    return MoveCtx { owned: List.new<Sym>(), moved: List.new<MovedEntry>(), diags: diags, move_only_names: move_only_names, borrowed: List.new<Sym>(), ptable: ptable, mob_count: mob_count, self_owner: "", cur_fn: cur_fn, smap: smap, warn: warn, consumed_here: List.new<Sym>(), copy_names: List.new<String>() }
 }
 
 pub fun clone_str_list(src: &List<String>): List<String> {
@@ -253,4 +255,25 @@ fun Expr.is_variant_construction(): bool {
         }
         _ => return false
     }
+}
+
+impl MoveCtx {
+    /// Whether a value of `ty` is owned and moves: heap-typed and not `Copy`.
+    pub fun tracks(ty: &Type): bool {
+        if !ty.is_heap_ty() { return false }
+        when (ty.kind) {
+            Struct(n) => return !names_contains(&self.copy_names, type_identity_display(n).as_str())
+            EnumTy(n) => return !names_contains(&self.copy_names, type_identity_display(n).as_str())
+            _ => return true
+        }
+    }
+}
+
+/// The types with an `impl Copy`, by the name their impl block carries.
+pub fun Module.copy_type_names(): List<String> {
+    var out = List.new<String>()
+    while td in &self.decls {
+        if td.implemented_lang_trait.as_str() == lang_copy_key() { out.push(td.name.as_string()) }
+    }
+    return out
 }

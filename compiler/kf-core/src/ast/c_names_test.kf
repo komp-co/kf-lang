@@ -81,3 +81,21 @@ fun frag_list(a: str, b: str): List<String> {
 @test fun an_ordinary_name_is_not_a_function_fragment(): void {
     assert_eq(fn_frag_parts("List__int32") == null, true, "only the reserved prefix opens one")
 }
+
+@test fun a_value_fragment_is_its_digits(): void {
+    assert_eq(value_frag(7).as_str(), "7", "a leading digit sets it apart from a type")
+}
+
+@test fun a_negative_value_fragment_reads_back(): void {
+    assert_eq(value_from_frag(value_frag(-3).as_str()) ?: 0, -3, "`0m3` is -3")
+}
+
+@test fun the_least_int64_reads_back(): void {
+    val most: int64 = 9223372036854775807
+    val least = 0 - most - 1
+    assert_eq(value_from_frag(value_frag(least).as_str()) ?: 0, least, "no overflow at the bottom of the range")
+}
+
+@test fun a_type_fragment_is_no_value(): void {
+    assert_eq(value_from_frag("int32") == null, true, "`int32` is a type")
+}

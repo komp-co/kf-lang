@@ -3,7 +3,7 @@ import kf_core.ast.*
 pub mutating fun Expr.move_check_expr_value(ctx: &var MoveCtx): void {
     when (self.kind) {
         Variable(name) => {
-            val heap = self.ty.is_heap_ty()
+            val heap = ctx.tracks(&self.ty)
             if heap { self.consume_var_node(name, ctx) }
         }
         FnRef(_) => { }
@@ -80,7 +80,7 @@ pub mutating fun Expr.move_check_expr_value(ctx: &var MoveCtx): void {
 pub mutating fun Expr.move_check_expr_borrow(ctx: &var MoveCtx): void {
     when (self.kind) {
         Variable(name) => {
-            val heap = self.ty.is_heap_ty()
+            val heap = ctx.tracks(&self.ty)
             if heap {
                 val already_moved = ctx.contains_moved(name)
                 if already_moved {

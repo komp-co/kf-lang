@@ -56,6 +56,8 @@ impl One for int64 { static fun one(): int64 { return 1 } }
 
 impl Num for int64 { }
 
+impl Integer for int64 { }
+
 impl Bounded for int64 {
     static fun min_value(): int64 {
         // Named: a literal inside an expression takes int32.

@@ -43,6 +43,15 @@ $ komp run .
 
 The reassignment must be to the same type — a `var` binding's type is fixed at the point it is declared.
 
+Assignment never declares. A name must be bound first:
+
+```console
+$ komp check .
+src/main.kf:4:5: error: cannot assign to `current`: it is not declared; declare it with `var current = ...`
+        current = 4
+        ^
+```
+
 ## Every binding needs an initializer
 
 Both `val` and `var` require `= expression` in the declaration. There are no

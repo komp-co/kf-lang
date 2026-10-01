@@ -64,7 +64,12 @@ pub fun Expr.subst_expr(names: &var List<String>, repls: &var List<TypeRef>): Ex
         LitFloat(fv) => return self.rebuild_expr(ExprKind.LitFloat(fv.clone()), names, repls)
         LitChar(cv) => return self.rebuild_expr(ExprKind.LitChar(cv), names, repls)
         LitBool(b) => return self.rebuild_expr(ExprKind.LitBool(b), names, repls)
-        Variable(nm) => return self.rebuild_expr(ExprKind.Variable(nm), names, repls)
+        Variable(nm) => {
+            // A value parameter is its argument.
+            val value = value_argument(nm, names, repls)
+            if value != null { return self.rebuild_expr(ExprKind.LitInt(value ?: 0), names, repls) }
+            return self.rebuild_expr(ExprKind.Variable(nm), names, repls)
+        }
         Binary(lp, op, rp) => {
             val nl = clone_expr_ptr(lp, names, repls)
             val nr = clone_expr_ptr(rp, names, repls)
@@ -141,6 +146,18 @@ pub fun Expr.subst_expr(names: &var List<String>, repls: &var List<TypeRef>): Ex
         Block(stmts) => return self.rebuild_expr(ExprKind.Block(subst_stmt_list(&stmts, names, repls)), names, repls)
         Poison => return self.rebuild_expr(ExprKind.Poison, names, repls)
     }
+}
+
+fun value_argument(name: Sym, names: &var List<String>, repls: &var List<TypeRef>): int64? {
+    while i in 0..names.size() {
+        if i < repls.size() && names.at(i).as_str().equals(name.as_str()) {
+            return when (repls.at(i).kind) {
+                Value(v) => v
+                _ => null
+            }
+        }
+    }
+    return null
 }
 
 fun subst_expr_list(args: &List<Expr>, names: &var List<String>, repls: &var List<TypeRef>): List<Expr> {

@@ -88,6 +88,7 @@ fun report_private_type_refs(tref_ptr: Ptr<TypeRef>, fn_name: Sym, private_types
         Reference(_is_var, inner) => report_private_type_refs(inner, fn_name, private_types, diags)
         Array(elem, _n) => report_private_type_refs(elem, fn_name, private_types, diags)
         Projection(_owner, _member) => return
+        Value(_v) => return
         Poison => return
     }
 }

@@ -68,6 +68,7 @@ pub fun Type.display_type(ctx: &TypeCtx): String {
             result.append(member.as_str())
             return result
         }
+        Value(v) => return "${v}"
         Poison => return String.from("<error>")
     }
 }
@@ -153,6 +154,7 @@ pub fun TypeRef.display_type_ref(): String {
             return result
         }
         Array(_, _) => return String.from("array")
+        Value(v) => return "${v}"
         Projection(owner, member) => {
             var result = (unsafe { &*owner }).display_type_ref()
             result.append(".")
