@@ -439,16 +439,12 @@ ys.sort()                    // ascending, by the element's own Compare
 ys.is_sorted()               // the postcondition, O(n)
 ```
 
-`sort` is a heapsort: it moves elements only through `swap`, so nothing is
-cloned, dropped or held in a temporary, and it needs no scratch buffer, so
-sorting never allocates. It is **not stable** — equal elements may come out in
-a different order than they went in, which matters when they carry a field the
-comparison ignores. It is O(n log n) on every input, including already-sorted
-ones.
-
-There is no `sort_by` yet. A comparison would have to be a callable, and the
-callable traits take their arguments by value, so a comparator would consume
-the two elements it was asked to compare.
+Each of these is the list's [slice](core.md#algorithms) doing the work, so
+a list sorts, searches and reverses as an array does, and has every other
+slice algorithm too: `ys.sort_by_key(|p: &Person| p.age)`,
+`ys.binary_search(&x)`, `ys.chunks(8)`. `sort` is stable: equal elements
+come out in the order they went in. It moves elements only through `swap`,
+so nothing is cloned or dropped, and it never allocates.
 
 ## Transforming text
 
