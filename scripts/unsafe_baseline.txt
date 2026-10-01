@@ -214,7 +214,7 @@
 6 compiler/kf-typecheck/src/check/untyped_receiver.kf
 2 compiler/kf-typecheck/src/check/value_args.kf
 1 compiler/kf-typecheck/src/check/view_literal.kf
-5 compiler/kf-typecheck/src/check/written_type_ref.kf
+6 compiler/kf-typecheck/src/check/written_type_ref.kf
 2 compiler/kf-typecheck/src/context.kf
 2 compiler/kf-typecheck/src/lib.kf
 2 compiler/kf-typecheck/src/sig_fn_types.kf
