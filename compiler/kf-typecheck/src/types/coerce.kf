@@ -2,6 +2,7 @@ import kf_core.ast.*
 import kf_typecheck.traits.key_segments
 import kf_typecheck.check.mangle_base_name
 import kf_typecheck.check.ty_from_frag_in_scope
+import kf_typecheck.check.lent_slice_name
 import kf_core.span.no_span
 import kf_core.ast.dyn_meta.dyn_trait_type
 
@@ -49,6 +50,9 @@ pub fun Type.bind_generic_from_param(arg: &Type, gname: str, ctx: &var TypeCtx):
     // `List__T` against `List__int32` binds T. Otherwise one unbound self
     // voids check_call's all-or-nothing write-back.
     if ptag == TAG_STRUCT() || ptag == TAG_ENUM() {
+        // An array or list passed for a slice binds the slice's element.
+        val lent = arg.lent_slice_name(self, ctx)
+        if lent != null { return bind_generic_from_instance(pk.struct_name(), lent!!, gname, ctx) }
         if atag == TAG_STRUCT() || atag == TAG_ENUM() {
             return bind_generic_from_instance(pk.struct_name(), ak.struct_name(), gname, ctx)
         }

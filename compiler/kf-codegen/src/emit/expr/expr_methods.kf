@@ -103,19 +103,12 @@ fun emit_method_call(recv_p: Ptr<Expr>, mname: String, mangled: String, margs: L
         addr.push(String.from(")"))
         return build_method_call(ecallee, concat_all(addr), margs)
     }
-    // An rvalue receiver is bound to a temp in a statement-expression wrapping
-    // the whole call; a temp scoped to just the argument would die before the
-    // callee reads it. Mutating methods only take lvalues, so it is read-only.
-    val inner_call = build_method_call(ecallee, String.from("&__self_tmp"), margs)
-    var parts = List.new<String>()
-    parts.push(String.from("({ "))
-    parts.push(recv.ty.c_type_of_type())
-    parts.push(String.from(" __self_tmp = "))
-    parts.push(recv_c)
-    parts.push(String.from("; "))
-    parts.push(inner_call)
-    parts.push(String.from("; })"))
-    return concat_all(parts)
+    // An rvalue receiver lives in a compound literal, which lasts to the end
+    // of the enclosing block: a borrow or view the method returns stays valid
+    // for the whole statement. Mutating methods only take lvalues, so it is
+    // read-only.
+    val receiver = "((${recv.ty.c_type_of_type()}[1]){ ${recv_c} })"
+    return build_method_call(ecallee, receiver, margs)
 }
 
 // `kf__retain__T` returns the independent copy; a no-op for a value type.

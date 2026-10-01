@@ -1,6 +1,7 @@
-// `T?` and `T[N]` desugar to placeholders naming the option and array types
-// by their `@lang` keys, which the parser cannot know. This rewrites them to
-// the real names in every type position before any other pass reads them.
+// `T?`, `T[N]` and `&T[]` desugar to placeholders naming the option, array
+// and slice types by their `@lang` keys, which the parser cannot know. This
+// rewrites them to the real names in every type position before any other
+// pass reads them.
 
 import alloc.list.*
 
@@ -11,6 +12,22 @@ import kf_core.ast.*
 pub struct LangHeads {
     pub val option: Sym
     pub val array: Sym
+    pub val slice: Sym
+    pub val slice_mut: Sym
+}
+
+/// Records the names the library gave its lang types, and returns the ones
+/// placeholders stand for.
+pub mutating fun SigTable.note_lang_types(m: &Module): LangHeads {
+    self.lang_string = m.lang_type_name(lang_string_key())
+    self.lang_option = m.lang_type_name(lang_option_key())
+    self.lang_list = m.lang_type_name(lang_list_key())
+    self.lang_array = m.lang_type_name(lang_array_key())
+    self.lang_slice = m.lang_type_name(lang_slice_key())
+    self.lang_slice_mut = m.lang_type_name(lang_slice_mut_key())
+    return LangHeads {
+        option: self.lang_option, array: self.lang_array, slice: self.lang_slice, slice_mut: self.lang_slice_mut
+    }
 }
 
 /// The real name for a placeholder head, or `name` itself.
@@ -18,6 +35,8 @@ fun LangHeads.head_for(name: Sym): Sym {
     val key = name.lang_placeholder_key()
     if key.as_str() == lang_option_key() { return self.option }
     if key.as_str() == lang_array_key() { return self.array }
+    if key.as_str() == lang_slice_key() { return self.slice }
+    if key.as_str() == lang_slice_mut_key() { return self.slice_mut }
     return name
 }
 

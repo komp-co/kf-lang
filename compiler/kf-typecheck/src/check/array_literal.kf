@@ -12,6 +12,7 @@ import kf_typecheck.types.display_type
 import kf_typecheck.types.type_eq
 import kf_typecheck.types.resolve_type_ref
 import kf_typecheck.types.type_to_type_ref
+import kf_typecheck.types.clone_type_args
 
 /// What an `Array<T, N>` instance holds.
 struct ArrayShape {
@@ -25,6 +26,13 @@ fun Type.array_shape(ctx: &var TypeCtx): ArrayShape? {
     if inst.base.as_str() != ctx.array_name().as_str() || inst.args.size() != 2 { return null }
     val length = inst.args.at(1).written_length() ?: return null
     return ArrayShape { element: inst.args.at(0).resolve_type_ref(ctx), length: length }
+}
+
+/// An instance as its template and arguments, the form mono collects:
+/// `Array<int32, 3>`, not its mangled name.
+fun Type.written_instance(span: Span, ctx: &var TypeCtx): TypeRef {
+    val inst = self.expected_inst(ctx) ?: return self.type_to_type_ref(span)
+    return new_type_ref(span, TypeRefKind.Named(intern(inst.base.as_str()), clone_type_args(&inst.args)))
 }
 
 fun TypeRef.written_length(): uint64? {
@@ -55,6 +63,7 @@ mutating fun Expr.retarget_array_literal(expected: Type, ctx: &var TypeCtx): boo
     }
     val span = self.span
     *self = new_expr(span, ExprKind.Call(intern(array_literal_callee()), elements))
+    self.type_args.push(expected.written_instance(span, ctx))
     self.ty = if fits { expected } else { poison_ty() }
     return true
 }
@@ -121,6 +130,7 @@ mutating fun Expr.builds_array_without_list(ctx: &var TypeCtx): bool {
     val span = self.span
     val array = array_type_ref(first.type_to_type_ref(span), elements.size(), ctx.array_name(), span)
     *self = new_expr(span, ExprKind.Call(intern(array_literal_callee()), elements))
+    self.type_args.push(array.clone())
     self.ty = if fits { array.resolve_type_ref(ctx) } else { poison_ty() }
     return true
 }

@@ -22,6 +22,8 @@ pub fun Expr.place_is_mutable(ctx: &var TypeCtx): bool {
                 PtrTo(_) => return true
                 _ => {}
             }
+            // A mutable slice writes through to what it views, as `&var T` does.
+            if (&ty).is_slice_mut(ctx) { return true }
             return ctx.lookup_is_var(name.as_str())
         }
         Deref(ip) => {

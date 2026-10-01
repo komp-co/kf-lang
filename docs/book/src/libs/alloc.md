@@ -182,6 +182,32 @@ reaches the element's own field:
 holders.at_mut(0).tags.push(String.from("x"))
 ```
 
+## Slices
+
+A list lends its elements as a [slice](../lang/arrays.md#any-length-slices),
+`&T[]`, wherever one is expected, so a function written once takes a list
+or an array of any length:
+
+```kflat
+fun total(xs: &int32[]): int32 {
+    var sum = 0
+    while x in xs { sum = sum + x }
+    return sum
+}
+
+fun main(): int32 {
+    var xs = List.new<int32>()
+    xs.push(10)
+    xs.push(20)
+    val fixed: int32[2] = [1, 2]
+    return total(xs) + total(fixed)     // 30 + 3
+}
+```
+
+`as_slice()` and `as_slice_mut()` name the slices directly. While a slice of
+a list is still used the list cannot grow or shrink, since that may move the
+elements the slice points at.
+
 ## Indexing: `xs[i]`
 
 `xs[i]` is sugar for `*(xs.index(i))`, the `Index` trait's shared accessor. It
