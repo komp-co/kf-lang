@@ -31,6 +31,27 @@ passes `komp check` and fails when cc compiles it.
 
 [#190]: https://github.com/komp-co/komp/issues/190
 
+A struct with no fields may leave out its braces and end at its name. Such a
+struct is a handy place to group [static methods](#impl-blocks):
+
+```kflat
+struct Geometry
+
+impl Geometry {
+    static fun manhattan(x: int32, y: int32): int32 { return x + y }
+}
+
+val d = Geometry.manhattan(3, 4)
+```
+
+`struct Geometry` is the same declaration as `struct Geometry {}`, and its
+value is still written `Geometry {}`. Anything but the end of the line after
+the name is an error:
+
+```text
+src/main.kf:1:17: error: expected `{` or the end of the line after the struct name, found `x`
+```
+
 ## Construction
 
 A struct literal is the type name followed by `{ field: value, ... }`.

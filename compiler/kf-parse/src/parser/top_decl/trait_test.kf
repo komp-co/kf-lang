@@ -156,10 +156,6 @@ fun diag_count(src: str): uint64 {
     assert_eq(diag_count("fun f(): int32 {\nval x =\nreturn 0\n}"), 1, "val x = <eol> -> missing expression")
 }
 
-@test fun missing_struct_brace_is_an_error(): void {
-    assert_eq(diag_count("struct P\nfun f(): int32 { return 0 }") > 0, true, "struct without body")
-}
-
 @test fun unclosed_fn_block_is_an_error(): void {
     assert_eq(diag_count("fun f(): int32 {\nreturn 0\n") > 0, true, "missing closing brace")
 }
