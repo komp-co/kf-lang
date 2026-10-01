@@ -4,6 +4,7 @@ import kf_core.ast.*
 import kf_typecheck.types.*
 import kf_typecheck.check.*
 import kf_core.span.no_span
+
 import kf_typecheck.note_import_use
 
 /// Selected by the typed value arguments: `From<int32>` and `From<bool>` on
@@ -24,8 +25,14 @@ pub fun static_trait_method_callee(type_name: String, method_name: String, args:
                 when (unsafe { (*ctx.sigs).find_signature(candidate.as_str()) }) {
                     Some(sig) => {
                         if sig.is_static && sig.params.size() == args.size() {
-                            // Substituted; see `static_call_params`.
-                            val sparams = sig.static_call_params(type_args, ctx)
+                            // The method's own parameters, `N` lifted from an
+                            // impl's trait arguments among them, bound from
+                            // the arguments; then substituted, see
+                            // `static_call_params`.
+                            var all_args = type_args.clone()
+                            val n_recv = type_name.static_recv_arity(ctx)
+                            infer_static_method_type_args(&sig, n_recv, &var all_args, args, no_span(), ctx)
+                            val sparams = sig.static_call_params(&all_args, ctx)
                             var fits = true
                             while j in 0..args.size() {
                                 val arg = *args.at(j)
@@ -122,10 +129,14 @@ fun trait_dispatch_suffix(trait_name: str, trait_args: str, method_name: str, ct
 pub struct TraitCallee {
     pub val symbol: String
     pub val sig_name: String
+    /// What the impl's trait-argument parameters bound to, `N` in
+    /// `impl<N: uint64> Absorb<int64[N]> for Tally`, in the impl's order.
+    pub val lifted: List<Type>
+    pub val lifted_names: List<String>
 }
 
 fun no_trait_callee(): TraitCallee {
-    return TraitCallee { symbol: "", sig_name: "" }
+    return TraitCallee { symbol: "", sig_name: "", lifted: List.new<Type>(), lifted_names: List.new<String>() }
 }
 
 pub fun instance_trait_method_callee(receiver_ty: Type, method_name: String, args: &List<Expr>, ctx: &var TypeCtx): String {
@@ -197,9 +208,36 @@ pub fun select_instance_trait_method(receiver_ty: Type, method_name: String, arg
                         note_import_use(ctx.sigs, ctx.owner_file, sig.owner_module)
                         if !sig.is_static && sig.params.size() == args.size() + 1 {
                             var fits = true
+                            val lifted_names = trait_impl.lifted_names(ctx)
+                            var lifted = List.new<Type>()
+                            while name in &lifted_names {
+                                var bound = poison_ty()
+                                while j in 0..args.size() {
+                                    if !bound.is_poison() { break }
+                                    val param = subst_recv(*sig.params.at(j + 1), &binding)
+                                    bound = param.bind_generic_from_param(&args.at(j).ty, name.as_str(), ctx)
+                                }
+                                if bound.is_poison() { fits = false }
+                                lifted.push(bound)
+                            }
+                            val chosen = TraitCallee {
+                                symbol: "", sig_name: "", lifted: lifted.clone(), lifted_names: lifted_names.clone()
+                            }
+                            var lifted_candidate = candidate.clone()
+                            if lifted_names.size() > 0 && fits {
+                                var names = binding.names.clone()
+                                var types = binding.types.clone()
+                                while k in 0..lifted_names.size() {
+                                    names.push(lifted_names.at(k).clone())
+                                    types.push(lifted.at(k).clone())
+                                }
+                                val bound_args = subst_trait_args(trait_impl.trait_args.as_str(), &names, &types, true)
+                                lifted_candidate = "${type_name}${method_prefix}${trait_impl.trait_name}__${bound_args}"
+                            }
                             while j in 0..args.size() {
+                                if !fits { break }
                                 val arg = *args.at(j)
-                                val expected = subst_recv(*sig.params.at(j + 1), &binding)
+                                val expected = chosen.bind_lifted(subst_recv(*sig.params.at(j + 1), &binding))
                                 if !arg.ty.type_eq(expected) && !ctx.fits(arg.ty, expected) {
                                     // An argument that could become this parameter
                                     // counts as applicable: `b[0..2]` arrives typed
@@ -215,7 +253,10 @@ pub fun select_instance_trait_method(receiver_ty: Type, method_name: String, arg
                             }
                             if fits {
                                 if !found.symbol.as_str().equals("") { return no_trait_callee() }
-                                found = TraitCallee { symbol: candidate, sig_name: sig_name }
+                                found = TraitCallee {
+                                    symbol: lifted_candidate, sig_name: sig_name, lifted: lifted,
+                                    lifted_names: lifted_names
+                                }
                             }
                         }
                     }
@@ -231,7 +272,10 @@ pub fun select_instance_trait_method(receiver_ty: Type, method_name: String, arg
             Struct(identity) => {
                 val link = unsafe { (*ctx.sigs).lookup_method_link(identity, method_name.as_str()) }
                 if !link.as_str().equals("") {
-                    return TraitCallee { symbol: link.as_string(), sig_name: found.sig_name }
+                    return TraitCallee {
+                        symbol: link.as_string(), sig_name: found.sig_name, lifted: found.lifted,
+                        lifted_names: found.lifted_names
+                    }
                 }
             }
             _ => {}

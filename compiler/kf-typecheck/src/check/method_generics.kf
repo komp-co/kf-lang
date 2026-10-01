@@ -180,6 +180,7 @@ pub fun infer_static_method_type_args(sig: &FnSignature, n_recv: uint64, type_ar
         pi = pi + 1
     }
     var flats = List.new<String>()
+    var values = List.new<Type>()
     var ok = true
     var gi: uint64 = n_recv
     while gi < sig.generics.size() {
@@ -204,13 +205,28 @@ pub fun infer_static_method_type_args(sig: &FnSignature, n_recv: uint64, type_ar
         }
         if bound.is_poison() { ok = false }
         flats.push(bound.ty_flat_ref_name())
+        values.push(bound)
         gi = gi + 1
     }
     if !ok { return }
-    while flat in &flats {
-        if flat.as_str().equals("") { return }
+    while i in 0..flats.size() {
+        if flats.at(i).as_str().equals("") && !values.at(i).is_value() { return }
     }
-    while flat in &flats {
-        type_args.push(new_type_ref(span, TypeRefKind.Named(intern(flat.as_str()), List.new<TypeRef>())))
+    while i in 0..flats.size() {
+        // A length binds as the value it is: `N` from an `int64[3]` is 3.
+        val arg = if values.at(i).is_value() {
+            values.at(i).type_to_type_ref(span)
+        } else {
+            new_type_ref(span, TypeRefKind.Named(intern(flats.at(i).as_str()), List.new<TypeRef>()))
+        }
+        type_args.push(arg)
+    }
+}
+
+/// A value argument's type: the `3` an `int64[3]` binds `N` to.
+fun Type.is_value(): bool {
+    return when (self.kind) {
+        Value(_v) => true
+        _ => false
     }
 }

@@ -130,9 +130,13 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                     }
                 }
                 val tmpl = rname + String.from("_") + method_name
-                // Arguments are typed first: they select a `From<S>`-style impl.
+                // Arguments are typed first: they select a `From<S>`-style impl,
+                // and bind the receiver's parameters none are written for.
                 while ai in 0..args.size() {
                     check_call_argument(args.at_mut(ai), ctx)
+                }
+                if e.type_args.size() == 0 {
+                    e.type_args = static_receiver_args(rname.clone(), method_name.clone(), args, ctx)
                 }
                 var selected = tmpl.clone()
                 var sigp = unsafe { (*ctx.sigs).find_signature(selected.as_str()) }

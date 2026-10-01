@@ -179,9 +179,12 @@ fun check_method_arg(args: &var List<Expr>, arg_tys: &List<Type>, index: uint64,
     return false
 }
 
-fun trait_method_ret(recv_ty: Type, method_name: String, args: &var List<Expr>, tm_span: Span, ctx: &var TypeCtx): Type {
+fun trait_method_ret(recv_ty: Type, method_name: String, args: &var List<Expr>, tm_span: Span, ctx: &var TypeCtx,
+    call: &var Expr): Type {
     val selected = select_instance_trait_method(recv_ty.clone(), method_name.clone(), args, ctx)
     if selected.sig_name.as_str().equals("") { return poison_ty() }
+    // Mono clones the impl at these.
+    if selected.lifted.size() > 0 { call.type_args = selected.lifted_args(tm_span) }
     // A monomorphized receiver reads the template's return type through its
     // arguments: `Twice<S>.pull(): S` on `Twice__Counter` is Counter.
     val binding = bound_checked_recv_bindings(autoderef_ty(recv_ty).kind.trait_impl_owner_name(), method_name.clone(), tm_span, ctx)
@@ -194,7 +197,7 @@ fun trait_method_ret(recv_ty: Type, method_name: String, args: &var List<Expr>, 
             if !sig.is_static {
                 if sig.params.size() == args.size() + 1 {
                     while ai in 0..args.size() {
-                        coerce_call_arg(args, ai, subst_recv(*sig.params.at(ai + 1), &binding), ctx)
+                        coerce_call_arg(args, ai, selected.bind_lifted(subst_recv(*sig.params.at(ai + 1), &binding)), ctx)
                     }
                 }
             }
@@ -311,7 +314,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
             if args.size() != 0 { emit_method_arity(method_name, 0, args.size(), _span, ctx); return poison_ty() }
             return str_ty(_span)
         }
-        val ret = trait_method_ret(recv_ty, method_name.clone(), args, _span, ctx)
+        val ret = trait_method_ret(recv_ty, method_name.clone(), args, _span, ctx, call)
         if !ret.is_poison() { return ret }
         emit_no_such_method("str", method_name, _span, call.name_span, ctx)
         return poison_ty()
@@ -319,7 +322,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
     // A trait implemented for a primitive resolves like a struct's.
     val is_prim = recv_ty.kind.is_primitive_kind()
     if is_prim {
-        val prim_ret = trait_method_ret(recv_ty, method_name.clone(), args, _span, ctx)
+        val prim_ret = trait_method_ret(recv_ty, method_name.clone(), args, _span, ctx, call)
         if !prim_ret.is_poison() { return prim_ret }
         recv_ty.borrow_intrinsic_method_operand(method_name.as_str(), args, ctx)
         // A trait declares it but no impl accepts these arguments.
@@ -456,7 +459,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
         // Every struct is deep-cloneable, so `x.clone()` is `Self`.
         if method_name.as_str().equals("clone") && args.size() == 0 { return recv_ty }
         // A trait impl's method, not keyed in the sig table.
-        val struct_trait_ret = trait_method_ret(recv_ty, method_name.clone(), args, _span, ctx)
+        val struct_trait_ret = trait_method_ret(recv_ty, method_name.clone(), args, _span, ctx, call)
         if !struct_trait_ret.is_poison() { return struct_trait_ret }
         // Nothing claims this method.
         if has_link { return poison_ty() }

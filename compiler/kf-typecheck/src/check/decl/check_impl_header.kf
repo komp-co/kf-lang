@@ -70,11 +70,13 @@ fun TypeRef.report_undeclared_trait_arg(td: &TopDecl, sig_ptr: Ptr<SigTable>, di
     }
 }
 
-/// An impl type parameter, a builtin, or a visible type.
+/// An impl type parameter, one its methods took from the trait's arguments,
+/// a builtin, or a visible type.
 fun trait_arg_is_declared(name: str, td: &TopDecl, sig_ptr: Ptr<SigTable>): bool {
     while tp in &td.generics {
         if tp.name.as_str().equals(name) { return true }
     }
+    if td.lifts_trait_arg_param(name) { return true }
     if is_builtin_type_name(name) { return true }
     val identities = unsafe { &sig_ptr.type_identities }
     while identity in &identities {
@@ -179,4 +181,48 @@ fun TopDecl.report_header(diags: Ptr<List<Diagnostic>>, message: String): void {
 
 fun report_at(at: Span, diags: Ptr<List<Diagnostic>>, message: String): void {
     unsafe { diags.push(new_diagnostic(Severity.Error, new_label(at, message))) }
+}
+
+/// `N` in `impl<T, N: uint64> From<T[N]> for List<T>`: the parameters only
+/// the trait's arguments name, which the parser handed to every method.
+pub fun TopDecl.trait_arg_params(): List<TypeParam> {
+    var lifted = List.new<TypeParam>()
+    when (self.kind) {
+        TraitImpl(tref, members) => {
+            while member in &members {
+                when (member.kind) {
+                    Function(_params, _ret, _body, _pub, _unsafe, _mutating, _static) => {
+                        while tp in &member.generics {
+                            if tref.names_type_param(tp.name) { lifted.push(tp.clone()) }
+                        }
+                        return lifted
+                    }
+                    _ => { }
+                }
+            }
+        }
+        _ => { }
+    }
+    return lifted
+}
+
+pub fun TopDecl.lifts_trait_arg_param(name: str): bool {
+    while tp in &self.trait_arg_params() {
+        if tp.name.as_str() == name { return true }
+    }
+    return false
+}
+
+fun TypeRef.names_type_param(name: Sym): bool {
+    when (self.kind) {
+        Named(head, args) => {
+            if head.id == name.id && args.size() == 0 { return true }
+            while arg in &args {
+                if arg.names_type_param(name) { return true }
+            }
+            return false
+        }
+        Reference(_mutable, inner) => return inner.names_type_param(name)
+        _ => return false
+    }
 }

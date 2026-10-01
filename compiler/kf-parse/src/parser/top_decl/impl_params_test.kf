@@ -33,3 +33,25 @@ import kf_parse.parser.parser_for
     val _m = p.parse_module(List.new<String>())
     assert_eq(p.diags.size(), 1, "one place for a bound")
 }
+
+@test fun a_param_only_the_trait_arguments_name_parses_clean(): void {
+    var p = parser_for("impl<T, N: uint64> From<T[N]> for Row<T> { static fun from(items: T[N]): Row<T> { } }")
+    val _m = p.parse_module(List.new<String>())
+    assert_eq(p.diags.size(), 0, "N is named by `From<T[N]>`")
+}
+
+@test fun a_param_only_the_trait_arguments_name_is_each_methods_own(): void {
+    var p = parser_for("impl<T, N: uint64> From<T[N]> for Row<T> { static fun from(items: T[N]): Row<T> { } }")
+    val m = p.parse_module(List.new<String>())
+    val methods = when (first_decl(m).kind) {
+        TraitImpl(_tref, members) => members
+        _ => List.new<TopDecl>()
+    }
+    assert_eq(methods.at(0).generics.at(0).name.as_str(), "N", "`from` takes N as its own")
+}
+
+@test fun a_param_only_the_trait_arguments_name_leaves_the_impl(): void {
+    var p = parser_for("impl<T, N: uint64> From<T[N]> for Row<T> { static fun from(items: T[N]): Row<T> { } }")
+    val m = p.parse_module(List.new<String>())
+    assert_eq(first_decl(m).generics.size(), 1, "the impl keeps only the target's T")
+}

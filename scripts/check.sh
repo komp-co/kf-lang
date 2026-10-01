@@ -11,6 +11,13 @@
 # The two halves share no state, so CI runs them as separate jobs. With no
 # argument this is every gate CI applies.
 #
+# Cheap gates run first, so a slip costs seconds rather than the whole run: the
+# ratchets before the fixpoint, and the lints of the crates this change
+# touches before the CLI checks and the sweep. `scripts/preflight.sh` runs the
+# same early gates on their own. A fixpoint that passed is cached by the
+# sources it compiled, test files aside, so a rerun after fixing only a test
+# skips it.
+#
 # CFLAGS is honoured, but lowering it is a false economy: `-O0` makes cc
 # quicker and the resulting komp slower, and the sweep runs that komp once per
 # crate.
@@ -182,6 +189,25 @@ case "${1:-}" in
     *) echo "usage: $0 [--isolated] [--fixpoint|--sweep]" >&2; exit 2 ;;
 esac
 
+# The ratchets take seconds, so they go before anything that takes minutes.
+phase "ratchets"
+if ! sh scripts/preflight.sh --ratchets; then
+    echo "FAIL: ratchets" >&2
+    exit 1
+fi
+
+# A fixpoint that passed is remembered by what it compiled: the sources it
+# reads, test files aside, and the C toolchain. A rerun after fixing a test, a
+# fixture or a lint in a test file skips it. `KF_GATE_CACHE=0` turns this off.
+fixpoint_key() {
+    {
+        echo "${CC:-cc} ${CFLAGS:-} ${KF_STD:-}"
+        find bootstrap compiler libs -type f ! -path '*/target/*' ! -name '*_test.kf' -print \
+            | LC_ALL=C sort | xargs sha256sum
+    } | sha256sum | cut -d' ' -f1
+}
+GATE_CACHE="${KFLAT_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/kflat}/gate"
+
 if [ "$run_fixpoint" -eq 1 ]; then
 phase "fixpoint"
 # A whole run hands the fixpoint's komp to the sweep, as CI's jobs do.
@@ -190,30 +216,40 @@ if [ "$run_sweep" -eq 1 ] && [ -z "${KOMP_PREBUILT:-}" ] && [ -z "${KOMP_PUBLISH
     KOMP_PREBUILT="$KOMP_PUBLISH"
     export KOMP_PUBLISH
 fi
-if ! sh bootstrap/build.sh > "$WORK/fixpoint.log" 2>&1; then
-    cat "$WORK/fixpoint.log"
-    echo "FAIL: fixpoint" >&2
-    exit 1
+fixpoint_hit=""
+if [ "${KF_GATE_CACHE:-1}" != "0" ]; then
+    fixpoint_dir="$GATE_CACHE/$(fixpoint_key)"
+    if [ -f "$fixpoint_dir/passed" ]; then
+        if [ -z "${KOMP_PUBLISH:-}" ]; then
+            fixpoint_hit=1
+        elif [ -x "$fixpoint_dir/komp" ] && [ -x "$fixpoint_dir/kflatc" ]; then
+            mkdir -p "$(dirname "$KOMP_PUBLISH")"
+            cp "$fixpoint_dir/komp" "$KOMP_PUBLISH"
+            cp "$fixpoint_dir/kflatc" "$(dirname "$KOMP_PUBLISH")/kflatc"
+            fixpoint_hit=1
+        fi
+    fi
 fi
-grep -E '^(OK|NOTE):' "$WORK/fixpoint.log" || true
+if [ -n "$fixpoint_hit" ]; then
+    echo "OK: the fixpoint passed before for these sources; reusing it ($fixpoint_dir)"
+else
+    if ! sh bootstrap/build.sh > "$WORK/fixpoint.log" 2>&1; then
+        cat "$WORK/fixpoint.log"
+        echo "FAIL: fixpoint" >&2
+        exit 1
+    fi
+    grep -E '^(OK|NOTE):' "$WORK/fixpoint.log" || true
+    if [ "${KF_GATE_CACHE:-1}" != "0" ]; then
+        mkdir -p "$fixpoint_dir"
+        if [ -n "${KOMP_PUBLISH:-}" ]; then
+            cp "$KOMP_PUBLISH" "$fixpoint_dir/komp"
+            cp "$(dirname "$KOMP_PUBLISH")/kflatc" "$fixpoint_dir/kflatc"
+        fi
+        touch "$fixpoint_dir/passed"
+        # The newest five are kept: each holds a komp and a kflatc.
+        ls -1t "$GATE_CACHE" | tail -n +6 | while read -r old; do rm -rf "${GATE_CACHE:?}/$old"; done
+    fi
 fi
-
-phase "file sizes"
-if ! sh scripts/check_file_sizes.sh; then
-    echo "FAIL: file sizes" >&2
-    exit 1
-fi
-
-phase "line lengths"
-if ! sh scripts/check_line_lengths.sh; then
-    echo "FAIL: line lengths" >&2
-    exit 1
-fi
-
-phase "unsafe blocks"
-if ! sh scripts/check_unsafe.sh; then
-    echo "FAIL: unsafe blocks" >&2
-    exit 1
 fi
 
 if [ "$run_sweep" -eq 0 ]; then
@@ -281,6 +317,15 @@ fi
 }
 (cd "$WORK" && "${CC:-cc}" ${CFLAGS:--O2} -c -o kflatc.o kflatc.c)
 "${CC:-cc}" ${CFLAGS:--O2} -o "$WORK/kflatc" "$WORK/kflatc.o"
+fi
+
+# The crates this change touches are linted now, with the komp just built:
+# a lint the sweep would report at its end is reported here, minutes sooner.
+# The sweep still lints every crate.
+phase "lints of changed crates"
+if ! KOMP="$WORK/komp" sh scripts/preflight.sh --lint; then
+    echo "FAIL: lints; \`komp lint <crate>\` names each one" >&2
+    exit 1
 fi
 
 if [ "$CHECK_CLI" = "1" ]; then

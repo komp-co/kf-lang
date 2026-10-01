@@ -73,3 +73,12 @@ fun key_test_ref(inner: TypeRef, mutable: bool): TypeRef {
     assert_eq(ref_key_inner("kf__ref__").as_str(), "", "the marker with nothing after it borrows nothing")
     assert_eq(ref_key_inner("Ref__String").as_str(), "", "`Ref__String` is a declared generic's name now")
 }
+
+// An array's length is part of its key, so `T[2]` and `T[3]` differ.
+@test fun a_value_argument_keys_as_its_value(): void {
+    var args = List.new<TypeRef>()
+    args.push(key_test_named("T"))
+    args.push(new_type_ref(no_span(), TypeRefKind.Value(2)))
+    val key = (&new_type_ref(no_span(), TypeRefKind.Named(intern("Array"), args))).tref_name_key()
+    assert_eq(key.as_str(), "Array__T__2", "`Array<T, 2>` keys its length")
+}

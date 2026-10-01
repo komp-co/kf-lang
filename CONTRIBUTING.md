@@ -79,9 +79,11 @@ git config core.hooksPath .githooks
 still stands, which is the point of having both.
 
 The same setting enables a `pre-commit` hook that refuses a commit whose
-staged `.kf` files `komp fmt` would change, once the formatter is installed
-with `komp tool install komp_fmt`. CI makes the same check over `compiler/` and
-`libs/`.
+staged `.kf` files `komp fmt` would change, or whose crates `komp lint
+--deny-warnings` rejects: `scripts/preflight.sh --staged`. Formatting needs
+the formatter (`komp tool install komp_fmt`); the lints use `KOMP`, else a
+scratch `bin/komp`, else `komp` on the PATH, and are skipped with a note when
+there is none. CI makes the same checks over every crate.
 
 ## CI
 
@@ -116,13 +118,27 @@ All four are required checks on `development` and `main`; a job skipped by
 `classify` counts as passed. Each CI run costs about ten minutes, so group related changes into one
 PR rather than opening many small ones.
 
-Run both gates locally before pushing — same checks, no round trip. It takes
-minutes and grows with the tree, so time it rather than trusting a figure
-quoted here:
+Before the full gate, run the preflight. It takes seconds to a couple of
+minutes and catches what most often fails a gate run late: the ratchets,
+formatting, and the lints of every crate your branch changed.
+
+```sh
+sh scripts/preflight.sh
+```
+
+Then run both gates locally before pushing — same checks, no round trip. It
+takes minutes and grows with the tree, so time it rather than trusting a
+figure quoted here:
 
 ```sh
 sh scripts/check.sh
 ```
+
+The gate runs its cheap checks first too: the ratchets before the fixpoint,
+and the changed crates' lints before the CLI checks and the sweep. A fixpoint
+that passed is cached under `~/.cache/kflat/gate`, keyed by the sources it
+compiled with test files left out, so a rerun after fixing a test or a fixture
+does not repeat it. `KF_GATE_CACHE=0` turns the cache off.
 
 It reports every crate rather than stopping at the first failure, so one red
 run tells you everything that is broken instead of only the earliest thing.
