@@ -21,7 +21,7 @@ Every operator trait lives in `core.traits`, one module per group:
 | `core.traits.convert` | `From` | `T.from(x)` |
 | `core.traits.call` | `Call0`-`Call3`, `CallMut0`-`CallMut3` | Lambda invocation |
 | `core.traits.iter` | `Iterable`, `Iterator` | `while x in xs` |
-| `core.traits.index` | `Index`, `IndexMut` | `a[i]` |
+| `core.traits.index` | `Index`, `IndexMut`, `IndexValue` | `a[i]` |
 | `core.traits.from_elements` | `FromElements` | `[a, b, c]` in a slot of the type |
 | `core.traits.try` | `Try`, `FromResidual` | postfix `?` |
 | `core.display` | `Display` | `println`, string interpolation |

@@ -80,6 +80,7 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
             e.ty = check_unary(op, inner, e.span, ctx)
         }
         Deref(inner_ptr) => {
+            if e.index_by_value(ctx) { return }
             check_expr(unsafe { &var *inner_ptr }, ctx)
             val inner = unsafe { *inner_ptr }
             e.ty = check_deref(inner, e.span, ctx)

@@ -277,6 +277,33 @@ locals either.
 An annotation you write yourself still wins: `range<int32>(0, 3, 1)` in a
 `Range<uint64>` slot is a mismatch to report, not a spelling to correct.
 
+### Computed elements: `IndexValue`
+
+`Index` lends an element, so only a type that stores its elements can
+implement it: a bit in a bitset has no address to borrow. Such a type
+implements `IndexValue` instead, which hands back the element itself, and
+`bits[i]` is `bits.index_value(i)`:
+
+```kflat
+struct Bits {
+    var words: List<uint64>
+}
+
+impl IndexValue<uint64> for Bits {
+    type Out = bool
+    fun index_value(k: uint64): bool {
+        return ((self.words.get(k / 64) >> (k % 64)) & 1) == 1
+    }
+}
+
+val set = bits[2]                  // a bool, not a borrow of one
+```
+
+A computed element has no place, so nothing can be written through it:
+`bits[2] = true` is reported. A type implementing both `Index` and
+`IndexValue` is rejected wherever it is indexed, since `[]` would have two
+meanings.
+
 ### `xs[i] = v`
 
 A store through a subscript is `*(xs.index_mut(i)) = v`, through `IndexMut`:
