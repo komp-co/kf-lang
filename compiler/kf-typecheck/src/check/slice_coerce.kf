@@ -43,15 +43,20 @@ mutating fun Expr.become_lend_call(method: str, ctx: &var TypeCtx): void {
 }
 
 /// A list literal where a shared slice is expected builds an array in place
-/// and lends that, so `sum([1, 2, 3])` allocates nothing.
+/// and lends that, so `sum([1, 2, 3])` allocates nothing. So does a string
+/// literal where a slice of `uint8` or `char` is.
 mutating fun Expr.lend_literal_as_slice(expected: &Type, ctx: &var TypeCtx): bool {
-    if !self.is_list_literal(ctx) && !self.is_array_literal() { return false }
     val lend = expected.slice_lend(ctx) ?: return false
     if lend.method.as_str() != "as_slice" { return false }
-    val length = self.literal_elements().size()
+    val text_length = self.text_literal_length(&lend.element)
+    if text_length == null && !self.is_list_literal(ctx) && !self.is_array_literal() { return false }
+    val length = text_length ?: self.literal_elements().size()
     val element = lend.element.type_to_type_ref(self.span)
     val array = array_type_ref(element, length, ctx.array_name(), self.span).resolve_type_ref(ctx)
-    if !self.retarget_array_literal(array, ctx) || self.ty.is_poison() { return true }
+    val built = if text_length != null { self.retarget_string_literal(array.clone(), ctx) } else {
+        self.retarget_array_literal(array, ctx)
+    }
+    if !built || self.ty.is_poison() { return true }
     self.become_lend_call("as_slice", ctx)
     return true
 }
