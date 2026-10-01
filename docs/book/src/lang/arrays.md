@@ -124,6 +124,11 @@ src/main.kf:7:5: error: `list` cannot be changed here: `view` borrows it and is 
         ^~~~~~~~~~~~
 ```
 
+A method a slice has and the array or list lacks is called through the slice
+it lends: the shared one when the slice's method reads, the mutable one when
+it writes, which needs a `var` as above. `xs.swap(0, 1)` on a `var` array
+swaps in place, and an extension written on `&T[]` is reached the same way.
+
 `slice(range)` narrows a slice to part of the same elements, and an array or
 list names its own slices with `as_slice()` and `as_slice_mut()`:
 
