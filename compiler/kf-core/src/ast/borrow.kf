@@ -43,43 +43,67 @@ pub fun type_ref_borrow_origin(param_types: &List<TypeRef>, ret: &TypeRef, has_s
 }
 
 /// The binding a borrow ultimately reads from, or "" when it bottoms out in a
-/// literal or an owned value. Field reads, derefs, method calls and coercions
-/// keep pointing into the same storage, and a call's result into the one
-/// argument it was lent.
+/// literal or an owned value.
 pub fun Expr.expr_borrow_root(): String {
+    return self.borrow_root_in(&List.new<String>())
+}
+
+/// As `expr_borrow_root`, with `views` counted as borrows. Field reads,
+/// derefs, method calls and coercions keep pointing into the same storage; a
+/// call's result and a view literal point into the one place their lent
+/// values do.
+pub fun Expr.borrow_root_in(views: &List<String>): String {
     when (self.kind) {
         Variable(name) => return name.as_string()
-        FieldAccess(base, _) => return expr_borrow_root(unsafe { &*base })
-        Deref(inner) => return expr_borrow_root(unsafe { &*inner })
-        MethodCall(receiver, _, _) => return expr_borrow_root(unsafe { &*receiver })
-        Call(_name, args) => return lent_argument_root(&args)
-        DynCoerce(inner, _) => return expr_borrow_root(unsafe { &*inner })
-        Cast(inner, _) => return expr_borrow_root(unsafe { &*inner })
-        _ => return ""
+        FieldAccess(base, _) => return (unsafe { &*base }).borrow_root_in(views)
+        Deref(inner) => return (unsafe { &*inner }).borrow_root_in(views)
+        MethodCall(receiver, _, _) => return (unsafe { &*receiver }).borrow_root_in(views)
+        DynCoerce(inner, _) => return (unsafe { &*inner }).borrow_root_in(views)
+        Cast(inner, _) => return (unsafe { &*inner }).borrow_root_in(views)
+        _ => {}
     }
+    val roots = self.lent_roots(views)
+    return if roots.size() == 1 { roots.at(0).clone() } else { String.from("") }
 }
 
-/// A returned borrow comes from the single borrow parameter, so from the one
-/// argument passed as a borrow. With none or several there is no one root.
-fun lent_argument_root(args: &List<Expr>): String {
-    var root = String.from("")
-    var lent: uint64 = 0
-    while arg in &args {
-        if arg.is_lent() {
-            lent = lent + 1
-            root = arg.expr_borrow_root()
+/// The distinct bindings a call's lent arguments, or a struct literal's lent
+/// fields, borrow from. A literal or other static borrow adds none.
+pub fun Expr.lent_roots(views: &List<String>): List<String> {
+    var roots = List.new<String>()
+    when (self.kind) {
+        Call(_name, args) => {
+            while arg in &args {
+                if arg.is_lent(views) { add_root(&var roots, arg.borrow_root_in(views)) }
+            }
         }
+        StructLit(_name, fields) => {
+            while field in &fields {
+                if field.value.is_lent(views) { add_root(&var roots, field.value.borrow_root_in(views)) }
+            }
+        }
+        _ => {}
     }
-    return if lent == 1 { root } else { String.from("") }
+    return roots
 }
 
-/// Passed as a borrow: borrow-typed, or lent with `&` written or implied.
-fun Expr.is_lent(): bool {
+fun add_root(roots: &var List<String>, root: String): void {
+    if root.as_str() == "" { return }
+    while seen in &roots {
+        if seen.as_str() == root.as_str() { return }
+    }
+    roots.push(root)
+}
+
+/// Passed as a borrow: borrow-typed or a view, or lent with `&` written or
+/// implied.
+fun Expr.is_lent(views: &List<String>): bool {
     val c = self.coerce
     if c == coerce_addr_of() || c == coerce_written_amp() || c == coerce_written_amp_var() { return true }
     when (self.ty.kind) {
         StrTy => return true
         RefTo(_, _) => return true
+        Struct(name) => return names_view(views, name.as_str())
+        EnumTy(name) => return names_view(views, name.as_str())
         _ => return false
     }
 }

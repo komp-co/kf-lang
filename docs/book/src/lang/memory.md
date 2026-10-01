@@ -404,7 +404,23 @@ struct Holder {
 }                          //        for the call that made it
 ```
 
-An instance of a generic view, such as `Cursor<int32>` from
+A view built in place borrows what its fields were lent, so
+`Window { text: owned.as_str(), from: 0 }` freezes `owned` like the method
+does. A view borrows from one place: fields lent from two different bindings
+are rejected, since freezing either one would leave the other free.
+
+```kflat
+view struct Pair {
+    val a: str
+    val b: str
+}
+
+val p = Pair { a: x.as_str(), b: y.as_str() }   // error: borrows from both `x` and `y`
+val q = Pair { a: x.as_str(), b: x.as_str() }   // fine: one place
+```
+
+A view holding another view borrows what the inner one does. An instance of a
+generic view, such as `Cursor<int32>` from
 `view struct Cursor<T> { val first: &T }`, is a view too, and a view keeps
 being one in another crate.
 

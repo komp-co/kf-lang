@@ -175,6 +175,7 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
             // Written back: the checkers reorder initialisers into declaration
             // order, and `when` bound the payload by value.
             e.kind = ExprKind.StructLit(struct_name_sym, fields)
+            e.reject_split_view_origin(ctx)
         }
         Cast(inner_ptr, ty_ptr) => {
             val operand = unsafe { &var *inner_ptr }

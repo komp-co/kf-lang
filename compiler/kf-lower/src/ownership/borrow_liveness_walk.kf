@@ -17,7 +17,7 @@ fun Stmt.stmt_returns(name: str, views: &List<String>): bool {
                     // from it.
                     val returned = unsafe { *e }
                     if !returned.ty.bl_ty_is_borrow(views) { return false }
-                    return expr_borrow_root(&returned).as_str() == name
+                    return returned.borrow_root_in(views).as_str() == name
                 }
                 None => return false
             }

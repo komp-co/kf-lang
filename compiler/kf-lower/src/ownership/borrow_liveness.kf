@@ -157,7 +157,7 @@ fun init_borrow_origin(init_opt: Ptr<Expr>?, views: &List<String>): String {
     val init = init_opt ?: return ""
     val e = unsafe { *init }
     if !e.ty.bl_ty_is_borrow(views) { return "" }
-    return expr_borrow_root(&e)
+    return e.borrow_root_in(views)
 }
 
 fun Stmt.binding_name(): String {
