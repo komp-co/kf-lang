@@ -89,6 +89,7 @@
 1 compiler/kf-lower/src/reachable.kf
 7 compiler/kf-lower/src/refcount/rc_assign.kf
 6 compiler/kf-lower/src/refcount/rc_classify.kf
+4 compiler/kf-lower/src/refcount/rc_conditional_hoist.kf
 4 compiler/kf-lower/src/refcount/rc_frame.kf
 5 compiler/kf-lower/src/refcount/rc_guard.kf
 28 compiler/kf-lower/src/refcount/rc_insert.kf
