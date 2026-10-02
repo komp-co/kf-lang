@@ -5,6 +5,7 @@ import kf_core.ast.*
 import kf_core.ast.types.Provenance
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
+import kf_core.ast.types.type_identity_display
 import kf_core.ast.expression.*
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
@@ -24,9 +25,10 @@ fun is_box_new_recv(recv_kind: ExprKind, method_name: String): bool {
 // The type a Variable receiver names, or "": the sign of `Type.method(...)`.
 fun static_recv_type_name(recv_kind: ExprKind, ctx: &var TypeCtx): String {
     when (recv_kind) {
-        Variable(n) => {
+        Variable(written) => {
             // A local shadows a type of its name.
-            if ctx.is_declared(n.as_str()) { return "" }
+            if ctx.is_declared(written.as_str()) { return "" }
+            val n = written.receiver_type_name(ctx)
             val sp = ctx.sigs
             val sptr = unsafe { sp.find_struct(n.as_str(), ctx.owner_crate) }
             if sptr.is_some() { return n.as_string() }
@@ -38,6 +40,16 @@ fun static_recv_type_name(recv_kind: ExprKind, ctx: &var TypeCtx): String {
             return ""
         }
         _ => return ""
+    }
+}
+
+/// `Self` inside an impl names the impl's type; any other name names itself.
+fun Sym.receiver_type_name(ctx: &var TypeCtx): Sym {
+    if !self.as_str().equals("Self") { return *self }
+    return when (ctx.self_ty.kind) {
+        Struct(identity) => intern(type_identity_display(identity).as_str())
+        EnumTy(identity) => intern(type_identity_display(identity).as_str())
+        _ => *self
     }
 }
 
