@@ -5,7 +5,10 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.annotation.annotation_is_known
 import kf_core.diagnostic.*
 import kf_typecheck.*
 import kf_typecheck.types.trait_method_suffix

@@ -2,7 +2,9 @@
 // reads them by position, so a call short of one stops here.
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
 import kf_core.diagnostic.error_at
 import kf_typecheck.types.resolve_type_ref
 
@@ -20,5 +22,5 @@ fun Intrinsic.report_arity(found: uint64, span: Span, ctx: &var TypeCtx): bool {
 fun Intrinsic.type_argument(type_args: &List<TypeRef>, span: Span, ctx: &var TypeCtx): Type {
     if type_args.size() == 1 { return (*type_args.at(0)).resolve_type_ref(ctx) }
     ctx.emit(error_at(span, "`${self.name()}` takes one type argument, found ${type_args.size()}"))
-    return poison_ty()
+    return Type.new_poison()
 }

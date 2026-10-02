@@ -4,6 +4,9 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 import kf_core.span.*
 import kf_resolve.*
@@ -102,7 +105,7 @@ pub fun new_type_ctx(return_ty: Type, diags: &var Diagnostics, table: Ptr<DeclTa
     return TypeCtx {
         locals: List.new<LocalBinding>(),
         return_ty: return_ty,
-        self_ty: poison_ty(),
+        self_ty: Type.new_poison(),
         generics: List.new<String>(),
         diags: diags,
         table: table,
@@ -273,7 +276,7 @@ impl TypeCtx {
                 return b.ty.clone()
             }
         }
-        return poison_ty()
+        return Type.new_poison()
     }
 
     pub mutating fun emit(diag: Diagnostic): void {

@@ -2,7 +2,12 @@ import core.assert.*
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_core.diagnostic.*
 import kf_lower.refcount.ret_op
 import kf_lower.new_reached
@@ -12,27 +17,27 @@ fun null_tref(): Ptr<TypeRef> {
 }
 
 fun mk_str_var(name: String): Expr {
-    var e = new_expr(no_span(), ExprKind.Variable(intern(name.as_str())))
+    var e = Expr.new(no_span(), ExprKind.Variable(intern(name.as_str())))
     e.ty = intern("String").lang_struct_ty(no_span())
     return e
 }
 
 fun mk_int_var(name: String): Expr {
-    var e = new_expr(no_span(), ExprKind.Variable(intern(name.as_str())))
-    e.ty = int32_ty(no_span())
+    var e = Expr.new(no_span(), ExprKind.Variable(intern(name.as_str())))
+    e.ty = Type.new_int32(no_span())
     return e
 }
 
 fun mk_letval(name: String, init: Expr): Stmt {
     val ip: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *ip = init }
-    return new_stmt(no_span(), StmtKind.LetVal(intern(name.as_str()), null, ip))
+    return Stmt.new(no_span(), StmtKind.LetVal(intern(name.as_str()), null, ip))
 }
 
 fun mk_return(expr: Expr): Stmt {
     val ep: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *ep = expr }
-    return new_stmt(no_span(), StmtKind.Return(ret_op(ep)))
+    return Stmt.new(no_span(), StmtKind.Return(ret_op(ep)))
 }
 
 /// A sink for a test's context to borrow, which outlives the test; leaked,

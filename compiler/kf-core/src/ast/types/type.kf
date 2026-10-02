@@ -1,6 +1,7 @@
 import alloc.list.*
 
 import kf_core.span.*
+import kf_core.ast.Sym
 import kf_core.ast.intern
 
 /// A resolved type with provenance, attached to an Expr after typecheck, as
@@ -79,7 +80,7 @@ pub struct FnParts {
 
 impl Type {
     pub static fun new(kind: TypeKind, provenance: Provenance): Self {
-        return Self {kind: kind, provenance: provenance}
+        return Self { kind: kind, provenance: provenance }
     }
 
     pub static fun new_int32(span: Span): Self {
@@ -128,7 +129,7 @@ impl Type {
         return Type.new(TypeKind.PtrTo(p), Provenance.Inferred(span))
     }
 
-    pub fun new_fn(params: List<Type>, ret: Type, provenance: Provenance): Self {
+    pub static fun new_fn(params: List<Type>, ret: Type, provenance: Provenance): Self {
         val signature = Box.new(FnSig { params: Box.new(params), ret: Box.new(ret) })
         return Type.new(TypeKind.FnTy(signature), provenance)
     }
@@ -167,8 +168,8 @@ impl Type {
             FnTy(signature) => {
                 var params = List.new<Type>()
                 val source = unsafe { &*signature.params }
-                while param in source {
-                    params.push(param)
+                while i in 0..source.size() {
+                    params.push(source.get(i))
                 }
                 FnParts { params: params, ret: unsafe { *signature.ret } }
             }

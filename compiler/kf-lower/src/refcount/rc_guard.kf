@@ -9,7 +9,12 @@
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 
 /// Rewrites the guard to read the value its prelude computes, and returns
 /// that prelude; empty, and the guard untouched, when it owns no temporary.
@@ -34,13 +39,13 @@ fun guard_temporaries(guard: Ptr<Expr>?, ctx: &var RcCtx): List<Stmt> {
     val result = intern("__guard_${u64_to_str(id)}")
     val value: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *value = *condition }
-    prelude.push(new_stmt(span, StmtKind.LetVal(result, null, value)))
+    prelude.push(Stmt.new(span, StmtKind.LetVal(result, null, value)))
     var i = temporaries.size()
     while i > 0 {
         i = i - 1
-        prelude.push(new_stmt(span, StmtKind.Release(*temporaries.at(i))))
+        prelude.push(Stmt.new(span, StmtKind.Release(*temporaries.at(i))))
     }
-    var read = new_expr(span, ExprKind.Variable(result))
+    var read = Expr.new(span, ExprKind.Variable(result))
     read.ty = unsafe { condition.ty }
     unsafe { *condition = read }
     return prelude
@@ -73,6 +78,6 @@ mutating fun List<Stmt>.release_temporaries_at_end(): void {
     var i = temporaries.size()
     while i > 0 {
         i = i - 1
-        self.push(new_stmt(no_span(), StmtKind.Release(*temporaries.at(i))))
+        self.push(Stmt.new(no_span(), StmtKind.Release(*temporaries.at(i))))
     }
 }

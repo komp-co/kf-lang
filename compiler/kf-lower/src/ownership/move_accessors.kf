@@ -1,7 +1,11 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.coerce_clone
+import kf_core.ast.expression.coerce_none
 import kf_core.diagnostic.*
 
 // A local recorded as borrowed, not owned (`val t = xs.get(i)`, or a

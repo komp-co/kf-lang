@@ -1,4 +1,5 @@
-import kf_core.ast.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.expression.Expr
 
 pub mutating fun Expr.move_check_expr_value(ctx: &var MoveCtx): void {
     when (self.kind) {

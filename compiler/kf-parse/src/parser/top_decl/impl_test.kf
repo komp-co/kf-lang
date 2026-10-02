@@ -4,7 +4,9 @@
 import core.assert.*
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.expression.coerce_written_amp_var
+import kf_core.ast.declaration.TopDecl
 import kf_parse.parser.parser_for
 
 @test fun parse_module_impl_empty_body(): void {

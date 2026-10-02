@@ -1,10 +1,12 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.intern
-import kf_core.ast.poison_ty
-import kf_core.ast.array_literal_callee
-import kf_core.ast.empty_list_literal_receiver
+import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.DeclId
+import kf_core.ast.declaration.Param
+import kf_core.ast.statement.Stmt
 
 /// Pass annotations on the outer struct are filled in as passes run.
 @derive(Clone)
@@ -51,10 +53,15 @@ pub struct Expr {
 
 impl Expr {
     pub static fun new(span: Span, kind: ExprKind): Self {
-        return Self { span: span, name_span: no_span(), kind: kind, decl: null, ty: poison_ty(), mangled_callee: intern(""), coerce: 0, type_args: [], type_args_written: false, is_static_call: false, is_dynamic_call: false, dynamic_slot: 0, dynamic_layout: intern(""), is_safe_call_value: false, is_variant_ctor: false, derefs_at_call: false }
+        return Self {
+            span: span, name_span: no_span(), kind: kind, decl: null, ty: Type.new_poison(),
+            mangled_callee: intern(""), coerce: 0, type_args: List.new<TypeRef>(), type_args_written: false,
+            is_static_call: false, is_dynamic_call: false, dynamic_slot: 0, dynamic_layout: intern(""),
+            is_safe_call_value: false, is_variant_ctor: false, derefs_at_call: false
+        }
     }
 
-    pub fun new_poison(span: Span): Expr {
+    pub static fun new_poison(span: Span): Self {
         return Expr.new(span, ExprKind.Poison)
     }
 
@@ -67,7 +74,7 @@ impl Expr {
     /// `Type.new()`, with no type arguments of its own.
     pub static fun new_collection_new_call(span: Span, type_name: Sym): Expr {
         val receiver = Box.new(Expr.new(span, ExprKind.Variable(type_name)))
-        return Expr.new(span, ExprKind.MethodCall(receiver, intern("new"), []))
+        return Expr.new(span, ExprKind.MethodCall(receiver, intern("new"), List.new<Expr>()))
     }
 }
 
@@ -214,5 +221,3 @@ impl FieldInit {
         return Self { span: span, name: intern(name.as_str()), value: value }
     }
 }
-
-

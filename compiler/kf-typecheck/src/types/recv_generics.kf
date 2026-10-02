@@ -3,7 +3,8 @@
 // template's parameters with the receiver's arguments.
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.mangle_segments
+import kf_core.ast.types.Type
 import kf_typecheck.traits.str_list_has
 import kf_typecheck.check.mangle_base_name
 import kf_typecheck.check.mangle_suffix

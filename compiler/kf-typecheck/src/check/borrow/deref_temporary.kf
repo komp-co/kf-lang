@@ -1,7 +1,8 @@
 // `*` through a `Box` a call's result owns. The result is a temporary, freed
 // when the statement ends, so a value read out of its box dangles after that.
 
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
 import kf_core.diagnostic.lint_at
 import kf_core.span.*
 

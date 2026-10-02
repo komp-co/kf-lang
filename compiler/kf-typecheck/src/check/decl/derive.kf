@@ -5,7 +5,11 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.declaration.*
+import kf_core.ast.annotation.annotation_target_allows
+import kf_core.ast.annotation.lookup_annotation
 import kf_core.diagnostic.*
+import kf_core.ast.annotation.annotation_target_phrase
 
 pub fun Module.validate_annotations(diags: &var Diagnostics): void {
     while td in &self.decls {

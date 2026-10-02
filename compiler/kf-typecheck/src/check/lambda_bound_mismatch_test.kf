@@ -2,24 +2,30 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.Param
+import kf_core.ast.declaration.new_param
+import kf_core.ast.statement.Stmt
 import kf_typecheck.tref_p
 
 fun lambda_with_param(ty: Ptr<TypeRef>): Expr {
     var params = List.new<Param>()
     params.push(new_param(no_span(), String.from("n"), ty))
-    return new_expr(no_span(), ExprKind.Lambda(params, List.new<Stmt>()))
+    return Expr.new(no_span(), ExprKind.Lambda(params, List.new<Stmt>()))
 }
 
 fun borrowed_int32_ref(): Ptr<TypeRef> {
     val borrowed: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *borrowed = new_type_ref(no_span(), TypeRefKind.Reference(false, tref_p("int32"))) }
+    unsafe { *borrowed = TypeRef.new(no_span(), TypeRefKind.Reference(false, tref_p("int32"))) }
     return borrowed
 }
 
 fun expecting_int32(): List<Type> {
     var expected = List.new<Type>()
-    expected.push(int32_ty(no_span()))
+    expected.push(Type.new_int32(no_span()))
     return expected
 }
 

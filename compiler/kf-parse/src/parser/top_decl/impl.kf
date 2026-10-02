@@ -1,7 +1,10 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
 import kf_parse.parser.*
 
 /// Declaration-site `<A, B>` as use-site TypeRefs, for re-reading a trait
@@ -9,7 +12,7 @@ import kf_parse.parser.*
 fun type_params_to_refs(tps: List<TypeParam>): List<TypeRef> {
     var out = List.new<TypeRef>()
     while tp in &tps {
-        out.push(new_type_ref(tp.span, TypeRefKind.Named(tp.name, List.new<TypeRef>())))
+        out.push(TypeRef.new(tp.span, TypeRefKind.Named(tp.name, List.new<TypeRef>())))
     }
     return out
 }
@@ -39,7 +42,7 @@ impl Parser {
             unsafe { self.advance() } // consume `for`
             val written_args = trait_args.clone()
             val trait_ref_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-            unsafe { *trait_ref_ptr = new_type_ref(span, TypeRefKind.Named(intern(first.as_str()), trait_args)) }
+            unsafe { *trait_ref_ptr = TypeRef.new(span, TypeRefKind.Named(intern(first.as_str()), trait_args)) }
             val target = self.expect_name("impl target")
             val target_at = unsafe { self.peek().span }
             unsafe { self.advance() }
@@ -59,7 +62,7 @@ impl Parser {
             // The impl's generics are the target's parameters.
             val trait_args = type_params_to_refs(first_tps)
             val trait_ref_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-            unsafe { *trait_ref_ptr = new_type_ref(span, TypeRefKind.Named(intern(first.as_str()), trait_args)) }
+            unsafe { *trait_ref_ptr = TypeRef.new(span, TypeRefKind.Named(intern(first.as_str()), trait_args)) }
             val target = self.expect_name("impl target")
             val target_at = unsafe { self.peek().span }
             unsafe { self.advance() }
@@ -222,7 +225,7 @@ impl Parser {
             unsafe { self.advance() }
             ret = self.parse_type_ref_ptr()
         } else {
-            unsafe { *ret = type_ref_poison(span) }
+            unsafe { *ret = TypeRef.new_poison(span) }
         }
 
         var td = new_top_decl(span, name, TopDeclKind.Extern(params, ret, is_pub, false))

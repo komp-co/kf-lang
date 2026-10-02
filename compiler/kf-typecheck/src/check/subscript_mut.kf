@@ -2,7 +2,10 @@
 // `mutating` method, `&var`), it becomes `index_mut` and is checked again,
 // and so does each subscript it is taken through.
 
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 import kf_core.span.Span
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic

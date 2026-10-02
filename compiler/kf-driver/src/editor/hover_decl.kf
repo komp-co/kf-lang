@@ -9,7 +9,8 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.declaration.TopDecl
 
 pub struct HoverDecl {
     pub val found: bool
