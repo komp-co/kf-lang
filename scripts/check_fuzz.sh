@@ -9,9 +9,9 @@
 # fixed range of seeds. A finding tools/kf-fuzz/known.txt names is counted and
 # passes; any other fails the gate, with the seed that reproduces it.
 #
-# FUZZ_FRESH=1 runs fresh seeds instead, for FUZZ_BUDGET seconds per mode
-# (default 600): the nightly job. Its findings are saved under
-# WORKDIR/fuzz-findings.
+# CI's `fuzz` job runs it; scripts/check.sh does not. FUZZ_FRESH=1 runs
+# fresh seeds instead, for FUZZ_BUDGET seconds per mode (default 600): the
+# nightly job. Findings are saved under WORKDIR/fuzz-findings.
 set -eu
 
 KOMP="${1:?usage: check_fuzz.sh <komp-binary> [workdir]}"

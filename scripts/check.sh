@@ -1211,11 +1211,6 @@ echo "  PASS  freestanding output compiles, links -nostdlib, and runs"
 phase "asan probes"
 sh "$ROOT/scripts/check_asan.sh" "$WORK/komp" "$WORK" || exit 1
 
-# The fuzz gate, in the CLI shard: fixed seeds, so a run is repeatable and a
-# finding names the seed that rebuilds it.
-phase "front-end fuzz"
-sh "$ROOT/scripts/check_fuzz.sh" "$WORK/komp" "$WORK/fuzz" || exit 1
-
 fi   # CHECK_CLI
 
 phase "sweep"
@@ -1432,7 +1427,7 @@ fi
 
 # Name what ran, so a shard does not read as a whole-tree pass.
 summary="crates: $(echo $CRATES | wc -w)"
-if [ "$CHECK_CLI" = "1" ]; then summary="CLI checks + asan probes + fuzz + $summary"; fi
+if [ "$CHECK_CLI" = "1" ]; then summary="CLI checks + asan probes + $summary"; fi
 if [ "$run_fixpoint" -eq 1 ]; then summary="fixpoint + $summary"; fi
 echo "OK: $summary"
 report_times
