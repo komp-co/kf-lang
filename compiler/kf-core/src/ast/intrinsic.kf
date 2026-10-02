@@ -1,0 +1,109 @@
+// The memory intrinsics. The parser folds a call's type arguments into the
+// callee, `alloc_array<int32>(n)` becoming `alloc_array__int32`; later passes
+// find the intrinsic, and the fragment naming its type argument, here.
+
+/// One memory intrinsic.
+pub enum Intrinsic {
+    Alloc
+    AllocArray
+    ReallocArray
+    Dealloc
+    Sizeof
+    Take
+    DropInPlace
+    ClonePlace
+    PtrRead
+    Annotated
+}
+
+/// What a call to an intrinsic yields.
+pub enum IntrinsicResult {
+    /// `Ptr<T>`, `T` its type argument.
+    PointerToTypeArgument
+    /// `T` itself.
+    TypeArgument
+    /// The first argument's type.
+    FirstArgument
+    SizeInBytes
+    Nothing
+    /// Expanded by the checker into a list literal.
+    Query
+}
+
+impl Intrinsic {
+    /// As written at a call, before its type arguments.
+    pub fun name(): str {
+        return when (self) {
+            Alloc => "alloc"
+            AllocArray => "alloc_array"
+            ReallocArray => "realloc_array"
+            Dealloc => "dealloc"
+            Sizeof => "sizeof"
+            Take => "take"
+            DropInPlace => "drop_in_place"
+            ClonePlace => "clone_place"
+            PtrRead => "ptr_read"
+            Annotated => "annotated"
+        }
+    }
+
+    /// How many arguments a call passes; -1 when the checker decides.
+    pub fun arity(): int32 {
+        return when (self) {
+            Alloc => 0
+            Sizeof => 0
+            AllocArray => 1
+            Dealloc => 1
+            DropInPlace => 1
+            ClonePlace => 1
+            PtrRead => 1
+            Take => 1
+            ReallocArray => 2
+            Annotated => -1
+        }
+    }
+
+    pub fun result(): IntrinsicResult {
+        return when (self) {
+            Alloc => IntrinsicResult.PointerToTypeArgument
+            AllocArray => IntrinsicResult.PointerToTypeArgument
+            ReallocArray => IntrinsicResult.PointerToTypeArgument
+            ClonePlace => IntrinsicResult.TypeArgument
+            PtrRead => IntrinsicResult.TypeArgument
+            Take => IntrinsicResult.FirstArgument
+            Sizeof => IntrinsicResult.SizeInBytes
+            Dealloc => IntrinsicResult.Nothing
+            DropInPlace => IntrinsicResult.Nothing
+            Annotated => IntrinsicResult.Query
+        }
+    }
+
+    /// The fragment naming the type argument in a folded callee:
+    /// `alloc_array__int32` -> `int32`.
+    pub fun type_fragment(callee: str): String {
+        return callee.substring(self.name().byte_len() + 2, callee.byte_len())
+    }
+}
+
+/// The intrinsic written `name`, without type arguments.
+pub fun intrinsic_named(name: str): Intrinsic? {
+    return when name {
+        "alloc" => Intrinsic.Alloc
+        "alloc_array" => Intrinsic.AllocArray
+        "realloc_array" => Intrinsic.ReallocArray
+        "dealloc" => Intrinsic.Dealloc
+        "sizeof" => Intrinsic.Sizeof
+        "take" => Intrinsic.Take
+        "drop_in_place" => Intrinsic.DropInPlace
+        "clone_place" => Intrinsic.ClonePlace
+        "ptr_read" => Intrinsic.PtrRead
+        "annotated" => Intrinsic.Annotated
+        _ => null
+    }
+}
+
+/// The intrinsic a folded callee calls: `alloc_array__int32` -> `AllocArray`.
+pub fun intrinsic_of_callee(callee: str): Intrinsic? {
+    val cut = callee.index_of("__") ?: return null
+    return intrinsic_named(callee.substring(0, cut).as_str())
+}
