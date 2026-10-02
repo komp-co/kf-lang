@@ -132,27 +132,56 @@ impl Parser {
         return ptr
     }
 
+    /// `<A, B>` after a type name; empty when no `<` follows.
     pub mutating fun parse_type_arguments(): List<TypeRef> {
         var args = List.new<TypeRef>()
-        if !is_op(self.peek(), Operator.Lt) { return args }
-        unsafe { self.advance() }
+        if is_op(self.peek(), Operator.Lt) {
+            val _ = self.parse_type_argument_list(&var args, false)
+        }
+        return args
+    }
+
+    /// `<A, B>`, at the `<`, into `out`. Newlines inside are whitespace.
+    ///
+    /// Speculative, it reports nothing and answers false unless every argument
+    /// parsed and `>` closed the list; the caller rewinds, and `<` is read as a
+    /// comparison. Otherwise errors are reported and what parsed is kept.
+    pub mutating fun parse_type_argument_list(out: &var List<TypeRef>, speculative: bool): bool {
+        unsafe { self.advance() } // `<`
+        val was_speculative = self.speculative
+        if speculative { self.speculative = true }
+        var ok = true
         while true {
+            self.skip_newlines()
             if is_op(self.peek(), Operator.Gt) {
                 unsafe { self.advance() }
                 break
             }
             if self.at_eof() {
-                self.parse_err(self.peek().span, String.from("unclosed type-argument list: missing `>`"))
+                if !speculative {
+                    self.parse_err(self.peek().span, String.from("unclosed type-argument list: missing `>`"))
+                }
+                ok = false
                 break
             }
             val before: uint64 = self.pos
-            args.push(self.parse_type_argument())
+            val arg = self.parse_type_argument()
+            // A token no type starts with was reported and not consumed.
+            if self.pos == before || (speculative && tyref_is_poison(arg)) {
+                ok = false
+                break
+            }
+            out.push(arg)
+            self.skip_newlines()
             if is_op(self.peek(), Operator.Comma) {
                 unsafe { self.advance() }
+            } else if speculative && !is_op(self.peek(), Operator.Gt) {
+                ok = false
+                break
             }
-            if self.pos == before { break }
         }
-        return args
+        self.speculative = was_speculative
+        return ok
     }
 
     /// `T[N]` is `Array<T, N>`, and `T[]` is `Array<T, _>`, its length taken
@@ -250,5 +279,20 @@ fun TypeRef.unsized_array_element(): TypeRef? {
             return args.at(0).clone()
         }
         _ => return null
+    }
+}
+
+fun tyref_is_poison(tr: TypeRef): bool {
+    return when (tr.kind) {
+        Named(_n, _a) => false
+        DynTrait(_n, _a) => false
+        Reference(_m, _i) => false
+        Function(_p, _r) => false
+        Array(_e, _n) => false
+        // `List.new<F.Out>()` is a type-argument list; the owner is the
+        // checker's concern.
+        Projection(_owner, _member) => false
+        Value(_v) => false
+        Poison => true
     }
 }

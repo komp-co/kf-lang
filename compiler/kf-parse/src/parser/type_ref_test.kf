@@ -208,3 +208,41 @@ fun a_borrow_of_a_sized_array_stays_a_borrow(): void {
 fun an_optional_array_is_an_option_of_the_array(): void {
     assert_eq(first_param_shape("fun f(xs: int32[3]?): void {}").as_str(), "option/1", "`[N]` binds before `?`")
 }
+
+@test
+fun a_type_argument_list_may_span_lines(): void {
+    var p = parser_for("<int32,\n    str\n>")
+    var args = List.new<TypeRef>()
+    val _ = p.parse_type_argument_list(&var args, false)
+    assert_eq(args.size(), 2, "the newlines are whitespace")
+}
+
+@test
+fun a_speculative_list_left_open_fails(): void {
+    var p = parser_for("<int32, str")
+    var args = List.new<TypeRef>()
+    assert_eq(p.parse_type_argument_list(&var args, true), false, "no `>`, so no list")
+}
+
+@test
+fun a_speculative_list_left_open_reports_nothing(): void {
+    var p = parser_for("<int32, str")
+    var args = List.new<TypeRef>()
+    val _ = p.parse_type_argument_list(&var args, true)
+    assert_eq(p.diags.size(), 0, "the caller rewinds and reads `<` as a comparison")
+}
+
+@test
+fun a_list_left_open_is_reported(): void {
+    var p = parser_for("<int32, str")
+    var args = List.new<TypeRef>()
+    val _ = p.parse_type_argument_list(&var args, false)
+    assert_eq(p.diags.size(), 1, "missing `>`")
+}
+
+@test
+fun a_comparison_is_not_a_type_argument_list(): void {
+    var p = parser_for("< b) + 1")
+    var args = List.new<TypeRef>()
+    assert_eq(p.parse_type_argument_list(&var args, true), false, "`)` cannot follow a type argument")
+}

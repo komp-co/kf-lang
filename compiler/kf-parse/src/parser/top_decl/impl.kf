@@ -31,7 +31,7 @@ impl Parser {
         var trait_args = List.new<TypeRef>()
         var is_trait_impl = false
         if is_op(self.peek(), Operator.Lt) {
-            if self.try_parse_type_args(&var trait_args) {
+            if self.parse_type_argument_list(&var trait_args, true) {
                 if is_keyword(self.peek(), Keyword.For) { is_trait_impl = true }
             }
         }
