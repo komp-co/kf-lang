@@ -4,25 +4,6 @@ import kf_core.span.*
 import kf_core.ast.*
 import kf_parse.parser.*
 
-/// The memory intrinsics and `annotated`, which fold an explicit
-/// `<T>` into the callee name (`alloc<Expr>` is `alloc__Expr`). None is ever
-/// compared, so a following `<` is always a type-argument list.
-fun is_generic_call_name(s: str): bool {
-    return when s {
-        "alloc" => true
-        "alloc_array" => true
-        "realloc_array" => true
-        "dealloc" => true
-        "sizeof" => true
-        "take" => true
-        "drop_in_place" => true
-        "clone_place" => true
-        "ptr_read" => true
-        "annotated" => true
-        _ => false
-    }
-}
-
 /// Matches kf-codegen's tyref_mangle and Mono's ty_to_mangle:
 /// `List<int32>` is `List__int32`.
 fun TypeRef.tyref_mangle_frag(): String {
@@ -72,7 +53,8 @@ impl Parser {
     mutating fun parse_identifier_head(name: Sym, span: Span): Expr {
         // A memory intrinsic: the type args fold into the callee name.
         if is_op(self.peek(), Operator.Lt) {
-            if is_generic_call_name(name.as_str()) {
+            // An intrinsic is never compared, so its `<` opens a list.
+            if intrinsic_named(name.as_str()).is_some() {
                 return self.parse_generic_ctor_call(name, span)
             }
             // `Foo<...>(...)` or `Foo<...>{...}`: committed only if `(` or `{`

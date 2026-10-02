@@ -13,68 +13,40 @@ import kf_typecheck.check.control.yield_ref_binder_value
 /// `alloc<T>()`, `sizeof<T>()`, `take<T>(x)` and friends, the type folded into
 /// the callee name. Only reached with `Expr.is_intrinsic` set.
 fun intrinsic_call_type(name: String, args: &var List<Expr>, type_args: &var List<TypeRef>, span: Span, ctx: &var TypeCtx): Type {
-    if report_intrinsic_arity(name.as_str(), args.size(), span, ctx) { return poison_ty() }
-    // `alloc<T>` -> `Ptr<T>`; `sizeof<T>` -> uint64; `dealloc<T>` -> void;
-    // `take<T>(x)` -> the argument's type.
-    if name_starts_with(name, "alloc__") {
-        if type_args.size() == 1 {
-            return ptr_ty((*type_args.at(0)).resolve_type_ref(ctx), span)
+    val intrinsic = intrinsic_of_callee(name.as_str()) ?: return poison_ty()
+    if report_intrinsic_arity(intrinsic, args.size(), span, ctx) { return poison_ty() }
+    return when (intrinsic.result()) {
+        PointerToTypeArgument => ptr_ty(intrinsic.type_argument(name.as_str(), type_args, span, ctx), span)
+        TypeArgument => {
+            // `ptr_read<T>(p)`: the pointee, moved out bitwise and owned by
+            // the caller.
+            when (intrinsic) {
+                PtrRead => check_expr(args.at_mut(0), ctx)
+                _ => { }
+            }
+            intrinsic.type_argument(name.as_str(), type_args, span, ctx)
         }
-        val frag = mangle_suffix(name, 7)
-        return ptr_ty(ty_from_mangle_frag(frag, span, ctx.string_name()), span)
-    }
-    // `alloc_array<T>` and `realloc_array<T>` return `Ptr<T>`.
-    if name_starts_with(name, "alloc_array__") {
-        if type_args.size() == 1 {
-            return ptr_ty((*type_args.at(0)).resolve_type_ref(ctx), span)
+        FirstArgument => {
+            val ta = args.at_mut(0)
+            check_expr(ta, ctx)
+            // `take<List<Stmt>>(body)` on a reference binder moves the payload.
+            if type_args.size() == 1 {
+                val wanted = (*type_args.at(0)).resolve_type_ref(ctx)
+                val _read = ta.yield_ref_binder_value(&wanted, ctx)
+            }
+            ta.ty.clone()
         }
-        val frag = mangle_suffix(name, 13)
-        return ptr_ty(ty_from_mangle_frag(frag, span, ctx.string_name()), span)
+        SizeInBytes => Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) }
+        Nothing => void_ty(span)
+        Query => poison_ty()
     }
-    if name_starts_with(name, "realloc_array__") {
-        if type_args.size() == 1 {
-            return ptr_ty((*type_args.at(0)).resolve_type_ref(ctx), span)
-        }
-        val frag = mangle_suffix(name, 15)
-        return ptr_ty(ty_from_mangle_frag(frag, span, ctx.string_name()), span)
-    }
-    if name_starts_with(name, "sizeof__") {
-        return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) }
-    }
-    if name_starts_with(name, "dealloc__") {
-        return void_ty(span)
-    }
-    if name_starts_with(name, "drop_in_place__") {
-        return void_ty(span)
-    }
-    // `clone_place<T>(p)`: a deep copy of the pointee, for generic container
-    // bodies where the element type stays `Generic(T)`.
-    if name_starts_with(name, "clone_place__") {
-        val frag = mangle_suffix(name, 13)
-        // Inside a generic body the fragment is a type parameter.
-        return ty_from_frag_in_scope(frag, span, ctx)
-    }
-    // `ptr_read<T>(p)`: the pointee, moved out bitwise and owned by the caller.
-    if name_starts_with(name, "ptr_read__") {
-        if args.size() > 0 { check_expr(args.at_mut(0), ctx) }
-        if type_args.size() == 1 {
-            return (*type_args.at(0)).resolve_type_ref(ctx)
-        }
-        return ty_from_frag_in_scope(mangle_suffix(name, 10), span, ctx)
-    }
-    if name_starts_with(name, "take__") {
-        if args.size() == 0 { return poison_ty() }
-        val ta = args.at_mut(0)
-        check_expr(ta, ctx)
-        // `take<List<Stmt>>(body)` on a reference binder moves the payload.
-        if type_args.size() == 1 {
-            val wanted = (*type_args.at(0)).resolve_type_ref(ctx)
-            val _read = ta.yield_ref_binder_value(&wanted, ctx)
-        }
-        return ta.ty.clone()
-    }
-    // Every intrinsic is matched above.
-    return poison_ty()
+}
+
+/// The written type argument, else the fragment in the folded callee, which
+/// inside a generic body may name a type parameter.
+fun Intrinsic.type_argument(callee: str, type_args: &List<TypeRef>, span: Span, ctx: &var TypeCtx): Type {
+    if type_args.size() == 1 { return (*type_args.at(0)).resolve_type_ref(ctx) }
+    return ty_from_frag_in_scope(self.type_fragment(callee), span, ctx)
 }
 
 fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef>, is_intrinsic: bool, span: Span, ctx: &var TypeCtx): Type {

@@ -31,38 +31,30 @@ fun emit_struct_lit(sname: String, finits: List<FieldInit>): String {
     return concat_all(parts)
 }
 
-// `alloc__<T>()` is `(<Tc>*)kf_alloc(sizeof(<Tc>))`. The fragment is a KFlat
-// type name and must be mapped to C: `int32` is `int32_t`.
-fun emit_alloc_generic(name: str): String {
-    val n = name.byte_len()
-    val cty = cname_of_mangle(name.substring(7, n).as_str())
-    var parts = List.new<String>()
-    parts.push(String.from("("))
-    parts.push(cty.clone())
-    parts.push(String.from("*)kf_alloc(sizeof("))
-    parts.push(cty.clone())
-    parts.push(String.from("))"))
-    return concat_all(parts)
+/// A memory intrinsic's C, or null for `annotated`, which the checker expands
+/// before codegen. The type argument is the fragment in the folded callee, a
+/// KFlat name mapped to C: `int32` is `int32_t`.
+fun emit_intrinsic(intrinsic: Intrinsic, callee: str, args: List<Expr>): String? {
+    val cty = cname_of_mangle(intrinsic.type_fragment(callee).as_str())
+    when (intrinsic) {
+        Alloc => return emit_alloc(cty.as_str(), args)
+        AllocArray => return emit_alloc_array(cty.as_str(), args)
+        ReallocArray => return emit_realloc_array(cty.as_str(), args)
+        Dealloc => return emit_free(args)
+        Sizeof => return "sizeof(${cty})"
+        // An identity.
+        Take => return args.at(0).emit_expr()
+        DropInPlace => return emit_drop_in_place(cty.as_str(), args)
+        ClonePlace => return emit_clone_place(cty.as_str(), args)
+        PtrRead => return emit_ptr_read(args)
+        Annotated => return null
+    }
 }
 
-// `sizeof__<T>()` is `sizeof(<Tc>)`, mapped as for alloc.
-fun emit_sizeof_generic(name: str): String {
-    val n = name.byte_len()
-    val cty = cname_of_mangle(name.substring(8, n).as_str())
-    var parts = List.new<String>()
-    parts.push(String.from("sizeof("))
-    parts.push(cty.clone())
-    parts.push(String.from(")"))
-    return concat_all(parts)
-}
-
-// `drop_in_place__<Tc>(p)` runs Tc's destructor in place; a no-op for a
+// `drop_in_place<T>(p)` runs T's destructor in place; a no-op for a
 // primitive.
-fun emit_drop_in_place_generic(name: str, args: List<Expr>): String {
-    val n = name.byte_len()
-    val frag = name.substring(15, n)
-    val cty = cname_of_mangle(frag.as_str())
-    val rel = release_fn_for_ctype(cty.as_str())
+fun emit_drop_in_place(cty: str, args: List<Expr>): String {
+    val rel = release_fn_for_ctype(cty)
     if rel.as_str().byte_len() == 0 {
         return String.from("((void)0)")
     }
@@ -75,19 +67,16 @@ fun emit_drop_in_place_generic(name: str, args: List<Expr>): String {
     return concat_all(parts)
 }
 
-// `ptr_read__<Tc>(p)` is `(*(p))`: the bits move, and nothing is dropped.
+// `ptr_read<T>(p)` is `(*(p))`: the bits move, and nothing is dropped.
 fun emit_ptr_read(args: List<Expr>): String {
     val arg0 = *args.at(0)
     return "(*(${emit_expr(arg0).as_str()}))"
 }
 
-// `clone_place__<Tc>(p)`: a deep copy of the pointee, or a plain copy for a
+// `clone_place<T>(p)`: a deep copy of the pointee, or a plain copy for a
 // primitive or pointer.
-fun emit_clone_place_generic(name: str, args: List<Expr>): String {
-    val n = name.byte_len()
-    val frag = name.substring(13, n)
-    val cty = cname_of_mangle(frag.as_str())
-    val cfn = clone_fn_for_ctype(cty.as_str())
+fun emit_clone_place(cty: str, args: List<Expr>): String {
+    val cfn = clone_fn_for_ctype(cty)
     var parts = List.new<String>()
     val has_clone = cfn.as_str().byte_len() > 0
     if has_clone {
@@ -105,16 +94,13 @@ fun emit_clone_place_generic(name: str, args: List<Expr>): String {
     return concat_all(parts)
 }
 
-// `alloc_array__<Tc>(n)` is `((<Tc>*)kf_alloc(sizeof(<Tc>) * (n)))`.
-fun emit_alloc_array_generic(name: str, args: List<Expr>): String {
-    val n = name.byte_len()
-    val frag = name.substring(13, n)
-    val cty = cname_of_mangle(frag.as_str())
+// `alloc_array<T>(n)` is `((<Tc>*)kf_alloc(sizeof(<Tc>) * (n)))`.
+fun emit_alloc_array(cty: str, args: List<Expr>): String {
     var parts = List.new<String>()
     parts.push(String.from("(("))
-    parts.push(cty.clone())
+    parts.push(String.from(cty))
     parts.push(String.from("*)kf_alloc(sizeof("))
-    parts.push(cty.clone())
+    parts.push(String.from(cty))
     parts.push(String.from(") * ("))
     val arg0 = *args.at(0)
     parts.push(arg0.emit_expr())
@@ -122,20 +108,17 @@ fun emit_alloc_array_generic(name: str, args: List<Expr>): String {
     return concat_all(parts)
 }
 
-// `realloc_array__<Tc>(ptr, n)` is
+// `realloc_array<T>(ptr, n)` is
 // `((<Tc>*)kf_realloc((ptr), sizeof(<Tc>) * (n)))`.
-fun emit_realloc_array_generic(name: str, args: List<Expr>): String {
-    val n = name.byte_len()
-    val frag = name.substring(15, n)
-    val cty = cname_of_mangle(frag.as_str())
+fun emit_realloc_array(cty: str, args: List<Expr>): String {
     var parts = List.new<String>()
     parts.push(String.from("(("))
-    parts.push(cty.clone())
+    parts.push(String.from(cty))
     parts.push(String.from("*)kf_realloc("))
     val arg0 = *args.at(0)
     parts.push(arg0.emit_expr())
     parts.push(String.from(", sizeof("))
-    parts.push(cty.clone())
+    parts.push(String.from(cty))
     parts.push(String.from(") * ("))
     val arg1 = *args.at(1)
     parts.push(arg1.emit_expr())
