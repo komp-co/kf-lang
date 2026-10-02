@@ -99,7 +99,7 @@
 1 compiler/kf-lower/src/refcount/rc_value_params.kf
 19 compiler/kf-lower/src/refcount/rc_when.kf
 5 compiler/kf-lower/src/trim_binders.kf
-11 compiler/kf-lower/src/when_expr.kf
+12 compiler/kf-lower/src/when_expr.kf
 12 compiler/kf-lower/src/when_hoist.kf
 43 compiler/kf-mono/src/collect/collect_instances.kf
 15 compiler/kf-mono/src/collect/mono_expr.kf
@@ -168,7 +168,7 @@
 17 compiler/kf-typecheck/src/check/control/string_pattern.kf
 1 compiler/kf-typecheck/src/check/decl/annotation_type_params.kf
 55 compiler/kf-typecheck/src/check/decl/check_decl.kf
-15 compiler/kf-typecheck/src/check/decl/check_function_body.kf
+13 compiler/kf-typecheck/src/check/decl/check_function_body.kf
 8 compiler/kf-typecheck/src/check/decl/check_impl_header.kf
 3 compiler/kf-typecheck/src/check/decl/check_pub_signature.kf
 2 compiler/kf-typecheck/src/check/decl/declared_annotation.kf
@@ -244,4 +244,5 @@
 1 compiler/kf-typecheck/src/types/type_mangle.kf
 12 compiler/kf-typecheck/src/types/type_relation.kf
 5 compiler/kf-typecheck/src/types/type_to_ref.kf
+2 compiler/kf-typecheck/src/types/uninhabited.kf
 1 compiler/kf-typecheck/src/types/unresolved.kf

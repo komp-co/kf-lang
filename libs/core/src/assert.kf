@@ -1,10 +1,12 @@
 // Assertions for `@test` functions, needing only `Equal` and the
 // freestanding boundary intrinsics.
 
+import core.traits.Never
+
 extern "C" fun runtime_println(s: str): void
 
 @prelude
-pub fun fail(m: str): void {
+pub fun fail(m: str): Never {
     panic(m)
 }
 

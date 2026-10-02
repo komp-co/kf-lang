@@ -111,8 +111,10 @@ fun Expr.emit_expr_base(): String {
 // `(c ? a : b)`.
 fun emit_if_expr(cond_p: Ptr<Expr>, then_p: Ptr<Expr>, else_p: Ptr<Expr>): String {
     val c = emit_expr(unsafe { *cond_p })
-    val t = emit_expr(unsafe { *then_p })
-    val el = emit_expr(unsafe { *else_p })
+    val then_value = unsafe { &*then_p }
+    val else_value = unsafe { &*else_p }
+    val t = then_value.emit_branch(else_value)
+    val el = else_value.emit_branch(then_value)
     var parts = List.new<String>()
     parts.push(String.from("("))
     parts.push(c)
@@ -122,6 +124,14 @@ fun emit_if_expr(cond_p: Ptr<Expr>, then_p: Ptr<Expr>, else_p: Ptr<Expr>): Strin
     parts.push(el)
     parts.push(String.from(")"))
     return concat_all(parts)
+}
+
+/// A branch that cannot finish still needs a value of the other branch's C
+/// type for the ternary to be well formed; it is never reached.
+fun Expr.emit_branch(other: &Expr): String {
+    val text = self.emit_expr()
+    if !self.ty.is_never() || other.ty.is_never() { return text }
+    return "(${text}, (${other.ty.c_type_of_type()}){0})"
 }
 
 fun emit_lit_int(n: int64): String {

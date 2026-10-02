@@ -319,13 +319,18 @@ fun Stmt.sink_tail_stmt(to_return: bool, temp: Sym, temps: &var BlockTemps): Lis
             }
             out.push(new_stmt(self.span, StmtKind.When(subj_ptr, new_arms)))
         }
-        _ => { }
+        _ => {
+            if self.is_jump() { out.push(*self) }
+        }
     }
     return out
 }
 
 fun sink_stmt(vp: Ptr<Expr>, to_return: bool, temp: Sym): Stmt {
     val span = unsafe { vp.span }
+    if is_never_produced(vp) {
+        return new_stmt(span, StmtKind.Expression(vp))
+    }
     if to_return {
         return new_stmt(span, StmtKind.Return(Option.Some(vp)))
     }

@@ -16,6 +16,7 @@ import kf_typecheck.check.control.list_tail_ty
 /// type, as a block expression's are.
 fun lambda_value_type(body: &List<Stmt>, span: Span, ctx: &var TypeCtx): Type {
     if !list_yields_value(body) { return void_ty(span) }
+    if body.at(body.size() - 1).is_jump() { return void_ty(span) }
     if list_tail_has_void(body) { return void_ty(span) }
     val joined = list_tail_ty(body, ctx.string_name())
     apply_list_tail_ty(body, &joined, true, ctx)

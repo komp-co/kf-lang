@@ -236,3 +236,20 @@ the same question with a different number of paths.
 An arm that yields nothing — one ending in a binding, or in an `if` with no
 `else` — is an error, since the `when` as a whole would have no value on that
 path.
+
+An arm that never finishes needs no value. It may end in `return`, `break` or
+`continue`, or in a call that cannot return, such as `panic` or a function
+returning [`Never`](functions.md#functions-that-never-return):
+
+```kflat
+while x in &xs {
+    val half = when (x % 2) {
+        0 => x / 2
+        _ => continue
+    }
+    total = total + half
+}
+```
+
+Such an arm is typed `Never`, which joins any other arm's type. The same holds
+for a branch of [`if` as a value](control-flow.md#if-as-a-value).

@@ -9,6 +9,7 @@ import kf_typecheck.types.type_eq
 import kf_typecheck.types.mangle_type
 import kf_typecheck.check.*
 import kf_typecheck.types.display_type
+import kf_typecheck.types.as_branch_type
 
 pub fun check_when_arms(subject: &Expr, arms: &var List<Arm>, span: Span, ctx: &var TypeCtx): void {
     val subject_ty = subject.ty.clone()
@@ -85,12 +86,12 @@ pub fun check_when_expr_value(arms: &List<Arm>, ctx: &var TypeCtx): Type {
     if arms.size() == 0 { return poison_ty() }
     // Each arm's value is its walked tail.
     val first = arms.at(0)
-    var result = list_tail_ty(&first.body, ctx.string_name())
+    var result = list_tail_ty(&first.body, ctx.string_name()).as_branch_type(ctx)
     if result.is_poison() { return result }
     var i = 1
     while i < arms.size() {
         val arm = arms.at(i)
-        val arm_ty = list_tail_ty(&arm.body, ctx.string_name())
+        val arm_ty = list_tail_ty(&arm.body, ctx.string_name()).as_branch_type(ctx)
         if !arm_ty.is_poison() {
             val joined = result.join_arm_types(&arm_ty, ctx.string_name())
             if joined.is_poison() {
@@ -133,8 +134,8 @@ pub fun check_if_expr(cond_ptr: Ptr<Expr>, then_ptr: Ptr<Expr>, else_ptr: Ptr<Ex
 fun check_if_expr_value(then_ptr: Ptr<Expr>, else_ptr: Ptr<Expr>, ctx: &var TypeCtx): Type {
     val then_value = unsafe { &*then_ptr }
     val else_value = unsafe { &*else_ptr }
-    val then_ty = then_value.ty.clone()
-    val else_ty = else_value.ty.clone()
+    val then_ty = then_value.ty.as_branch_type(ctx)
+    val else_ty = else_value.ty.as_branch_type(ctx)
     if then_ty.is_poison() { return then_ty }
     if else_ty.is_poison() { return else_ty }
     val joined = then_ty.join_arm_types(&else_ty, ctx.string_name())
@@ -146,8 +147,8 @@ fun check_if_expr_value(then_ptr: Ptr<Expr>, else_ptr: Ptr<Expr>, ctx: &var Type
         emit_if_arm_mismatch(then_ty.clone(), unsafe { else_ptr.ty }, unsafe { else_ptr.span }, ctx)
         return then_ty
     }
-    val _a = expect_or_reject(unsafe { &var *then_ptr }, joined.clone(), ctx)
-    val _b = expect_or_reject(unsafe { &var *else_ptr }, joined.clone(), ctx)
+    val _a = expect_unless_never(unsafe { &var *then_ptr }, joined.clone(), ctx)
+    val _b = expect_unless_never(unsafe { &var *else_ptr }, joined.clone(), ctx)
     return joined
 }
 

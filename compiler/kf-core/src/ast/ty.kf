@@ -246,4 +246,12 @@ impl Type {
             Value(_) => false
         }
     }
+
+    /// The checker's bottom type: a value that is never produced.
+    pub fun is_never(): bool {
+        return when (self.kind) {
+            Never => true
+            _ => false
+        }
+    }
 }
