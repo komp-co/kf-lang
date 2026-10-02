@@ -1,15 +1,23 @@
 #!/usr/bin/env sh
-# What CI runs, locally: the self-hosting fixpoint, the file-size ratchet, CLI
-# regressions, and every crate's test suite.
+# The gates, locally. With no argument it is the quick gate to run before
+# pushing; CI runs the rest, and `--full` runs everything CI does.
 #
-#   scripts/check.sh              # fixpoint + CLI checks + full sweep
+#   scripts/check.sh              # quick: ratchets, formatting, lints, and the
+#                                 # tests of the crates this branch changes and
+#                                 # of the crates that depend on them
+#   scripts/check.sh --full       # fixpoint + CLI checks + full sweep, as CI
 #   scripts/check.sh --fixpoint   # the self-hosting fixpoint alone
 #   scripts/check.sh --sweep      # CLI checks + the crate sweep alone
 #   scripts/check.sh --isolated   # ... in a throwaway worktree, so this tree
 #                                 # stays usable while it runs
 #
-# The two halves share no state, so CI runs them as separate jobs. With no
-# argument this is every gate CI applies.
+# The quick gate leaves to CI the fixpoint, the CLI checks, the asan probes and
+# kf-integration, the slowest crate. It builds its komp from the seed, or reuses
+# one a passed fixpoint cached for these sources, or KOMP_PREBUILT's. "Changed"
+# is against the merge base with origin/development (KF_BASE overrides), plus
+# uncommitted and untracked files. `CRATES` picks the crates instead.
+#
+# The fixpoint and the sweep share no state, so CI runs them as separate jobs.
 #
 # Cheap gates run first, so a slip costs seconds rather than the whole run: the
 # ratchets before the fixpoint, and the lints of the crates this change
@@ -114,7 +122,9 @@ if [ "${1:-}" = "--isolated" ]; then
     exit "$rc"
 fi
 
-# Every crate, unless the caller names a subset.
+# Every crate, unless the caller names a subset. Remembered, so the quick
+# gate narrows only a list it chose.
+crates_given="${CRATES+given}"
 #
 # `CRATES` lets CI shard the sweep. `CHECK_CLI=0` skips the CLI gates, which
 # belong to one shard.
@@ -182,12 +192,64 @@ fi
 
 run_fixpoint=1
 run_sweep=1
+quick=0
 case "${1:-}" in
+    --full) ;;
     --fixpoint) run_sweep=0 ;;
     --sweep)    run_fixpoint=0 ;;
-    "") ;;
-    *) echo "usage: $0 [--isolated] [--fixpoint|--sweep]" >&2; exit 2 ;;
+    "") quick=1; run_fixpoint=0 ;;
+    *) echo "usage: $0 [--isolated] [--full|--fixpoint|--sweep]" >&2; exit 2 ;;
 esac
+
+# Every path that differs from the merge base, committed or not.
+changed_paths() {
+    base="${KF_BASE:-}"
+    if [ -z "$base" ]; then
+        for candidate in origin/development development; do
+            if git rev-parse --verify -q "$candidate" > /dev/null; then base="$candidate"; break; fi
+        done
+    fi
+    {
+        if [ -n "$base" ]; then git diff --name-only "$(git merge-base HEAD "$base")"; fi
+        git diff --name-only HEAD
+        git ls-files --others --exclude-standard
+    } | sort -u
+}
+
+# The crates `$1`'s kf.toml names by path, relative to the root.
+crate_deps() {
+    sed -n 's/.*path *= *"\([^"]*\)".*/\1/p' "$1/kf.toml" | while read -r dep; do
+        (cd "$1/$dep" 2>/dev/null && pwd) | sed "s|^$ROOT/||"
+    done
+}
+
+# Of CRATES, those holding a changed path and every crate that depends on one
+# of them, in CRATES order. kf-integration is left to CI.
+affected_crates() {
+    files="$(changed_paths)"
+    picked=" "
+    for c in $CRATES; do
+        if printf '%s\n' "$files" | grep -q "^$c/"; then picked="$picked$c "; fi
+    done
+    grew=1
+    while [ "$grew" -eq 1 ]; do
+        grew=0
+        for c in $CRATES; do
+            case "$picked" in *" $c "*) continue ;; esac
+            for dep in $(crate_deps "$c"); do
+                case "$picked" in *" $dep "*) picked="$picked$c "; grew=1; break ;; esac
+            done
+        done
+    done
+    for c in $CRATES; do
+        [ "$c" = compiler/kf-integration ] && continue
+        case "$picked" in *" $c "*) printf '%s ' "$c" ;; esac
+    done
+}
+
+if [ "$quick" -eq 1 ] && [ -z "$crates_given" ]; then
+    CRATES="$(affected_crates)"
+fi
 
 # The ratchets take seconds, so they go before anything that takes minutes.
 phase "ratchets"
@@ -207,6 +269,15 @@ fixpoint_key() {
     } | sha256sum | cut -d' ' -f1
 }
 GATE_CACHE="${KFLAT_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/kflat}/gate"
+
+# A fixpoint that passed for these sources left a proven komp: the quick gate
+# uses it rather than building one.
+if [ "$quick" -eq 1 ] && [ -z "${KOMP_PREBUILT:-}" ] && [ "${KF_GATE_CACHE:-1}" != "0" ]; then
+    cached="$GATE_CACHE/$(fixpoint_key)"
+    if [ -f "$cached/passed" ] && [ -x "$cached/komp" ] && [ -x "$cached/kflatc" ]; then
+        KOMP_PREBUILT="$cached/komp"
+    fi
+fi
 
 if [ "$run_fixpoint" -eq 1 ]; then
 phase "fixpoint"
@@ -328,7 +399,7 @@ if ! KOMP="$WORK/komp" sh scripts/preflight.sh --lint; then
     exit 1
 fi
 
-if [ "$CHECK_CLI" = "1" ]; then
+if [ "$CHECK_CLI" = "1" ] || [ "$quick" -eq 1 ]; then
 
 # The compiler and libraries are laid out as komp fmt formats them: the
 # formatter is installed from the package index at the version below, as a
@@ -348,6 +419,10 @@ if ! unformatted=$(cd "$ROOT" && "$WORK/fmt-home/bin/komp-fmt" --check compiler 
     exit 1
 fi
 echo "  PASS  compiler, libs and tools are formatted"
+
+fi
+
+if [ "$CHECK_CLI" = "1" ] && [ "$quick" -eq 0 ]; then
 
 phase "cli quiet flags"
 mkdir -p "$WORK/quiet-project/src"
@@ -1427,6 +1502,13 @@ fi
 
 # Name what ran, so a shard does not read as a whole-tree pass.
 summary="crates: $(echo $CRATES | wc -w)"
+if [ "$quick" -eq 1 ]; then
+    echo "OK: quick gate: ratchets + formatting + lints + $summary"
+    echo "    CI runs the fixpoint, the CLI checks, the asan probes, kf-integration and the"
+    echo "    fuzzer; \`sh scripts/check.sh --full\` runs them here."
+    report_times
+    exit 0
+fi
 if [ "$CHECK_CLI" = "1" ]; then summary="CLI checks + asan probes + $summary"; fi
 if [ "$run_fixpoint" -eq 1 ]; then summary="fixpoint + $summary"; fi
 echo "OK: $summary"

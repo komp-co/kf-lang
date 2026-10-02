@@ -122,27 +122,35 @@ should be too once branch protection names it; a job skipped by `classify`
 counts as passed. Each CI run costs about ten minutes, so group related changes into one
 PR rather than opening many small ones.
 
-Before the full gate, run the preflight. It takes seconds to a couple of
-minutes and catches what most often fails a gate run late: the ratchets,
-formatting, and the lints of every crate your branch changed.
-
-```sh
-sh scripts/preflight.sh
-```
-
-Then run both gates locally before pushing — same checks, no round trip. It
-takes minutes and grows with the tree, so time it rather than trusting a
-figure quoted here:
+Before pushing, run the quick gate. It runs the ratchets, the formatting
+check, the lints, and the tests of every crate your branch changes and of
+every crate that depends on one of them, against the merge base with
+`origin/development`:
 
 ```sh
 sh scripts/check.sh
 ```
 
-The gate runs its cheap checks first too: the ratchets before the fixpoint,
-and the changed crates' lints before the CLI checks and the sweep. A fixpoint
-that passed is cached under `~/.cache/kflat/gate`, keyed by the sources it
-compiled with test files left out, so a rerun after fixing a test or a fixture
-does not repeat it. `KF_GATE_CACHE=0` turns the cache off.
+It leaves to CI what CI already runs in parallel: the fixpoint, the CLI
+checks, the asan probes, `kf-integration` (the slowest crate, eleven minutes
+alone) and the fuzzer. Do not run the full gate before every push as well;
+CI is that run, on a clean checkout. When a CI job goes red, reproduce it with
+the full gate, or just its half:
+
+```sh
+sh scripts/check.sh --full        # everything CI runs
+sh scripts/check.sh --fixpoint    # the fixpoint job
+CRATES="compiler/kf-integration" sh scripts/check.sh --sweep
+komp test compiler/kf-integration --case <substring>   # some fixtures only
+```
+
+`sh scripts/preflight.sh` is quicker still, seconds: the ratchets, the
+formatting of changed files, and the changed crates' lints.
+
+The quick gate builds its komp from the seed, unless a fixpoint passed for
+the same sources: that komp is cached under `~/.cache/kflat/gate`, keyed by
+the sources it compiled with test files left out, and reused by both gates.
+`KOMP_PREBUILT` names another; `KF_GATE_CACHE=0` turns the cache off.
 
 It reports every crate rather than stopping at the first failure, so one red
 run tells you everything that is broken instead of only the earliest thing.
