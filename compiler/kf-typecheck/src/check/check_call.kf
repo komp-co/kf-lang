@@ -10,30 +10,35 @@ import kf_typecheck.check.borrow.coerce_call_arg
 import kf_typecheck.note_import_use_named
 import kf_typecheck.check.control.yield_ref_binder_value
 
-/// `alloc<T>()`, `sizeof<T>()`, `take<T>(x)` and friends, the type folded into
-/// the callee name. Only reached with `Expr.is_intrinsic` set.
-fun intrinsic_call_type(name: String, args: &var List<Expr>, type_args: &var List<TypeRef>, span: Span, ctx: &var TypeCtx): Type {
-    val intrinsic = intrinsic_of_callee(name.as_str()) ?: return poison_ty()
-    if report_intrinsic_arity(intrinsic, args.size(), span, ctx) { return poison_ty() }
-    return when (intrinsic.result()) {
-        PointerToTypeArgument => ptr_ty(intrinsic.type_argument(name.as_str(), type_args, span, ctx), span)
+/// `annotated<a>()` is replaced by the list it queries.
+mutating fun Expr.check_intrinsic(intrinsic: Intrinsic, args: &var List<Expr>, ctx: &var TypeCtx): void {
+    when (intrinsic) {
+        Annotated => self.expand_annotated(args, ctx)
+        _ => self.ty = intrinsic.call_type(args, self.type_args, self.span, ctx)
+    }
+}
+
+/// `alloc<T>()`, `sizeof<T>()`, `take<T>(x)` and friends.
+fun Intrinsic.call_type(args: &var List<Expr>, type_args: &var List<TypeRef>, span: Span, ctx: &var TypeCtx): Type {
+    if self.report_arity(args.size(), span, ctx) { return poison_ty() }
+    val type_argument = self.type_argument(type_args, span, ctx)
+    if type_args.size() != 1 { return poison_ty() }
+    return when (self.result()) {
+        PointerToTypeArgument => ptr_ty(type_argument, span)
         TypeArgument => {
             // `ptr_read<T>(p)`: the pointee, moved out bitwise and owned by
             // the caller.
-            when (intrinsic) {
+            when (self) {
                 PtrRead => check_expr(args.at_mut(0), ctx)
                 _ => { }
             }
-            intrinsic.type_argument(name.as_str(), type_args, span, ctx)
+            type_argument
         }
         FirstArgument => {
             val ta = args.at_mut(0)
             check_expr(ta, ctx)
             // `take<List<Stmt>>(body)` on a reference binder moves the payload.
-            if type_args.size() == 1 {
-                val wanted = (*type_args.at(0)).resolve_type_ref(ctx)
-                val _read = ta.yield_ref_binder_value(&wanted, ctx)
-            }
+            val _read = ta.yield_ref_binder_value(&type_argument, ctx)
             ta.ty.clone()
         }
         SizeInBytes => Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) }
@@ -42,17 +47,7 @@ fun intrinsic_call_type(name: String, args: &var List<Expr>, type_args: &var Lis
     }
 }
 
-/// The written type argument, else the fragment in the folded callee, which
-/// inside a generic body may name a type parameter.
-fun Intrinsic.type_argument(callee: str, type_args: &List<TypeRef>, span: Span, ctx: &var TypeCtx): Type {
-    if type_args.size() == 1 { return (*type_args.at(0)).resolve_type_ref(ctx) }
-    return ty_from_frag_in_scope(self.type_fragment(callee), span, ctx)
-}
-
-fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef>, is_intrinsic: bool, span: Span, ctx: &var TypeCtx): Type {
-    // CONSTRAINT: gated on the parser's flag, not the shape, which a
-    // crate-qualified free function in `alloc` shares.
-    if is_intrinsic { return intrinsic_call_type(name, args, type_args, span, ctx) }
+fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef>, span: Span, ctx: &var TypeCtx): Type {
     // Taken before the arguments, whose own calls are not through the alias.
     val through = ctx.through_module
     ctx.through_module = Sym { id: 0 }

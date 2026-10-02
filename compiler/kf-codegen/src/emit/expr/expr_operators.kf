@@ -77,7 +77,7 @@ fun pick_callee(raw: String, mangled: String): String {
     return mangled.clone()
 }
 
-fun emit_call(name: String, mangled: String, args: List<Expr>, is_intrinsic: bool): String {
+fun emit_call(name: String, mangled: String, args: List<Expr>): String {
     val nstr = name.as_str()
     // Builtins dispatch on the raw name.
     when nstr {
@@ -89,31 +89,6 @@ fun emit_call(name: String, mangled: String, args: List<Expr>, is_intrinsic: boo
         "alloc_i32" => return emit_alloc("int32_t", args)
         "free_ptr" => return emit_free(args)
         _ => { }
-    }
-    // Memory intrinsics carry their type in the callee (`alloc__Expr`); the
-    // mangled callee wins, except for `clone_place`, read as written.
-    //
-    // CONSTRAINT: gated on the parser's flag, not the shape: `<crate>__<fn>`
-    // looks the same in a crate named `alloc`.
-    if is_intrinsic {
-        val from_mangled = intrinsic_of_callee(mangled.as_str())
-        val use_mangled = when (from_mangled) {
-            Some(i) => when (i) {
-                ClonePlace => false
-                _ => true
-            }
-            None => false
-        }
-        val callee_text = if use_mangled { mangled.as_str() } else { nstr }
-        when (intrinsic_of_callee(callee_text)) {
-            Some(intrinsic) => {
-                when (emit_intrinsic(intrinsic, callee_text, args)) {
-                    Some(text) => return text
-                    None => { }
-                }
-            }
-            None => { }
-        }
     }
     val callee = pick_callee(name, mangled)
     var parts = List.new<String>()

@@ -215,6 +215,7 @@ fun Expr.collect_expr_names(out: &var List<String>): void {
             out.push(name.as_string())
             collect_expr_list_names(args, out)
         }
+        Intrinsic(_intrinsic, args) => collect_expr_list_names(args, out)
         FnRef(name) => out.push(name.as_string())
         CallValue(callee, args) => {
             collect_expr_names(&*callee, out)

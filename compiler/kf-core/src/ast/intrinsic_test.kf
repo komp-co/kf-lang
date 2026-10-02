@@ -1,29 +1,8 @@
 import core.assert.assert_eq
 
 @test
-fun a_folded_callee_names_its_intrinsic(): void {
-    assert_eq(intrinsic_of_callee("alloc_array__int32")?.name() ?: "", "alloc_array", "the base before `__`")
-}
-
-@test
-fun a_name_without_type_arguments_is_no_folded_callee(): void {
-    assert_eq(intrinsic_of_callee("alloc").is_none(), true, "nothing was folded in")
-}
-
-@test
 fun a_plain_function_is_no_intrinsic(): void {
     assert_eq(intrinsic_named("helper").is_none(), true, "not in the table")
-}
-
-@test
-fun the_type_fragment_follows_the_name(): void {
-    val fragment = Intrinsic.ReallocArray.type_fragment("realloc_array__List__int32")
-    assert_eq(fragment.as_str(), "List__int32", "everything after `realloc_array__`")
-}
-
-@test
-fun a_crate_qualified_fragment_is_kept_whole(): void {
-    assert_eq(Intrinsic.Alloc.type_fragment("alloc__aa__Point").as_str(), "aa__Point", "the crate stays on the type")
 }
 
 @test

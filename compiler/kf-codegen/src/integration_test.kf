@@ -193,57 +193,50 @@ fun string_method_expr(name: str, args: List<Expr>): Expr {
     assert_eq(c.as_str(), "(Expr*)(0)", "null ptr cast emits (T*)(0)")
 }
 
+/// `intrinsic<type_name>()`, with no arguments.
+fun intrinsic_on(intrinsic: Intrinsic, type_name: str): Expr {
+    var e = new_expr(no_span(), ExprKind.Intrinsic(intrinsic, List.new<Expr>()))
+    e.type_args.push(new_type_ref(no_span(), TypeRefKind.Named(intern(type_name), List.new<TypeRef>())))
+    return e
+}
+
 @test fun emit_alloc_generic_call(): void {
-    var e = new_expr(no_span(), ExprKind.Call(intern("alloc__Expr"), List.new<Expr>()))
-    // The flag, not the name, makes it an intrinsic.
-    e.is_intrinsic = true
-    val c = e.emit_expr()
+    val c = intrinsic_on(Intrinsic.Alloc, "Expr").emit_expr()
     assert_eq(c.as_str(), "(Expr*)kf_alloc(sizeof(Expr))", "alloc emits the typed allocation ABI")
 }
 
-// The fragment is a KFlat type name and is mapped to C.
+// The type argument is a KFlat type and is rendered as C.
 @test fun emit_alloc_generic_maps_a_primitive_to_its_c_name(): void {
-    var e = new_expr(no_span(), ExprKind.Call(intern("alloc__int32"), List.new<Expr>()))
-    e.is_intrinsic = true
-    val c = e.emit_expr()
+    val c = intrinsic_on(Intrinsic.Alloc, "int32").emit_expr()
     assert_eq(c.as_str(), "(int32_t*)kf_alloc(sizeof(int32_t))", "alloc maps int32 to int32_t")
 }
 
 // float64 proves a real mapping, not a `_t` suffix.
 @test fun emit_alloc_generic_maps_float64_to_double(): void {
-    var e = new_expr(no_span(), ExprKind.Call(intern("alloc__float64"), List.new<Expr>()))
-    e.is_intrinsic = true
-    val c = e.emit_expr()
+    val c = intrinsic_on(Intrinsic.Alloc, "float64").emit_expr()
     assert_eq(c.as_str(), "(double*)kf_alloc(sizeof(double))", "alloc maps float64 to double")
 }
 
 @test fun emit_sizeof_generic_maps_a_primitive_to_its_c_name(): void {
-    var e = new_expr(no_span(), ExprKind.Call(intern("sizeof__uint64"), List.new<Expr>()))
-    e.is_intrinsic = true
-    val c = e.emit_expr()
+    val c = intrinsic_on(Intrinsic.Sizeof, "uint64").emit_expr()
     assert_eq(c.as_str(), "sizeof(uint64_t)", "sizeof maps uint64 to uint64_t")
 }
 
-@test fun emit_alloc_prefers_the_qualified_mangle(): void {
-    var e = new_expr(no_span(), ExprKind.Call(intern("alloc__Point"), List.new<Expr>()))
-    e.is_intrinsic = true
-    e.mangled_callee = intern("alloc__aa__Point")
-    val c = e.emit_expr()
-    assert_eq(c.as_str(), "(aa__Point*)kf_alloc(sizeof(aa__Point))", "alloc uses its qualified folded callee")
+@test fun emit_alloc_uses_a_qualified_type_argument(): void {
+    val c = intrinsic_on(Intrinsic.Alloc, "aa__Point").emit_expr()
+    assert_eq(c.as_str(), "(aa__Point*)kf_alloc(sizeof(aa__Point))", "the type argument as qualification left it")
 }
 
-// The same folded shape unmarked is an ordinary call: qualification produces
+// The shape of a folded intrinsic is an ordinary call: qualification produces
 // it for a free function in a crate named `alloc`.
 @test fun a_crate_qualified_name_is_not_an_intrinsic(): void {
     val e = new_expr(no_span(), ExprKind.Call(intern("alloc__trivial"), List.new<Expr>()))
     val c = e.emit_expr()
-    assert_eq(c.as_str(), "alloc__trivial()", "an unmarked call is an ordinary call")
+    assert_eq(c.as_str(), "alloc__trivial()", "a call is an ordinary call")
 }
 
 @test fun emit_sizeof_generic_call(): void {
-    var e = new_expr(no_span(), ExprKind.Call(intern("sizeof__Type"), List.new<Expr>()))
-    e.is_intrinsic = true
-    val c = e.emit_expr()
+    val c = intrinsic_on(Intrinsic.Sizeof, "Type").emit_expr()
     assert_eq(c.as_str(), "sizeof(Type)", "sizeof emits sizeof(T)")
 }
 

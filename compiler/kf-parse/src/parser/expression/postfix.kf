@@ -4,45 +4,6 @@ import kf_core.span.*
 import kf_core.ast.*
 import kf_parse.parser.*
 
-/// Matches kf-codegen's tyref_mangle and Mono's ty_to_mangle:
-/// `List<int32>` is `List__int32`.
-fun TypeRef.tyref_mangle_frag(): String {
-    when (self.kind) {
-        Named(n, a) => {
-            if a.size() == 0 { return n.as_string() }
-            var r = n.as_string()
-            while item in &a {
-                r = r + String.from("__") + (item).tyref_mangle_frag()
-            }
-            return r
-        }
-        DynTrait(n, a) => {
-            var r = "Dyn__${n.as_string()}"
-            while item in &a {
-                r = r + String.from("__") + (item).tyref_mangle_frag()
-            }
-            return r
-        }
-        Reference(is_mut, inner_ptr) => {
-            return borrow_frag(is_mut, (unsafe { &*inner_ptr }).tyref_mangle_frag().as_str())
-        }
-        Function(params, ret) => {
-            var frags = List.new<String>()
-            while param in &params {
-                frags.push(param.tyref_mangle_frag())
-            }
-            return fn_frag(&frags, ret.tyref_mangle_frag().as_str())
-        }
-        Array(_e, _n) => return String.from("array")
-        Projection(owner, member) => {
-            val inner = (unsafe { &*owner }).tyref_mangle_frag()
-            return projection_mangle_frag(inner.as_str(), member.as_str())
-        }
-        Value(v) => return value_frag(v)
-        Poison => return String.from("poison")
-    }
-}
-
 impl Parser {
     mutating fun parse_after_identifier(name: Sym, span: Span): Expr {
         val head: Expr = self.parse_identifier_head(name, span)
@@ -51,12 +12,10 @@ impl Parser {
 
     /// Postfix operators are handled by parse_postfix.
     mutating fun parse_identifier_head(name: Sym, span: Span): Expr {
-        // A memory intrinsic: the type args fold into the callee name.
         if is_op(self.peek(), Operator.Lt) {
             // An intrinsic is never compared, so its `<` opens a list.
-            if intrinsic_named(name.as_str()).is_some() {
-                return self.parse_generic_ctor_call(name, span)
-            }
+            val intrinsic = intrinsic_named(name.as_str())
+            if intrinsic != null { return self.parse_intrinsic_call(intrinsic!!, span) }
             // `Foo<...>(...)` or `Foo<...>{...}`: committed only if `(` or `{`
             // follows, otherwise rewound so `<` is a comparison.
             val save_pos: uint64 = self.pos
@@ -93,21 +52,14 @@ impl Parser {
         return new_expr(span, ExprKind.Variable(name))
     }
 
-    /// `alloc<T1, ...>(args)`: type args folded into `alloc__T1__...`.
-    mutating fun parse_generic_ctor_call(name: Sym, span: Span): Expr {
+    /// `alloc<T>(args)`, the intrinsic `name` names.
+    mutating fun parse_intrinsic_call(intrinsic: Intrinsic, span: Span): Expr {
         var type_args = List.new<TypeRef>()
         val _ = self.parse_type_argument_list(&var type_args, false)
-        var mangled = name.as_string()
-        while type_arg in &type_args {
-            mangled.append("__")
-            mangled.append(type_arg.tyref_mangle_frag().as_str())
-        }
         val arg_vec = if is_op(self.peek(), Operator.LParen) { self.parse_arg_list() } else { List.new<Expr>() }
-        var call = new_expr(self.span_through_last(span), ExprKind.Call(intern(mangled.as_str()), arg_vec))
+        var call = new_expr(self.span_through_last(span), ExprKind.Intrinsic(intrinsic, arg_vec))
         call.name_span = span
         call.type_args = type_args
-        // Only the parser knows a call is an intrinsic; see Expr.is_intrinsic.
-        call.is_intrinsic = true
         return call
     }
 

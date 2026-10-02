@@ -22,8 +22,6 @@ import kf_typecheck.types.type_to_type_ref
 import kf_typecheck.check.decl.is_borrow
 import kf_typecheck.check.decl.type_param_name
 
-pub fun annotated_prefix(): str { return "annotated__" }
-
 /// What a query's entries are: callable `AnnotatedFunction`s of one function
 /// type, or `AnnotatedItem`s naming each declaration.
 struct EntryShape {

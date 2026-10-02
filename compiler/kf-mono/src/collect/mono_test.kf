@@ -342,24 +342,24 @@ fun mk_show_impl_mono(): TopDecl {
     assert_eq(e.mangled_callee.as_str(), "foo", "non-generic call → bare name")
 }
 
-@test fun mono_preserves_a_prequalified_generic_intrinsic(): void {
-    var e = new_expr(no_span(), ExprKind.Call(intern("alloc"), List.new<Expr>()))
+@test fun mono_keeps_a_callee_selected_before_materialization(): void {
+    var e = new_expr(no_span(), ExprKind.Call(intern("max"), List.new<Expr>()))
     e.type_args.push(mtr_v("Point"))
-    e.mangled_callee = intern("alloc__aa__Point")
+    e.mangled_callee = intern("max__aa__Point")
     e.mono_expr()
-    assert_eq(e.mangled_callee.as_str(), "alloc__aa__Point", "Mono keeps the qualified intrinsic selected before materialization")
+    assert_eq(e.mangled_callee.as_str(), "max__aa__Point", "Mono keeps the qualified callee chosen earlier")
 }
 
-@test fun mono_replaces_a_parser_folded_intrinsic_fragment(): void {
-    var e = new_expr(no_span(), ExprKind.Call(intern("alloc__Point"), List.new<Expr>()))
-    e.type_args.push(mtr_v("aa__Point"))
+@test fun mono_names_no_callee_for_an_intrinsic(): void {
+    var e = new_expr(no_span(), ExprKind.Intrinsic(Intrinsic.Alloc, List.new<Expr>()))
+    e.type_args.push(mtr_v("Point"))
     e.mono_expr()
-    assert_eq(e.mangled_callee.as_str(), "alloc__aa__Point", "Mono replaces the parser's unqualified folded fragment")
+    assert_eq(e.mangled_callee.as_str(), "", "codegen reads the type argument, not a name")
 }
 
 @test fun generic_call_base_returns_owned_str(): void {
-    val base: String = generic_call_base("alloc__Point")
-    assert_eq(base.as_str(), "alloc", "generic call base removes the folded type fragment")
+    val base: String = generic_call_base("Wrap__Point")
+    assert_eq(base.as_str(), "Wrap", "the instance's type arguments are cut off")
 }
 
 @test fun generic_call_base_keeps_a_crate_qualified_prefix(): void {

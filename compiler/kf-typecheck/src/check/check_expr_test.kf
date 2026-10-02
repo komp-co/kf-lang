@@ -557,18 +557,24 @@ pub fun mk_ctx(): TypeCtx {
     var ctx = mk_ctx()
     var args = List.new<Expr>()
     args.push(new_expr(no_span(), ExprKind.LitInt(4)))
-    var e = new_expr(no_span(), ExprKind.Call(intern("alloc_array__int32"), args))
-    // The parser's flag, not the name, makes an intrinsic.
-    e.is_intrinsic = true
+    var e = new_expr(no_span(), ExprKind.Intrinsic(Intrinsic.AllocArray, args))
+    e.type_args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         PtrTo(p) => {
             val inner = unsafe { *p }
             val expected = int32_ty(no_span())
-            assert_eq(inner.type_eq(expected), true, "alloc_array__int32 -> Ptr<int32>")
+            assert_eq(inner.type_eq(expected), true, "alloc_array<int32> -> Ptr<int32>")
         }
-        _ => fail("expected PtrTo result for alloc_array__int32")
+        _ => fail("expected PtrTo result for alloc_array<int32>")
     }
+}
+
+@test fun an_intrinsic_without_its_type_argument_is_reported(): void {
+    var ctx = mk_ctx()
+    var e = new_expr(no_span(), ExprKind.Intrinsic(Intrinsic.Sizeof, List.new<Expr>()))
+    check_expr(&var e, &var ctx)
+    assert_eq(ctx.diags.has_errors(), true, "`sizeof<>()` names no type")
 }
 
 @test fun box_new_types_as_boxof(): void {
@@ -617,8 +623,7 @@ fun alloc_intrinsic_preserves_qualified_type_argument(): void {
     unsafe { tab.insert(String.from("Point")) }
     val sp = ctx.sigs
     unsafe { sp.insert_type_identity(new_type_identity(new_crate_id("left"), intern("models"), intern("Point"))) }
-    var e = new_expr(no_span(), ExprKind.Call(intern("alloc__Point"), List.new<Expr>()))
-    e.is_intrinsic = true
+    var e = new_expr(no_span(), ExprKind.Intrinsic(Intrinsic.Alloc, List.new<Expr>()))
     e.type_args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("Point"), List.new<TypeRef>())))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
