@@ -91,7 +91,7 @@ pub fun f(): uint64 { return width(String.from("abc")) }
 fun a_generic_that_only_compares_keeps_nothing(): void {
     val reported = reports_kept_temporary("kf_str_compare", """fun same<T: Equal>(a: T, b: T): bool { return a == b }
 pub fun f(): bool { return same("abc", String.from("abc").as_str()) }
-pub fun g(name: str): bool { return same(name, "${name}!") }
+pub fun g(name: str): bool { return same(name, String.from(name).as_str()) }
 """)
     assert_eq(reported, false, "neither argument outlives the call")
 }
