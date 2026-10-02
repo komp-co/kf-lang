@@ -104,4 +104,25 @@ jobs:
                   compiler/kf-resolve compiler/kf-typecheck compiler/kf-mono
                   compiler/kf-lower compiler/kf-codegen compiler/kf-interface
                   compiler/kf-shared compiler/kf-lint compiler/kf-driver compiler/kf-tool
-                  libs/core libs/alloc libs/std" sh scripts/check.sh --sweep
+                  libs/core libs/alloc libs/std tools/kf-fuzz tools/kf-reduce" sh scripts/check.sh --sweep
+
+  # Fresh seeds for a time budget, where the sweep's fixed seeds cannot reach.
+  # Nightly only: a finding here is new by definition, and its job is in the
+  # uploaded findings.
+  fuzz:
+    needs: [classify, fixpoint]
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          prebuilt: true
+      - name: Fuzz the front end with fresh seeds
+        run: FUZZ_FRESH=1 FUZZ_BUDGET=900 sh scripts/check_fuzz.sh "$KOMP_PREBUILT" "$RUNNER_TEMP/fuzz"
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-findings
+          path: ${{ runner.temp }}/fuzz/fuzz-findings
+          retention-days: 14

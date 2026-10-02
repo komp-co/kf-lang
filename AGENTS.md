@@ -23,6 +23,8 @@ docs/book/   — the user-facing book
 libs/        — KFlat language libraries (core, alloc, std)
 scripts/     — check.sh and the ratchets CI runs
 tests/       — black-box executable integration fixtures
+tools/       — kf-fuzz and kf-reduce: the front-end fuzzer, and the reducer
+               that shrinks what it finds
 build.sh     — root-level compiler build entry point
 ```
 
@@ -154,6 +156,9 @@ fun int32_ty_is_not_poison(): void {
   same commit — never leave the suite red
 - One assertion per test; split unrelated assertions into named tests
 - End-to-end behaviour goes in `tests/cases/*.kf` as a directive fixture
+- A fuzz finding is fixed with its reduced program as a fixture, or filed and
+  named in `tools/kf-fuzz/known.txt`; CONTRIBUTING.md has the steps
+- `tools/` drives kflatc and komp as programs and imports no compiler crate
 
 ### Verifying a change
 

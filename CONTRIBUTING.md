@@ -106,7 +106,8 @@ The four jobs are:
 
 1. **fixpoint** — `sh scripts/check.sh --fixpoint`, the self-host fixpoint
    (stage1 == stage2),
-2. **cli** — the CLI checks from `scripts/check.sh --sweep`,
+2. **cli** — the CLI checks from `scripts/check.sh --sweep`, with the
+   sanitizer probes and the [fuzz gate](#fuzzing),
 3. **sweep-driver** — the `kf-integration` test suite, the slowest crate,
 4. **sweep-rest** — every other crate's test suite.
 
@@ -155,6 +156,35 @@ Two ways to get a wrong answer out of it:
   every job already starts from its own checkout.
 - **Do not pipe it into `tail`.** You get `tail`'s exit code, which is always
   0. Redirect to a log and check `$?`.
+
+## Fuzzing
+
+`tools/kf-fuzz` holds kflatc to one rule: whatever its input, it ends with
+diagnostics. It mutates the `tests/cases` fixtures (deleted, duplicated and
+swapped tokens, unbalanced delimiters, odd bytes, truncation) and, in its
+`kfi` mode, the library interfaces they build against, then compiles each
+mutant. A crash, a panic or a hang is a finding, named by a signature: the
+panic's message, or the signal or hang and, when gdb is installed, the
+function it struck in.
+
+The cli job runs it over fixed seeds through `scripts/check_fuzz.sh`, and
+fails on a signature `tools/kf-fuzz/known.txt` does not name. The nightly run
+adds a `fuzz` job on fresh seeds and uploads what it finds.
+
+When the gate reports a finding, it prints the seed. Rebuild the program,
+shrink it, and turn it into a fixture:
+
+```sh
+tools/kf-fuzz/target/kflat/kf_fuzz front --seeds 229..229 --emit /tmp/f
+tools/kf-reduce/target/kflat/kf_reduce /tmp/f/front-seed229.kf -- \
+    tools/kf-fuzz/target/kflat/kf_fuzz judge --expect "SIGNATURE"
+```
+
+`kf_fuzz judge` prints a program's signature, and with `--expect` exits 0
+only on that one, which makes it the reducer's predicate. The reduced program
+goes to `tests/cases` with the fix. A finding left for later gets an issue,
+and its signature a line in `known.txt` naming it; the line goes when the
+issue closes, so a recurrence fails the gate again.
 
 ## The bootstrap seed
 

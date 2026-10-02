@@ -122,7 +122,7 @@ CRATES="${CRATES:-compiler/kf-core compiler/kf-parse compiler/kf-assemble
         compiler/kf-resolve compiler/kf-typecheck compiler/kf-mono
         compiler/kf-lower compiler/kf-codegen compiler/kf-interface
         compiler/kf-shared compiler/kf-lint compiler/kf-driver compiler/kf-tool compiler/kf-integration
-        libs/core libs/alloc libs/std}"
+        libs/core libs/alloc libs/std tools/kf-fuzz tools/kf-reduce}"
 CHECK_CLI="${CHECK_CLI:-1}"
 
 # Peak RSS a single crate's `komp test` may reach, in MB: a ceiling with room
@@ -342,12 +342,12 @@ KFLAT_HOME="$WORK/fmt-home" "$WORK/fmt-toolchain/bin/komp" tool install komp_fmt
     echo "FAIL: komp_fmt could not be installed from the package index" >&2
     exit 1
 }
-if ! unformatted=$(cd "$ROOT" && "$WORK/fmt-home/bin/komp-fmt" --check compiler libs); then
+if ! unformatted=$(cd "$ROOT" && "$WORK/fmt-home/bin/komp-fmt" --check compiler libs tools); then
     echo "$unformatted" | sed 's/^/       /' >&2
-    echo "FAIL: these files are not formatted; run \`komp fmt compiler libs\`" >&2
+    echo "FAIL: these files are not formatted; run \`komp fmt compiler libs tools\`" >&2
     exit 1
 fi
-echo "  PASS  compiler and libs are formatted"
+echo "  PASS  compiler, libs and tools are formatted"
 
 phase "cli quiet flags"
 mkdir -p "$WORK/quiet-project/src"
@@ -1211,6 +1211,11 @@ echo "  PASS  freestanding output compiles, links -nostdlib, and runs"
 phase "asan probes"
 sh "$ROOT/scripts/check_asan.sh" "$WORK/komp" "$WORK" || exit 1
 
+# The fuzz gate, in the CLI shard: fixed seeds, so a run is repeatable and a
+# finding names the seed that rebuilds it.
+phase "front-end fuzz"
+sh "$ROOT/scripts/check_fuzz.sh" "$WORK/komp" "$WORK/fuzz" || exit 1
+
 fi   # CHECK_CLI
 
 phase "sweep"
@@ -1427,7 +1432,7 @@ fi
 
 # Name what ran, so a shard does not read as a whole-tree pass.
 summary="crates: $(echo $CRATES | wc -w)"
-if [ "$CHECK_CLI" = "1" ]; then summary="CLI checks + asan probes + $summary"; fi
+if [ "$CHECK_CLI" = "1" ]; then summary="CLI checks + asan probes + fuzz + $summary"; fi
 if [ "$run_fixpoint" -eq 1 ]; then summary="fixpoint + $summary"; fi
 echo "OK: $summary"
 report_times
