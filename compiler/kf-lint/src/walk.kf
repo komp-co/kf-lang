@@ -212,6 +212,7 @@ fun Expr.visit(walk: &var LintWalk): void {
             val shield = name.as_str() == "range" || name.as_str() == "range_inclusive"
             walk.visit_arguments(&args, shield)
         }
+        Intrinsic(_intrinsic, args) => walk.visit_arguments(&args, false)
         CallValue(callee, args) => {
             callee.visit(walk)
             walk.visit_arguments(&args, false)

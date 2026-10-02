@@ -201,6 +201,7 @@ fun rewrite_placeholder_expr(p_opt: Ptr<Expr>?, heads: LangHeads): void {
         Unary(_op, ip) => rewrite_placeholder_expr(ip, heads)
         Deref(ip) => rewrite_placeholder_expr(ip, heads)
         Call(_nm, args) => rewrite_placeholder_expr_list(&args, heads)
+        Intrinsic(_i, args) => rewrite_placeholder_expr_list(&args, heads)
         FnRef(_) => {}
         CallValue(callee_ptr, args) => {
             rewrite_placeholder_expr(callee_ptr, heads)

@@ -83,6 +83,9 @@ fun Expr.visit_typed(walk: &var TypedWalk): void {
         Call(_name, args) => {
             while arg in &args { arg.visit_typed(walk) }
         }
+        Intrinsic(_intrinsic, args) => {
+            while arg in &args { arg.visit_typed(walk) }
+        }
         CallValue(callee, args) => {
             callee.visit_typed(walk)
             while arg in &args { arg.visit_typed(walk) }

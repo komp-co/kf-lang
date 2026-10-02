@@ -38,14 +38,14 @@ pub struct ProjOutcome {
 /// `impl Right for Bag { type Out = bool }`, `Bag.Out` resolved inside
 /// `enclosing_trait` ("" for neither). Only the enclosing impl separates them.
 fun resolve_bag_out(enclosing_trait: str): ProjOutcome {
-    val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostics = List.new<Diagnostic>() }
+    val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
+    unsafe { *diagnostics = new_diagnostics() }
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signatures = new_sig_table() }
     unsafe { signatures.insert_assoc_binding(sibling_binding("Left", int32_ty(no_span()), "int32")) }
     unsafe { signatures.insert_assoc_binding(sibling_binding("Right", bool_ty(no_span()), "bool")) }
 
-    var ctx = new_type_ctx(void_ty(no_span()), diagnostics, Option.None, signatures)
+    var ctx = new_type_ctx(void_ty(no_span()), unsafe { &var *diagnostics }, Option.None, signatures)
     ctx.impl_trait = String.from(enclosing_trait)
     val resolved = (projection_ref("Bag", "Out")).resolve_type_ref(&var ctx)
 

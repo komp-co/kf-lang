@@ -12,6 +12,7 @@ fun hoist_owned_when_subject(subj_ptr: Ptr<Expr>, span: Span, ctx: &var RcCtx): 
     if !is_heap_ty_rc(subj.ty) { return out }
     when (subj.kind) {
         Call(_, _) => { }
+        Intrinsic(_, _) => { }
         CallValue(_callee, _) => { }
         MethodCall(_, _, _) => { }
         _ => return out
@@ -61,6 +62,12 @@ fun hoist_borrowed_temps(ep: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>): 
                 maybe_hoist_borrowed_arg(args.at_mut(i), ctx, out)
             }
         }
+        Intrinsic(_i, args) => {
+            while i in 0..args.size() {
+                hoist_borrowed_temps(args.at_mut(i), ctx, out)
+                maybe_hoist_borrowed_arg(args.at_mut(i), ctx, out)
+            }
+        }
         CallValue(callee, args) => {
             hoist_borrowed_temps(callee, ctx, out)
             while i in 0..args.size() {
@@ -69,7 +76,18 @@ fun hoist_borrowed_temps(ep: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>): 
             }
         }
         FieldAccess(obj_ptr, _f) => hoist_borrowed_temps(obj_ptr, ctx, out)
-        Binary(l, _op, r) => {
+        Binary(l, op, r) => {
+            when (op) {
+                AndAnd => {
+                    hoist_short_circuit(ep, l, true, r, ctx, out)
+                    return
+                }
+                OrOr => {
+                    hoist_short_circuit(ep, l, false, r, ctx, out)
+                    return
+                }
+                _ => { }
+            }
             hoist_borrowed_temps(l, ctx, out)
             maybe_hoist_receiver(l, ctx, out)
             hoist_borrowed_temps(r, ctx, out)
@@ -80,11 +98,7 @@ fun hoist_borrowed_temps(ep: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>): 
         Cast(inner, _t) => hoist_borrowed_temps(inner, ctx, out)
         DynCoerce(inner, _vtable) => hoist_borrowed_temps(inner, ctx, out)
         Retain(inner) => hoist_borrowed_temps(inner, ctx, out)
-        IfExpr(c, t, el) => {
-            hoist_borrowed_temps(c, ctx, out)
-            hoist_borrowed_temps(t, ctx, out)
-            hoist_borrowed_temps(el, ctx, out)
-        }
+        IfExpr(c, t, el) => hoist_if_value(ep, c, t, el, ctx, out)
         StructLit(_n, finits) => {
             while finit in &finits {
                 hoist_borrowed_temps(finit.value, ctx, out)
@@ -104,6 +118,7 @@ fun maybe_hoist_owned_temp(p: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>):
     var is_temp = false
     when (e.kind) {
         Call(_, _) => is_temp = true
+        Intrinsic(_, _) => is_temp = true
         CallValue(_callee, _) => is_temp = true
         MethodCall(_, _, _) => is_temp = true
         StructLit(_, _) => is_temp = true
@@ -168,6 +183,11 @@ fun hoist_bounded_temps(ep: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>): v
     when (e.kind) {
         Binary(_l, _op, _r) => hoist_operator_operands(ep, ctx, out)
         Call(_n, args) => {
+            while i in 0..args.size() {
+                hoist_bounded_temps(args.at_mut(i), ctx, out)
+            }
+        }
+        Intrinsic(_intrinsic, args) => {
             while i in 0..args.size() {
                 hoist_bounded_temps(args.at_mut(i), ctx, out)
             }

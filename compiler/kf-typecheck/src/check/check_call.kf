@@ -10,77 +10,44 @@ import kf_typecheck.check.borrow.coerce_call_arg
 import kf_typecheck.note_import_use_named
 import kf_typecheck.check.control.yield_ref_binder_value
 
-/// `alloc<T>()`, `sizeof<T>()`, `take<T>(x)` and friends, the type folded into
-/// the callee name. Only reached with `Expr.is_intrinsic` set.
-fun intrinsic_call_type(name: String, args: &var List<Expr>, type_args: &var List<TypeRef>, span: Span, ctx: &var TypeCtx): Type {
-    if report_intrinsic_arity(name.as_str(), args.size(), span, ctx) { return poison_ty() }
-    // `alloc<T>` -> `Ptr<T>`; `sizeof<T>` -> uint64; `dealloc<T>` -> void;
-    // `take<T>(x)` -> the argument's type.
-    if name_starts_with(name, "alloc__") {
-        if type_args.size() == 1 {
-            return ptr_ty((*type_args.at(0)).resolve_type_ref(ctx), span)
-        }
-        val frag = mangle_suffix(name, 7)
-        return ptr_ty(ty_from_mangle_frag(frag, span, ctx.string_name()), span)
+/// `annotated<a>()` is replaced by the list it queries.
+mutating fun Expr.check_intrinsic(intrinsic: Intrinsic, args: &var List<Expr>, ctx: &var TypeCtx): void {
+    when (intrinsic) {
+        Annotated => self.expand_annotated(args, ctx)
+        _ => self.ty = intrinsic.call_type(args, self.type_args, self.span, ctx)
     }
-    // `alloc_array<T>` and `realloc_array<T>` return `Ptr<T>`.
-    if name_starts_with(name, "alloc_array__") {
-        if type_args.size() == 1 {
-            return ptr_ty((*type_args.at(0)).resolve_type_ref(ctx), span)
-        }
-        val frag = mangle_suffix(name, 13)
-        return ptr_ty(ty_from_mangle_frag(frag, span, ctx.string_name()), span)
-    }
-    if name_starts_with(name, "realloc_array__") {
-        if type_args.size() == 1 {
-            return ptr_ty((*type_args.at(0)).resolve_type_ref(ctx), span)
-        }
-        val frag = mangle_suffix(name, 15)
-        return ptr_ty(ty_from_mangle_frag(frag, span, ctx.string_name()), span)
-    }
-    if name_starts_with(name, "sizeof__") {
-        return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) }
-    }
-    if name_starts_with(name, "dealloc__") {
-        return void_ty(span)
-    }
-    if name_starts_with(name, "drop_in_place__") {
-        return void_ty(span)
-    }
-    // `clone_place<T>(p)`: a deep copy of the pointee, for generic container
-    // bodies where the element type stays `Generic(T)`.
-    if name_starts_with(name, "clone_place__") {
-        val frag = mangle_suffix(name, 13)
-        // Inside a generic body the fragment is a type parameter.
-        return ty_from_frag_in_scope(frag, span, ctx)
-    }
-    // `ptr_read<T>(p)`: the pointee, moved out bitwise and owned by the caller.
-    if name_starts_with(name, "ptr_read__") {
-        if args.size() > 0 { check_expr(args.at_mut(0), ctx) }
-        if type_args.size() == 1 {
-            return (*type_args.at(0)).resolve_type_ref(ctx)
-        }
-        return ty_from_frag_in_scope(mangle_suffix(name, 10), span, ctx)
-    }
-    if name_starts_with(name, "take__") {
-        if args.size() == 0 { return poison_ty() }
-        val ta = args.at_mut(0)
-        check_expr(ta, ctx)
-        // `take<List<Stmt>>(body)` on a reference binder moves the payload.
-        if type_args.size() == 1 {
-            val wanted = (*type_args.at(0)).resolve_type_ref(ctx)
-            val _read = ta.yield_ref_binder_value(&wanted, ctx)
-        }
-        return ta.ty.clone()
-    }
-    // Every intrinsic is matched above.
-    return poison_ty()
 }
 
-fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef>, is_intrinsic: bool, span: Span, ctx: &var TypeCtx): Type {
-    // CONSTRAINT: gated on the parser's flag, not the shape, which a
-    // crate-qualified free function in `alloc` shares.
-    if is_intrinsic { return intrinsic_call_type(name, args, type_args, span, ctx) }
+/// `alloc<T>()`, `sizeof<T>()`, `take<T>(x)` and friends.
+fun Intrinsic.call_type(args: &var List<Expr>, type_args: &var List<TypeRef>, span: Span, ctx: &var TypeCtx): Type {
+    if self.report_arity(args.size(), span, ctx) { return poison_ty() }
+    val type_argument = self.type_argument(type_args, span, ctx)
+    if type_args.size() != 1 { return poison_ty() }
+    return when (self.result()) {
+        PointerToTypeArgument => ptr_ty(type_argument, span)
+        TypeArgument => {
+            // `ptr_read<T>(p)`: the pointee, moved out bitwise and owned by
+            // the caller.
+            when (self) {
+                PtrRead => check_expr(args.at_mut(0), ctx)
+                _ => { }
+            }
+            type_argument
+        }
+        FirstArgument => {
+            val ta = args.at_mut(0)
+            check_expr(ta, ctx)
+            // `take<List<Stmt>>(body)` on a reference binder moves the payload.
+            val _read = ta.yield_ref_binder_value(&type_argument, ctx)
+            ta.ty.clone()
+        }
+        SizeInBytes => Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(span) }
+        Nothing => void_ty(span)
+        Query => poison_ty()
+    }
+}
+
+fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef>, span: Span, ctx: &var TypeCtx): Type {
     // Taken before the arguments, whose own calls are not through the alias.
     val through = ctx.through_module
     ctx.through_module = Sym { id: 0 }
@@ -221,15 +188,13 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
     }
     // The return type is substituted from explicit type args (the only source
     // for a parameter used just in the return), then from inference.
-    var ret = sig.ret
     while gi in 0..gnames.size() {
-        val gname = *gnames.at(gi)
         val binding = *bound_tys.at(gi)
         if !binding.is_poison() {
-            check_generic_bounds_with_bindings(name.clone(), gname.clone(), binding.clone(), &gnames, &bound_tys, span, ctx)
-            ret = ret.subst_generic(gname.clone(), binding)
+            check_generic_bounds_with_bindings(name.clone(), *gnames.at(gi), binding, &gnames, &bound_tys, span, ctx)
         }
     }
+    var ret = subst_all_generics(sig.ret, &gnames, &bound_or_left(&gnames, &bound_tys))
     // Projections in the return type are resolved now, since this body uses
     // the result; a still-generic owner is left for the post-pass.
     ret = ret.resolved_projection_type("", ctx.sigs)

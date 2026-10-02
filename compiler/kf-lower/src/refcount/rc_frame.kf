@@ -222,6 +222,7 @@ fun is_fresh_alloc(e: Expr): bool {
             if is_take { return true }
             return false
         }
+        Intrinsic(_, _) => return false
         StructLit(_, _) => return true
         MethodCall(_, m, _) => {
             val s = m.as_str()

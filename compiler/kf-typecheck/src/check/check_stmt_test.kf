@@ -14,6 +14,7 @@ import kf_typecheck.new_type_ctx
 import kf_typecheck.ret_op
 import kf_typecheck.types.TAG_STR
 import kf_typecheck.types.kind_tag
+import kf_typecheck.leaked_diagnostics
 
 @test fun enum_or_struct_name_returns_owned_str(): void {
     val name: String = TypeKind.EnumTy(intern("Choice")).enum_or_struct_name()
@@ -23,8 +24,6 @@ import kf_typecheck.types.kind_tag
 pub fun mk_stmt_ctx(): TypeCtx {
     val table = new_decl_table()
     val sigs = new_sig_table()
-    val diag_ptr: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diag_ptr = List.new<Diagnostic>() }
     val tab_ptr: Ptr<DeclTable> = unsafe { alloc<DeclTable>() }
     unsafe { *tab_ptr = table }
     val sig_ptr: Ptr<SigTable> = unsafe { alloc<SigTable>() }
@@ -32,18 +31,16 @@ pub fun mk_stmt_ctx(): TypeCtx {
     unsafe { (*sig_ptr).insert_struct(StructLayout { name: String.from("String"), fields: List.new<StructFieldInfo>(), is_refcounted: false, owner_crate: crate_id_poison() }) }
     unsafe { (*sig_ptr).lang_string = intern("String") }
     unsafe { (*sig_ptr).insert(FnSignature { name: String.from("String_from"), params: str_type_list(), ret: intern("String").lang_struct_ty(no_span()), generics: List.new<String>(), is_static: true, is_mutating: false, owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: -1, is_prelude: false, is_extern: false }) }
-    return new_type_ctx(void_ty(no_span()), diag_ptr, Option.Some(tab_ptr), sig_ptr)
+    return new_type_ctx(void_ty(no_span()), unsafe { &var *leaked_diagnostics() }, Option.Some(tab_ptr), sig_ptr)
 }
 
 /// No `String` in the table: a crate without alloc.
 fun mk_ctx_without_string(): TypeCtx {
-    val diag_ptr: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diag_ptr = List.new<Diagnostic>() }
     val tab_ptr: Ptr<DeclTable> = unsafe { alloc<DeclTable>() }
     unsafe { *tab_ptr = new_decl_table() }
     val sig_ptr: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *sig_ptr = new_sig_table() }
-    return new_type_ctx(void_ty(no_span()), diag_ptr, Option.Some(tab_ptr), sig_ptr)
+    return new_type_ctx(void_ty(no_span()), unsafe { &var *leaked_diagnostics() }, Option.Some(tab_ptr), sig_ptr)
 }
 
 fun str_type_list(): List<Type> {

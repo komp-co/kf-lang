@@ -7,7 +7,6 @@ import kf_core.ast.*
 import kf_lower.new_reached
 
 fun ctx_with_one_sink(name: String, borrow_sink: bool): MoveCtx {
-    val dp = fresh_diag_ptr()
     var sinks = List.new<bool>()
     sinks.push(borrow_sink)
     var muts = List.new<bool>()
@@ -31,7 +30,7 @@ fun ctx_with_one_sink(name: String, borrow_sink: bool): MoveCtx {
     // Normally filled from core's `impl Drop for String`.
     var names = List.new<String>()
     names.push(String.from("String"))
-    return new_move_ctx(dp, names, table, count, String.from("sink_test"), map, wp)
+    return new_move_ctx(unsafe { &var *fresh_diag_ptr() }, names, table, count, String.from("sink_test"), map, wp)
 }
 
 fun sink_test_call(callee: str): Expr {

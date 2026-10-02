@@ -46,8 +46,8 @@ fun generic_coerce_target(argument: Type): Type {
 }
 
 fun run_dyn_coerce(source_kind: uint8, target_mutable: bool, has_impl: bool, binding_mutable: bool): DynCoerceOutcome {
-    val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostics = List.new<Diagnostic>() }
+    val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
+    unsafe { *diagnostics = new_diagnostics() }
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signatures = new_sig_table() }
     unsafe { signatures.insert_trait(coerce_trait_info("Show")) }
@@ -63,7 +63,7 @@ fun run_dyn_coerce(source_kind: uint8, target_mutable: bool, has_impl: bool, bin
     }
     val owner: Ptr<TopDecl> = unsafe { alloc<TopDecl>() }
     unsafe { *owner = new_top_decl(no_span(), String.from("render"), TopDeclKind.Poison) }
-    var ctx = new_type_ctx(void_ty(no_span()), diagnostics, Option.None, signatures)
+    var ctx = new_type_ctx(void_ty(no_span()), unsafe { &var *diagnostics }, Option.None, signatures)
     ctx.metadata_owner = owner
     val point = Type { kind: TypeKind.Struct(intern("Point")), provenance: Provenance.Declared(no_span()) }
     var source = point
@@ -92,8 +92,8 @@ fun run_dyn_coerce(source_kind: uint8, target_mutable: bool, has_impl: bool, bin
 
 /// The same question `try_dyn_coerce` guards on, asked silently.
 fun run_could_coerce(source_kind: uint8, target_mutable: bool, has_impl: bool): DynCoerceOutcome {
-    val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostics = List.new<Diagnostic>() }
+    val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
+    unsafe { *diagnostics = new_diagnostics() }
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signatures = new_sig_table() }
     unsafe { signatures.insert_trait(coerce_trait_info("Show")) }
@@ -107,7 +107,7 @@ fun run_could_coerce(source_kind: uint8, target_mutable: bool, has_impl: bool): 
             arg_count: 0
         }) }
     }
-    var ctx = new_type_ctx(void_ty(no_span()), diagnostics, Option.None, signatures)
+    var ctx = new_type_ctx(void_ty(no_span()), unsafe { &var *diagnostics }, Option.None, signatures)
     val point = Type { kind: TypeKind.Struct(intern("Point")), provenance: Provenance.Declared(no_span()) }
     var source = point
     if source_kind == 1 { source = coerce_ref_type(point, false) }
@@ -163,15 +163,15 @@ fun run_could_coerce(source_kind: uint8, target_mutable: bool, has_impl: bool): 
 }
 
 @test fun dyn_coerce_requires_exact_trait_arguments(): void {
-    val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostics = List.new<Diagnostic>() }
+    val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
+    unsafe { *diagnostics = new_diagnostics() }
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signatures = new_sig_table() }
     var parameters = List.new<String>()
     parameters.push(String.from("T"))
     unsafe { signatures.insert_trait(TraitInfo { name: String.from("Show"), identity: intern("Show"), module: intern(""), span: no_span(), type_params: parameters, methods: List.new<TraitMethodReq>(), assoc_types: List.new<TraitAssocReq>(), supertraits: List.new<SuperTraitReq>() }) }
     unsafe { signatures.insert_trait_impl(TraitImplInfo { type_name: String.from("Point"), receiver_identity: intern("Point"), trait_name: String.from("Show"), trait_args: String.from("int32"), generics: "", arg_count: 1 }) }
-    var ctx = new_type_ctx(void_ty(no_span()), diagnostics, Option.None, signatures)
+    var ctx = new_type_ctx(void_ty(no_span()), unsafe { &var *diagnostics }, Option.None, signatures)
     ctx.declare_val(String.from("point"), Type { kind: TypeKind.Struct(intern("Point")), provenance: Provenance.Declared(no_span()) })
     var expression = new_expr(no_span(), ExprKind.Variable(intern("point")))
     check_expr(&var expression, &var ctx)
@@ -200,11 +200,11 @@ fun run_could_coerce(source_kind: uint8, target_mutable: bool, has_impl: bool): 
 }
 
 @test fun dyn_coerce_is_not_inferred_without_expected_type(): void {
-    val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostics = List.new<Diagnostic>() }
+    val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
+    unsafe { *diagnostics = new_diagnostics() }
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signatures = new_sig_table() }
-    var ctx = new_type_ctx(void_ty(no_span()), diagnostics, Option.None, signatures)
+    var ctx = new_type_ctx(void_ty(no_span()), unsafe { &var *diagnostics }, Option.None, signatures)
     ctx.declare_val(String.from("point"), Type { kind: TypeKind.Struct(intern("Point")), provenance: Provenance.Declared(no_span()) })
     var expression = new_expr(no_span(), ExprKind.Variable(intern("point")))
     check_expr(&var expression, &var ctx)
@@ -215,15 +215,15 @@ fun run_could_coerce(source_kind: uint8, target_mutable: bool, has_impl: bool): 
 }
 
 @test fun dyn_coerce_reaches_both_expected_if_branches(): void {
-    val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostics = List.new<Diagnostic>() }
+    val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
+    unsafe { *diagnostics = new_diagnostics() }
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signatures = new_sig_table() }
     unsafe { signatures.insert_trait(coerce_trait_info("Show")) }
     unsafe { signatures.insert_trait_impl(TraitImplInfo { type_name: String.from("Point"), receiver_identity: intern("Point"), trait_name: String.from("Show"), trait_args: "", generics: "", arg_count: 0 }) }
     val owner: Ptr<TopDecl> = unsafe { alloc<TopDecl>() }
     unsafe { *owner = new_top_decl(no_span(), String.from("choose"), TopDeclKind.Poison) }
-    var ctx = new_type_ctx(void_ty(no_span()), diagnostics, Option.None, signatures)
+    var ctx = new_type_ctx(void_ty(no_span()), unsafe { &var *diagnostics }, Option.None, signatures)
     ctx.metadata_owner = owner
     val point = Type { kind: TypeKind.Struct(intern("Point")), provenance: Provenance.Declared(no_span()) }
     ctx.declare_val(String.from("left"), point.clone())

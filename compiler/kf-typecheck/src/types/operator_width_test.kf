@@ -7,10 +7,9 @@ import kf_core.diagnostic.*
 import kf_resolve.*
 import kf_typecheck.*
 import kf_typecheck.check.check_expr
+import kf_typecheck.leaked_diagnostics
 
 fun operator_width_ctx(): TypeCtx {
-    val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostics = List.new<Diagnostic>() }
     val declarations: Ptr<DeclTable> = unsafe { alloc<DeclTable>() }
     unsafe { *declarations = new_decl_table() }
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
@@ -22,7 +21,7 @@ fun operator_width_ctx(): TypeCtx {
     unsafe { signatures.insert_trait_impl(TraitImplInfo { type_name: String.from("int64"), receiver_identity: intern("int64"), trait_name: String.from("Equal"), trait_args: "", generics: "", arg_count: 0 }) }
     unsafe { (*signatures).note_lang_trait("equal", intern("Equal")) }
     unsafe { (*signatures).note_lang_trait("compare", intern("Compare")) }
-    return new_type_ctx(void_ty(no_span()), diagnostics, declarations, signatures)
+    return new_type_ctx(void_ty(no_span()), unsafe { &var *leaked_diagnostics() }, declarations, signatures)
 }
 
 fun operator_width_var(name: str, kind: TypeKind): Ptr<Expr> {
@@ -51,7 +50,7 @@ fun mixed_width_diagnostic_count(op: BinOp): uint64 {
     ctx.declare(String.from("right"), unsafe { right.ty.clone() })
     var expression = new_expr(no_span(), ExprKind.Binary(left, op, right))
     check_expr(&var expression, &var ctx)
-    return unsafe { (*ctx.diags).size() }
+    return ctx.diags.items.size()
 }
 
 fun check_wide_value_with_literal(op: BinOp, literal_left: bool): bool {

@@ -107,9 +107,7 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
         }
         Call(callee_name, args) => {
             val through_alias = ctx.through_module.id != 0
-            if e.is_intrinsic && callee_name.as_str().starts_with(annotated_prefix()) {
-                e.expand_annotated(&args, ctx)
-            } else if !through_alias && callee_name.local_is_function_value(ctx) {
+            if !through_alias && callee_name.local_is_function_value(ctx) {
                 e.kind = ExprKind.CallValue(Box.new(new_expr(e.span, ExprKind.Variable(callee_name))), args)
                 check_expr(e, ctx)
             } else if !through_alias && callee_name.local_is_callable(args.size(), ctx) {
@@ -118,7 +116,7 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
                 e.kind = ExprKind.MethodCall(receiver, intern("call"), args)
                 check_expr(e, ctx)
             } else if through_alias || !e.extension_function_call(callee_name, &var args, ctx) {
-                e.ty = check_call(callee_name.as_string(), args, e.type_args, e.is_intrinsic, e.span, ctx)
+                e.ty = check_call(callee_name.as_string(), args, e.type_args, e.span, ctx)
                 if ctx.qualified_callee.byte_len() > 0 {
                     val kept = args.clone()
                     e.kind = ExprKind.Call(intern(ctx.qualified_callee.as_str()), kept)
@@ -130,6 +128,7 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
                 }
             }
         }
+        Intrinsic(intrinsic, args) => e.check_intrinsic(intrinsic, args, ctx)
         MethodCall(recv_ptr, method_name_sym, args) => {
             check_method_expr(e, recv_ptr, method_name_sym, &var args, ctx)
         }
@@ -199,6 +198,8 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
             // The cast converts a literal of any width.
             if is_integer_literal(operand) { note_literal_sized(operand.span, ctx) }
             reject_enum_to_number_cast(operand.ty.clone(), e.ty.clone(), e.span, ctx)
+            val names_an_address = borrowed || is_integer_literal(operand)
+            if !names_an_address { reject_integer_to_pointer_cast(&operand.ty, &e.ty, e.span, ctx) }
         }
         DynCoerce(inner_ptr, _) => {
             check_expr(unsafe { &var *inner_ptr }, ctx)
@@ -479,16 +480,6 @@ pub fun autoderef_ty(t: Type): Type {
         RefTo(_, p) => autoderef_ty(unsafe { *p })
         _ => t
     }
-}
-
-/// `opt as uint64` is rejected: it reads an enum's representation, and is
-/// the shape a null-sentinel test takes after migration to an Option.
-fun reject_enum_to_number_cast(from: Type, to: Type, span: Span, ctx: &var TypeCtx): void {
-    if from.is_poison() { return }
-    if !is_numeric(to) { return }
-    if !from.type_is_enum_layout(ctx) { return }
-    val msg = "`${mangle_type(from).as_str()}` is an enum and cannot be cast to a number — test it with `.is_some()` / `.is_none()`, or match it"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
 }
 
 /// Every user type resolves to `Struct(name)`, so the layout table tells an

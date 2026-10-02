@@ -156,6 +156,7 @@ fun check_let(name: String, ann: Ptr<TypeRef>?, init_ptr: Ptr<Expr>, mutable: bo
     // Read before check_expr clears it.
     val written = unsafe { init_ptr.coerce }
     val live = unsafe { &var *init_ptr }
+    if ann.is_some() { live.take_annotated_type_args(unsafe { &*(ann!!) }) }
     check_local_initializer(live, ctx)
     if ann.is_none() && live.declares_decided(name.clone(), mutable, ctx) { return }
     // The live node: the rewrites below replace what a copy would still hold.

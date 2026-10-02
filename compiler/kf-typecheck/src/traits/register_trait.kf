@@ -8,7 +8,7 @@ import kf_typecheck.*
 import kf_core.span.no_span
 import kf_typecheck.check.decl.*
 
-pub fun register_struct(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>,
+pub fun register_struct(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: &var Diagnostics,
     table: Ptr<DeclTable>?): void {
     if td.reject_reserved_type_name(diags) { return }
     if td.rejects_lang_type_name(unsafe { (*sig_ptr).lang_string }, diags) { return }
@@ -79,12 +79,12 @@ pub fun register_struct(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: Ptr<Lis
 
 /// A trait's name only, nothing resolved: the first of two passes, so a
 /// method naming `dyn OtherTrait` does not depend on order.
-pub fun TopDecl.register_trait_name(sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): void {
+pub fun TopDecl.register_trait_name(sig_ptr: Ptr<SigTable>, diags: &var Diagnostics): void {
     when (self.kind) {
         TraitDecl(_methods, _is_pub, _supers) => {
             if unsafe { (*sig_ptr).find_trait(self.name.as_str()).is_some() } {
                 val message = "trait `${self.name.as_str()}` conflicts with an existing trait of the same name"
-                unsafe { diags.push(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message))) }
+                diags.emit(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
                 return
             }
             unsafe { sig_ptr.insert_trait(TraitInfo {
@@ -102,7 +102,7 @@ fun TopDecl.trait_identity_of(): Sym {
     return canonical_type_identity(new_type_identity(self.crate, self.module_path, self.name))
 }
 
-pub fun register_trait_decl(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>,
+pub fun register_trait_decl(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: &var Diagnostics,
     table: Ptr<DeclTable>?): void {
     when (td.kind) {
         TraitDecl(methods, _is_pub, declared_supers) => {

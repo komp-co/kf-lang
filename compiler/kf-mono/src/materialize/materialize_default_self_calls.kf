@@ -117,6 +117,9 @@ mutating fun Expr.stamp_expr(owner_name: str, suffix: str, siblings: &List<Strin
         Call(_, args) => {
             stamp_args(args, owner_name, suffix, siblings)
         }
+        Intrinsic(_, args) => {
+            stamp_args(args, owner_name, suffix, siblings)
+        }
         CallValue(callee_ptr, args) => {
             stamp_expr(&var *callee_ptr, owner_name, suffix, siblings)
             stamp_args(args, owner_name, suffix, siblings)

@@ -3,17 +3,15 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
-import kf_core.diagnostic.*
 import kf_resolve.*
 import kf_typecheck.new_sig_table
 import kf_typecheck.new_type_ctx
 import kf_typecheck.types.*
+import kf_typecheck.leaked_diagnostics
 
 pub fun mk_ctx(): TypeCtx {
     val table = new_decl_table()
     val sigs = new_sig_table()
-    val diag_ptr: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diag_ptr = List.new<Diagnostic>() }
     val tab_ptr: Ptr<DeclTable> = unsafe { alloc<DeclTable>() }
     unsafe { *tab_ptr = table }
     val sig_ptr: Ptr<SigTable> = unsafe { alloc<SigTable>() }
@@ -30,7 +28,7 @@ pub fun mk_ctx(): TypeCtx {
     unsafe { (*sig_ptr).note_lang_trait("mul", intern("Mul")) }
     unsafe { (*sig_ptr).note_lang_trait("div", intern("Div")) }
     unsafe { (*sig_ptr).note_lang_trait("compare", intern("Compare")) }
-    return new_type_ctx(void_ty(no_span()), diag_ptr, Option.Some(tab_ptr), sig_ptr)
+    return new_type_ctx(void_ty(no_span()), unsafe { &var *leaked_diagnostics() }, Option.Some(tab_ptr), sig_ptr)
 }
 
 @test fun lit_int_is_int32(): void {
@@ -559,18 +557,24 @@ pub fun mk_ctx(): TypeCtx {
     var ctx = mk_ctx()
     var args = List.new<Expr>()
     args.push(new_expr(no_span(), ExprKind.LitInt(4)))
-    var e = new_expr(no_span(), ExprKind.Call(intern("alloc_array__int32"), args))
-    // The parser's flag, not the name, makes an intrinsic.
-    e.is_intrinsic = true
+    var e = new_expr(no_span(), ExprKind.Intrinsic(Intrinsic.AllocArray, args))
+    e.type_args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {
         PtrTo(p) => {
             val inner = unsafe { *p }
             val expected = int32_ty(no_span())
-            assert_eq(inner.type_eq(expected), true, "alloc_array__int32 -> Ptr<int32>")
+            assert_eq(inner.type_eq(expected), true, "alloc_array<int32> -> Ptr<int32>")
         }
-        _ => fail("expected PtrTo result for alloc_array__int32")
+        _ => fail("expected PtrTo result for alloc_array<int32>")
     }
+}
+
+@test fun an_intrinsic_without_its_type_argument_is_reported(): void {
+    var ctx = mk_ctx()
+    var e = new_expr(no_span(), ExprKind.Intrinsic(Intrinsic.Sizeof, List.new<Expr>()))
+    check_expr(&var e, &var ctx)
+    assert_eq(ctx.diags.has_errors(), true, "`sizeof<>()` names no type")
 }
 
 @test fun box_new_types_as_boxof(): void {
@@ -619,8 +623,7 @@ fun alloc_intrinsic_preserves_qualified_type_argument(): void {
     unsafe { tab.insert(String.from("Point")) }
     val sp = ctx.sigs
     unsafe { sp.insert_type_identity(new_type_identity(new_crate_id("left"), intern("models"), intern("Point"))) }
-    var e = new_expr(no_span(), ExprKind.Call(intern("alloc__Point"), List.new<Expr>()))
-    e.is_intrinsic = true
+    var e = new_expr(no_span(), ExprKind.Intrinsic(Intrinsic.Alloc, List.new<Expr>()))
     e.type_args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("Point"), List.new<TypeRef>())))
     check_expr(&var e, &var ctx)
     when (e.ty.kind) {

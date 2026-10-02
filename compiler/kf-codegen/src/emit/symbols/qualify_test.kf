@@ -175,19 +175,18 @@ fun type_phase_qualifies_a_stamped_generic_instance_method_callee(): void {
 }
 
 @test
-fun type_phase_qualifies_a_folded_generic_intrinsic(): void {
+fun type_phase_qualifies_an_intrinsic_type_argument(): void {
     var fixture = build_fixture()
-    unsafe { (*fixture.call).mangled_callee = intern("alloc__Point") }
+    unsafe { (*fixture.call).kind = ExprKind.Intrinsic(Intrinsic.Alloc, List.new<Expr>()) }
     unsafe { (*fixture.call).type_args.push(new_type_ref(no_span(), TypeRefKind.Named(intern("Point"), List.new<TypeRef>()))) }
     fixture.module.qualify_type_symbols()
-    val callee_ok = unsafe { (*fixture.call).mangled_callee.as_str() } == "alloc__aa__Point"
     val arg = unsafe { *(*fixture.call).type_args.at(0) }
     var arg_ok = false
     when (arg.kind) {
         Named(name, _args) => { arg_ok = name.as_str() == "aa__Point" }
         _ => {}
     }
-    assert_eq(callee_ok && arg_ok, true, "generic intrinsic fragments and type arguments use qualified types")
+    assert_eq(arg_ok, true, "an intrinsic's type argument uses the qualified type")
 }
 
 @test

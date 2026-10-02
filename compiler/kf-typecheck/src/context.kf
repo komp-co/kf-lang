@@ -27,13 +27,13 @@ pub struct LocalBinding {
     pub var narrowed_at: Span
 }
 
-pub struct TypeCtx {
+pub view struct TypeCtx {
     pub var locals: List<LocalBinding>
     pub var return_ty: Type
     /// The impl's target, which `Self` means.
     pub var self_ty: Type
     pub var generics: List<String>
-    pub var diags: Ptr<List<Diagnostic>>
+    pub var diags: &var Diagnostics
     /// None during the pre-passes, which run before a table exists.
     pub var table: Ptr<DeclTable>?
     pub var sigs: Ptr<SigTable>
@@ -98,7 +98,7 @@ pub struct TypeCtx {
     pub var deferred_literals: List<DeferredLiteral>
 }
 
-pub fun new_type_ctx(return_ty: Type, diags: Ptr<List<Diagnostic>>, table: Ptr<DeclTable>?, sigs: Ptr<SigTable>): TypeCtx {
+pub fun new_type_ctx(return_ty: Type, diags: &var Diagnostics, table: Ptr<DeclTable>?, sigs: Ptr<SigTable>): TypeCtx {
     return TypeCtx {
         locals: List.new<LocalBinding>(),
         return_ty: return_ty,
@@ -278,6 +278,6 @@ impl TypeCtx {
 
     pub mutating fun emit(diag: Diagnostic): void {
         if self.quiet { return }
-        (*self.diags).push(diag)
+        self.diags.emit(diag)
     }
 }

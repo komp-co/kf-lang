@@ -35,6 +35,13 @@ pub fun Expr.borrow_place_is_stable(): bool {
                 _ => return false
             }
         }
+        Intrinsic(_, _) => {
+            when (self.ty.kind) {
+                RefTo(_, _) => return true
+                PtrTo(_) => return true
+                _ => return false
+            }
+        }
         CallValue(_callee, _) => {
             when (self.ty.kind) {
                 RefTo(_, _) => return true

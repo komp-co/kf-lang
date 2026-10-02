@@ -130,6 +130,9 @@ fun materialize_method_return_instance(ret: Type, binding: &RecvBinding, method_
         }
         if !found { return }
     }
+    // Only an instance listing the parameters in the template's order:
+    // `Pair<B, A>` from `Pair<A, B>` would get the layout of its transpose.
+    if !monomorphized_type_name(base.clone(), &args).as_str().equals(name.as_str()) { return }
     instantiate_generic_layout(base, &args, name, ctx)
 }
 
@@ -190,14 +193,12 @@ pub fun instance_variant_payloads(inst_name: str, variant_name: str, ctx: &var T
     while v in &tpl.variants {
         if v.name.as_str().equals(variant_name) {
             var out = List.new<Type>()
-            while pi in 0..v.payloads.size() {
-                var pty = *v.payloads.at(pi)
-                var ai = 0
-                while ai < info.type_params.size() {
-                    pty = pty.subst_generic(*info.type_params.at(ai), (*row.args.at(ai)).resolve_type_ref(ctx))
-                    ai = ai + 1
-                }
-                out.push(pty)
+            var arg_types = List.new<Type>()
+            while arg in &row.args {
+                arg_types.push(arg.resolve_type_ref(ctx))
+            }
+            while payload in &v.payloads {
+                out.push(subst_all_generics(payload, &info.type_params, &arg_types))
             }
             return out
         }
