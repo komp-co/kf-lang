@@ -80,10 +80,6 @@ fun List<ExpansionSite>.site_of(at: Span): uint64? {
     return null
 }
 
-fun Span.same_as(other: Span): bool {
-    return self.file_id == other.file_id && self.start == other.start && self.end == other.end
-}
-
 fun Span.holds(other: Span): bool {
     return self.file_id == other.file_id && self.start <= other.start && other.end <= self.end
 }

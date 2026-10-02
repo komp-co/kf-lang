@@ -19,6 +19,11 @@ impl Span {
         return self.file_id == 0
     }
 
+    /// The same bytes of the same file.
+    pub fun same_as(other: Span): bool {
+        return self.file_id == other.file_id && self.start == other.start && self.end == other.end
+    }
+
     /// The smallest span covering both; `self`'s file wins.
     pub fun merge(other: Span): Span {
         var s: uint32 = self.start

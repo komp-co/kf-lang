@@ -14,11 +14,17 @@ pub struct LocalBinding {
     pub var ty: Type
     // Mutability through a reference comes from its type, not this.
     pub val is_var: bool
-    /// An unannotated binding's literal initializer, which its first use may
-    /// retype; null otherwise.
+    /// An unannotated binding's initializer while its type is still open, which
+    /// a use may retype; null otherwise.
     pub var flexible_init: Ptr<Expr>?
-    /// Where the binding is first read; `no_span()` until it is.
-    pub var first_use: Span
+    /// How many places read the binding, and the latest.
+    pub var uses: uint64
+    pub var last_use: Span
+    /// The use that decided an open binding's type; `no_span()` otherwise.
+    pub var decided_at: Span
+    /// The first use that narrowed it without deciding: a `str` slot rules out
+    /// every other type a string literal converts to.
+    pub var narrowed_at: Span
 }
 
 pub struct TypeCtx {
@@ -84,6 +90,12 @@ pub struct TypeCtx {
     /// The admission of the alias a call goes through, for the next
     /// `check_call`.
     pub var through_module: Sym
+    /// Types uses decided after earlier uses, for the body's next check, and
+    /// those a previous check decided.
+    pub var decisions: List<OpenDecision>
+    pub var presets: List<OpenDecision>
+    /// Element mismatches in literals no slot has typed yet.
+    pub var deferred_literals: List<DeferredLiteral>
 }
 
 pub fun new_type_ctx(return_ty: Type, diags: Ptr<List<Diagnostic>>, table: Ptr<DeclTable>?, sigs: Ptr<SigTable>): TypeCtx {
@@ -118,7 +130,10 @@ pub fun new_type_ctx(return_ty: Type, diags: Ptr<List<Diagnostic>>, table: Ptr<D
         pretyped_args: 0,
         qualified_callee: String.from(""),
         pinned_callee: String.from(""),
-        through_module: Sym { id: 0 }
+        through_module: Sym { id: 0 },
+        decisions: List.new<OpenDecision>(),
+        presets: List.new<OpenDecision>(),
+        deferred_literals: List.new<DeferredLiteral>()
     }
 }
 
@@ -167,19 +182,19 @@ impl TypeCtx {
 
     // A mutable binding. Only `declare_val` sites are enforced.
     pub mutating fun declare(name: String, ty: Type): void {
-        self.locals.push(LocalBinding { name: name, ty: ty, is_var: true, flexible_init: null, first_use: no_span() })
+        self.locals.push(LocalBinding { name: name, ty: ty, is_var: true, flexible_init: null, uses: 0, last_use: no_span(), decided_at: no_span(), narrowed_at: no_span() })
     }
 
     // An immutable binding: `val`, params, `self` in a non-mutating method.
     pub mutating fun declare_val(name: String, ty: Type): void {
-        self.locals.push(LocalBinding { name: name, ty: ty, is_var: false, flexible_init: null, first_use: no_span() })
+        self.locals.push(LocalBinding { name: name, ty: ty, is_var: false, flexible_init: null, uses: 0, last_use: no_span(), decided_at: no_span(), narrowed_at: no_span() })
     }
 
     pub mutating fun declare_flexible(name: String, ty: Type, is_var: bool, init: Ptr<Expr>): void {
-        self.locals.push(LocalBinding { name: name, ty: ty, is_var: is_var, flexible_init: init, first_use: no_span() })
+        self.locals.push(LocalBinding { name: name, ty: ty, is_var: is_var, flexible_init: init, uses: 0, last_use: no_span(), decided_at: no_span(), narrowed_at: no_span() })
     }
 
-    /// Unless already recorded.
+    /// A node checked again is not a second use.
     pub mutating fun note_use(name: str, span: Span): void {
         if span.is_none() { return }
         var i: uint64 = self.locals.size()
@@ -187,47 +202,10 @@ impl TypeCtx {
             i = i - 1
             if self.locals.at(i).name.as_str().equals(name) {
                 val binding = self.locals.at_mut(i)
-                if binding.first_use.is_none() { binding.first_use = span }
-                return
-            }
-        }
-    }
-
-    /// Present only while the binding is flexible and `span` is its first use.
-    pub fun flexible_init_at(name: str, span: Span): Ptr<Expr>? {
-        if span.is_none() { return null }
-        var i: uint64 = self.locals.size()
-        while i > 0 {
-            i = i - 1
-            val binding = self.locals.at(i)
-            if binding.name.as_str().equals(name) {
-                val first = binding.first_use
-                if first.file_id == span.file_id && first.start == span.start && first.end == span.end { return binding.flexible_init }
-                return null
-            }
-        }
-        return null
-    }
-
-    /// The initializer while the binding is flexible, at any use.
-    pub fun flexible_init_of(name: str): Ptr<Expr>? {
-        var i: uint64 = self.locals.size()
-        while i > 0 {
-            i = i - 1
-            val binding = self.locals.at(i)
-            if binding.name.as_str().equals(name) { return binding.flexible_init }
-        }
-        return null
-    }
-
-    pub mutating fun pin_binding(name: str, ty: Type): void {
-        var i: uint64 = self.locals.size()
-        while i > 0 {
-            i = i - 1
-            if self.locals.at(i).name.as_str().equals(name) {
-                val binding = self.locals.at_mut(i)
-                binding.ty = ty
-                binding.flexible_init = null
+                if !binding.last_use.same_as(span) {
+                    binding.uses = binding.uses + 1
+                    binding.last_use = span
+                }
                 return
             }
         }

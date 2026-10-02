@@ -51,11 +51,18 @@ pub mutating fun Expr.expand_annotated(args: &List<Expr>, ctx: &var TypeCtx): vo
             elements.push(annotated_entry(&listed, &declared, &shape, self.span, ctx))
         }
     }
-    var new_call = collection_new_call(self.span, ctx.list_name())
-    new_call.type_args.push(new_type_ref(self.span, TypeRefKind.Named(intern(shape.entry_type_name()),
+    var built = if elements.size() == 0 {
+        collection_new_call(self.span, ctx.list_name())
+    } else {
+        var array = List.new<Expr>()
+        array.push(list_literal_expr(self.span, &elements))
+        val receiver = Box.new(new_expr(self.span, ExprKind.Variable(ctx.list_name())))
+        new_expr(self.span, ExprKind.MethodCall(receiver, intern("from"), array))
+    }
+    built.type_args.push(new_type_ref(self.span, TypeRefKind.Named(intern(shape.entry_type_name()),
         entry_type_args(&declared, &shape, self.span))))
-    new_call.type_args_written = true
-    *self = collection_literal_expr(self.span, &elements, new_call)
+    built.type_args_written = true
+    *self = built
     check_expr(self, ctx)
 }
 

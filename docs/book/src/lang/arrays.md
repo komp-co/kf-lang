@@ -41,9 +41,9 @@ src/main.kf:2:24: error: this literal has 2 elements, but `int32[3]` holds 3
                            ^~~~~~
 ```
 
-With no array expected, `[1, 2, 3]` is still a `List<int32>`; see
-[alloc](../libs/alloc.md#list-literals). A crate without alloc has no list to
-build, so there the same literal is an `int32[3]`, typed by its first element.
+With no slot at all, `[1, 2, 3]` is an `int32[3]`, typed by its first
+element, unless a use of its binding needs a list; see
+[alloc](../libs/alloc.md#list-literals).
 
 A string literal written where a `uint8` or `char` array is expected builds
 that array: its UTF-8 bytes, or its characters, one per element. A `&uint8[]`
@@ -123,6 +123,12 @@ src/main.kf:7:5: error: `list` cannot be changed here: `view` borrows it and is 
         list.push(2)
         ^~~~~~~~~~~~
 ```
+
+A method a slice has and the array or list lacks is called through the slice
+it lends: the shared one when the slice's method reads, the mutable one when
+it writes, which needs a `var` as above. `xs.sort()` on a `var` array sorts it
+in place; core's [slice algorithms](../libs/core.md#algorithms) and any
+extension written on `&T[]` are reached this way.
 
 `slice(range)` narrows a slice to part of the same elements, and an array or
 list names its own slices with `as_slice()` and `as_slice_mut()`:

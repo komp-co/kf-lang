@@ -13,14 +13,7 @@ impl List<T> {
     }
 
     pub mutating fun reverse(): void {
-        if self.len < 2 { return }
-        var i: uint64 = 0
-        var j: uint64 = self.len - 1
-        while i < j {
-            self.swap(i, j)
-            i = i + 1
-            j = j - 1
-        }
+        self.as_slice_mut().reverse()
     }
 
     /// O(n), shifting the rest right. An `i` past the end appends.

@@ -1,20 +1,12 @@
-// A list literal is built as a List unless its slot wants another collection:
-// the lang List, or a type implementing core's `FromElements`. kf_core's
-// list_literal.kf has the shape it parses to.
+// `[]` has no element to type it by, so it is the lang List's `new()` until a
+// slot or a use names what it holds; a slot of an array or of a type
+// converting from one retargets it instead. kf_core's list_literal.kf has the
+// shape every list literal parses to.
 
 import alloc.list.*
 
 import kf_core.ast.*
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
-import kf_typecheck.types.note_open_call_typed
-import kf_typecheck.check.borrow.coerce_call_arg
-import kf_typecheck.types.display_type
 import kf_typecheck.types.nominal_name
-import kf_typecheck.types.type_eq
-
-/// CONSTRAINT: by name until a release's seed knows a lang key for it.
-fun from_elements_trait_name(): str { return "FromElements" }
 
 /// `[]` names the lang List, and is remembered as a literal.
 mutating fun Expr.name_empty_list_literal(ctx: &var TypeCtx): void {
@@ -34,41 +26,12 @@ fun Expr.names_empty_list_literal(): bool {
     }
 }
 
-fun Expr.is_list_literal(ctx: &TypeCtx): bool {
-    if self.list_literal_binder().byte_len() > 0 { return true }
+/// `[]`, once named.
+fun Expr.is_empty_list_literal(ctx: &TypeCtx): bool {
     while span in &ctx.list_literals {
-        if span.file_id == self.span.file_id && span.start == self.span.start && span.end == self.span.end {
-            return true
-        }
+        if span.same_as(self.span) { return true }
     }
     return false
-}
-
-/// A literal in a slot of another collection type is rebuilt against it:
-/// the slot's `new()`, then a `push` per element. True when it was.
-mutating fun Expr.retarget_list_literal(expected: Type, ctx: &var TypeCtx): bool {
-    if !self.is_list_literal(ctx) || expected.is_poison() || self.ty.type_eq(expected) { return false }
-    if expected.written_type_name(ctx).as_str().byte_len() == 0 { return false }
-    if !expected.builds_from_elements(ctx) {
-        if !expected.is_nominal() { return false }
-        val shown = expected.display_type(ctx)
-        val message = "a list literal cannot build `${shown}`: it does not implement `${from_elements_trait_name()}`"
-        ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
-        self.ty = poison_ty()
-        return true
-    }
-    note_open_call_typed(self.span, ctx)
-    val elements = self.list_literal_elements()
-    var new_call = collection_new_call(self.span, expected.written_type_name(ctx))
-    val inst = expected.expected_inst(ctx)
-    if inst.is_some() {
-        val found = inst ?: return false
-        new_call.type_args = found.args.clone()
-        new_call.type_args_written = true
-    }
-    *self = collection_literal_expr(self.span, &elements, new_call)
-    check_expr(self, ctx)
-    return true
 }
 
 /// The name a static call is written against: a generic instance's template,
@@ -85,47 +48,10 @@ fun Type.written_type_name(ctx: &var TypeCtx): Sym {
     return intern(parts.at(parts.size() - 1).as_str())
 }
 
-fun Type.builds_from_elements(ctx: &var TypeCtx): bool {
-    if self.kind.nominal_name().as_str() == ctx.list_name().as_str() { return true }
-    if self.is_list_instance(ctx) { return true }
-    return self.bound_type_implements(from_elements_trait_name(), ctx.sigs)
-}
-
-fun Type.is_list_instance(ctx: &var TypeCtx): bool {
-    val inst = self.expected_inst(ctx) ?: return false
-    return inst.base.as_str() == ctx.list_name().as_str()
-}
-
 fun Type.is_nominal(): bool {
     return when (self.kind) {
         Struct(_identity) => true
         EnumTy(_identity) => true
         _ => false
     }
-}
-
-/// A push the literal's block makes, as opposed to one written.
-fun Expr.pushes_list_literal_element(): bool {
-    return when (self.kind) {
-        MethodCall(receiver, _method, _args) => receiver.names_list_literal_binder()
-        _ => false
-    }
-}
-
-fun Expr.names_list_literal_binder(): bool {
-    return when (self.kind) {
-        Variable(name) => name.as_str().starts_with(list_literal_prefix())
-        _ => false
-    }
-}
-
-/// `check_method_arg`, reported as the element it is rather than a push.
-fun check_list_literal_element(args: &var List<Expr>, arg_tys: &List<Type>, expected: Type, ctx: &var TypeCtx): bool {
-    val outcome = coerce_call_arg(args, 0, expected.clone(), ctx)
-    if !outcome.valid { return false }
-    val actual = if arg_tys.at(0).is_poison() { poison_ty() } else { args.at(0).ty.clone() }
-    if outcome.coerced || actual.type_eq(expected) || ctx.fits(actual, expected) { return true }
-    val message = "this element is `${actual.display_type(ctx)}`, but the list holds `${expected.display_type(ctx)}`"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(args.at(0).span, message)))
-    return false
 }
