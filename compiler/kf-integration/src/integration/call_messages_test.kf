@@ -1,0 +1,51 @@
+// What the checker says when a call's arguments disagree with what it, or an
+// earlier use, decided.
+
+import core.assert.assert_eq
+import alloc.list.*
+import kf_resolve.new_decl_table
+import kf_resolve.resolve_module
+import kf_typecheck.typecheck_module
+import kf_integration.harness.typed_crate_for
+import std.fs.scratch_path
+
+extern "C" fun system(cmd: str): int32
+
+/// Whether checking `source` as a one-file crate reports `needle`.
+fun reports(name: str, source: str, needle: str): bool {
+    val root = scratch_path(name)
+    unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
+    write_file("${root}/kf.toml".as_str(), "[project]\nname = \"call_probe\"\nkind = \"lib\"\n")
+    val file = "${root}/src/lib.kf"
+    write_file(file.as_str(), source)
+    var crate = typed_crate_for(file.as_str())
+    var table = new_decl_table()
+    resolve_module(&var crate.module, &var table)
+    val diags = typecheck_module(&var crate.module, &var table)
+    while d in &diags {
+        if d.primary.message.as_str().contains(needle) { return true }
+    }
+    return false
+}
+
+@test
+fun a_type_parameter_mismatch_names_the_argument_that_decided_it(): void {
+    val said = reports("kf_call_decided", """struct Sym { val id: int32 }
+fun same<T>(a: T, b: T): bool { return true }
+pub fun f(): bool { return same(Sym { id: 1 }, "x") }
+""", "expected `Sym`, as argument 1 decided, found `str`")
+    assert_eq(said, true, "argument 2 is checked against what argument 1 made `T`")
+}
+
+@test
+fun an_open_list_reports_what_the_later_use_expects(): void {
+    val said = reports("kf_call_open_list", """import alloc.list.*
+fun take_names(xs: &var List<String>): uint64 { return xs.size() }
+pub fun f(): uint64 {
+    var names = []
+    names.push("T")
+    return take_names(&var names)
+}
+""", "but this use expects `List<String>`")
+    assert_eq(said, true, "the conflicting use names its expectation")
+}
