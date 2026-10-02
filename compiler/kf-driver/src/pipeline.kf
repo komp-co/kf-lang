@@ -32,6 +32,11 @@ pub struct ErrCount {
     pub var n: int32
 }
 
+/// Whether any error has been counted.
+pub fun has_errors(errp: Ptr<ErrCount>): bool {
+    return unsafe { errp.n } != 0
+}
+
 /// Filled by the assembler, read by the diagnostic renderer.
 /// Owned by the caller; the passes it is handed to borrow it.
 pub fun fresh_source_map(): Box<SourceMap> {
@@ -47,7 +52,7 @@ pub mutating fun Module.compile_module(is_bin: bool, errp: Ptr<ErrCount>, smap: 
     self.run_resolve_typecheck(errp, smap)
     // Later passes assume a well-typed tree; the diagnostics are printed and
     // the caller refuses to write output.
-    if unsafe { errp.n } != 0 { return "" }
+    if has_errors(errp) { return "" }
     val list_name = self.lang_type_name(lang_list_key())
     self.report_template_copies(errp, smap)
     mono_module(self)
@@ -64,6 +69,8 @@ pub mutating fun Module.compile_module(is_bin: bool, errp: Ptr<ErrCount>, smap: 
 /// mangle is qualified; function renames after Lower via mangled_callee.
 pub mutating fun Module.compile_module_separate(is_bin: bool, errp: Ptr<ErrCount>, smap: Ptr<SourceMap>): String {
     self.run_separate_passes(errp, smap)
+    // Codegen assumes a well-typed, lowered tree.
+    if has_errors(errp) { return "" }
     return emit_module_unit(self, is_bin)
 }
 
@@ -81,7 +88,7 @@ pub mutating fun Module.run_interface_passes(errp: Ptr<ErrCount>, smap: Ptr<Sour
 
 pub mutating fun Module.run_separate_after_typecheck(errp: Ptr<ErrCount>, smap: Ptr<SourceMap>): void {
     // Later passes assume a well-typed tree.
-    if unsafe { errp.n } != 0 { return }
+    if has_errors(errp) { return }
     qualify_type_symbols(self)
     val list_name = self.lang_type_name(lang_list_key())
     self.report_template_copies(errp, smap)
