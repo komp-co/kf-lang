@@ -14,6 +14,7 @@ import kf_typecheck.types.*
 import kf_typecheck.traits.*
 import kf_typecheck.check.record_untyped_receiver
 import kf_typecheck.check.borrow.coerce_call_arg
+import kf_typecheck.check.borrow.reject_kept_temporary
 import kf_typecheck.note_import_use
 
 /// `Equal`, `Compare` and `Display` on built-in types are satisfied without an
@@ -432,6 +433,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
                 }
                 val pushed = ty_from_frag_in_scope(elem_frag.clone(), _span, ctx)
                 if call.receiver_still_open(ctx) { return Type.new_void(_span) }
+                if args.at(0).reject_kept_temporary(&pushed, method_name.as_str(), ctx) { return Type.new_poison() }
                 if !check_method_arg(args, &arg_tys, 0, pushed, method_name, _span, ctx) { return Type.new_poison() }
                 return Type.new_void(_span)
             }
@@ -442,6 +444,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
                 }
                 val stored = ty_from_frag_in_scope(elem_frag.clone(), _span, ctx)
                 if call.receiver_still_open(ctx) { return Type.new_void(_span) }
+                if args.at(1).reject_kept_temporary(&stored, method_name.as_str(), ctx) { return Type.new_poison() }
                 if !check_method_arg(args, &arg_tys, 1, stored, method_name, _span, ctx) { return Type.new_poison() }
                 return Type.new_void(_span)
             }

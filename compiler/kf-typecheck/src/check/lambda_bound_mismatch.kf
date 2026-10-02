@@ -47,7 +47,7 @@ fun TypeRef.resolve_quietly(ctx: &var TypeCtx): Type {
 
 /// Whether the type's mangled form has a segment naming one of `names`:
 /// `&T` is `kf__ref__T`, `Option<T>` is `Option__T`.
-fun Type.mentions_any(names: &List<String>): bool {
+pub fun Type.mentions_any(names: &List<String>): bool {
     if self.kind.kind_tag() == TAG_GENERIC() { return true }
     val mangled = mangle_type(self.clone())
     while segment in &mangled.as_str().split("__") {

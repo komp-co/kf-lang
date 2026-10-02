@@ -10,6 +10,8 @@ import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.*
 import kf_typecheck.traits.str_list_has
 import kf_typecheck.check.borrow.coerce_call_arg
+import kf_typecheck.check.borrow.may_keep_argument
+import kf_typecheck.check.borrow.reject_kept_temporary
 import kf_typecheck.note_import_use_named
 import kf_typecheck.check.control.yield_ref_binder_value
 
@@ -167,6 +169,11 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
                 expected = expected.subst_generic(*gnames.at(s0), ity.clone())
             }
             s0 = s0 + 1
+        }
+        val kept = sig.may_keep_argument(j)
+        if kept && args.at(j).reject_kept_temporary(&expected, name.as_str(), ctx) {
+            saw_error = true
+            continue
         }
         val outcome = coerce_call_arg(args, j, expected.clone(), ctx)
         // After the coercion, which may have typed an open binding; a lambda

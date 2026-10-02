@@ -19,7 +19,7 @@
 452 compiler/kf-parse/src/parser/top_decl/trait_test.kf
 497 compiler/kf-typecheck/src/check/check_expr.kf
 826 compiler/kf-typecheck/src/check/check_expr_test.kf
-533 compiler/kf-typecheck/src/check/check_method_call.kf
+536 compiler/kf-typecheck/src/check/check_method_call.kf
 403 compiler/kf-typecheck/src/check/check_method_expr.kf
 537 compiler/kf-typecheck/src/check/check_stmt_test.kf
 514 compiler/kf-typecheck/src/check/decl/check_decl.kf
