@@ -195,7 +195,7 @@ fun BuildGraph.compile_graph_outputs_with_interfaces(errp: Ptr<ErrCount>,
         emitted_hashes.push(content_hash(encoded.as_str()))
         unsafe { interfaces.push(encoded) }
     }
-    merged.run_separate_after_typecheck(errp, smap)
+    if !merged.run_middle_passes(separate_passes(), errp, smap) { return out }
     while k in 0..self.crates.size() {
         val bc = self.crates.at(k)
         val is_root = k + 1 == self.crates.size()
