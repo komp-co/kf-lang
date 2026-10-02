@@ -199,6 +199,8 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
             // The cast converts a literal of any width.
             if is_integer_literal(operand) { note_literal_sized(operand.span, ctx) }
             reject_enum_to_number_cast(operand.ty.clone(), e.ty.clone(), e.span, ctx)
+            val names_an_address = borrowed || is_integer_literal(operand)
+            if !names_an_address { reject_integer_to_pointer_cast(&operand.ty, &e.ty, e.span, ctx) }
         }
         DynCoerce(inner_ptr, _) => {
             check_expr(unsafe { &var *inner_ptr }, ctx)
@@ -479,16 +481,6 @@ pub fun autoderef_ty(t: Type): Type {
         RefTo(_, p) => autoderef_ty(unsafe { *p })
         _ => t
     }
-}
-
-/// `opt as uint64` is rejected: it reads an enum's representation, and is
-/// the shape a null-sentinel test takes after migration to an Option.
-fun reject_enum_to_number_cast(from: Type, to: Type, span: Span, ctx: &var TypeCtx): void {
-    if from.is_poison() { return }
-    if !is_numeric(to) { return }
-    if !from.type_is_enum_layout(ctx) { return }
-    val msg = "`${mangle_type(from).as_str()}` is an enum and cannot be cast to a number — test it with `.is_some()` / `.is_none()`, or match it"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
 }
 
 /// Every user type resolves to `Struct(name)`, so the layout table tells an

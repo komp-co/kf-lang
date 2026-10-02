@@ -139,6 +139,9 @@ fun main(): int32 {
 }
 ```
 
+An integer becomes a pointer only from a `uint64`, the width of an address;
+casting an `int32` to a `Ptr<T>` is an error.
+
 ## Mixed-width arithmetic
 
 Operators require both operands to have the same type. If you need to combine
