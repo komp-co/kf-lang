@@ -86,12 +86,5 @@ pub fun String.split_whitespace(): List<String> { return self.as_str().split_whi
 /// is taken by pointer.
 @prelude
 pub fun List<String>.join(sep: str): String {
-    var out = ""
-    var i = 0
-    while i < self.size() {
-        if i > 0 { out.append(sep) }
-        out.append(self.at(i).as_str())
-        i = i + 1
-    }
-    return out
+    return self.as_slice().join(sep)
 }

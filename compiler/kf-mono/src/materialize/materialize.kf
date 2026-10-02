@@ -9,6 +9,7 @@ import kf_typecheck.*
 import kf_mono.collect.*
 import kf_mono.mono_dyn_metadata
 import kf_typecheck.types.subst_projections_in_decl
+import kf_typecheck.check.mangle_base_name
 import kf_typecheck.types.subst_projections_module
 import kf_typecheck.check.decl.assoc_projection_registry
 import kf_core.ast.subst.monomorphized_type_name
@@ -62,13 +63,21 @@ pub mutating fun Module.materialize_generics(): void {
     }
 
     var done = List.new<String>()
+    var deferred = List.new<String>()
     var w = 0
     while w < work.size() {
         val inst = *work.at(w)
         val mangled_name = monomorphized_type_name(String.from(inst.base.as_str()), &inst.args)
         val key = inst.inst_key()
         val seen = str_name_list_contains(&done, key.as_str())
-        if !seen {
+        // A method whose owner's impl blocks are not minted yet waits, once,
+        // behind the instances queued so far: one of them may mint them.
+        val waits = !seen && !inst.owner.as_str().equals("") && !self.has_impl_block(inst.owner.as_str()) &&
+            !str_name_list_contains(&deferred, key.as_str())
+        if waits {
+            deferred.push(key.clone())
+            work.push(inst.clone())
+        } else if !seen {
             done.push(key.clone())
             // A generic method is materialized inside the impl block `owner`.
             if !inst.owner.as_str().equals("") {
@@ -98,7 +107,9 @@ pub mutating fun Module.materialize_generics(): void {
                                     // projections resolved first, since an unresolved
                                     // one would be minted into an instance name.
                                     subst_projections_in_decl(&var newdecl, proj_sigs)
+                                    val queued = work.size()
                                     newdecl.collect_insts_in_decl(&gps, &marities, &var work)
+                                    work.own_self_calls(queued, inst.base.as_str(), mangled_name.as_str())
                                     self.decls.push(newdecl)
                                 }
                             }
@@ -167,7 +178,10 @@ mutating fun Module.materialize_impl_method(inst: &Inst, mangled: String, gps: &
                             }
                             // Scanned before the push consumes it.
                             subst_projections_in_decl(&var spec, proj_sigs)
+                            val queued = work.size()
                             spec.collect_insts_in_decl(gps, marities, work)
+                            val template = mangle_base_name(inst.owner.clone())
+                            work.own_self_calls(queued, template.as_str(), inst.owner.as_str())
                             nm.push(spec)
                         }
                     }

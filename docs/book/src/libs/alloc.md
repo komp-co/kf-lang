@@ -439,16 +439,12 @@ ys.sort()                    // ascending, by the element's own Compare
 ys.is_sorted()               // the postcondition, O(n)
 ```
 
-`sort` is a heapsort: it moves elements only through `swap`, so nothing is
-cloned, dropped or held in a temporary, and it needs no scratch buffer, so
-sorting never allocates. It is **not stable** — equal elements may come out in
-a different order than they went in, which matters when they carry a field the
-comparison ignores. It is O(n log n) on every input, including already-sorted
-ones.
-
-There is no `sort_by` yet. A comparison would have to be a callable, and the
-callable traits take their arguments by value, so a comparator would consume
-the two elements it was asked to compare.
+Each of these is the list's [slice](core.md#algorithms) doing the work, so
+a list sorts, searches and reverses as an array does, and has every other
+slice algorithm too: `ys.sort_by_key(|p: &Person| p.age)`,
+`ys.binary_search(&x)`, `ys.chunks(8)`. `sort` is stable: equal elements
+come out in the order they went in. It moves elements only through `swap`,
+so nothing is cloned or dropped, and it never allocates.
 
 ## Transforming text
 
@@ -516,6 +512,46 @@ val next = dir.join("lib.kf")    // src/lib.kf
 
 It preserves the spelling it was given; normalization and anything
 platform-specific belong to `std.fs`.
+
+## Deque
+
+`Deque<T>`, from `alloc.deque`, is a growable ring buffer: pushing and
+popping at either end is O(1) amortized, where `List.remove(0)` shifts every
+element. It is the queue and the stack both, so there is no separate type for
+either:
+
+```kflat
+import alloc.deque.*
+
+fun main(): int32 {
+    var queue = Deque.new<int32>()      // first in, first out
+    queue.push_back(1)
+    queue.push_back(2)
+    val first = queue.pop_front()!!     // 1
+
+    var stack = Deque.new<int32>()      // last in, first out
+    stack.push_back(3)
+    stack.push_back(4)
+    val top = stack.pop_back()!!        // 4
+
+    queue.push_front(0)                 // 0, 2
+    return first + top + queue[1]       // 1 + 4 + 2
+}
+```
+
+| method | does |
+|---|---|
+| `push_back(x)`, `push_front(x)` | the deque owns `x`, last or first |
+| `pop_back()`, `pop_front()` | `T?`, moved out; null when empty |
+| `front()`, `back()` | `T?`, a copy of an end; needs `Clone` |
+| `at(i)`, `at_mut(i)`, `dq[i]` | a borrow of element `i` from the front; out of range panics |
+| `size()`, `is_empty()`, `clear()` | as on a list |
+| `iter()`, `while x in &dq` | front to back |
+
+`iter()` is a [view](../lang/memory.md#view-types) of the buffer, so the
+deque cannot change while a cursor from it is still used: a push could move
+the buffer out from under it. Dropping a deque drops its elements; `clone()`
+copies them in order.
 
 ## HashMap
 

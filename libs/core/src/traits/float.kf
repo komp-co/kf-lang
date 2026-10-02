@@ -1,8 +1,9 @@
 // What a floating-point type knows about itself, at its own precision.
 
 /// A number with a fractional representation, and its constants. Requires
-/// `Num`, not `Bounded`: ask for `T: Float + Bounded` for the limits.
-pub trait Float: Num {
+/// `Num`, not `Bounded`: ask for `T: Float + Bounded` for the limits. Sealed:
+/// `float32` and `float64` are the only floats.
+pub sealed trait Float: Num {
     /// Ratio of a circle's circumference to its diameter.
     static fun pi(): Self
     /// Base of the natural logarithm.
