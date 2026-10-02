@@ -6,6 +6,7 @@
 //     exit 1, last line `kflatc: errors found...`  fine
 //     exit 124 or 137                              hang (killed by `timeout`)
 //     exit 128+N                                   killed by signal N
+//     exit 1, last line `panic[<code>]: ...`       that line
 //     exit 1, any other last line                  panic, that line
 //     any other exit                               that exit and last line
 
@@ -33,6 +34,7 @@ pub fun judge(exit_code: int32, output: str): Verdict {
     if exit_code > 128 { return finding("signal ${signal_name(exit_code - 128)}".as_str()) }
     if exit_code == 1 {
         if last.is_empty() { return finding("panic without a message") }
+        if last.starts_with("panic[") { return finding(normalize(last.as_str()).as_str()) }
         return finding("panic: ${normalize(last.as_str())}".as_str())
     }
     return finding("exit ${exit_code}: ${normalize(last.as_str())}".as_str())

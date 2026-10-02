@@ -43,7 +43,7 @@ static String kf_string_clone(const String* value) {
 
 static void kf_string_append(String* out, const char* suffix) {
     size_t add = kf_string_cstr_len(suffix);
-    if (add > SIZE_MAX - out->len - 1) panic("String length overflow");
+    if (add > SIZE_MAX - out->len - 1) panic("panic[capacity_overflow]: capacity overflow");
     size_t needed = out->len + add + 1;
     size_t offset = 0;
     uintptr_t source = (uintptr_t)suffix;

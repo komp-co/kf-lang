@@ -13,8 +13,15 @@ fun a_diagnosed_program_is_fine(): void {
 
 @test
 fun exit_one_with_another_last_line_is_a_panic(): void {
-    val output = "src/main.kf:1:5: error: oops\nOption.unwrap called on a None\n"
-    assert_eq(judge(1, output).signature, "panic: Option.unwrap called on a None", "the last line names it")
+    val output = "src/main.kf:1:5: error: oops\ntype vec index out of bounds\n"
+    assert_eq(judge(1, output).signature, "panic: type vec index out of bounds", "the last line names it")
+}
+
+@test
+fun a_library_panic_is_its_own_signature(): void {
+    val output = "panic[index_out_of_bounds]: index 5 out of bounds for length 3\n"
+    val want = "panic[index_out_of_bounds]: index N out of bounds for length N"
+    assert_eq(judge(1, output).signature, want, "kind kept, numbers folded")
 }
 
 @test

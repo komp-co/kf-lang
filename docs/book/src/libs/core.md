@@ -914,8 +914,60 @@ primitives are the ones a target replaces anyway. A
 [freestanding](../start/projects.md#the-freestanding-tier) program gets the
 first column and defines the second column's seams itself.
 
+## Faults
+
+When a library call cannot go on, it stops with a `Fault`: the kind of
+failure, and the numbers that show it. `panic_with(fault)` prints it as
+`panic[<code>]: <message>` and stops, as `panic` does:
+
+```kflat
+fun main(): int32 {
+    var xs = List.new<int32>()
+    xs.push(1)
+    xs.push(2)
+    xs.push(3)
+    return *xs.at(5)
+}
+```
+
+```console
+$ komp run .
+panic[index_out_of_bounds]: index 5 out of bounds for length 3
+$ echo $?
+1
+```
+
+The code is stable, so a script or a test can match on it; the message is for
+people.
+
+| `Fault` | code | message |
+|---|---|---|
+| `IndexOutOfBounds(i, len)` | `index_out_of_bounds` | `index 5 out of bounds for length 3` |
+| `PositionOutOfBounds(p, len)` | `position_out_of_bounds` | `position 4 past the end of length 3` |
+| `RangeOutOfBounds(start, end, len)` | `range_out_of_bounds` | `range 0..4 out of bounds for length 1` |
+| `LengthMismatch(wanted, found)` | `length_mismatch` | `length 2 where 4 was wanted` |
+| `UnwrapNone` | `unwrap_none` | `unwrap on a None` |
+| `UnwrapErr` | `unwrap_err` | `unwrap on an Err` |
+| `UnwrapOk` | `unwrap_ok` | `unwrap_err on an Ok` |
+| `CapacityOverflow` | `capacity_overflow` | `capacity overflow` |
+| `RangeNotAscending` | `range_not_ascending` | `a range here must ascend by one` |
+| `ZeroWidth` | `zero_width` | `a width of zero` |
+| `AssertionFailed` | `assertion_failed` | `assertion failed` |
+
+An index is checked by `checked_index(i, len)`, which returns `i` when it is
+below `len` and stops with `IndexOutOfBounds` otherwise. Arrays, slices,
+`List` and `Deque` all check through it.
+
+A fault renders into a fixed buffer, with no allocation, so it can be reported
+when memory has run out or on a target with no heap.
+
+Running out of memory stops the same way, from the runtime's C:
+`panic[out_of_memory]: out of memory` (see
+[When there is no memory](#when-there-is-no-memory)).
+
 ## assert
 
 `assert`, `assert_eq` and `fail` are provided for tests (see
 [Writing tests](../tools/testing.md)). On failure they print the label and
-then panic, which ends the current test. Import `core.assert.*`.
+then stop with `Fault.AssertionFailed`, which ends the current test. Import
+`core.assert.*`.

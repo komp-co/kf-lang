@@ -57,14 +57,12 @@ impl Deque<T> {
     /// A shared borrow of element `i`, counted from the front; out of range
     /// panics.
     pub fun at(i: uint64): &T {
-        if i >= self.len { panic("deque index out of bounds") }
-        return unsafe { &*(self.data + self.slot(i)) }
+        return unsafe { &*(self.data + self.slot(checked_index(i, self.len))) }
     }
 
     /// A mutable borrow of element `i`; out of range panics.
     pub mutating fun at_mut(i: uint64): &var T {
-        if i >= self.len { panic("deque index out of bounds") }
-        return unsafe { &var *(self.data + self.slot(i)) }
+        return unsafe { &var *(self.data + self.slot(checked_index(i, self.len))) }
     }
 
     /// Drops every element and keeps the buffer.

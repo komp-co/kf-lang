@@ -30,7 +30,7 @@ impl Result<T, E> {
             Ok(v) => { return v }
             Err(_e) => {}
         }
-        unsafe { panic("Result.unwrap called on an Err") }
+        panic_with(Fault.UnwrapErr)
     }
 
     /// The error, or a controlled abort; what `Try.branch` reads the bail out
@@ -40,7 +40,7 @@ impl Result<T, E> {
             Ok(_v) => {}
             Err(e) => { return e }
         }
-        unsafe { panic("Result.unwrap_err called on an Ok") }
+        panic_with(Fault.UnwrapOk)
     }
 }
 

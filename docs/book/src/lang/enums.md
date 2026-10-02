@@ -218,7 +218,7 @@ val b = find(2)!!           // aborts
 
 ```console
 $ komp run .
-Option.unwrap called on a None
+panic[unwrap_none]: unwrap on a None
 $ echo $?
 1
 ```
