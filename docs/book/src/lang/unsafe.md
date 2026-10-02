@@ -195,5 +195,11 @@ fun main(): int32 {
 }
 ```
 
-The intrinsics need no import.
+The intrinsics need no import. Their argument counts are checked like any
+call's:
+
+```console
+$ komp check .
+src/main.kf:2:34: error: wrong number of arguments to `alloc_array`: expected 1, found 0
+```
 

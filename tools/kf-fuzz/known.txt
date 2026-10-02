@@ -5,4 +5,3 @@
 376 signal SIGSEGV in recursion through declared_type_owns_heap
 376 signal SIGSEGV in recursion through List__TypeRef_clone
 377 signal SIGSEGV in import_name_not_found
-379 signal SIGSEGV in emit_alloc_array_generic

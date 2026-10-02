@@ -1,0 +1,37 @@
+// How many arguments each memory intrinsic takes. Codegen reads them by
+// position, so a call short of one stops here.
+
+import kf_core.span.*
+import kf_core.diagnostic.error_at
+
+/// `alloc_array__int32` -> `alloc_array`: the name before its type arguments.
+fun intrinsic_base(name: str): String {
+    val cut = name.index_of("__") ?: return String.from(name)
+    return name.substring(0, cut)
+}
+
+/// -1 for a name that is not a memory intrinsic.
+fun intrinsic_arity(base: str): int32 {
+    return when base {
+        "alloc" => 0
+        "sizeof" => 0
+        "alloc_array" => 1
+        "dealloc" => 1
+        "drop_in_place" => 1
+        "clone_place" => 1
+        "ptr_read" => 1
+        "take" => 1
+        "realloc_array" => 2
+        _ => -1
+    }
+}
+
+/// Reports a call to `name` with `found` arguments when that is not its
+/// arity; true when it did.
+fun report_intrinsic_arity(name: str, found: uint64, span: Span, ctx: &var TypeCtx): bool {
+    val base = intrinsic_base(name)
+    val wanted = intrinsic_arity(base.as_str())
+    if wanted < 0 || found == wanted as uint64 { return false }
+    ctx.emit(error_at(span, "wrong number of arguments to `${base}`: expected ${wanted}, found ${found}"))
+    return true
+}
