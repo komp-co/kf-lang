@@ -1,0 +1,9 @@
+# Findings already filed, one per line: the issue, then the signature exactly
+# as kf-fuzz prints it. Delete a line when its issue closes, so a recurrence
+# fails the gate again.
+
+376 signal SIGSEGV in recursion through declared_type_owns_heap
+376 signal SIGSEGV in recursion through List__TypeRef_clone
+377 signal SIGSEGV in import_name_not_found
+378 hang in Parser_parse_generic_ctor_call
+379 signal SIGSEGV in emit_alloc_array_generic
