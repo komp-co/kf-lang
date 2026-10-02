@@ -36,6 +36,42 @@ val b: Res<uint8> = Res.Bad        // no payload to infer from
 A constructor with the wrong number of arguments or the wrong payload type is
 rejected at compile time.
 
+## Recursive enums
+
+A payload is stored inside the enum, so an enum cannot carry itself directly:
+it would have no size. Put the recursive payload behind a pointer, such as a
+`Box`:
+
+```kflat
+enum Expr {
+    Num(int32)
+    Add(Box<Expr>, Box<Expr>)
+}
+
+fun eval(e: &Expr): int32 {
+    return when (e) {
+        Num(n) => n
+        Add(a, b) => eval(a) + eval(b)
+    }
+}
+
+fun main(): int32 {
+    val e = Expr.Add(Box.new(Expr.Num(40)), Box.new(Expr.Num(2)))
+    return eval(&e)   // 42
+}
+```
+
+Written `Add(Expr, Expr)`, the enum is rejected where it is declared:
+
+```console
+$ komp check .
+src/main.kf:1:6: error: `Expr` holds itself by value, so it has no size; put a payload behind a pointer, such as `Box<Expr>`
+```
+
+The same holds for a struct, and for a cycle through other types: a field of
+type `A?`, `A[2]`, or another struct holding an `A`, inside `A`. A `List<A>`
+or `Box<A>` field is fine, since the elements live behind a pointer.
+
 ## Option and Result are ordinary enums
 
 `Option<T>` and `Result<T, E>` are not built-in types. They are defined in

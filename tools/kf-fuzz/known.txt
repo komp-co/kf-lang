@@ -2,5 +2,3 @@
 # as kf-fuzz prints it. Delete a line when its issue closes, so a recurrence
 # fails the gate again.
 
-376 signal SIGSEGV in recursion through declared_type_owns_heap
-376 signal SIGSEGV in recursion through List__TypeRef_clone
