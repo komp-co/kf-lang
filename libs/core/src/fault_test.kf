@@ -35,11 +35,25 @@ fun checked_index_passes_an_index_in_range(): void {
 
 @test
 fun fault_text_stops_short_of_its_capacity(): void {
-    var text = FaultText { bytes: Array<uint8, 256> {}, len: 0 }
+    var text = new_fault_text()
     var i = 0
     while i < 30 {
-        text.write_str("0123456789")
+        text.put("0123456789")
         i = i + 1
     }
     assert_eq(text.len, 255, "one byte is kept for the terminator")
+}
+
+@test
+fun fault_text_writes_a_number_digit_by_digit(): void {
+    var text = new_fault_text()
+    text.put_number(1907)
+    assert_eq(text.as_str(), "1907", "every digit, most significant first")
+}
+
+@test
+fun fault_text_writes_zero(): void {
+    var text = new_fault_text()
+    text.put_number(0)
+    assert_eq(text.as_str(), "0", "a lone zero")
 }

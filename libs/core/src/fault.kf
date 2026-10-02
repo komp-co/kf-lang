@@ -1,7 +1,6 @@
 // What went wrong when a library call cannot continue. A fault renders
 // without a heap, so it can be reported where nothing can be allocated.
 
-import core.primitives.write_uint64
 import core.traits.Never
 
 /// The ways `core` and `alloc` stop. `panic_with` prints one as
@@ -50,74 +49,105 @@ impl Fault {
     }
 }
 
-impl Display for Fault {
-    fun display(out: &var dyn Write): void {
+impl Fault {
+    /// The message, without the code, into `text`.
+    fun write_message(text: &var FaultText): void {
         when (self) {
             IndexOutOfBounds(i, n) => {
-                out.write_str("index ")
-                write_uint64(out, i)
-                out.write_str(" out of bounds for length ")
-                write_uint64(out, n)
+                text.put("index ")
+                text.put_number(i)
+                text.put(" out of bounds for length ")
+                text.put_number(n)
             }
             PositionOutOfBounds(p, n) => {
-                out.write_str("position ")
-                write_uint64(out, p)
-                out.write_str(" past the end of length ")
-                write_uint64(out, n)
+                text.put("position ")
+                text.put_number(p)
+                text.put(" past the end of length ")
+                text.put_number(n)
             }
             RangeOutOfBounds(s, e, n) => {
-                out.write_str("range ")
-                write_uint64(out, s)
-                out.write_str("..")
-                write_uint64(out, e)
-                out.write_str(" out of bounds for length ")
-                write_uint64(out, n)
+                text.put("range ")
+                text.put_number(s)
+                text.put("..")
+                text.put_number(e)
+                text.put(" out of bounds for length ")
+                text.put_number(n)
             }
             LengthMismatch(w, f) => {
-                out.write_str("length ")
-                write_uint64(out, f)
-                out.write_str(" where ")
-                write_uint64(out, w)
-                out.write_str(" was wanted")
+                text.put("length ")
+                text.put_number(f)
+                text.put(" where ")
+                text.put_number(w)
+                text.put(" was wanted")
             }
-            UnwrapNone => out.write_str("unwrap on a None")
-            UnwrapErr => out.write_str("unwrap on an Err")
-            UnwrapOk => out.write_str("unwrap_err on an Ok")
-            CapacityOverflow => out.write_str("capacity overflow")
-            RangeNotAscending => out.write_str("a range here must ascend by one")
-            ZeroWidth => out.write_str("a width of zero")
-            AssertionFailed => out.write_str("assertion failed")
+            UnwrapNone => text.put("unwrap on a None")
+            UnwrapErr => text.put("unwrap on an Err")
+            UnwrapOk => text.put("unwrap_err on an Ok")
+            CapacityOverflow => text.put("capacity overflow")
+            RangeNotAscending => text.put("a range here must ascend by one")
+            ZeroWidth => text.put("a width of zero")
+            AssertionFailed => text.put("assertion failed")
         }
+    }
+}
+
+impl Display for Fault {
+    fun display(out: &var dyn Write): void {
+        var text = new_fault_text()
+        self.write_message(&var text)
+        out.write_str(text.as_str())
     }
 }
 
 /// Room for the line `panic_with` prints, NUL-terminated for `panic`; a
 /// longer one is cut short.
+///
+/// CONSTRAINT: written to through its own methods, never as a `dyn Write`.
+/// A live `dyn Write` emits every `Write` and `Display` impl, and with them
+/// the printing a freestanding program does not have.
 struct FaultText {
     var bytes: Array<uint8, 256>
     var len: uint64
 }
 
-impl Write for FaultText {
-    mutating fun write_str(s: str): void {
+fun new_fault_text(): FaultText {
+    return FaultText { bytes: Array<uint8, 256> {}, len: 0 }
+}
+
+impl FaultText {
+    mutating fun put(s: str): void {
         var i: uint64 = 0
-        while i < s.byte_len() && self.len + 1 < 256 {
-            *self.bytes.at_mut(self.len) = s.byte_at(i)
-            self.len = self.len + 1
+        while i < s.byte_len() {
+            self.put_byte(s.byte_at(i))
             i = i + 1
         }
+    }
+
+    mutating fun put_number(v: uint64): void {
+        if v >= 10 { self.put_number(v / 10) }
+        self.put_byte((48 + v % 10) as uint8)
+    }
+
+    mutating fun put_byte(b: uint8): void {
+        if self.len + 1 >= 256 { return }
+        *self.bytes.at_mut(self.len) = b
+        self.len = self.len + 1
+    }
+
+    fun as_str(): str {
+        return unsafe { (&self.bytes) as Ptr<uint8> as str }
     }
 }
 
 /// Prints `panic[<code>]: <message>` and stops, as `panic` does.
 @prelude
 pub fun panic_with(fault: Fault): Never {
-    var text = FaultText { bytes: Array<uint8, 256> {}, len: 0 }
-    text.write_str("panic[")
-    text.write_str(fault.code())
-    text.write_str("]: ")
-    fault.display(&var text)
-    panic(unsafe { (&text.bytes) as Ptr<uint8> as str })
+    var text = new_fault_text()
+    text.put("panic[")
+    text.put(fault.code())
+    text.put("]: ")
+    fault.write_message(&var text)
+    panic(text.as_str())
 }
 
 /// `i`, when it indexes a run of `len` elements; otherwise a panic.
