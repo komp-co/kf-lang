@@ -68,6 +68,28 @@ src/main.kf:2:5: error: `return` here needs a value:
 The returned value must match the declared return type, subject to the same
 coercions available for arguments and bindings.
 
+### Functions that never return
+
+A function whose return type is an enum with no variants can never return,
+since no value of that type exists. `core` declares one, `Never`:
+
+```kflat
+import core.traits.Never
+
+fun stop(m: str): Never {
+    panic(m)
+}
+
+fun pick(n: int32): int32 {
+    if n > 0 { return n }
+    stop("not positive")
+}
+```
+
+A call to such a function, like a call to `panic` or the test helper `fail`,
+ends a path for the return-path check, and its value fits any slot: `stop`
+may be an arm of a [`when` used as a value](when.md#when-as-a-value).
+
 ## pub
 
 `pub` on a function makes it visible outside its module — to the crate's

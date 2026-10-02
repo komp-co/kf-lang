@@ -221,7 +221,12 @@ fun arms_returning(arms: &List<Arm>, temps: &var WhenTemps): List<Arm> {
                 a.arm_steps_into(temps, &var body)
                 // A `when` inside the arm's value is hoisted inside this arm.
                 hoist_when_values(vp, temps, &var body)
-                body.push(new_stmt(unsafe { vp.span }, StmtKind.Return(Option.Some(vp))))
+                val span = unsafe { vp.span }
+                if is_never_produced(vp) {
+                    body.push(new_stmt(span, StmtKind.Expression(vp)))
+                } else {
+                    body.push(new_stmt(span, StmtKind.Return(Option.Some(vp))))
+                }
             }
             None => body = when_expr_stmt_list(&a.body, temps)
         }
@@ -238,13 +243,23 @@ fun arms_assigning(arms: &List<Arm>, temp: Sym, temps: &var WhenTemps): List<Arm
             Some(vp) => {
                 a.arm_steps_into(temps, &var body)
                 hoist_when_values(vp, temps, &var body)
-                body.push(new_stmt(unsafe { vp.span }, StmtKind.Assign(temp, vp)))
+                val span = unsafe { vp.span }
+                if is_never_produced(vp) {
+                    body.push(new_stmt(span, StmtKind.Expression(vp)))
+                } else {
+                    body.push(new_stmt(span, StmtKind.Assign(temp, vp)))
+                }
             }
             None => body = when_expr_stmt_list(&a.body, temps)
         }
         out.push(a.rebuilt(a.pattern, a.guard.duplicate(), body))
     }
     return out
+}
+
+/// A value typed `Never`: the arm runs it and stores nothing.
+fun is_never_produced(vp: Ptr<Expr>): bool {
+    return unsafe { vp.ty }.is_never()
 }
 
 mutating fun WhenTemps.fresh_when_temp(): Sym {

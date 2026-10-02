@@ -69,6 +69,13 @@ Both branches must agree on a type, and the result is the wider of the two,
 so a literal in either branch widens to fit the slot rather than the branch
 that happens to be written first.
 
+A branch that never finishes — one ending in `return`, `break` or `continue`,
+or in a call to `panic` — takes the other branch's type:
+
+```kflat
+val v = if x >= 0 { x } else { break }
+```
+
 An `if` used as a value with no `else` is an error:
 
 ```kflat

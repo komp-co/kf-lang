@@ -108,3 +108,22 @@ import kf_core.span.*
     v.push(new_pattern(no_span(), PatternKind.Wildcard))
     assert_eq(v.size(), 2, "two pushes")
 }
+
+@test fun a_continue_tail_yields(): void {
+    val s = new_stmt(no_span(), StmtKind.Continue)
+    assert_eq(s.tail_yields_value(), true, "a jump never needs a value")
+}
+
+@test fun a_break_is_a_jump(): void {
+    assert_eq(new_stmt(no_span(), StmtKind.Break).is_jump(), true, "break jumps")
+}
+
+@test fun a_return_is_a_jump(): void {
+    val s = new_stmt(no_span(), StmtKind.Return(null))
+    assert_eq(s.is_jump(), true, "return jumps")
+}
+
+@test fun a_drop_is_not_a_jump(): void {
+    val s = new_stmt(no_span(), StmtKind.Drop(intern("x")))
+    assert_eq(s.is_jump(), false, "a drop does not jump")
+}
