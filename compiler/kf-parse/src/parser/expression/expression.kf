@@ -151,6 +151,9 @@ impl Parser {
                             }
                             // A line break after an operator continues the expression.
                             self.skip_newlines()
+                            if self.peek().ends_an_operand() {
+                                self.expr_expected_err(self.peek().span, tok_str(self.peek()))
+                            }
                             val rhs = self.parse_binary(prec + 1)
                             val lhs_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
                             unsafe { *lhs_ptr = lhs }
@@ -230,5 +233,22 @@ impl Parser {
         if op_may_open_a_continuation_line(self.peek_at(ahead)) {
             self.skip_newlines()
         }
+    }
+}
+
+/// A token that closes what surrounds an expression, so no right operand
+/// starts here. The primary parser turns one into poison without a word, for
+/// callers that report the gap themselves.
+fun Token.ends_an_operand(): bool {
+    return when (self.kind) {
+        Op(o) => when (o) {
+            RParen => true
+            RBrace => true
+            RBracket => true
+            Comma => true
+            Colon => true
+            _ => false
+        }
+        _ => false
     }
 }
