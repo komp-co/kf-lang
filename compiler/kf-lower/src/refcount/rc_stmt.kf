@@ -76,7 +76,18 @@ fun hoist_borrowed_temps(ep: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>): 
             }
         }
         FieldAccess(obj_ptr, _f) => hoist_borrowed_temps(obj_ptr, ctx, out)
-        Binary(l, _op, r) => {
+        Binary(l, op, r) => {
+            when (op) {
+                AndAnd => {
+                    hoist_short_circuit(ep, l, true, r, ctx, out)
+                    return
+                }
+                OrOr => {
+                    hoist_short_circuit(ep, l, false, r, ctx, out)
+                    return
+                }
+                _ => { }
+            }
             hoist_borrowed_temps(l, ctx, out)
             maybe_hoist_receiver(l, ctx, out)
             hoist_borrowed_temps(r, ctx, out)
@@ -87,11 +98,7 @@ fun hoist_borrowed_temps(ep: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>): 
         Cast(inner, _t) => hoist_borrowed_temps(inner, ctx, out)
         DynCoerce(inner, _vtable) => hoist_borrowed_temps(inner, ctx, out)
         Retain(inner) => hoist_borrowed_temps(inner, ctx, out)
-        IfExpr(c, t, el) => {
-            hoist_borrowed_temps(c, ctx, out)
-            hoist_borrowed_temps(t, ctx, out)
-            hoist_borrowed_temps(el, ctx, out)
-        }
+        IfExpr(c, t, el) => hoist_if_value(ep, c, t, el, ctx, out)
         StructLit(_n, finits) => {
             while finit in &finits {
                 hoist_borrowed_temps(finit.value, ctx, out)

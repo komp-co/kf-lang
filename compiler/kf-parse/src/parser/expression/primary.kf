@@ -204,13 +204,13 @@ impl Parser {
             Plus => return self.advance_and_poison_expr(span)
             DotDot => return self.advance_and_poison_expr(span)
             DotDotEq => return self.advance_and_poison_expr(span)
-            // `*ptr`: binds tighter than binary operators.
+            // `*ptr`: binds tighter than binary operators and `as`.
             Star => {
                 unsafe { self.advance() } // consume `*`
-                val operand = self.parse_primary()
+                val operand = self.parse_prefix_operand()
                 val operand_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
                 unsafe { *operand_ptr = operand }
-                return new_expr(span, ExprKind.Deref(operand_ptr))
+                return self.cast_prefixed(new_expr(span, ExprKind.Deref(operand_ptr)))
             }
             Slash => return self.advance_and_poison_expr(span)
             Eq => return self.advance_and_poison_expr(span)
@@ -235,11 +235,11 @@ impl Parser {
                 if is_keyword(self.peek(), Keyword.Val) {
                     unsafe { self.advance() }
                 }
-                var inner = self.parse_primary()
+                var inner = self.parse_prefix_operand()
                 inner.coerce = written
                 // `&*ptr` vouches that a raw pointer is live, so a reference
                 // slot accepts it.
-                return inner
+                return self.cast_prefixed(inner)
             }
             Semicolon => return self.advance_and_poison_expr(span)
             AmpAmp => return self.advance_and_poison_expr(span)
@@ -266,6 +266,22 @@ impl Parser {
             Comma => return expr_poison(span)
             Colon => return expr_poison(span)
         }
+    }
+
+    /// The operand of a prefix `&`, `&var` or `*`, stopping before `as`.
+    mutating fun parse_prefix_operand(): Expr {
+        val saved = self.cast_after_prefix
+        self.cast_after_prefix = true
+        val operand = self.parse_primary()
+        self.cast_after_prefix = saved
+        return operand
+    }
+
+    /// `prefixed` with the `as` casts that follow it, unless it is itself the
+    /// operand of an enclosing prefix, which takes them.
+    mutating fun cast_prefixed(prefixed: Expr): Expr {
+        if self.cast_after_prefix || !is_keyword(self.peek(), Keyword.As) { return prefixed }
+        return self.parse_postfix(prefixed)
     }
 
     mutating fun advance_and_poison_expr(span: Span): Expr {

@@ -267,12 +267,16 @@ fun resolve_projection(owner_ty: Type, member: Sym, span: Span, ctx: &var TypeCt
 }
 
 /// Top-level only: `a: T`, not `List<T>`.
+/// Every parameter at once: each first becomes a placeholder no identifier
+/// can spell, so in `Pair<B, A>` the `B` put in for `A` is not then replaced.
 pub fun subst_all_generics(t: Type, names: &List<String>, args: &List<Type>): Type {
+    val n = if names.size() < args.size() { names.size() } else { args.size() }
     var cur = t
-    while i in 0..names.size() {
-        if i < args.size() {
-            cur = cur.subst_generic(*names.at(i), *args.at(i))
-        }
+    while i in 0..n {
+        cur = cur.subst_generic(*names.at(i), generic_ty("%${i}", no_span()))
+    }
+    while i in 0..n {
+        cur = cur.subst_generic("%${i}", *args.at(i))
     }
     return cur
 }
