@@ -193,15 +193,13 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
     }
     // The return type is substituted from explicit type args (the only source
     // for a parameter used just in the return), then from inference.
-    var ret = sig.ret
     while gi in 0..gnames.size() {
-        val gname = *gnames.at(gi)
         val binding = *bound_tys.at(gi)
         if !binding.is_poison() {
-            check_generic_bounds_with_bindings(name.clone(), gname.clone(), binding.clone(), &gnames, &bound_tys, span, ctx)
-            ret = ret.subst_generic(gname.clone(), binding)
+            check_generic_bounds_with_bindings(name.clone(), *gnames.at(gi), binding, &gnames, &bound_tys, span, ctx)
         }
     }
+    var ret = subst_all_generics(sig.ret, &gnames, &bound_or_left(&gnames, &bound_tys))
     // Projections in the return type are resolved now, since this body uses
     // the result; a still-generic owner is left for the post-pass.
     ret = ret.resolved_projection_type("", ctx.sigs)

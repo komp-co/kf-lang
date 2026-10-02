@@ -109,13 +109,7 @@ fun FnSignature.check_method_generics(recv: &RecvBinding, sname: String, method_
         val callee = sname + String.from("_") + callee_seg
         call.mangled_callee = intern(callee.as_str())
     }
-    var ret = subst_recv(self.ret, recv)
-    while ri in 0..mgnames.size() {
-        val bt = *mbindings.at(ri)
-        if !bt.is_poison() {
-            ret = ret.subst_generic(*mgnames.at(ri), bt.clone())
-        }
-    }
+    val ret = subst_all_generics(subst_recv(self.ret, recv), &mgnames, &bound_or_left(&mgnames, &mbindings))
     // A return type naming an instance of the receiver's generic needs it to
     // exist.
     if recv.recv_is_instance() { materialize_method_return_instance(ret.clone(), recv, &mgnames, &mbindings, _span, ctx) }
@@ -225,4 +219,15 @@ fun Type.is_value(): bool {
         Value(_v) => true
         _ => false
     }
+}
+
+/// Each binding, or the parameter itself where none was found, so
+/// substituting leaves an unbound parameter as written.
+fun bound_or_left(names: &List<String>, bindings: &List<Type>): List<Type> {
+    var out = List.new<Type>()
+    while i in 0..names.size() {
+        val bound = if i < bindings.size() { bindings.at(i).clone() } else { poison_ty() }
+        out.push(if bound.is_poison() { generic_ty(names.at(i).clone(), no_span()) } else { bound })
+    }
+    return out
 }

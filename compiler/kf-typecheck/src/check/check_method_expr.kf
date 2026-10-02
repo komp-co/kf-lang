@@ -200,17 +200,16 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                         if recv_targs.size() > 0 {
                             instantiate_generic_layout(rname.clone(), &recv_targs, String.from(recv_mono.as_str()), ctx)
                         }
-                        var ret = ssig.ret
+                        var bound_types = List.new<Type>()
                         while gi in 0..ssig.generics.size() {
                             if gi < e.type_args.size() {
-                                val gname = *ssig.generics.at(gi)
-                                val targ = *e.type_args.at(gi)
-                                val gty = targ.resolve_type_ref(ctx)
+                                val gty = (*e.type_args.at(gi)).resolve_type_ref(ctx)
                                 // The owner is the mangled method name.
-                                check_generic_bounds(selected.clone(), gname.clone(), gty, e.span, ctx)
-                                ret = ret.subst_generic(gname, gty)
+                                check_generic_bounds(selected.clone(), *ssig.generics.at(gi), gty.clone(), e.span, ctx)
+                                bound_types.push(gty)
                             }
                         }
+                        val ret = subst_all_generics(ssig.ret, &ssig.generics, &bound_types)
                         if call_valid {
                             e.ty = ret
                             if selected.as_str().equals(tmpl.as_str()) {
@@ -328,18 +327,13 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
 /// The impl's parameters with the call's explicit type arguments substituted:
 /// `Holder.of<int32>(5)` against a signature registered with `T`.
 pub fun FnSignature.static_call_params(type_args: &List<TypeRef>, ctx: &var TypeCtx): List<Type> {
+    var bound_types = List.new<Type>()
+    while targ in type_args {
+        bound_types.push(targ.resolve_type_ref(ctx))
+    }
     var out = List.new<Type>()
-    var i = 0
-    while i < self.params.size() {
-        var pt = *self.params.at(i)
-        while g in 0..self.generics.size() {
-            if g < type_args.size() {
-                val gty = (*type_args.at(g)).resolve_type_ref(ctx)
-                pt = pt.subst_generic(*self.generics.at(g), gty)
-            }
-        }
-        out.push(pt)
-        i = i + 1
+    while param in &self.params {
+        out.push(subst_all_generics(param, &self.generics, &bound_types))
     }
     return out
 }
