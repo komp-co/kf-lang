@@ -23,21 +23,6 @@ fun is_generic_call_name(s: str): bool {
     }
 }
 
-fun tyref_is_poison(tr: TypeRef): bool {
-    return when (tr.kind) {
-        Named(_n, _a) => false
-        DynTrait(_n, _a) => false
-        Reference(_m, _i) => false
-        Function(_p, _r) => false
-        Array(_e, _n) => false
-        // `List.new<F.Out>()` is a type-argument list; the owner is the
-        // checker's concern.
-        Projection(_owner, _member) => false
-        Value(_v) => false
-        Poison => true
-    }
-}
-
 /// Matches kf-codegen's tyref_mangle and Mono's ty_to_mangle:
 /// `List<int32>` is `List__int32`.
 fun TypeRef.tyref_mangle_frag(): String {
@@ -94,7 +79,7 @@ impl Parser {
             // follows, otherwise rewound so `<` is a comparison.
             val save_pos: uint64 = self.pos
             var targs = List.new<TypeRef>()
-            val ok: bool = self.try_parse_type_args(&var targs)
+            val ok: bool = self.parse_type_argument_list(&var targs, true)
             if ok {
                 val lp: bool = is_op(self.peek(), Operator.LParen)
                 val lb: bool = is_op(self.peek(), Operator.LBrace)
@@ -128,30 +113,12 @@ impl Parser {
 
     /// `alloc<T1, ...>(args)`: type args folded into `alloc__T1__...`.
     mutating fun parse_generic_ctor_call(name: Sym, span: Span): Expr {
-        unsafe { self.advance() } // consume `<`
-        var mangled = name.as_string()
         var type_args = List.new<TypeRef>()
-        while true {
-            if is_op(self.peek(), Operator.Gt) {
-                unsafe { self.advance() } // consume `>`
-                break
-            }
-            if self.at_eof() {
-                self.parse_err(self.peek().span, String.from("unclosed type-argument list: missing `>`"))
-                break
-            }
-            val before: uint64 = self.pos
-            val arg_ptr = self.parse_type_ref_ptr()
-            val type_arg = unsafe { *arg_ptr }
-            val frag = type_arg.tyref_mangle_frag()
-            type_args.push(type_arg)
-            mangled = mangled + String.from("__") + frag
-            unsafe { dealloc<TypeRef>(arg_ptr) }
-            if is_op(self.peek(), Operator.Comma) {
-                unsafe { self.advance() }
-            }
-            // A token no type starts with was reported and not consumed.
-            if self.pos == before { break }
+        val _ = self.parse_type_argument_list(&var type_args, false)
+        var mangled = name.as_string()
+        while type_arg in &type_args {
+            mangled.append("__")
+            mangled.append(type_arg.tyref_mangle_frag().as_str())
         }
         val arg_vec = if is_op(self.peek(), Operator.LParen) { self.parse_arg_list() } else { List.new<Expr>() }
         var call = new_expr(self.span_through_last(span), ExprKind.Call(intern(mangled.as_str()), arg_vec))
@@ -160,44 +127,6 @@ impl Parser {
         // Only the parser knows a call is an intrinsic; see Expr.is_intrinsic.
         call.is_intrinsic = true
         return call
-    }
-
-    /// A speculative `<T, ...>` list. False (and the caller rewinds) unless it
-    /// is well-formed and closed by `>`.
-    pub mutating fun try_parse_type_args(out: &var List<TypeRef>): bool {
-        unsafe { self.advance() } // consume `<`
-        // Errors are suppressed: on failure `<` is re-read as a comparison.
-        val was_speculative: bool = self.speculative
-        self.speculative = true
-        var ok: bool = true
-        while true {
-            // Newlines are whitespace inside the brackets, but the `<` itself
-            // must follow the callee: a `<` opening a line is a comparison.
-            self.skip_newlines()
-            if is_op(self.peek(), Operator.Gt) {
-                unsafe { self.advance() } // consume `>` (empty/trailing)
-                break
-            }
-            val tr = self.parse_type_argument()
-            val is_poison: bool = tyref_is_poison(tr)
-            if is_poison {
-                ok = false
-                break
-            }
-            out.push(tr)
-            self.skip_newlines()
-            if is_op(self.peek(), Operator.Comma) {
-                unsafe { self.advance() }
-            } else if is_op(self.peek(), Operator.Gt) {
-                unsafe { self.advance() } // consume `>`
-                break
-            } else {
-                ok = false // not a type-arg list
-                break
-            }
-        }
-        self.speculative = was_speculative
-        return ok
     }
 
     /// `Name(args)`; `(` is next.
@@ -368,7 +297,7 @@ impl Parser {
         var m_targs = List.new<TypeRef>()
         if is_op(self.peek(), Operator.Lt) {
             val save: uint64 = self.pos
-            val ok: bool = self.try_parse_type_args(&var m_targs)
+            val ok: bool = self.parse_type_argument_list(&var m_targs, true)
             if !ok {
                 self.pos = save
                 m_targs = List.new<TypeRef>()

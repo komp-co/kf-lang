@@ -48,54 +48,58 @@ pub mutating fun Module.run_pipeline(is_bin: bool, errp: Ptr<ErrCount>, smap: Pt
     return self.compile_module(is_bin, errp, smap)
 }
 
+/// One C translation unit holding every crate.
 pub mutating fun Module.compile_module(is_bin: bool, errp: Ptr<ErrCount>, smap: Ptr<SourceMap>): String {
-    self.run_resolve_typecheck(errp, smap)
-    // Later passes assume a well-typed tree; the diagnostics are printed and
-    // the caller refuses to write output.
-    if has_errors(errp) { return "" }
-    val list_name = self.lang_type_name(lang_list_key())
-    self.report_template_copies(errp, smap)
-    mono_module(self)
-    report_lower_diags(lower_module(self, smap, list_name), self, errp, smap)
-    trim_variant_binders(self)
-    // A program is a closed world; a library's exports are its API, and
-    // `drop_unreachable` no-ops without a `main`.
-    if is_bin { drop_unreachable(self) }
+    self.run_interface_passes(errp, smap)
+    // A program is a closed world; a library's exports are its API.
+    if !self.run_middle_passes(unity_passes(is_bin), errp, smap) { return "" }
     return emit_module_kind(self, is_bin)
 }
 
-/// Separate compilation: the same passes plus crate qualification, emitting a
-/// unit that includes kf_runtime.h. Type renames land before Mono so every
-/// mangle is qualified; function renames after Lower via mangled_callee.
+/// One crate's unit, including kf_runtime.h, with its symbols qualified.
 pub mutating fun Module.compile_module_separate(is_bin: bool, errp: Ptr<ErrCount>, smap: Ptr<SourceMap>): String {
-    self.run_separate_passes(errp, smap)
-    // Codegen assumes a well-typed, lowered tree.
-    if has_errors(errp) { return "" }
+    self.run_interface_passes(errp, smap)
+    if !self.run_middle_passes(separate_passes(), errp, smap) { return "" }
     return emit_module_unit(self, is_bin)
 }
 
-/// Without emission, for callers rendering per-crate artifacts.
-pub mutating fun Module.run_separate_passes(errp: Ptr<ErrCount>, smap: Ptr<SourceMap>): void {
-    self.run_interface_passes(errp, smap)
-    self.run_separate_after_typecheck(errp, smap)
-}
-
-// The interface boundary: signatures and inferred public types are complete,
-// and Mono has not yet stripped templates.
+/// The interface boundary: signatures and inferred public types are complete,
+/// and Mono has not yet stripped templates. A crate's `.kfi` is written here.
 pub mutating fun Module.run_interface_passes(errp: Ptr<ErrCount>, smap: Ptr<SourceMap>): void {
     self.run_resolve_typecheck(errp, smap)
 }
 
-pub mutating fun Module.run_separate_after_typecheck(errp: Ptr<ErrCount>, smap: Ptr<SourceMap>): void {
-    // Later passes assume a well-typed tree.
-    if has_errors(errp) { return }
-    qualify_type_symbols(self)
+/// How the passes after TypeCheck differ between one unit and one per crate.
+pub struct MiddlePasses {
+    /// Crate-qualified symbols: types before Mono, so every mangle carries
+    /// its crate, and functions after Lower.
+    pub val qualify: bool
+    /// A program with every crate in view drops what `main` cannot reach.
+    pub val closed_world: bool
+}
+
+pub fun unity_passes(is_bin: bool): MiddlePasses {
+    return MiddlePasses { qualify: false, closed_world: is_bin }
+}
+
+pub fun separate_passes(): MiddlePasses {
+    return MiddlePasses { qualify: true, closed_world: false }
+}
+
+/// Everything between TypeCheck and emission, in order. False when an error
+/// was counted before or during them: emission assumes a well-typed, lowered
+/// tree, so the caller writes nothing.
+pub mutating fun Module.run_middle_passes(mode: MiddlePasses, errp: Ptr<ErrCount>, smap: Ptr<SourceMap>): bool {
+    if has_errors(errp) { return false }
+    if mode.qualify { qualify_type_symbols(self) }
     val list_name = self.lang_type_name(lang_list_key())
     self.report_template_copies(errp, smap)
     mono_module(self)
     report_lower_diags(lower_module(self, smap, list_name), self, errp, smap)
-    qualify_function_symbols(self)
+    if mode.qualify { qualify_function_symbols(self) }
     trim_variant_binders(self)
+    if mode.closed_world { drop_unreachable(self) }
+    return !has_errors(errp)
 }
 
 // CONSTRAINT: before Mono, which replaces each template with its instances.
