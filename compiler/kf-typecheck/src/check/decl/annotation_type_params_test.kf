@@ -3,6 +3,7 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.diagnostic.Diagnostics
 
 fun slot_ref(name: str): TypeRef {
     return new_type_ref(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
@@ -23,7 +24,7 @@ fun implicit_params(td: TopDecl): String {
     var types = List.new<String>()
     types.push(String.from("Request"))
     var decl = td
-    decl.add_target_params(&types, 0 as Ptr<List<Diagnostic>>)
+    decl.add_target_params(&types, 0 as &var Diagnostics)
     var out = String.from("")
     while param in &decl.generics {
         if out.byte_len() > 0 { out.append(",") }

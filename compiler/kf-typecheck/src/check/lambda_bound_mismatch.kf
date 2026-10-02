@@ -34,11 +34,11 @@ fun Expr.report_written_params_against(expected: &List<Type>, open: &List<String
 /// Resolution without its diagnostics: the lambda's own check reports a bad
 /// annotation.
 fun TypeRef.resolve_quietly(ctx: &var TypeCtx): Type {
-    val before = unsafe { (*ctx.diags).size() }
+    val before = ctx.diags.items.size()
     val ty = self.resolve_type_ref(ctx)
-    if unsafe { (*ctx.diags).size() } == before { return ty }
-    while unsafe { (*ctx.diags).size() } > before {
-        unsafe { (*ctx.diags).pop() }
+    if ctx.diags.items.size() == before { return ty }
+    while ctx.diags.items.size() > before {
+        ctx.diags.items.pop()
     }
     return poison_ty()
 }

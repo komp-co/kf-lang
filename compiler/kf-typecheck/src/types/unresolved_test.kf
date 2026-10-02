@@ -10,7 +10,7 @@ import kf_typecheck.check.control.check_pattern
 
 mutating fun Expr.unresolved_check(ctx: &var TypeCtx): uint64 {
     check_expr(self, ctx)
-    return unsafe { (*ctx.diags).size() }
+    return ctx.diags.items.size()
 }
 
 fun var_expr(name: str): Expr {
@@ -127,9 +127,9 @@ mutating fun TypeCtx.first_message(): String {
     var ctx = mk_ctx()
     var e = var_expr("null")
     check_expr(&var e, &var ctx)
-    assert_eq(unsafe { (*ctx.diags).size() }, 0, "silent while an expected type may still arrive")
+    assert_eq(ctx.diags.items.size(), 0, "silent while an expected type may still arrive")
     ctx.report_untyped_nulls()
-    assert_eq(unsafe { (*ctx.diags).size() }, 1, "reported once nothing gave it a type")
+    assert_eq(ctx.diags.items.size(), 1, "reported once nothing gave it a type")
 }
 
 // One an Option slot claimed is not.
@@ -139,7 +139,7 @@ mutating fun TypeCtx.first_message(): String {
     check_expr(&var e, &var ctx)
     note_null_typed(e.span, &var ctx)
     ctx.report_untyped_nulls()
-    assert_eq(unsafe { (*ctx.diags).size() }, 0, "an expected Option type gave it meaning")
+    assert_eq(ctx.diags.items.size(), 0, "an expected Option type gave it meaning")
 }
 
 @test fun an_unsized_wide_literal_is_reported_when_the_body_ends(): void {
@@ -147,7 +147,7 @@ mutating fun TypeCtx.first_message(): String {
     var e = new_expr(no_span(), ExprKind.LitInt(3000000000))
     check_expr(&var e, &var ctx)
     ctx.report_unsized_wide_literals()
-    assert_eq(unsafe { (*ctx.diags).size() }, 1, "3000000000 left at `int32` is out of range")
+    assert_eq(ctx.diags.items.size(), 1, "3000000000 left at `int32` is out of range")
 }
 
 @test fun a_sized_wide_literal_is_not_reported(): void {
@@ -156,7 +156,7 @@ mutating fun TypeCtx.first_message(): String {
     check_expr(&var e, &var ctx)
     note_literal_sized(e.span, &var ctx)
     ctx.report_unsized_wide_literals()
-    assert_eq(unsafe { (*ctx.diags).size() }, 0, "a slot gave it a width")
+    assert_eq(ctx.diags.items.size(), 0, "a slot gave it a width")
 }
 
 @test fun a_literal_that_fits_int32_is_never_tracked(): void {
@@ -164,5 +164,5 @@ mutating fun TypeCtx.first_message(): String {
     var e = new_expr(no_span(), ExprKind.LitInt(2147483647))
     check_expr(&var e, &var ctx)
     ctx.report_unsized_wide_literals()
-    assert_eq(unsafe { (*ctx.diags).size() }, 0, "`int32` holds it")
+    assert_eq(ctx.diags.items.size(), 0, "`int32` holds it")
 }

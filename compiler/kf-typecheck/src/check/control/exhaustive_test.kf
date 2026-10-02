@@ -274,7 +274,7 @@ fun guarded_variant_arm(name: str): Arm {
     arms.push(lit_int_arm(113))
     arms.push(wildcard_arm())
     report_non_exhaustive_when(int32_ty(no_span()), &arms, no_span(), &var ctx)
-    assert_eq(unsafe { (*ctx.diags).size() }, 0, "nothing to say about a closed `when`")
+    assert_eq(ctx.diags.items.size(), 0, "nothing to say about a closed `when`")
 }
 
 // `bool` is judged by its two values, not asked for `_`.
@@ -284,7 +284,7 @@ fun guarded_variant_arm(name: str): Arm {
     arms.push(lit_bool_arm(true))
     arms.push(lit_bool_arm(false))
     report_non_exhaustive_when(bool_ty(no_span()), &arms, no_span(), &var ctx)
-    assert_eq(unsafe { (*ctx.diags).size() }, 0, "listing both values closes a bool `when`")
+    assert_eq(ctx.diags.items.size(), 0, "listing both values closes a bool `when`")
 }
 
 @test fun poison_subject_is_never_reported(): void {
@@ -334,7 +334,7 @@ fun guarded_variant_arm(name: str): Arm {
     arms.push(variant_arm("Green"))
     arms.push(variant_arm("Blue"))
     report_non_exhaustive_when(color_ty(), &arms, no_span(), &var ctx)
-    assert_eq(unsafe { (*ctx.diags).size() }, 0, "nothing to say about a total `when`")
+    assert_eq(ctx.diags.items.size(), 0, "nothing to say about a total `when`")
 }
 
 @test fun unregistered_enum_name_is_not_judged(): void {

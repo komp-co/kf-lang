@@ -125,10 +125,9 @@ fun module_with(body: List<Stmt>): Module {
 
 fun errors_for(body: List<Stmt>): uint64 {
     val m = module_with(body)
-    val out: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *out = List.new<Diagnostic>() }
-    m.borrow_liveness_module(out)
-    return unsafe { out.size() }
+    var out = new_diagnostics()
+    m.borrow_liveness_module(&var out)
+    return out.size()
 }
 
 @test

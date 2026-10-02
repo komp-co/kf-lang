@@ -38,12 +38,12 @@ fun safety_trait(name: str, methods: List<TraitMethodReq>, associated: List<Trai
 }
 
 fun safety_validate(info: TraitInfo, args: List<Type>): DynTraitLayout? {
-    val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostics = List.new<Diagnostic>() }
+    val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
+    unsafe { *diagnostics = new_diagnostics() }
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signatures = new_sig_table() }
     unsafe { signatures.insert_trait(info) }
-    var ctx = new_type_ctx(void_ty(no_span()), diagnostics, Option.None, signatures)
+    var ctx = new_type_ctx(void_ty(no_span()), unsafe { &var *diagnostics }, Option.None, signatures)
     var object_args = new_type_vec()
     while arg in &args {
         object_args.push(arg)
@@ -53,12 +53,12 @@ fun safety_validate(info: TraitInfo, args: List<Type>): DynTraitLayout? {
 }
 
 fun safety_message(info: TraitInfo): String {
-    val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostics = List.new<Diagnostic>() }
+    val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
+    unsafe { *diagnostics = new_diagnostics() }
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signatures = new_sig_table() }
     unsafe { signatures.insert_trait(info) }
-    var ctx = new_type_ctx(void_ty(no_span()), diagnostics, Option.None, signatures)
+    var ctx = new_type_ctx(void_ty(no_span()), unsafe { &var *diagnostics }, Option.None, signatures)
     val object = dyn_trait_type(info.identity, new_type_vec(), no_span())
     val _layout = object.validate_dyn_trait(no_span(), &var ctx)
     return unsafe { diagnostics.at(0).primary.message }
@@ -73,14 +73,14 @@ fun safety_placement(wrapper: uint8): PlacementOutcome {
     var methods = List.new<TraitMethodReq>()
     methods.push(safety_method("show", int32_ty(no_span()), false, false, false, false))
     val info = safety_trait("Show", methods, List.new<TraitAssocReq>(), List.new<String>())
-    val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostics = List.new<Diagnostic>() }
+    val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
+    unsafe { *diagnostics = new_diagnostics() }
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signatures = new_sig_table() }
     unsafe { signatures.insert_trait(info) }
     val owner: Ptr<TopDecl> = unsafe { alloc<TopDecl>() }
     unsafe { *owner = new_top_decl(no_span(), String.from("use_show"), TopDeclKind.Poison) }
-    var ctx = new_type_ctx(void_ty(no_span()), diagnostics, Option.None, signatures)
+    var ctx = new_type_ctx(void_ty(no_span()), unsafe { &var *diagnostics }, Option.None, signatures)
     ctx.metadata_owner = owner
     val dynamic = dyn_trait_type(info.identity, new_type_vec(), no_span())
     var checked = dynamic
@@ -96,7 +96,10 @@ fun safety_placement(wrapper: uint8): PlacementOutcome {
     }
     if wrapper == 2 { checked = box_ty(dynamic, no_span()) }
     checked.validate_dyn_placement(no_span(), &var ctx)
-    return PlacementOutcome { diagnostics: unsafe { *diagnostics }, layout_count: unsafe { owner.dyn_layouts.size() } }
+    return PlacementOutcome {
+        diagnostics: unsafe { (*diagnostics).items.clone() },
+        layout_count: unsafe { owner.dyn_layouts.size() }
+    }
 }
 
 @test fun dyn_object_safety_rejects_associated_type(): void {
@@ -265,10 +268,10 @@ fun TopDecl.first_dyn_adapter(): String {
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signatures = new_sig_table() }
     unsafe { signatures.insert_trait(safety_trait("Show", methods, List.new<TraitAssocReq>(), List.new<String>())) }
-    val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostics = List.new<Diagnostic>() }
+    val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
+    unsafe { *diagnostics = new_diagnostics() }
     var implementation = dyn_vtable_imported_impl_decl()
-    implementation.register_dyn_vtable_decl(signatures, diagnostics)
+    implementation.register_dyn_vtable_decl(signatures, unsafe { &var *diagnostics })
     val adapter = implementation.first_dyn_adapter()
     assert_eq(adapter.as_str(), "dep_exact_show", "imported vtables preserve the archive symbol")
 }

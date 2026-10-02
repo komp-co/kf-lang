@@ -108,7 +108,7 @@ fun check_array_element(elements: &var List<Expr>, i: uint64, expected: Type, ct
 }
 
 fun TypeCtx.reported_at(span: Span): bool {
-    while diag in &*self.diags {
+    while diag in &self.diags.items {
         val at = diag.primary.span
         if at.file_id == span.file_id && at.start == span.start && at.end == span.end { return true }
     }

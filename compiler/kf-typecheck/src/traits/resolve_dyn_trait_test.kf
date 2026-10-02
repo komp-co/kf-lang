@@ -37,11 +37,11 @@ fun dyn_test_trait(name: str, identity: str, arity: uint64): TraitInfo {
 }
 
 fun dyn_resolution_message(name: str, args: List<TypeRef>, signatures: SigTable): String {
-    val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostics = List.new<Diagnostic>() }
+    val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
+    unsafe { *diagnostics = new_diagnostics() }
     val signature_ptr: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signature_ptr = signatures }
-    var ctx = new_type_ctx(void_ty(no_span()), diagnostics, Option.None, signature_ptr)
+    var ctx = new_type_ctx(void_ty(no_span()), unsafe { &var *diagnostics }, Option.None, signature_ptr)
     val object_ref = new_type_ref(no_span(), TypeRefKind.DynTrait(intern(name), args))
     val _resolved = object_ref.resolve_type_ref(&var ctx)
     return unsafe { diagnostics.at(0).primary.message }
@@ -59,9 +59,8 @@ fun dyn_resolution_message(name: str, args: List<TypeRef>, signatures: SigTable)
 }
 
 fun resolve_dyn_trait_keeps_generic_argument(): bool {
-    val diagnostics = List.new<Diagnostic>()
-    val diagnostic_ptr: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostic_ptr = diagnostics }
+    val diagnostic_ptr: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
+    unsafe { *diagnostic_ptr = new_diagnostics() }
     var signatures = new_sig_table()
     var type_parameters = List.new<String>()
     type_parameters.push(String.from("T"))
@@ -76,7 +75,7 @@ fun resolve_dyn_trait_keeps_generic_argument(): bool {
     })
     val signature_ptr: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signature_ptr = signatures }
-    var ctx = new_type_ctx(void_ty(no_span()), diagnostic_ptr, Option.None, signature_ptr)
+    var ctx = new_type_ctx(void_ty(no_span()), unsafe { &var *diagnostic_ptr }, Option.None, signature_ptr)
     ctx.generics.push(String.from("T"))
 
     var object_args = List.new<TypeRef>()
@@ -136,13 +135,12 @@ fun resolve_dyn_trait_keeps_generic_argument(): bool {
 }
 
 @test fun display_type_renders_dynamic_principal_and_arguments(): void {
-    val diagnostics = List.new<Diagnostic>()
-    val diagnostic_ptr: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostic_ptr = diagnostics }
+    val diagnostic_ptr: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
+    unsafe { *diagnostic_ptr = new_diagnostics() }
     val signatures = new_sig_table()
     val signature_ptr: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signature_ptr = signatures }
-    val ctx = new_type_ctx(void_ty(no_span()), diagnostic_ptr, Option.None, signature_ptr)
+    val ctx = new_type_ctx(void_ty(no_span()), unsafe { &var *diagnostic_ptr }, Option.None, signature_ptr)
     val sink = resolved_test_sink(int32_ty(no_span()))
     assert_eq(sink.display_type(&ctx).as_str(), "dyn Sink<int32>", "dynamic types use source-facing display")
 }

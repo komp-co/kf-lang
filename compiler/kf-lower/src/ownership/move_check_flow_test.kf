@@ -18,7 +18,7 @@ fun mk_if_stmt(then_body: List<Stmt>, else_body: List<Stmt>): Stmt {
 @test fun branch_both_move_no_diag(): void {
     // if (true) { val y = x } else { val z = x }  → 0 divergence diags
     val dp = fresh_diag_ptr()
-    var ctx = fresh_ctx(dp)
+    var ctx = fresh_ctx(unsafe { &var *dp })
     ctx.declare_owned(intern("x"))
 
     var then_body = List.new<Stmt>()
@@ -35,7 +35,7 @@ fun mk_if_stmt(then_body: List<Stmt>, else_body: List<Stmt>): Stmt {
 @test fun branch_only_then_moves_emits_divergence(): void {
     // if (true) { val y = x } else { /* nothing */ }  → 1 divergence diag
     val dp = fresh_diag_ptr()
-    var ctx = fresh_ctx(dp)
+    var ctx = fresh_ctx(unsafe { &var *dp })
     ctx.declare_owned(intern("x"))
 
     var then_body = List.new<Stmt>()
@@ -51,7 +51,7 @@ fun mk_if_stmt(then_body: List<Stmt>, else_body: List<Stmt>): Stmt {
 @test fun when_arm_bind_owns_payload(): void {
     // when (opt) { Some(x) => { val y = x } None => {} }  → 0 diags
     val dp = fresh_diag_ptr()
-    var ctx = fresh_ctx(dp)
+    var ctx = fresh_ctx(unsafe { &var *dp })
 
     val inner = new_pattern(no_span(), PatternKind.Identifier(intern("x")))
     var payloads = List.new<Pattern>()
@@ -86,7 +86,7 @@ fun mk_if_stmt(then_body: List<Stmt>, else_body: List<Stmt>): Stmt {
 @test fun call_arg_is_borrow_no_move(): void {
     // val x: String = ...; foo(x); foo(x)  → 0 diags
     val dp = fresh_diag_ptr()
-    var ctx = fresh_ctx(dp)
+    var ctx = fresh_ctx(unsafe { &var *dp })
     ctx.declare_owned(intern("x"))
 
     var args1 = List.new<Expr>()
@@ -118,7 +118,7 @@ fun mk_while_stmt(body: List<Stmt>): Stmt {
 
 @test fun loop_no_move_no_diag(): void {
     val dp = fresh_diag_ptr()
-    var ctx = fresh_ctx(dp)
+    var ctx = fresh_ctx(unsafe { &var *dp })
     ctx.declare_owned(intern("x"))
     val body = List.new<Stmt>()
     var w = mk_while_stmt(body)
@@ -129,7 +129,7 @@ fun mk_while_stmt(body: List<Stmt>): Stmt {
 
 @test fun loop_body_moves_emits_loop_leak(): void {
     val dp = fresh_diag_ptr()
-    var ctx = fresh_ctx(dp)
+    var ctx = fresh_ctx(unsafe { &var *dp })
     ctx.declare_owned(intern("x"))
     var body = List.new<Stmt>()
     body.push(mk_letval(String.from("y"), mk_str_var(String.from("x"))))
@@ -143,7 +143,7 @@ fun mk_while_stmt(body: List<Stmt>): Stmt {
     // x moved on both branches stays moved after the `if`, so a later use
     // auto-clones.
     val dp = fresh_diag_ptr()
-    var ctx = fresh_ctx(dp)
+    var ctx = fresh_ctx(unsafe { &var *dp })
     ctx.declare_owned(intern("x"))
 
     var then_body = List.new<Stmt>()
@@ -187,7 +187,7 @@ mutating fun MoveCtx.register_move_sink(callee: str): void {
 @test fun byvalue_arg_is_a_consume(): void {
     // foo(x) then val y = x: the argument is auto-cloned, so both own a copy.
     val dp = fresh_diag_ptr()
-    var ctx = fresh_ctx(dp)
+    var ctx = fresh_ctx(unsafe { &var *dp })
     ctx.register_move_sink("foo")
     ctx.declare_owned(intern("x"))
     var s1 = mk_call_stmt_one_arg("foo", mk_str_var(String.from("x")))
@@ -213,7 +213,7 @@ mutating fun MoveCtx.register_move_sink(callee: str): void {
 @test fun addr_of_arg_is_not_a_consume(): void {
     // foo(&x) → borrow, x stays owned.
     val dp = fresh_diag_ptr()
-    var ctx = fresh_ctx(dp)
+    var ctx = fresh_ctx(unsafe { &var *dp })
     ctx.declare_owned(intern("x"))
     var xv = mk_str_var(String.from("x"))
     xv.coerce = coerce_addr_of()
@@ -225,7 +225,7 @@ mutating fun MoveCtx.register_move_sink(callee: str): void {
 @test fun borrowed_local_return_auto_clones(): void {
     // A local bound from `get` does not own; returning it must copy.
     val dp = fresh_diag_ptr()
-    var ctx = fresh_ctx(dp)
+    var ctx = fresh_ctx(unsafe { &var *dp })
     ctx.declare_borrowed(intern("x"))
     var s = mk_return(mk_str_var(String.from("x")))
     s.move_check_stmt(&var ctx)
@@ -258,7 +258,7 @@ fun branches_moving_x(): Stmt {
 
 @test fun a_move_on_both_branches_copies_neither(): void {
     val dp = fresh_diag_ptr()
-    var ctx = fresh_ctx(dp)
+    var ctx = fresh_ctx(unsafe { &var *dp })
     ctx.declare_owned(intern("x"))
     var s = branches_moving_x()
     s.move_check_stmt(&var ctx)
@@ -271,7 +271,7 @@ fun branches_moving_x(): Stmt {
 
 @test fun a_use_after_both_branches_copies_each(): void {
     val dp = fresh_diag_ptr()
-    var ctx = fresh_ctx(dp)
+    var ctx = fresh_ctx(unsafe { &var *dp })
     ctx.declare_owned(intern("x"))
     var s = branches_moving_x()
     s.move_check_stmt(&var ctx)
@@ -288,7 +288,7 @@ fun branches_moving_x(): Stmt {
 /// the returned `x` became a copy.
 fun return_of_binder_copies(subject: Expr): bool {
     val dp = fresh_diag_ptr()
-    var ctx = fresh_ctx(dp)
+    var ctx = fresh_ctx(unsafe { &var *dp })
     ctx.declare_owned(intern("opt"))
     var payloads = List.new<Pattern>()
     payloads.push(new_pattern(no_span(), PatternKind.Identifier(intern("x"))))
@@ -324,7 +324,7 @@ fun return_of_binder_copies(subject: Expr): bool {
 /// `var v = *p` with `p` of the given pointer kind; whether `*p` became a copy.
 fun var_through_copies(pointer_kind: TypeKind): bool {
     val dp = fresh_diag_ptr()
-    var ctx = fresh_ctx(dp)
+    var ctx = fresh_ctx(unsafe { &var *dp })
     var p = new_expr(no_span(), ExprKind.Variable(intern("p")))
     p.ty = Type { kind: pointer_kind, provenance: Provenance.Inferred(no_span()) }
     var read = new_expr(no_span(), ExprKind.Deref(Box.new(p)))

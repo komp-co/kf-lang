@@ -13,11 +13,11 @@ import kf_resolve.*
 import kf_typecheck.*
 import kf_typecheck.types.display_type
 import kf_driver.fresh_source_map
-import kf_driver.build.fresh_diag_list
 import kf_driver.build.merge_module_list
 import kf_driver.build.CrateSource
 import kf_driver.build.assemble_crate_list
 import kf_shared.absolutize
+import kf_core.diagnostic.new_diagnostics
 
 /// `ok` is false for a file with no crate above it.
 pub struct TypedCrate {
@@ -55,9 +55,9 @@ pub fun typed_crate_with(file_path: str, overlay: &Overlay, crates: &List<CrateS
         }
     }
     val smap = fresh_source_map()
-    val pdiags = fresh_diag_list()
+    var pdiags = new_diagnostics()
     // With the root's tests, since the buffer is often a `_test.kf`.
-    var merged = merge_module_list(assemble_crate_list(crates, smap, pdiags, true, overlay))
+    var merged = merge_module_list(assemble_crate_list(crates, smap, &var pdiags, true, overlay))
 
     // Diagnostics are dropped: they would interleave with the answer on
     // stdout, and the editor has them from `komp check`.
@@ -97,8 +97,8 @@ pub mutating fun TypedCrate.focus(file_path: str): bool {
 
 /// As its author wrote it.
 pub fun Type.written_type(sigs: Ptr<SigTable>): String {
-    val sink = fresh_diag_list()
-    val ctx = new_type_ctx(poison_ty(), sink, null, sigs)
+    var sink = new_diagnostics()
+    val ctx = new_type_ctx(poison_ty(), &var sink, null, sigs)
     return display_type(self, &ctx)
 }
 

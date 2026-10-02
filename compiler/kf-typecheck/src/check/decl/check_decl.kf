@@ -14,7 +14,7 @@ import kf_typecheck.check.borrow.reject_unsayable_origin
 /// caller owns it; what the check hands out are views of it.
 pub fun check_decl_module(m: &var Module,
     table: &var DeclTable,
-    diags: Ptr<List<Diagnostic>>,
+    diags: &var Diagnostics,
     caller_files: Ptr<List<uint32>>,
     imported_targets: Ptr<List<Sym>>,
     imported_names: Ptr<List<Sym>>): Box<SigTable> {
@@ -203,14 +203,13 @@ pub fun Module.assoc_projection_registry(): Ptr<SigTable> {
     val sigs = new_sig_table()
     val sig_ptr: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *sig_ptr = sigs }
-    val sink: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *sink = List.new<Diagnostic>() }
+    var sink = new_diagnostics()
 
     while decl in &self.decls {
         decl.register_type_identity(sig_ptr)
     }
     while decl in &self.decls {
-        decl.register_assoc_bindings_decl(sig_ptr, sink)
+        decl.register_assoc_bindings_decl(sig_ptr, &var sink)
     }
     return sig_ptr
 }
@@ -239,7 +238,7 @@ fun is_builtin_type_name(name: str): bool {
 }
 
 /// A type named like a builtin `resolve_type_ref` claims is rejected.
-pub fun TopDecl.reject_reserved_type_name(diags: Ptr<List<Diagnostic>>): bool {
+pub fun TopDecl.reject_reserved_type_name(diags: &var Diagnostics): bool {
     when (self.kind) {
         Struct(_fields, _is_pub) => { }
         EnumDecl(_variants, _is_pub) => { }
@@ -248,13 +247,13 @@ pub fun TopDecl.reject_reserved_type_name(diags: Ptr<List<Diagnostic>>): bool {
     if is_builtin_type_name(self.name.as_str()) {
         val message = "`${self.name.as_str()}` is reserved for a builtin type; a type cannot be declared with that name (rename it)"
         val lab = new_label(self.decl_name_span(), message)
-        unsafe { diags.push(new_diagnostic(Severity.Error, lab)) }
+        diags.emit(new_diagnostic(Severity.Error, lab))
         return true
     }
     return false
 }
 
-pub fun register_sigs(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>,
+pub fun register_sigs(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: &var Diagnostics,
     table: Ptr<DeclTable>?): void {
     when (td.kind) {
         Function(params, ret_ptr, _body, is_pub, _unsafe, _mutating, _static) => {
@@ -337,7 +336,7 @@ fun impl_writes_method(methods: &List<TopDecl>, name: str): bool {
     return false
 }
 
-fun register_fn_sig(metadata_owner: Ptr<TopDecl>, fn_name: String, params: List<Param>, ret_ptr: Ptr<TypeRef>, generics: List<String>, owner_crate: CrateId, owner_module: Sym, owner_file: uint32, is_pub: bool, sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>, table: Ptr<DeclTable>?): void {
+fun register_fn_sig(metadata_owner: Ptr<TopDecl>, fn_name: String, params: List<Param>, ret_ptr: Ptr<TypeRef>, generics: List<String>, owner_crate: CrateId, owner_module: Sym, owner_file: uint32, is_pub: bool, sig_ptr: Ptr<SigTable>, diags: &var Diagnostics, table: Ptr<DeclTable>?): void {
     var eff_table: Ptr<DeclTable>? = table
     if unsafe { (*metadata_owner).linkage.is_imported() } { eff_table = Option.None }
     var ctx0 = new_type_ctx(void_ty(no_span()), diags, eff_table, sig_ptr)
@@ -372,7 +371,7 @@ fun method_body_owner(struct_name: String, method_name: String): String {
     return struct_name + String.from("_") + method_name
 }
 
-fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &var TopDecl, suffix: String, trait_name: String, trait_args: String, sig_ptr: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>, table: Ptr<DeclTable>?): void {
+fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &var TopDecl, suffix: String, trait_name: String, trait_args: String, sig_ptr: Ptr<SigTable>, diags: &var Diagnostics, table: Ptr<DeclTable>?): void {
     when (td.kind) {
         Function(params, ret_ptr, _body, _pub, _unsafe, is_mutating, is_static) => {
             val impl_generics = type_param_names(&impl_tps)
@@ -447,7 +446,7 @@ fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &va
     }
 }
 
-fun check_top_decl(td: &var TopDecl, _table: &var DeclTable, diags: Ptr<List<Diagnostic>>, sigs: Ptr<SigTable>): void {
+fun check_top_decl(td: &var TopDecl, _table: &var DeclTable, diags: &var Diagnostics, sigs: Ptr<SigTable>): void {
     // An interface-loaded declaration has no body here.
     if td.linkage.is_imported() { return }
     when (td.kind) {

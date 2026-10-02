@@ -160,7 +160,7 @@ pub fun own_stored_captures(captures: &var List<LambdaCapture>, span: Span, ctx:
         if ty.capture_type_cannot_escape(ctx.sigs) {
             val message = "stored lambda cannot capture borrow-typed `${name}`; pass the lambda directly to a call instead"
             val label = new_label(span, message)
-            unsafe { ctx.diags.push(new_diagnostic(Severity.Error, label)) }
+            ctx.diags.emit(new_diagnostic(Severity.Error, label))
             return false
         }
         val owned_mode = when (mode) {

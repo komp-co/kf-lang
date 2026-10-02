@@ -125,8 +125,7 @@ pub mutating fun MoveCtx.unmark_moved(name: Sym): void {
 }
 
 pub mutating fun MoveCtx.ctx_emit(d: Diagnostic): void {
-    val dp = self.diags
-    unsafe { dp.push(d) }
+    self.diags.emit(d)
 }
 
 /// String, refcounted structs and enums.

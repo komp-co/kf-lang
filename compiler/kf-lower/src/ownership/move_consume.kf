@@ -194,7 +194,7 @@ fun warn_auto_clone(span: Span, callee: String, idx: uint64, ctx: &var MoveCtx):
 // level; `ctx.diags` is discarded.
 mutating fun MoveCtx.record_lint(d: Diagnostic): void {
     val w = self.warn
-    unsafe { (*w).lints.push(d) }
+    unsafe { w.lints.push(d) }
 }
 
 // A separate lint from `implicit_copy`: an earlier move was undone.
