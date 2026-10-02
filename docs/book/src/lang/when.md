@@ -111,6 +111,20 @@ fun area(s: &Shape): int32 {
 The compiler checks exhaustiveness: if `Empty` were missing, the compiler
 would reject the `when`. A wildcard arm also catches all remaining variants.
 
+A variant whose payload has no values cannot be built, so it needs no arm.
+`Ok` of a `Result<Never, E>` is one; so is any variant holding an enum with no
+variants:
+
+```kflat
+import core.traits.Never
+
+fun widen<E>(r: Result<Never, E>): Result<bool, E> {
+    when (r) {
+        Err(e) => { return Result.Err<bool, E>(e) }
+    }
+}
+```
+
 ## The lowercase-binds rule
 
 A bare name in a pattern arm that starts with a lowercase letter **binds the
