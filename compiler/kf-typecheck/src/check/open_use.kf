@@ -30,7 +30,7 @@ mutating fun Expr.conflicts_with_decision(expected: Type, ctx: &var TypeCtx): bo
     if decided_at.is_none() || self.ty.is_poison() || self.ty.type_eq(expected) { return false }
     val decided = self.ty.display_type(ctx)
     val message = "`${name}` is `${decided}`, as an earlier use decided, " +
-        "but this use needs `${expected.display_type(ctx)}`"
+        "but this use expects `${expected.display_type(ctx)}`"
     var diagnostic = new_diagnostic(Severity.Error, new_label(self.span, message))
     diagnostic.secondary.push(new_label(decided_at, "decided `${decided}` here"))
     ctx.emit(diagnostic)

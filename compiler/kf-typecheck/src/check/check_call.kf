@@ -10,6 +10,8 @@ import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.*
 import kf_typecheck.traits.str_list_has
 import kf_typecheck.check.borrow.coerce_call_arg
+import kf_typecheck.check.borrow.may_keep_argument
+import kf_typecheck.check.borrow.reject_kept_temporary
 import kf_typecheck.note_import_use_named
 import kf_typecheck.check.control.yield_ref_binder_value
 
@@ -131,6 +133,9 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
     }
     if !check_generic_arg_kinds(sig.name.as_str(), &gnames, type_args, ctx) { return Type.new_poison() }
     var inf_tys = List.new<Type>()
+    // The argument each inferred parameter was read from, for the message
+    // when another argument disagrees.
+    var inf_from = List.new<uint64>()
     var g0 = 0
     while g0 < gnames.size() {
         val gname = *gnames.at(g0)
@@ -140,6 +145,7 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
         if g0 < type_args.size() {
             bound = (*type_args.at(g0)).resolve_type_ref(ctx)
         }
+        var from = arg_tys.size()
         if bound.is_poison() {
             while k in 0..sig.params.size() {
                 if k >= arg_tys.size() { break }
@@ -149,11 +155,13 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
                 val cand = sp.bind_generic_from_param(&at0, gname.as_str(), ctx)
                 if !cand.is_poison() {
                     bound = cand
+                    from = k
                     break
                 }
             }
         }
         inf_tys.push(bound)
+        inf_from.push(from)
         g0 = g0 + 1
     }
     if type_args.size() == 0 { infer_from_bounds(name.as_str(), &gnames, &var inf_tys, span, ctx) }
@@ -168,6 +176,11 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
             }
             s0 = s0 + 1
         }
+        val kept = sig.may_keep_argument(j)
+        if kept && args.at(j).reject_kept_temporary(&expected, name.as_str(), ctx) {
+            saw_error = true
+            continue
+        }
         val outcome = coerce_call_arg(args, j, expected.clone(), ctx)
         // After the coercion, which may have typed an open binding; a lambda
         // still waiting on its bound stays poison.
@@ -176,7 +189,11 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
             saw_error = true
         } else if !outcome.coerced && !at.type_eq(expected) && !ctx.fits(at, expected) {
             saw_error = true
-            ctx.emit(new_diagnostic(Severity.Error, new_label(span, "wrong type for argument ${j + 1} of `${name.as_str()}`: expected `${expected.display_type(ctx)}`, found `${at.display_type(ctx)}`")))
+            val decided = decided_by_argument(sig.params.at(j), &gnames, &inf_from, j, arg_tys.size())
+            var message = "wrong type for argument ${j + 1} of `${name.as_str()}`: expected `${expected.display_type(ctx)}`"
+            if decided != null { message.append(", as argument ${(decided ?: 0) + 1} decided") }
+            message.append(", found `${at.display_type(ctx)}`")
+            ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
         }
     }
     if saw_error { return Type.new_poison() }
@@ -228,8 +245,9 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
 /// The enum's name when `kind` names a registered enum and no local, or "".
 fun try_get_enum_recv_name(kind: ExprKind, ctx: &var TypeCtx): String {
     when (kind) {
-        Variable(n) => {
-            if ctx.is_declared(n.as_str()) { return "" }
+        Variable(written) => {
+            if ctx.is_declared(written.as_str()) { return "" }
+            val n = written.receiver_type_name(ctx)
             val ep = unsafe { (*ctx.sigs).find_enum(n.as_str(), ctx.owner_crate) }
             if ep.is_none() { return "" }
             return n.as_string()

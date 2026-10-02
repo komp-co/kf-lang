@@ -59,3 +59,8 @@ fun first_syntax_message(src: str): String {
     val diags = expression_syntax_diags("fun f(n: int32): void { g(n *, 1) }")
     assert_eq(diags, 1, "the comma ends the operand that `*` needs")
 }
+
+@test fun an_empty_index_is_reported_once(): void {
+    val diags = expression_syntax_diags("fun f(): void {\n    var names = String[]\n}")
+    assert_eq(diags, 1, "`[]` after a name holds no index")
+}

@@ -21,6 +21,13 @@ impl Parser {
         val saved = self.no_struct_lit
         self.no_struct_lit = false
         self.skip_newlines()
+        if is_op(self.peek(), Operator.RBracket) {
+            self.parse_err(self.peek().span, String.from(
+                "an index goes between `[` and `]`; an empty list is `[]` where its type is known, or `List.new<T>()`"))
+            val _rb = self.expect_op(Operator.RBracket, "to close the index")
+            self.no_struct_lit = saved
+            return Expr.new_poison(recv.span.merge(open_span))
+        }
         val key = self.parse_expr()
         self.skip_newlines()
         val _rb = self.expect_op(Operator.RBracket, "to close the index")

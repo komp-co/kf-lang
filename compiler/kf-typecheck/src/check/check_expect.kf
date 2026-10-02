@@ -26,6 +26,7 @@ pub mutating fun Expr.apply_expected(expected: Type, ctx: &var TypeCtx): bool {
     if self.narrow_open_array(expected.clone(), ctx) { return true }
     if self.retarget_string_literal(expected.clone(), ctx) { return true }
     if self.retarget_array_literal(expected.clone(), ctx) { return true }
+    if self.lend_empty_list_literal(&expected, ctx) { return true }
     if self.lend_literal_as_slice(&expected, ctx) { return true }
     if self.convert_list_literal_from(expected.clone(), ctx) { return true }
     if self.convert_string_literal_from(expected.clone(), ctx) { return true }
