@@ -42,7 +42,12 @@ pub fun parse_frames(text: str): List<Frame> {
             rest = rest.slice_from(marker + 4)
         }
         val open = rest.index_of(" (") ?: rest.byte_len()
-        frames.push(Frame { number: number, name: rest.substring(0, open) })
+        val written = rest.substring(0, open)
+        // A crate-at-a-time build names `kf_codegen.emit_free` what the
+        // bootstrap names `emit_free`.
+        val dot = written.last_index_of(".")
+        val name = if dot == null { written } else { written.slice_from(dot!! + 1) }
+        frames.push(Frame { number: number, name: name })
         continue
     }
     return frames

@@ -161,6 +161,10 @@ fun CompileUnit.compile_crate_mode(artifacts: str, is_bin_root: bool, include_te
     }
     val interface_text = emit_interface_full(&merged, String.from(self.name.as_str()), &self.deps, &self.dep_hashes, smap)
     merged.run_separate_after_typecheck(errp, smap)
+    // Codegen assumes a well-typed, lowered tree; the caller writes nothing.
+    if has_errors(errp) {
+        return CrateCompileResult { output: empty_codegen_output(), interface_text: interface_text }
+    }
     // The test TU includes `<crate>_tests.h`, not the library header.
     val artifact = if include_tests {
         String.from(self.name.as_str()) + String.from("_tests")

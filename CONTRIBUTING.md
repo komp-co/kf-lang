@@ -178,8 +178,10 @@ mutant. A crash, a panic or a hang is a finding, named by a signature: the
 panic's message, or the signal or hang and, when gdb is installed, the
 function it struck in.
 
-The `fuzz` job runs it over fixed seeds through `scripts/check_fuzz.sh`,
-and fails on a signature `tools/kf-fuzz/known.txt` does not name; the
+The `fuzz` job runs it through `scripts/check_fuzz.sh`: first every fixture
+as written (`kf_fuzz corpus`), since a `build: fail` fixture also passes when
+kflatc crashes, then mutants over fixed seeds. It fails on a signature
+`tools/kf-fuzz/known.txt` does not name; the
 nightly run gives it fresh seeds and uploads what it finds. It is not part
 of `scripts/check.sh`; run the script yourself to fuzz a change locally:
 

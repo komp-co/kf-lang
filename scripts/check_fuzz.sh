@@ -5,8 +5,9 @@
 #   scripts/check_fuzz.sh <komp-binary> [WORKDIR]
 #
 # Builds tools/kf-fuzz with that komp and runs it with the kflatc beside it:
-# fixtures from tests/cases mutated, then library interfaces mutated, over a
-# fixed range of seeds. A finding tools/kf-fuzz/known.txt names is counted and
+# every fixture in tests/cases as written, which keeps a fixed crash fixed,
+# then the fixtures mutated and library interfaces mutated, over a fixed range
+# of seeds. A finding tools/kf-fuzz/known.txt names is counted and
 # passes; any other fails the gate, with the seed that reproduces it.
 #
 # CI's `fuzz` job runs it; scripts/check.sh does not. FUZZ_FRESH=1 runs
@@ -40,7 +41,7 @@ fi
 
 cd "$ROOT"
 status=0
-for mode in front kfi; do
+for mode in corpus front kfi; do
     # shellcheck disable=SC2086
     "$FUZZ" "$mode" --seeds "$seeds" --jobs "$JOBS" --timeout 5 --kflatc "$KFLATC" \
         --save "$WORK/fuzz-findings" $extra || status=$?

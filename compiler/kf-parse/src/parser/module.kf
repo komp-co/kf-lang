@@ -32,7 +32,9 @@ impl Parser {
             self.skip_newlines()
             if self.at_eof() { break }
             if phase_imports && is_keyword(self.peek(), Keyword.Import) {
-                imports.push(self.parse_import())
+                // A pathless import was reported, and would name nothing.
+                val imported = self.parse_import()
+                if imported.path.size() > 0 { imports.push(imported) }
             } else if phase_imports && self.at_word("export") {
                 val exported = self.parse_export()
                 while imp in &exported { imports.push(imp.clone_import()) }

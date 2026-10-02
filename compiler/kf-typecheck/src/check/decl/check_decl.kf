@@ -106,6 +106,7 @@ pub fun check_decl_module(m: &var Module,
     // CONSTRAINT: every trait, impl and struct is registered by here: what
     // these read may be declared below the declaration they check.
     check_supertrait_cycles(unsafe { &*sig_ptr }, diags)
+    m.check_infinite_types(unsafe { &*sig_ptr }, diags)
     m.check_supertrait_obligations(unsafe { &*sig_ptr }, diags)
     m.check_supertrait_assoc_shadowing(unsafe { &*sig_ptr }, diags)
     m.check_copy_impls(sig_ptr, table_ptr, diags)

@@ -4,6 +4,7 @@
 //   kf-fuzz front [--seeds A..B] [--jobs N] [--timeout S] [--memory MB] [--budget S]
 //                 [--kflatc PATH] [--libs DIR] [--cases DIR] [--known FILE] [--save DIR]
 //   kf-fuzz kfi   ... the same, mutating a library's interface instead
+//   kf-fuzz corpus ... every fixture once, unmutated
 //   kf-fuzz front|kfi --seeds A..B --emit DIR      write the seeds' jobs, run nothing
 //   kf-fuzz judge [--expect SIG] [--interface NAME=FILE] FILE
 //
@@ -21,7 +22,7 @@ import std.time.Instant
 
 fun usage(problem: str): int32 {
     println("kf-fuzz: ${problem}")
-    println("usage: kf-fuzz front|kfi [--seeds A..B] [--jobs N] [--timeout S] [--memory MB] [--budget S]")
+    println("usage: kf-fuzz front|kfi|corpus [--seeds A..B] [--jobs N] [--timeout S] [--memory MB] [--budget S]")
     println("                         [--kflatc PATH] [--libs DIR] [--cases DIR] [--known FILE]")
     println("                         [--save DIR] [--emit DIR]")
     println("       kf-fuzz judge [--expect SIGNATURE] [--interface NAME=FILE] FILE")
@@ -46,6 +47,7 @@ fun main(): int32 {
     val libraries = "${work.path().as_str()}/libs"
     val _made = create_dir_all(work.path().join("libs"))
     when options.command.as_str() {
+        "corpus" => return campaign(Mode.Corpus, &options, limits, &work, libraries.as_str())
         "front" => return campaign(Mode.Source, &options, limits, &work, libraries.as_str())
         "kfi" => return campaign(Mode.Interface, &options, limits, &work, libraries.as_str())
         "judge" => return judge_one(&options, limits, &work, libraries.as_str())
@@ -75,7 +77,10 @@ fun campaign(mode: Mode, options: &Options, limits: Limits, work: &TempDir, libr
         known: parse_known(read_or_empty(options.known.as_str()).as_str()), jobs: options.jobs,
         budget_seconds: options.budget_seconds, save_dir: options.save_dir.clone()
     }
-    val tally = run.run(options.first_seed, options.last_seed, work)
+    // Every fixture once, whatever the seeds say.
+    val first = if mode == Mode.Corpus { 0 } else { options.first_seed }
+    val last = if mode == Mode.Corpus { run.corpus.size() - 1 } else { options.last_seed }
+    val tally = run.run(first, last, work)
     run.report(&tally, started.elapsed().as_seconds())
     return if tally.new_count() > 0 { 1 } else { 0 }
 }

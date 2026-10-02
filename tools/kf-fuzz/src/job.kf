@@ -8,6 +8,9 @@ import alloc.path.Path
 
 @derive(Equal, Clone, Copy)
 pub enum Mode {
+    /// Each fixture as it is, the seed its index: a `build: fail` fixture
+    /// passes on a crash, so this is what keeps a fixed crash fixed.
+    Corpus
     /// Mutate the program.
     Source
     /// Mutate the interface of a library the program uses.
@@ -16,6 +19,7 @@ pub enum Mode {
 
 pub fun Mode.label(): str {
     return when (*self) {
+        Corpus => "corpus"
         Source => "front"
         Interface => "kfi"
     }
@@ -42,6 +46,13 @@ pub fun make_job(mode: Mode, seed: uint64, corpus: &List<Fixture>, interfaces: &
     pieces: &List<List<Piece>>): Job {
     var rng = Rng.seeded(seed)
     when (mode) {
+        Corpus => {
+            val fixture = corpus.at(seed % corpus.size())
+            return Job {
+                seed: seed, fixture: fixture.name.clone(), deps: fixture.deps.clone(), mutation: "none",
+                program: fixture.source.clone(), library: "", interface: ""
+            }
+        }
         Source => {
             val fixture = corpus.at(rng.below(corpus.size()))
             val mutant = mutate(fixture.source.as_str(), &var rng)

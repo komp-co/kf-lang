@@ -13,6 +13,7 @@ import kf_typecheck.check.control.yield_ref_binder_value
 /// `alloc<T>()`, `sizeof<T>()`, `take<T>(x)` and friends, the type folded into
 /// the callee name. Only reached with `Expr.is_intrinsic` set.
 fun intrinsic_call_type(name: String, args: &var List<Expr>, type_args: &var List<TypeRef>, span: Span, ctx: &var TypeCtx): Type {
+    if report_intrinsic_arity(name.as_str(), args.size(), span, ctx) { return poison_ty() }
     // `alloc<T>` -> `Ptr<T>`; `sizeof<T>` -> uint64; `dealloc<T>` -> void;
     // `take<T>(x)` -> the argument's type.
     if name_starts_with(name, "alloc__") {
