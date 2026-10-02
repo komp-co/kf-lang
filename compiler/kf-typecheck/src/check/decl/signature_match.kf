@@ -4,6 +4,8 @@
 
 import alloc.list.*
 
+import kf_core.span.no_span
+
 import kf_core.ast.*
 import kf_core.diagnostic.*
 import kf_typecheck.*
@@ -19,8 +21,9 @@ import kf_typecheck.traits.trait_impl_owner_name
 /// an unknown type through `decls`, are reported only for this crate's
 /// annotations, which pass it.
 pub fun MarkTarget.function_type(owner: &TopDecl, decls: Ptr<DeclTable>?, sigs: Ptr<SigTable>,
-    diags: Ptr<List<Diagnostic>>): Type {
-    var ctx = owner.declaration_ctx(sigs, diags)
+    diags: &var Diagnostics): Type {
+    var ctx = new_type_ctx(void_ty(no_span()), diags, Option.None, sigs)
+    ctx.place_at(owner)
     ctx.table = decls
     ctx.quiet = decls == null
     ctx.seed_generics(type_param_names(owner.generics))
@@ -53,7 +56,7 @@ fun TypeRef.slot_type(ctx: &var TypeCtx): Type {
 /// target, reported when it does not. `bound` receives what each type
 /// parameter stands for, in order.
 fun TopDecl.fits_signature(kind: str, declared: &DeclaredAnnotation, owner: &MethodOwner, table: &SigTable,
-    sigs: Ptr<SigTable>, pass_diags: Ptr<List<Diagnostic>>, bound: &var List<Type>,
+    sigs: Ptr<SigTable>, pass_diags: &var Diagnostics, bound: &var List<Type>,
     diags: &var List<Diagnostic>): bool {
     val at = self.decl_name_span()
     if !self.is_plain_function() {
@@ -220,8 +223,9 @@ fun TopDecl.is_plain_function(): bool {
 /// `(A) -> R` from the declaration as written, resolved in its own module, a
 /// method's receiver first. Quiet: the signature's own errors were reported
 /// when it was registered.
-fun TopDecl.own_function_type(owner: &MethodOwner, sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): Type {
-    var ctx = self.declaration_ctx(sigs, diags)
+fun TopDecl.own_function_type(owner: &MethodOwner, sigs: Ptr<SigTable>, diags: &var Diagnostics): Type {
+    var ctx = new_type_ctx(void_ty(no_span()), diags, Option.None, sigs)
+    ctx.place_at(self)
     ctx.quiet = true
     return when (self.kind) {
         Function(params, ret, _b, _pub, _u, is_mutating, is_static) => {

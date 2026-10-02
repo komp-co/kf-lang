@@ -164,11 +164,10 @@ fun capture_inits(captures: &List<LambdaCapture>, span: Span, ctx: &var TypeCtx)
 
 /// A name neither parameter nor capture is undeclared, and says so.
 fun lambda_body_type(params: &List<Param>, captures: &List<LambdaCapture>, body: &List<Stmt>, span: Span, ctx: &var TypeCtx): Type {
-    val sink: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *sink = List.new<Diagnostic>() }
+    var sink = new_diagnostics()
     // Poison, not void: the return type is what is being computed;
     // `validate_lambda_returns` judges early returns afterwards.
-    var inner = new_type_ctx(poison_ty(), sink, ctx.table, ctx.sigs)
+    var inner = new_type_ctx(poison_ty(), &var sink, ctx.table, ctx.sigs)
     inner.owner_crate = ctx.owner_crate
     inner.owner_module = ctx.owner_module
     inner.owner_file = ctx.owner_file
@@ -192,12 +191,8 @@ fun lambda_body_type(params: &List<Param>, captures: &List<LambdaCapture>, body:
         (unsafe { body.at(si) as Ptr<Stmt> } as &var Stmt).check_stmt(&var inner)
     }
     val value = lambda_value_type(body, span, &var inner)
-    val failed = unsafe { sink.size() } > 0
-    var d = 0
-    while d < unsafe { sink.size() } {
-        ctx.emit(unsafe { *sink.at(d) })
-        d = d + 1
-    }
+    val failed = sink.size() > 0
+    while d in &sink.items { ctx.emit(d.clone()) }
     if failed { return poison_ty() }
     if !validate_lambda_returns(body, &value, span, ctx) { return poison_ty() }
     return value
@@ -302,7 +297,7 @@ fun synth_lambda_decls(name: String, params: &List<Param>, fields: List<Field>, 
     unsafe { sigs.synth_decls.push(impl_decl) }
 }
 
-mutating fun TopDecl.register_lambda_struct(sigs: Ptr<SigTable>, diags: Ptr<List<Diagnostic>>): void {
+mutating fun TopDecl.register_lambda_struct(sigs: Ptr<SigTable>, diags: &var Diagnostics): void {
     when (self.kind) {
         Struct(fields, _is_pub) => {
             var ctx0 = new_type_ctx(void_ty(no_span()), diags, Option.None, sigs)

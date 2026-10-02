@@ -62,13 +62,13 @@ fun dyn_method_ref(argument: Type, mutable: bool): Type {
 }
 
 fun run_dyn_method(method: str, mutable: bool, argument_kind: uint8, include_extra: bool): DynMethodOutcome {
-    val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostics = List.new<Diagnostic>() }
+    val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
+    unsafe { *diagnostics = new_diagnostics() }
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signatures = new_sig_table() }
     unsafe { signatures.insert_trait(dyn_dispatch_trait()) }
     if include_extra { unsafe { signatures.insert_trait(dyn_extra_trait()) } }
-    var ctx = new_type_ctx(void_ty(no_span()), diagnostics, Option.None, signatures)
+    var ctx = new_type_ctx(void_ty(no_span()), unsafe { &var *diagnostics }, Option.None, signatures)
     ctx.declare_val(String.from("object"), dyn_method_ref(int32_ty(no_span()), mutable))
     var args = List.new<Expr>()
     if argument_kind == 1 { args.push(new_expr(no_span(), ExprKind.LitInt(7))) }
@@ -91,12 +91,12 @@ fun run_dyn_method(method: str, mutable: bool, argument_kind: uint8, include_ext
 }
 
 fun qualified_dyn_method_message(): String {
-    val diagnostics: Ptr<List<Diagnostic>> = unsafe { alloc<List<Diagnostic>>() }
-    unsafe { *diagnostics = List.new<Diagnostic>() }
+    val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
+    unsafe { *diagnostics = new_diagnostics() }
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signatures = new_sig_table() }
     unsafe { signatures.insert_trait(dyn_dispatch_trait()) }
-    var ctx = new_type_ctx(void_ty(no_span()), diagnostics, Option.None, signatures)
+    var ctx = new_type_ctx(void_ty(no_span()), unsafe { &var *diagnostics }, Option.None, signatures)
     ctx.declare_val(String.from("object"), dyn_method_ref(int32_ty(no_span()), false))
     var args = List.new<Expr>()
     args.push(new_expr(no_span(), ExprKind.Variable(intern("object"))))

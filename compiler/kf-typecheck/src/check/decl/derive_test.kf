@@ -122,7 +122,7 @@ fun disabled_test_annotation_is_accepted(): void {
     var td = new_top_decl(no_span(), String.from("paused"), TopDeclKind.Function(List.new<Param>(), result, List.new<Stmt>(), false, false, false, false))
     td.annotations.push(new_annotation(no_span(), "test_disabled", List.new<String>()))
     m.decls.push(td)
-    var diags = List.new<Diagnostic>()
+    var diags = new_diagnostics()
     m.validate_annotations(&var diags)
     assert_eq(diags.size(), 0, "the internal disabled-test marker is accepted")
 }
@@ -136,9 +136,9 @@ fun annotated_function(annotation: Annotation): List<Diagnostic> {
     var td = new_top_decl(no_span(), String.from("f"), kind)
     td.annotations.push(annotation)
     m.decls.push(td)
-    var diags = List.new<Diagnostic>()
+    var diags = new_diagnostics()
     m.validate_annotations(&var diags)
-    return diags
+    return diags.items
 }
 
 @test
@@ -172,7 +172,7 @@ fun Module.synthesized_trait_name(): String {
 @test
 fun hash_is_an_accepted_derive_option(): void {
     val m = derived_struct_module_with_annotation(new_annotation(no_span(), "derive", [String.from("Hash")]))
-    var diags = List.new<Diagnostic>()
+    var diags = new_diagnostics()
     m.validate_annotations(&var diags)
     assert_eq(diags.size(), 0, "`@derive(Hash)` is accepted")
 }
@@ -180,7 +180,7 @@ fun hash_is_an_accepted_derive_option(): void {
 @test
 fun an_unknown_derive_option_is_still_rejected(): void {
     val m = derived_struct_module_with_annotation(new_annotation(no_span(), "derive", [String.from("Hashish")]))
-    var diags = List.new<Diagnostic>()
+    var diags = new_diagnostics()
     m.validate_annotations(&var diags)
     assert_eq(diags.size() > 0, true, "a near-miss option is not accepted")
 }

@@ -687,8 +687,8 @@ fun mk_show_trait(): TopDecl {
 // `Wrap__T` read from a scope where `T` is not a parameter binds and reports
 // nothing.
 @test fun a_foreign_scope_instance_binds_nothing(): void {
-    var diags = List.new<Diagnostic>()
-    val dp: Ptr<List<Diagnostic>> = unsafe { &var diags }
+    var diags = new_diagnostics()
+    val dp: &var Diagnostics = &var diags
     val sigs: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *sigs = new_sig_table() }
     var params = List.new<String>()
@@ -1283,8 +1283,8 @@ pub fun ret_op(p: Ptr<Expr>): Box<Expr>? {
 
 /// Names the impl target with template parameters and the operand in full.
 @test fun a_missing_operator_impl_names_the_instance_and_the_target(): void {
-    var diags = List.new<Diagnostic>()
-    val dp: Ptr<List<Diagnostic>> = unsafe { &var diags }
+    var diags = new_diagnostics()
+    val dp: &var Diagnostics = &var diags
     val sigs: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *sigs = new_sig_table() }
     var params = List.new<String>()
@@ -1306,8 +1306,8 @@ pub fun ret_op(p: Ptr<Expr>): Box<Expr>? {
 
 /// A non-generic type's message is unchanged.
 @test fun a_missing_operator_impl_on_a_plain_type_is_unchanged(): void {
-    var diags = List.new<Diagnostic>()
-    val dp: Ptr<List<Diagnostic>> = unsafe { &var diags }
+    var diags = new_diagnostics()
+    val dp: &var Diagnostics = &var diags
     val sigs: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *sigs = new_sig_table() }
     var ctx = new_type_ctx(void_ty(no_span()), dp, Option.None, sigs)
