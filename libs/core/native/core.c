@@ -56,7 +56,7 @@ void kf_free(void* ptr);
  */
 __attribute__((weak)) void kf_alloc_failed(size_t size) {
     (void)size;
-    panic("out of memory");
+    panic("panic[out_of_memory]: out of memory");
     __builtin_trap();
 }
 

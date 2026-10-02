@@ -1,0 +1,128 @@
+// What went wrong when a library call cannot continue. A fault renders
+// without a heap, so it can be reported where nothing can be allocated.
+
+import core.primitives.write_uint64
+import core.traits.Never
+
+/// The ways `core` and `alloc` stop. `panic_with` prints one as
+/// `panic[<code>]: <message>`.
+pub enum Fault {
+    /// An index at or past the end: the index, then the length.
+    IndexOutOfBounds(uint64, uint64)
+    /// A position past the end: the position, then the length.
+    PositionOutOfBounds(uint64, uint64)
+    /// A range reaching past the end: its start, its end, then the length.
+    RangeOutOfBounds(uint64, uint64, uint64)
+    /// Two lengths that must agree: the one wanted, then the one found.
+    LengthMismatch(uint64, uint64)
+    /// `unwrap` on a `None`.
+    UnwrapNone
+    /// `unwrap` on an `Err`.
+    UnwrapErr
+    /// `unwrap_err` on an `Ok`.
+    UnwrapOk
+    /// A size past what `uint64` holds.
+    CapacityOverflow
+    /// A range stepping other than up by one, where only that will do.
+    RangeNotAscending
+    /// A width of zero, for chunks or windows.
+    ZeroWidth
+    /// A failed assertion; its message is printed first.
+    AssertionFailed
+}
+
+impl Fault {
+    /// The kind, as `panic[<code>]` prints it.
+    pub fun code(): str {
+        return when (self) {
+            IndexOutOfBounds(_i, _n) => "index_out_of_bounds"
+            PositionOutOfBounds(_p, _n) => "position_out_of_bounds"
+            RangeOutOfBounds(_s, _e, _n) => "range_out_of_bounds"
+            LengthMismatch(_w, _f) => "length_mismatch"
+            UnwrapNone => "unwrap_none"
+            UnwrapErr => "unwrap_err"
+            UnwrapOk => "unwrap_ok"
+            CapacityOverflow => "capacity_overflow"
+            RangeNotAscending => "range_not_ascending"
+            ZeroWidth => "zero_width"
+            AssertionFailed => "assertion_failed"
+        }
+    }
+}
+
+impl Display for Fault {
+    fun display(out: &var dyn Write): void {
+        when (self) {
+            IndexOutOfBounds(i, n) => {
+                out.write_str("index ")
+                write_uint64(out, i)
+                out.write_str(" out of bounds for length ")
+                write_uint64(out, n)
+            }
+            PositionOutOfBounds(p, n) => {
+                out.write_str("position ")
+                write_uint64(out, p)
+                out.write_str(" past the end of length ")
+                write_uint64(out, n)
+            }
+            RangeOutOfBounds(s, e, n) => {
+                out.write_str("range ")
+                write_uint64(out, s)
+                out.write_str("..")
+                write_uint64(out, e)
+                out.write_str(" out of bounds for length ")
+                write_uint64(out, n)
+            }
+            LengthMismatch(w, f) => {
+                out.write_str("length ")
+                write_uint64(out, f)
+                out.write_str(" where ")
+                write_uint64(out, w)
+                out.write_str(" was wanted")
+            }
+            UnwrapNone => out.write_str("unwrap on a None")
+            UnwrapErr => out.write_str("unwrap on an Err")
+            UnwrapOk => out.write_str("unwrap_err on an Ok")
+            CapacityOverflow => out.write_str("capacity overflow")
+            RangeNotAscending => out.write_str("a range here must ascend by one")
+            ZeroWidth => out.write_str("a width of zero")
+            AssertionFailed => out.write_str("assertion failed")
+        }
+    }
+}
+
+/// Room for the line `panic_with` prints, NUL-terminated for `panic`; a
+/// longer one is cut short.
+struct FaultText {
+    var bytes: Array<uint8, 256>
+    var len: uint64
+}
+
+impl Write for FaultText {
+    mutating fun write_str(s: str): void {
+        var i: uint64 = 0
+        while i < s.byte_len() && self.len + 1 < 256 {
+            *self.bytes.at_mut(self.len) = s.byte_at(i)
+            self.len = self.len + 1
+            i = i + 1
+        }
+    }
+}
+
+/// Prints `panic[<code>]: <message>` and stops, as `panic` does.
+@prelude
+pub fun panic_with(fault: Fault): Never {
+    var text = FaultText { bytes: Array<uint8, 256> {}, len: 0 }
+    text.write_str("panic[")
+    text.write_str(fault.code())
+    text.write_str("]: ")
+    fault.display(&var text)
+    panic(unsafe { (&text.bytes) as Ptr<uint8> as str })
+}
+
+/// `i`, when it indexes a run of `len` elements; otherwise a panic.
+@prelude
+pub fun checked_index(i: uint64, len: uint64): uint64 {
+    if i >= len { panic_with(Fault.IndexOutOfBounds(i, len)) }
+    return i
+}

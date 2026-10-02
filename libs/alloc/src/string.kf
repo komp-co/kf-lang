@@ -1,3 +1,4 @@
+import core.fault.*
 import core.display.*
 import core.hash.*
 import core.text.*
@@ -23,7 +24,7 @@ impl From<str> for String {
     static fun from(s: str): String {
         val len: uint64 = unsafe { kf_str_byte_len(s) }
         val cap: uint64 = len + 1
-        if cap == 0 { unsafe { panic("String capacity overflow") } }
+        if cap == 0 { panic_with(Fault.CapacityOverflow) }
         val data = unsafe { alloc_array<uint8>(cap) }
         var i = 0
         while i < len {
@@ -66,7 +67,7 @@ impl String {
     // Room for `needed` bytes with the terminator; doubling, or exact on
     // overflow.
     mutating fun reserve_total(needed: uint64): void {
-        if needed == 0 { unsafe { panic("String capacity overflow") } }
+        if needed == 0 { panic_with(Fault.CapacityOverflow) }
         if needed <= self.cap { return }
         var next_cap: uint64 = self.cap
         if next_cap == 0 { next_cap = 1 }
@@ -87,7 +88,7 @@ impl String {
         val suffix = String.from(s)
         val add_len: uint64 = suffix.len
         val combined: uint64 = self.len + add_len
-        if combined < self.len { unsafe { panic("String length overflow") } }
+        if combined < self.len { panic_with(Fault.CapacityOverflow) }
         self.reserve_total(combined + 1)
         var i = 0
         while i < add_len {
@@ -102,7 +103,7 @@ impl String {
     /// time.
     pub mutating fun push_byte(b: uint8): void {
         val combined: uint64 = self.len + 1
-        if combined < self.len { unsafe { panic("String length overflow") } }
+        if combined < self.len { panic_with(Fault.CapacityOverflow) }
         self.reserve_total(combined + 1)
         unsafe { *(self.data + self.len) = b }
         self.len = combined

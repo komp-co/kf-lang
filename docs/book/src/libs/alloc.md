@@ -208,10 +208,11 @@ fun main(): int32 {
 }
 ```
 
-`get`, `at`, `at_mut`, `set` and `xs[i]` all check the index: one past the
-end panics with `list index out of bounds`, as an array's or a slice's does,
-rather than reading or writing beyond the buffer. `remove(i)` answers `null`
-instead.
+`get`, `at`, `at_mut`, `set` and `xs[i]` all check the index, as an array's or
+a slice's does, rather than reading or writing beyond the buffer. One past the
+end of a three-element list stops with
+`panic[index_out_of_bounds]: index 3 out of bounds for length 3` (see
+[Faults](core.md#faults)). `remove(i)` answers `null` instead.
 
 `as_slice()` and `as_slice_mut()` name the slices directly. While a slice of
 a list is still used the list cannot grow or shrink, since that may move the

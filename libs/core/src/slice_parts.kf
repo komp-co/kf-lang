@@ -25,7 +25,7 @@ pub view struct Windows<T> {
 impl Slice<T> {
     /// `[0, at)` and `[at, size)`; `at` past the length panics.
     pub fun split_at(at: uint64): SliceSplit<T> {
-        if at > self.len { panic("split_at past the slice's length") }
+        if at > self.len { panic_with(Fault.PositionOutOfBounds(at, self.len)) }
         val left = unsafe { Slice.from_raw<T>(self.data, at) }
         val right = unsafe { Slice.from_raw<T>(self.data + at, self.len - at) }
         return SliceSplit<T> { left: left, right: right }
@@ -33,13 +33,13 @@ impl Slice<T> {
 
     /// A width of zero panics.
     pub fun chunks(width: uint64): Chunks<T> {
-        if width == 0 { panic("chunks of width zero") }
+        if width == 0 { panic_with(Fault.ZeroWidth) }
         return Chunks<T> { data: self.data, left: self.len, width: width }
     }
 
     /// A width of zero panics.
     pub fun windows(width: uint64): Windows<T> {
-        if width == 0 { panic("windows of width zero") }
+        if width == 0 { panic_with(Fault.ZeroWidth) }
         return Windows<T> { data: self.data, left: self.len, width: width }
     }
 }

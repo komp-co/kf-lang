@@ -7,14 +7,15 @@ extern "C" fun runtime_println(s: str): void
 
 @prelude
 pub fun fail(m: str): Never {
-    panic(m)
+    runtime_println(m)
+    panic_with(Fault.AssertionFailed)
 }
 
 @prelude
 pub fun assert(c: bool, m: str): void {
     if !c {
         runtime_println(m)
-        panic("assertion failed")
+        panic_with(Fault.AssertionFailed)
     }
 }
 
@@ -25,5 +26,5 @@ pub fun assert_eq<T: Equal>(a: T, b: T, m: str): void {
         return
     }
     runtime_println(m)
-    panic("assertion failed")
+    panic_with(Fault.AssertionFailed)
 }
