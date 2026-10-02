@@ -48,3 +48,8 @@ fun a_hang_skips_a_helper_every_sample_is_in(): void {
     val sample = "#0  0x1 in String_from__From__str ()\n#1  0x2 in Parser_parse_ctor ()\n#2  0x3 in main ()\n"
     assert_eq(hang_place_in("${sample}---\n${sample}---\n${sample}".as_str()), "Parser_parse_ctor", "past the helper")
 }
+
+@test
+fun a_frame_drops_its_crate_prefix(): void {
+    assert_eq(crash_place_in("#0  0x1 in kf_codegen.emit_free ()\n"), "emit_free", "as the bootstrap build names it")
+}
