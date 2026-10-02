@@ -7,13 +7,13 @@ import kf_core.span.no_span
 import kf_core.ast.*
 
 fun named_tr(n: str): TypeRef {
-    return new_type_ref(no_span(), TypeRefKind.Named(intern(n), List.new<TypeRef>()))
+    return TypeRef.new(no_span(), TypeRefKind.Named(intern(n), List.new<TypeRef>()))
 }
 
 fun dynamic_tr(arg: str): TypeRef {
     var args = List.new<TypeRef>()
     args.push(named_tr(arg))
-    return new_type_ref(no_span(), TypeRefKind.DynTrait(intern("Display"), args))
+    return TypeRef.new(no_span(), TypeRefKind.DynTrait(intern("Display"), args))
 }
 
 @test fun dynamic_type_ref_has_metadata_mangle(): void {
@@ -38,7 +38,7 @@ fun dynamic_tr(arg: str): TypeRef {
 }
 
 @test fun generic_name_builders_return_str(): void {
-    var args = List.new<TypeRef>()
+    var args = []
     args.push(named_tr("int32"))
     val type_mangle: String = mangle_tyref(args.at(0))
     val generic_name: String = monomorphized_type_name(String.from("List"), &args)
@@ -46,8 +46,8 @@ fun dynamic_tr(arg: str): TypeRef {
 }
 
 @test fun mangled_name_substitution_returns_str(): void {
-    var names = List.new<String>()
-    var repls = List.new<TypeRef>()
+    var names = []
+    var repls = []
     names.push(String.from("T"))
     repls.push(named_tr("int32"))
     val name: String = subst_mangled_name("alloc_array__T", &var names, &var repls)
@@ -55,8 +55,8 @@ fun dynamic_tr(arg: str): TypeRef {
 }
 
 @test fun subst_replaces_bare_type_var(): void {
-    var names = List.new<String>()
-    var repls = List.new<TypeRef>()
+    var names = []
+    var repls = []
     names.push(String.from("T"))
     repls.push(named_tr("int32"))
     val arg = named_tr("T")
@@ -65,8 +65,8 @@ fun dynamic_tr(arg: str): TypeRef {
 }
 
 @test fun subst_leaves_unmapped_var_alone(): void {
-    var names = List.new<String>()
-    var repls = List.new<TypeRef>()
+    var names = []
+    var repls = []
     names.push(String.from("T"))
     repls.push(named_tr("int32"))
     val arg = named_tr("U")
@@ -77,7 +77,7 @@ fun dynamic_tr(arg: str): TypeRef {
 @test fun subst_recurses_into_args(): void {
     var args = List.new<TypeRef>()
     args.push(named_tr("T"))
-    val list_t = new_type_ref(no_span(), TypeRefKind.Named(intern("List"), args))
+    val list_t = TypeRef.new(no_span(), TypeRefKind.Named(intern("List"), args))
     var names = List.new<String>()
     var repls = List.new<TypeRef>()
     names.push(String.from("T"))
@@ -87,46 +87,46 @@ fun dynamic_tr(arg: str): TypeRef {
 }
 
 @test fun mono_name_two_args(): void {
-    var args = List.new<TypeRef>()
+    var args =[]
     args.push(named_tr("int32"))
     args.push(named_tr("str"))
-    val n = monomorphized_type_name(String.from("Pair"), &args)
-    assert_eq(n.as_str(), "Pair__int32__str", "Pair<int32,str>")
+    val n = monomorphized_type_name("Pair", &args)
+    assert_eq(n, "Pair__int32__str", "Pair<int32,str>")
 }
 
 @test fun mono_name_no_args_is_bare(): void {
     val empty_args = List.new<TypeRef>()
-    val n = monomorphized_type_name(String.from("Foo"), &empty_args)
-    assert_eq(n.as_str(), "Foo", "no args → bare")
+    val n = monomorphized_type_name("Foo", &empty_args)
+    assert_eq(n, "Foo", "no args → bare")
 }
 
 // Must agree with mangle_struct_name in kf-mono: "List__int32".
 @test fun user_generic_list_matches_builtin_convention(): void {
-    var args = List.new<TypeRef>()
+    var args = []
     args.push(named_tr("int32"))
     val n = monomorphized_type_name(String.from("List"), &args)
-    assert_eq(n.as_str(), "List__int32", "user List<int32> == builtin List__int32")
+    assert_eq(n, "List__int32", "user List<int32> == builtin List__int32")
 }
 
 @test fun subst_rewrites_a_folded_call_callee(): void {
-    var call = new_expr(no_span(), ExprKind.Call(intern("alloc"), List.new<Expr>()))
+    var call = Expr.new(no_span(), ExprKind.Call(intern("alloc"), List.new<Expr>()))
     call.type_args.push(named_tr("T"))
     call.mangled_callee = intern("alloc__T")
     var names = List.new<String>()
-    var repls = List.new<TypeRef>()
-    names.push(String.from("T"))
+    var repls = []
+    names.push("T")
     repls.push(named_tr("aa__Point"))
     val out = call.subst_expr(&var names, &var repls)
     assert_eq(out.mangled_callee.as_str(), "alloc__aa__Point", "materialized calls substitute folded type fragments")
 }
 
 fun let_anno_mangle(s: Stmt): String {
-    when (s.kind) {
+    return when (s.kind) {
         LetVal(_n, ty_ptr, _i) => {
-            val p = ty_ptr ?: return String.from("<none>")
-            return String.from(mangle_tyref(unsafe { &*p }).as_str())
+            val p = ty_ptr ?: return "<none>"
+            String.from(mangle_tyref(unsafe { &*p }).as_str())
         }
-        _ => return String.from("?")
+        _ => "?"
     }
 }
 
@@ -134,13 +134,13 @@ fun mk_let_t(): Stmt {
     val ty_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *ty_ptr = named_tr("T") }
     val init_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *init_ptr = new_expr(no_span(), ExprKind.Variable(intern("x"))) }
-    return new_stmt(no_span(), StmtKind.LetVal(intern("y"), ty_ptr, init_ptr))
+    unsafe { *init_ptr = Expr.new(no_span(), ExprKind.Variable(intern("x"))) }
+    return Stmt.new(no_span(), StmtKind.LetVal(intern("y"), ty_ptr, init_ptr))
 }
 
 @test fun subst_rewrites_let_annotation_in_body(): void {
-    var names = List.new<String>()
-    var repls = List.new<TypeRef>()
+    var names = []
+    var repls = []
     names.push(String.from("T"))
     repls.push(named_tr("int32"))
     val s2 = subst_stmt(mk_let_t(), &var names, &var repls)
@@ -148,8 +148,8 @@ fun mk_let_t(): Stmt {
 }
 
 @test fun subst_does_not_mutate_original(): void {
-    var names = List.new<String>()
-    var repls = List.new<TypeRef>()
+    var names = []
+    var repls = []
     names.push(String.from("T"))
     repls.push(named_tr("int32"))
     val s = mk_let_t()
@@ -159,8 +159,8 @@ fun mk_let_t(): Stmt {
 }
 
 @test fun subst_mangled_name_rewrites_folded_builtin(): void {
-    var names = List.new<String>()
-    var repls = List.new<TypeRef>()
+    var names = []
+    var repls = []
     names.push(String.from("T"))
     repls.push(named_tr("int32"))
     val out = subst_mangled_name("alloc_array__T", &var names, &var repls)
@@ -168,8 +168,8 @@ fun mk_let_t(): Stmt {
 }
 
 @test fun subst_mangled_name_leaves_plain_name(): void {
-    var names = List.new<String>()
-    var repls = List.new<TypeRef>()
+    var names = []
+    var repls = []
     names.push(String.from("T"))
     repls.push(named_tr("int32"))
     val out = subst_mangled_name("compute_total", &var names, &var repls)
@@ -177,7 +177,7 @@ fun mk_let_t(): Stmt {
 }
 
 @test fun a_compound_names_its_parameter_segment(): void {
-    var names = List.new<String>()
+    var names = ["T"]
     names.push(String.from("T"))
     assert_eq("List__T__get".has_param_segment(&names), true, "the middle segment is T")
 }

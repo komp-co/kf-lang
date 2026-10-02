@@ -53,50 +53,50 @@ fun Stmt.subst_stmt_kinded(names: &var List<String>, repls: &var List<TypeRef>):
             val nty = clone_tref_ptr_opt(ty_ptr.view(), names, repls)
             // A null init is `var x: T` with no value.
             val ninit = clone_expr_ptr_opt(init_ptr.view(), names, repls)
-            return new_stmt(self.span, StmtKind.LetVal(nm, nty, ninit))
+            return Stmt.new(self.span, StmtKind.LetVal(nm, nty, ninit))
         }
         LetVar(nm, ty_ptr, init_ptr) => {
             val nty = clone_tref_ptr_opt(ty_ptr.view(), names, repls)
             // A null init is `var x: T` with no value.
             val ninit = clone_expr_ptr_opt(init_ptr.view(), names, repls)
-            return new_stmt(self.span, StmtKind.LetVar(nm, nty, ninit))
+            return Stmt.new(self.span, StmtKind.LetVar(nm, nty, ninit))
         }
         Assign(nm, expr_ptr) => {
             val ne = clone_expr_ptr(expr_ptr, names, repls)
-            return new_stmt(self.span, StmtKind.Assign(nm, ne))
+            return Stmt.new(self.span, StmtKind.Assign(nm, ne))
         }
         AssignTo(place_ptr, expr_ptr) => {
             val np = clone_expr_ptr(place_ptr, names, repls)
             val ne = clone_expr_ptr(expr_ptr, names, repls)
-            return new_stmt(self.span, StmtKind.AssignTo(np, ne))
+            return Stmt.new(self.span, StmtKind.AssignTo(np, ne))
         }
         Return(expr_ptr) => {
             val ne = clone_expr_box_opt(expr_ptr.view(), names, repls)
-            return new_stmt(self.span, StmtKind.Return(ne))
+            return Stmt.new(self.span, StmtKind.Return(ne))
         }
         If(cond_ptr, then_body, else_body) => {
             val nc = clone_expr_ptr(cond_ptr, names, repls)
             val nt = subst_stmt_list(then_body, names, repls)
             val nel = subst_stmt_list(else_body, names, repls)
-            return new_stmt(self.span, StmtKind.If(nc, nt, nel))
+            return Stmt.new(self.span, StmtKind.If(nc, nt, nel))
         }
         While(cond_ptr, body) => {
             val nc = clone_expr_ptr(cond_ptr, names, repls)
             val nb = subst_stmt_list(body, names, repls)
-            return new_stmt(self.span, StmtKind.While(nc, nb))
+            return Stmt.new(self.span, StmtKind.While(nc, nb))
         }
         ForEach(binder, subj_ptr, body) => {
             val ns = clone_expr_ptr(subj_ptr, names, repls)
             val nb = subst_stmt_list(body, names, repls)
-            return new_stmt(self.span, StmtKind.ForEach(binder, ns, nb))
+            return Stmt.new(self.span, StmtKind.ForEach(binder, ns, nb))
         }
         When(subj_ptr, arms) => {
             val ns = clone_expr_ptr(subj_ptr, names, repls)
-            return new_stmt(self.span, StmtKind.When(ns, subst_arm_list(&arms, names, repls)))
+            return Stmt.new(self.span, StmtKind.When(ns, subst_arm_list(&arms, names, repls)))
         }
         Expression(expr_ptr) => {
             val ne = clone_expr_ptr(expr_ptr, names, repls)
-            return new_stmt(self.span, StmtKind.Expression(ne))
+            return Stmt.new(self.span, StmtKind.Expression(ne))
         }
         Switch(subj_ptr, sarms) => {
             val ns = clone_expr_ptr(subj_ptr, names, repls)
@@ -105,17 +105,17 @@ fun Stmt.subst_stmt_kinded(names: &var List<String>, repls: &var List<TypeRef>):
                 val nbody = subst_stmt_list(sa.body, names, repls)
                 val nguard = clone_expr_ptr_opt(sa.guard.view(), names, repls)
                 val nprelude = subst_stmt_list(sa.guard_prelude, names, repls)
-                var narm = new_guarded_switch_arm(sa.span, sa.tag, clone_sym_list(sa.binders), nguard, nprelude, nbody)
+                var narm = SwitchArm.new_guarded(sa.span, sa.tag, clone_sym_list(sa.binders), nguard, nprelude, nbody)
                 narm.ref_binders = clone_sym_list(sa.ref_binders)
                 narms.push(narm)
             }
-            return new_stmt(self.span, StmtKind.Switch(ns, narms))
+            return Stmt.new(self.span, StmtKind.Switch(ns, narms))
         }
-        Drop(nm) => return new_stmt(self.span, StmtKind.Drop(nm))
-        Release(nm) => return new_stmt(self.span, StmtKind.Release(nm))
-        Break => return new_stmt(self.span, StmtKind.Break)
-        Continue => return new_stmt(self.span, StmtKind.Continue)
-        Poison => return stmt_poison(self.span)
+        Drop(nm) => return Stmt.new(self.span, StmtKind.Drop(nm))
+        Release(nm) => return Stmt.new(self.span, StmtKind.Release(nm))
+        Break => return Stmt.new(self.span, StmtKind.Break)
+        Continue => return Stmt.new(self.span, StmtKind.Continue)
+        Poison => return Stmt.new_poison(self.span)
     }
 }
 

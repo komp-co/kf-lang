@@ -3,6 +3,8 @@
 import alloc.list.*
 
 import kf_core.span.Span
+import kf_core.ast.intern
+import kf_core.ast.new_expr
 
 /// One the compiler writes itself, each word a bare name:
 /// `receiver_params(T, U)`.

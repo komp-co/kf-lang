@@ -10,7 +10,7 @@ import kf_core.span.no_span
 
 fun probe_decl(): TopDecl {
     var body = List.new<Stmt>()
-    var s = new_stmt(Span { file_id: 1, start: 21, end: 26 }, StmtKind.Break)
+    var s = Stmt.new(Span { file_id: 1, start: 21, end: 26 }, StmtKind.Break)
     s.binder = Span { file_id: 1, start: 21, end: 26 }
     body.push(s)
     val rt: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }

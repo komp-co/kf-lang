@@ -1,6 +1,10 @@
 import alloc.list.*
 
 import kf_core.span.*
+import kf_core.ast.intern
+import kf_core.ast.poison_ty
+import kf_core.ast.array_literal_callee
+import kf_core.ast.empty_list_literal_receiver
 
 /// Pass annotations on the outer struct are filled in as passes run.
 @derive(Clone)
@@ -50,6 +54,28 @@ pub struct Expr {
     /// receiver. Set during substitution, the only place that can tell it from
     /// a parameter declared `&Key` in its own right.
     pub var derefs_at_call: bool
+}
+
+impl Expr {
+    pub static fun new(span: Span, kind: ExprKind): Self {
+        return Self { span: span, name_span: no_span(), kind: kind, decl: null, ty: poison_ty(), mangled_callee: intern(""), coerce: 0, type_args: [], type_args_written: false, is_static_call: false, is_dynamic_call: false, dynamic_slot: 0, dynamic_layout: intern(""), is_intrinsic: false, is_safe_call_value: false, is_variant_ctor: false, derefs_at_call: false }
+    }
+
+    pub fun new_poison(span: Span): Expr {
+        return Expr.new(span, ExprKind.Poison)
+    }
+
+    /// As parsed: the array literal of `elements`, or the empty literal's call.
+    pub static fun new_list_literal(span: Span, elements: &List<Expr>): Self {
+        if elements.size() == 0 { return Expr.new_collection_new_call(span, intern(empty_list_literal_receiver())) }
+        return Expr.new(span, ExprKind.Call(intern(array_literal_callee()), elements.clone()))
+    }
+
+    /// `Type.new()`, with no type arguments of its own.
+    pub static fun new_collection_new_call(span: Span, type_name: Sym): Expr {
+        val receiver = Box.new(Expr.new(span, ExprKind.Variable(type_name)))
+        return Expr.new(span, ExprKind.MethodCall(receiver, intern("new"), []))
+    }
 }
 
 pub fun coerce_none(): uint8 { return 0 }
@@ -179,14 +205,6 @@ pub fun binop_dispatches_to_trait_method(op: BinOp): bool {
     return !binop_method(op).equals("")
 }
 
-pub fun new_expr(span: Span, kind: ExprKind): Expr {
-    return Expr { span: span, name_span: no_span(), kind: kind, decl: null, ty: poison_ty(), mangled_callee: intern(""), coerce: 0, type_args: List.new<TypeRef>(), type_args_written: false, is_static_call: false, is_dynamic_call: false, dynamic_slot: 0, dynamic_layout: intern(""), is_intrinsic: false, is_safe_call_value: false, is_variant_ctor: false, derefs_at_call: false }
-}
-
-pub fun expr_poison(span: Span): Expr {
-    return new_expr(span, ExprKind.Poison)
-}
-
 /// A `field: value` initializer; `value` is boxed to break the type cycle.
 @derive(Clone)
 pub struct FieldInit {
@@ -195,6 +213,10 @@ pub struct FieldInit {
     pub val value: Box<Expr>
 }
 
-pub fun new_field_init(span: Span, name: String, value: Box<Expr>): FieldInit {
-    return FieldInit { span: span, name: intern(name.as_str()), value: value }
+impl FieldInit {
+    pub static fun new(span: Span, name: String, value: Box<Expr>): Self {
+        return Self { span: span, name: intern(name.as_str()), value: value }
+    }
 }
+
+

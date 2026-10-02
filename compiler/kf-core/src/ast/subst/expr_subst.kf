@@ -1,6 +1,5 @@
 import alloc.list.*
 import kf_core.ast.intern
-import kf_core.ast.new_field_init
 
 pub fun clone_expr_ptr(p: Ptr<Expr>, names: &var List<String>, repls: &var List<TypeRef>): Ptr<Expr> {
     val np: Ptr<Expr> = unsafe { alloc<Expr>() }

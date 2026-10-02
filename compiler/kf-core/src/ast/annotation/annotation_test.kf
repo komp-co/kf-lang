@@ -1,6 +1,8 @@
 import core.assert.assert_eq
 import alloc.list.*
 import kf_core.span.no_span
+import kf_core.ast.intern
+import kf_core.ast.new_expr
 
 fun argument(name: str, kind: ExprKind): AnnotationArg {
     return AnnotationArg { name: intern(name), value: Box.new(new_expr(no_span(), kind)) }

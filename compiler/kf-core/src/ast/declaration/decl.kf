@@ -1,6 +1,10 @@
 import alloc.list.*
 
 import kf_core.span.*
+import kf_core.ast.intern
+import kf_core.ast.new_type_ref
+import kf_core.ast.crate_id_poison
+import kf_core.ast.linkage_source
 
 // CONSTRAINT: TopDecl and its supporting structs share this file because
 // cross-file struct typedef order follows file names; one file keeps them in

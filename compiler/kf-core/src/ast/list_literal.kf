@@ -11,17 +11,7 @@ import kf_core.span.Span
 /// checker names its type.
 pub fun empty_list_literal_receiver(): str { return "__empty_list_literal" }
 
-/// As parsed: the array literal of `elements`, or the empty literal's call.
-pub fun list_literal_expr(span: Span, elements: &List<Expr>): Expr {
-    if elements.size() == 0 { return collection_new_call(span, intern(empty_list_literal_receiver())) }
-    return new_expr(span, ExprKind.Call(intern(array_literal_callee()), elements.clone()))
-}
 
-/// `Type.new()`, with no type arguments of its own.
-pub fun collection_new_call(span: Span, type_name: Sym): Expr {
-    val receiver = Box.new(new_expr(span, ExprKind.Variable(type_name)))
-    return new_expr(span, ExprKind.MethodCall(receiver, intern("new"), List.new<Expr>()))
-}
 
 /// The call an array literal is: its arguments are the elements, and codegen
 /// writes them as the array's C initializer. Reserved-prefixed, so no

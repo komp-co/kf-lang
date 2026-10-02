@@ -7,12 +7,12 @@ import kf_core.span.*
 
 @test fun new_stmt_round_trips_span(): void {
     val sp = Span { file_id: 1, start: 5, end: 9 }
-    val s = new_stmt(sp, StmtKind.Poison)
+    val s = Stmt.new(sp, StmtKind.Poison)
     assert_eq(s.span.start, 5, "span")
 }
 
 @test fun stmt_poison_kind_is_poison(): void {
-    val s = stmt_poison(no_span())
+    val s = Stmt.new_poison(no_span())
     when (s.kind) {
         Poison => assert(true, "ok")
         _ => fail("expected Poison")
@@ -26,8 +26,8 @@ import kf_core.span.*
 
 @test fun stmt_vec_push_grows(): void {
     var v = List.new<Stmt>()
-    v.push(stmt_poison(no_span()))
-    v.push(stmt_poison(no_span()))
-    v.push(stmt_poison(no_span()))
+    v.push(Stmt.new_poison(no_span()))
+    v.push(Stmt.new_poison(no_span()))
+    v.push(Stmt.new_poison(no_span()))
     assert_eq(v.size(), 3, "three pushes")
 }
