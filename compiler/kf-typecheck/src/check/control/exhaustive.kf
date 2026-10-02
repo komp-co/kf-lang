@@ -8,6 +8,7 @@ import alloc.list.*
 import kf_core.ast.*
 import kf_core.span.*
 import kf_core.diagnostic.error_at
+import kf_typecheck.types.type_is_uninhabited
 
 /// In declaration order. Empty when exhaustive, when an arm is irrefutable,
 /// or when the subject has no finite value set (see
@@ -28,11 +29,21 @@ pub fun when_missing_variants(subject_ty: Type, arms: &List<Arm>, ctx: &var Type
     if arms_have_irrefutable(arms) { return missing }
 
     while v in &layout.variants {
-        if !variant_is_covered(v.name.as_str(), arms) {
+        if !variant_is_covered(v.name.as_str(), arms) && !v.cannot_be_built(ctx) {
             missing.push(String.from(v.name.as_str()))
         }
     }
     return missing
+}
+
+/// A variant holding a value of a type with no values, `Ok` of a
+/// `Result<Never, E>`: no value of the enum is that variant, so no arm needs
+/// to name it.
+fun VariantInfo.cannot_be_built(ctx: &var TypeCtx): bool {
+    while payload in &self.payloads {
+        if payload.type_is_uninhabited(ctx) { return true }
+    }
+    return false
 }
 
 pub fun when_is_exhaustive(subject_ty: Type, arms: &List<Arm>, ctx: &var TypeCtx): bool {

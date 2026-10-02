@@ -344,3 +344,50 @@ fun guarded_variant_arm(name: str): Arm {
     val missing = when_missing_variants(unknown, &arms, &var ctx)
     assert_eq(missing.size(), 0, "nothing known about the subject means nothing to report")
 }
+
+// `enum Halt { }` and `enum Shape { Circle(int32)  Stuck(Halt) }`.
+fun mk_shape_ctx(): TypeCtx {
+    val ctx = mk_stmt_ctx()
+    val halt = EnumLayout {
+        name: String.from("Halt"),
+        variants: List.new<VariantInfo>(),
+        owner_crate: crate_id_poison()
+    }
+    unsafe { (*ctx.sigs).insert_enum(halt) }
+    var circle = List.new<Type>()
+    circle.push(int32_ty(no_span()))
+    var stuck = List.new<Type>()
+    val halt_ty = Type { kind: TypeKind.EnumTy(intern("Halt")), provenance: Provenance.Inferred(no_span()) }
+    stuck.push(halt_ty)
+    var variants = List.new<VariantInfo>()
+    variants.push(VariantInfo { name: String.from("Circle"), payloads: circle })
+    variants.push(VariantInfo { name: String.from("Stuck"), payloads: stuck })
+    val shape = EnumLayout {
+        name: String.from("Shape"),
+        variants: variants,
+        owner_crate: crate_id_poison()
+    }
+    unsafe { (*ctx.sigs).insert_enum(shape) }
+    return ctx
+}
+
+fun shape_ty(): Type {
+    return Type { kind: TypeKind.EnumTy(intern("Shape")), provenance: Provenance.Inferred(no_span()) }
+}
+
+@test
+fun a_variant_holding_an_empty_enum_needs_no_arm(): void {
+    var ctx = mk_shape_ctx()
+    var arms = List.new<Arm>()
+    arms.push(variant_arm("Circle"))
+    assert_eq(when_missing_variants(shape_ty(), &arms, &var ctx).size(), 0, "Stuck cannot be built")
+}
+
+@test
+fun a_variant_holding_a_value_still_needs_its_arm(): void {
+    var ctx = mk_shape_ctx()
+    var arms = List.new<Arm>()
+    arms.push(variant_arm("Stuck"))
+    val missing = when_missing_variants(shape_ty(), &arms, &var ctx)
+    assert_eq(missing.size(), 1, "Circle is still missing")
+}
