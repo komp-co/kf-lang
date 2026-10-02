@@ -248,6 +248,11 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                         e.ty = poison_ty()
                         handled = true
                     }
+                } else {
+                    val missing = no_static_method_msg(rname.as_str(), method_name.as_str(), args, ctx)
+                    ctx.emit(new_diagnostic(Severity.Error, new_label(e.span, missing)))
+                    e.ty = poison_ty()
+                    handled = true
                 }
             }
         }
@@ -382,4 +387,16 @@ fun emit_static_call_arity(type_name: String, method_name: String, expected: uin
     msg.append(", found ")
     msg.append(String.of(&((found as int64))).as_str())
     ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+}
+
+/// No static method of the type answers to the name with these arguments,
+/// which may be a `From<S>` the type does not implement.
+fun no_static_method_msg(type_name: str, method: str, args: &List<Expr>, ctx: &TypeCtx): String {
+    if args.is_empty() { return "`${type_name}` has no static method `${method}` that takes no arguments" }
+    var shown = String.from("")
+    while a in args {
+        if !shown.is_empty() { shown.append(", ") }
+        shown.append("`${a.ty.display_type(ctx)}`")
+    }
+    return "`${type_name}` has no static method `${method}` that takes ${shown}"
 }
