@@ -50,7 +50,11 @@ fun operator_is_infix_only(o: Operator): bool {
 impl Parser {
     /// Precedence climbing on top of `parse_primary`.
     pub mutating fun parse_expr(): Expr {
-        return self.parse_elvis()
+        val saved = self.cast_after_prefix
+        self.cast_after_prefix = false
+        val e = self.parse_elvis()
+        self.cast_after_prefix = saved
+        return e
     }
 
     /// `a ?: D`: the payload, or a default. Lowest precedence and

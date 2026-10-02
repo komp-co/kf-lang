@@ -249,7 +249,7 @@ impl Parser {
                 current = new_expr(self.span_through_last(cur_span), ExprKind.CallValue(callee, call_args))
             } else if is_op(self.peek(), Operator.LBracket) {
                 current = self.parse_index(take<Expr>(current))
-            } else if is_keyword(self.peek(), Keyword.As) {
+            } else if is_keyword(self.peek(), Keyword.As) && !self.cast_after_prefix {
                 val as_span = self.peek().span
                 unsafe { self.advance() } // consume `as`
                 val ty_ptr: Ptr<TypeRef> = self.parse_type_ref_ptr()
