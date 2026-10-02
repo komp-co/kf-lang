@@ -110,7 +110,7 @@
 53 compiler/kf-parse/src/lexer/operator.kf
 20 compiler/kf-parse/src/parser/expression/expression.kf
 5 compiler/kf-parse/src/parser/expression/index.kf
-35 compiler/kf-parse/src/parser/expression/postfix.kf
+33 compiler/kf-parse/src/parser/expression/postfix.kf
 31 compiler/kf-parse/src/parser/expression/primary.kf
 9 compiler/kf-parse/src/parser/lambda.kf
 5 compiler/kf-parse/src/parser/module.kf

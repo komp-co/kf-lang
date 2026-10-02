@@ -122,6 +122,7 @@ fun Expr.bx_check_expr(at: Span, ptable: Ptr<List<ParamEntry>>, diags: &var Diag
             bx_check_exprs(&args, at, ptable, diags)
         }
         CallValue(_callee, args) => bx_check_exprs(&args, at, ptable, diags)
+        Intrinsic(_intrinsic, args) => bx_check_exprs(&args, at, ptable, diags)
         MethodCall(receiver, method, args) => {
             var claims = List.new<Claim>()
             // Declared arguments only; the receiver is excluded.

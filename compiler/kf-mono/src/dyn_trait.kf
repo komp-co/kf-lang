@@ -232,6 +232,9 @@ fun Expr.assert_dyn_expr_concrete(): void {
         Unary(_, inner) => assert_dyn_expr_concrete(unsafe { &*inner })
         Deref(inner) => assert_dyn_expr_concrete(unsafe { &*inner })
         Call(_, args) => { var i: uint64 = 0; while i < args.size() { assert_dyn_expr_concrete(args.at(i)); i = i + 1 } }
+        Intrinsic(_, args) => {
+            while arg in &args { assert_dyn_expr_concrete(arg) }
+        }
         CallValue(callee, args) => {
             assert_dyn_expr_concrete(&*callee)
             while arg in &args { assert_dyn_expr_concrete(arg) }

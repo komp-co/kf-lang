@@ -163,6 +163,7 @@ fun Expr.hit_expr(file_id: uint32, offset: uint32, found: &var List<CoveringSpan
         Unary(_op, inner) => hit_expr_ptr(inner, file_id, offset, found)
         Deref(inner) => hit_expr_ptr(inner, file_id, offset, found)
         Call(_name, args) => hit_expr_list(&args, file_id, offset, found)
+        Intrinsic(_intrinsic, args) => hit_expr_list(&args, file_id, offset, found)
         CallValue(callee, args) => {
             hit_expr_ptr(callee, file_id, offset, found)
             hit_expr_list(&args, file_id, offset, found)

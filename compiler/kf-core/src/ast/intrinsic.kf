@@ -1,6 +1,5 @@
-// The memory intrinsics. The parser folds a call's type arguments into the
-// callee, `alloc_array<int32>(n)` becoming `alloc_array__int32`; later passes
-// find the intrinsic, and the fragment naming its type argument, here.
+// The memory intrinsics. A call to one is an `ExprKind.Intrinsic`, its type
+// arguments in `Expr.type_args` like any other call's.
 
 /// One memory intrinsic.
 pub enum Intrinsic {
@@ -77,12 +76,6 @@ impl Intrinsic {
             Annotated => IntrinsicResult.Query
         }
     }
-
-    /// The fragment naming the type argument in a folded callee:
-    /// `alloc_array__int32` -> `int32`.
-    pub fun type_fragment(callee: str): String {
-        return callee.substring(self.name().byte_len() + 2, callee.byte_len())
-    }
 }
 
 /// The intrinsic written `name`, without type arguments.
@@ -100,10 +93,4 @@ pub fun intrinsic_named(name: str): Intrinsic? {
         "annotated" => Intrinsic.Annotated
         _ => null
     }
-}
-
-/// The intrinsic a folded callee calls: `alloc_array__int32` -> `AllocArray`.
-pub fun intrinsic_of_callee(callee: str): Intrinsic? {
-    val cut = callee.index_of("__") ?: return null
-    return intrinsic_named(callee.substring(0, cut).as_str())
 }

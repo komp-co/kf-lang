@@ -104,6 +104,7 @@ fun rename_expr_ptr(p_opt: Ptr<Expr>?, ctx: &var RnCtx): void {
             rename_expr_list(&args, ctx)
         }
         Call(_nm, args) => rename_expr_list(&args, ctx)
+        Intrinsic(_i, args) => rename_expr_list(&args, ctx)
         CallValue(callee, args) => {
             rename_expr_ptr(callee, ctx)
             rename_expr_list(&args, ctx)

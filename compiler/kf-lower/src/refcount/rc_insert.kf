@@ -76,6 +76,7 @@ fun Expr.collect_moved_names(mode: BorrowMode, out: &var List<String>): void {
             when (mode) { Value => out.push(name.as_string()) Borrow => {} }
         }
         Call(_n, args) => collect_moved_names_list(args, BorrowMode.Value, out)
+        Intrinsic(_i, args) => collect_moved_names_list(args, BorrowMode.Value, out)
         CallValue(callee, args) => {
             collect_moved_names(*callee, BorrowMode.Borrow, out)
             collect_moved_names_list(args, BorrowMode.Value, out)
@@ -133,6 +134,7 @@ fun Expr.collect_var_names_in_expr(out: &var List<String>): void {
         Variable(name) => out.push(name.as_string())
         Release(name) => out.push(name.as_string())
         Call(_n, args) => collect_var_names_in_list(args, out)
+        Intrinsic(_i, args) => collect_var_names_in_list(args, out)
         CallValue(callee, args) => {
             collect_var_names_in_expr(*callee, out)
             collect_var_names_in_list(args, out)

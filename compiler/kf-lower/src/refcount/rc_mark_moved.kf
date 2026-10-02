@@ -105,6 +105,12 @@ fun Expr.mark_consumed_moves(ctx: &var RcCtx): void {
                 mark_consumed_moves(*args.at(i), ctx)
             }
         }
+        Intrinsic(_intrinsic, args) => {
+            while i in 0..args.size() {
+                mark_arg_if_consumed(args.at_mut(i), String.from(""), i, ctx)
+                mark_consumed_moves(*args.at(i), ctx)
+            }
+        }
         MethodCall(recv_ptr, _m, args) => {
             mark_consumed_moves(unsafe { *recv_ptr }, ctx)
             val callee = self.mangled_callee.as_string()

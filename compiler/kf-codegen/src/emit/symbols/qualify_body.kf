@@ -113,6 +113,7 @@ fun qualify_expr_ptr(ep: Ptr<Expr>, names: &var List<String>, repls: &var List<T
             qualify_expr_ptr(callee, names, repls, rename_types)
             qualify_expr_args(args, names, repls, rename_types)
         }
+        Intrinsic(_intrinsic, args) => qualify_expr_args(args, names, repls, rename_types)
         Call(_n, args) => {
             qualify_expr_args(args, names, repls, rename_types)
             if rename_types {
