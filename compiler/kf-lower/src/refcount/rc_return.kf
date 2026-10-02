@@ -2,7 +2,8 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.expression.*
 
 /// Narrows the locals a return path must not release.
 fun refine_return_exclusions(ep: Ptr<Expr>?, ctx: &var RcCtx, exclude: &var List<String>): void {

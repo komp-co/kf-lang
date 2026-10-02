@@ -1,3 +1,5 @@
+import kf_core.ast.*
+
 /// A user-defined type's identity: name, crate and module. The name alone is
 /// kept for diagnostics and unity C emission.
 @derive(Copy)
@@ -7,12 +9,14 @@ pub struct TypeIdentity {
     pub val name: Sym
 }
 
-pub fun new_type_identity(crate: CrateId, module: Sym, name: Sym): TypeIdentity {
-    return TypeIdentity { crate: crate, module: module, name: name }
-}
+impl TypeIdentity {
+    pub static fun new(crate: CrateId, module: Sym, name: Sym): Self {
+        return Self { crate: crate, module: module, name: name }
+    }
 
-pub fun type_identity_poison(): TypeIdentity {
-    return TypeIdentity { crate: crate_id_poison(), module: intern(""), name: intern("") }
+    pub static fun new_poison(): Self {
+        return Self { crate: crate_id_poison(), module: intern(""), name: intern("") }
+    }
 }
 
 impl Equal for TypeIdentity {

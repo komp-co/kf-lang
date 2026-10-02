@@ -1,6 +1,12 @@
 import alloc.list.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.Sym
 import kf_core.ast.intern
-import kf_core.ast.new_field_init
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.FieldInit
 
 pub fun clone_expr_ptr(p: Ptr<Expr>, names: &var List<String>, repls: &var List<TypeRef>): Ptr<Expr> {
     val np: Ptr<Expr> = unsafe { alloc<Expr>() }
@@ -125,7 +131,7 @@ pub fun Expr.subst_expr(names: &var List<String>, repls: &var List<TypeRef>): Ex
             var nfi = List.new<FieldInit>()
             while fi in &finits {
                 val nv = clone_expr_ptr(fi.value, names, repls)
-                nfi.push(new_field_init(fi.span, fi.name.as_string(), nv))
+                nfi.push(FieldInit.new(fi.span, fi.name.as_string(), nv))
             }
             return self.rebuild_expr(ExprKind.StructLit(nm, nfi), names, repls)
         }

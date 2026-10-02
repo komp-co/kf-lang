@@ -1,6 +1,8 @@
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.types.*
+import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 import kf_resolve.*
 import kf_typecheck.types.*
@@ -18,7 +20,7 @@ pub fun register_struct(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: &var Di
     if td.linkage.is_imported() { eff_table = Option.None }
     when (td.kind) {
         EnumDecl(variants, _is_pub) => {
-            var ctx0 = new_type_ctx(void_ty(no_span()), diags, eff_table, sig_ptr)
+            var ctx0 = new_type_ctx(Type.new_void(no_span()), diags, eff_table, sig_ptr)
             ctx0.owner_crate = td.crate
             ctx0.owner_module = td.module_path
             ctx0.owner_file = td.span.file_id
@@ -44,7 +46,7 @@ pub fun register_struct(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: &var Di
             unsafe { sp.insert_enum(EnumLayout { name: td.name.as_string(), variants: vs, owner_crate: td.crate }) }
         }
         Struct(fields, _is_pub) => {
-            var ctx0 = new_type_ctx(void_ty(no_span()), diags, eff_table, sig_ptr)
+            var ctx0 = new_type_ctx(Type.new_void(no_span()), diags, eff_table, sig_ptr)
             ctx0.owner_crate = td.crate
             ctx0.owner_module = td.module_path
             ctx0.owner_file = td.span.file_id
@@ -99,7 +101,7 @@ pub fun TopDecl.register_trait_name(sig_ptr: Ptr<SigTable>, diags: &var Diagnost
 
 fun TopDecl.trait_identity_of(): Sym {
     if self.crate.is_poison() { return self.name }
-    return canonical_type_identity(new_type_identity(self.crate, self.module_path, self.name))
+    return canonical_type_identity(TypeIdentity.new(self.crate, self.module_path, self.name))
 }
 
 pub fun register_trait_decl(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: &var Diagnostics,
@@ -119,7 +121,7 @@ pub fun register_trait_decl(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: &va
             // `cmp(other: Self)` on `T: Compare` reads `cmp(other: T)`).
             var eff_table: Ptr<DeclTable>? = table
             if td.linkage.is_imported() { eff_table = Option.None }
-            var ctx_t = new_type_ctx(void_ty(no_span()), diags, eff_table, sig_ptr)
+            var ctx_t = new_type_ctx(Type.new_void(no_span()), diags, eff_table, sig_ptr)
             ctx_t.seed_generics(type_param_names(td.generics))
             ctx_t.generics.push(String.from("Self"))
             val assoc_names = assoc_type_names(&methods)

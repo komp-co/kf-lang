@@ -3,7 +3,9 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 import kf_parse.parser.*
 
 impl Parser {
@@ -29,10 +31,10 @@ impl Parser {
         unsafe { *recv_ptr = take<Expr>(recv) }
         var args = List.new<Expr>()
         args.push(key)
-        var call = new_expr(full_span, ExprKind.MethodCall(recv_ptr, intern("index"), args))
+        var call = Expr.new(full_span, ExprKind.MethodCall(recv_ptr, intern("index"), args))
         call.name_span = open_span
         val call_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *call_ptr = take<Expr>(call) }
-        return new_expr(full_span, ExprKind.Deref(call_ptr))
+        return Expr.new(full_span, ExprKind.Deref(call_ptr))
     }
 }

@@ -32,8 +32,8 @@
 9 compiler/kf-core/src/ast/subst/expr_subst.kf
 23 compiler/kf-core/src/ast/subst/subst.kf
 23 compiler/kf-core/src/ast/subst/type_ref_subst.kf
-17 compiler/kf-core/src/ast/ty.kf
-3 compiler/kf-core/src/ast/type_mangle_frag.kf
+9 compiler/kf-core/src/ast/types/type.kf
+3 compiler/kf-core/src/ast/types/type_mangle_frag.kf
 3 compiler/kf-core/src/diagnostic/renderer.kf
 2 compiler/kf-driver/src/build/module_list.kf
 2 compiler/kf-driver/src/cli/diagnostic_color.kf

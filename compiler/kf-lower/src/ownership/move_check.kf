@@ -5,6 +5,11 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.coerce_none
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.Variant
+import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
 
 pub mutating fun Module.move_check_module(diags: &var Diagnostics, mob_count: Ptr<MobCount>, smap: Ptr<SourceMap>, lints: &var Diagnostics, list_name: Sym): void {

@@ -4,7 +4,15 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.intern
+import kf_core.ast.view
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.coerce_addr_of
+import kf_core.ast.declaration.Param
+import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
 import kf_typecheck.check.borrow.type_borrows
 
@@ -397,14 +405,14 @@ fun rewrite_captures_to_fields(p_opt: Ptr<Expr>?, captures: &List<LambdaCapture>
             val i = capture_index(captures, nm.as_str())
             if i >= captures.size() { return }
             val recv: Ptr<Expr> = unsafe { alloc<Expr>() }
-            unsafe { *recv = new_expr(span, ExprKind.Variable(intern("self"))) }
+            unsafe { *recv = Expr.new(span, ExprKind.Variable(intern("self"))) }
             when (captures.at(i).mode) {
                 Owned => unsafe { p.kind = ExprKind.FieldAccess(recv, nm) }
                 OwnedRead => unsafe { p.kind = ExprKind.FieldAccess(recv, nm) }
                 OwnedMutable => unsafe { p.kind = ExprKind.FieldAccess(recv, nm) }
                 _ => {
                     val field: Ptr<Expr> = unsafe { alloc<Expr>() }
-                    unsafe { *field = new_expr(span, ExprKind.FieldAccess(recv, nm)) }
+                    unsafe { *field = Expr.new(span, ExprKind.FieldAccess(recv, nm)) }
                     unsafe { p.kind = ExprKind.Deref(field) }
                 }
             }
@@ -423,7 +431,7 @@ fun rewrite_captures_to_fields(p_opt: Ptr<Expr>?, captures: &List<LambdaCapture>
             rewrite_captures_list(&args, captures, span, locals)
             if name_in_list(locals, nm.as_str()) || capture_index(captures, nm.as_str()) >= captures.size() { return }
             // A captured function value is called through its field.
-            val callee = Box.new(new_expr(span, ExprKind.Variable(nm)))
+            val callee = Box.new(Expr.new(span, ExprKind.Variable(nm)))
             rewrite_captures_to_fields(callee, captures, span, locals)
             unsafe { p.kind = ExprKind.CallValue(callee, args) }
         }

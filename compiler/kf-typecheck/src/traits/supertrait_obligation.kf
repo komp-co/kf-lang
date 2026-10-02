@@ -4,7 +4,12 @@
 import alloc.list.*
 
 import kf_core.diagnostic.*
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.is_container_type_name
+import kf_core.ast.is_runtime_type_name
+import kf_core.ast.types.TypeIdentity
+import kf_core.ast.types.canonical_type_identity
+import kf_core.ast.declaration.TopDecl
 import kf_typecheck.types.trait_args_key
 
 /// Every implementor of a trait implements what it requires. Walks this
@@ -67,7 +72,7 @@ fun render_trait_ref(name: str, args: str): String {
 fun TopDecl.receiver_implements(trait_name: str, needed_args: str, sigs: &SigTable): bool {
     var identity = self.name
     if !self.crate.is_poison() {
-        identity = canonical_type_identity(new_type_identity(self.crate, self.module_path, self.name))
+        identity = canonical_type_identity(TypeIdentity.new(self.crate, self.module_path, self.name))
     }
     // Runtime and `@no_mangle` types belong to no crate: core's
     // `impl Add for int32` and a program's `impl Num for int32` name one type

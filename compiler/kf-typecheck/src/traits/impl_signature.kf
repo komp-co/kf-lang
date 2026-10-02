@@ -5,7 +5,9 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.*
+import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 import kf_core.span.*
 import kf_typecheck.types.*
@@ -109,7 +111,7 @@ fun emit_signature_err(diags: &var Diagnostics, span: Span, what: str, want: &Ty
 pub fun impl_self_type(target: str, gnames: &List<String>, span: Span, ctx: &var TypeCtx): Type {
     var args = List.new<TypeRef>()
     while gname in &gnames {
-        args.push(new_type_ref(span, TypeRefKind.Named(intern(gname.as_str()), List.new<TypeRef>())))
+        args.push(TypeRef.new(span, TypeRefKind.Named(intern(gname.as_str()), List.new<TypeRef>())))
     }
-    return (new_type_ref(span, TypeRefKind.Named(intern(target), args))).resolve_type_ref(ctx)
+    return (TypeRef.new(span, TypeRefKind.Named(intern(target), args))).resolve_type_ref(ctx)
 }

@@ -10,6 +10,11 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_typecheck.types.type_to_type_ref
 
 /// The node at `ep` is rewritten in place to read the temporary.
@@ -136,16 +141,16 @@ fun hoist_self(ep: Ptr<Expr>, temps: &var WhenTemps, out: &var List<Stmt>): void
     val temp = temps.fresh_when_temp()
 
     val ann: Box<TypeRef>? = Box.new(type_to_type_ref(&value_ty, span))
-    out.push(new_stmt(span, StmtKind.LetVar(temp, ann, null)))
+    out.push(Stmt.new(span, StmtKind.LetVar(temp, ann, null)))
 
     when (node.kind) {
         WhenExpr(subj, arms) => {
-            out.push(new_stmt(span, StmtKind.When(subj, arms_assigning(&arms, temp, temps))))
+            out.push(Stmt.new(span, StmtKind.When(subj, arms_assigning(&arms, temp, temps))))
         }
         _ => { }
     }
 
-    var v = new_expr(span, ExprKind.Variable(temp))
+    var v = Expr.new(span, ExprKind.Variable(temp))
     v.ty = value_ty
     // The value's coercion now applies to the temporary: a borrow of it for a
     // trait object, say.

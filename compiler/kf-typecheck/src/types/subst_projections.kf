@@ -14,6 +14,11 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.declaration.Param
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.statement.Stmt
 import kf_typecheck.traits.trait_ref_head_name
 import kf_typecheck.traits.trait_ref_args_key
 import kf_typecheck.traits.assoc_owner_key
@@ -214,7 +219,7 @@ pub fun Type.resolved_projection_type(self_name: str, sigs: Ptr<SigTable>): Type
             return chosen
         }
         DynTraitTy(object) => {
-            var args = new_type_vec()
+            var args = List.new<Type>()
             val source_args = unsafe { object.args }
             var i = 0
             while i < unsafe { source_args.size() } {

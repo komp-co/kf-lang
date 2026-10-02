@@ -6,7 +6,13 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.intern
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.new_type_param
+import kf_core.ast.annotation.new_annotation
 import kf_core.span.*
 import kf_core.diagnostic.*
 import kf_typecheck.check.edit_distance
@@ -114,7 +120,7 @@ mutating fun TopDecl.add_trait_receiver(types: &List<String>, traits: &List<Stri
     var tp = new_type_param(receiver.span, param.clone())
     tp.bounds.push(receiver.clone())
     self.generics.push(tp)
-    self.point_self_at(new_type_ref(receiver.span, TypeRefKind.Named(intern(param.as_str()), List.new<TypeRef>())))
+    self.point_self_at(TypeRef.new(receiver.span, TypeRefKind.Named(intern(param.as_str()), List.new<TypeRef>())))
 }
 
 fun TopDecl.fresh_receiver_name(types: &List<String>): String {

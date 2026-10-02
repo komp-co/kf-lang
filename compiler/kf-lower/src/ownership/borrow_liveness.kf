@@ -11,6 +11,10 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
 
 /// Keyed by the mangled `Type_method`: a name alone would conflate a mutating

@@ -1,6 +1,9 @@
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.MarkTarget
+import kf_core.ast.declaration.default_mark_target
 import kf_parse.parser.*
 
 impl Parser {
@@ -32,7 +35,7 @@ impl Parser {
         val ret: TypeRef = unsafe { *self.parse_type_ref_ptr() }
         self.reject_misplaced_wildcards(&params, &ret)
         if !has_rest && !params.any_wildcard_slot() && !ret.is_wildcard_slot() {
-            return MarkTarget.Function(Box.new(new_type_ref(span, TypeRefKind.Function(params, Box.new(ret)))))
+            return MarkTarget.Function(Box.new(TypeRef.new(span, TypeRefKind.Function(params, Box.new(ret)))))
         }
         return MarkTarget.Signature(params, has_rest, Box.new(ret))
     }

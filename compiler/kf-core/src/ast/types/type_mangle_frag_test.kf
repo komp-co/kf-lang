@@ -2,6 +2,7 @@ import core.assert.assert_eq
 
 import kf_core.span.no_span
 import kf_core.ast.dyn_meta.dyn_trait_type
+import kf_core.ast.intern
 
 fun struct_named(s: str): Type {
     return Type { kind: TypeKind.Struct(intern(s)), provenance: Provenance.Inferred(no_span()) }
@@ -26,7 +27,7 @@ fun ptr_to(inner: Type): Type {
 }
 
 @test fun a_scalar_mangles_as_its_spelling(): void {
-    assert_eq(int32_ty(no_span()).mangle_frag().as_str(), "int32", "int32 mangles as int32")
+    assert_eq(Type.new_int32(no_span()).mangle_frag().as_str(), "int32", "int32 mangles as int32")
 }
 
 // Any two of these sharing a fragment would be one type.
@@ -66,18 +67,19 @@ fun ptr_to(inner: Type): Type {
 }
 
 @test fun a_nested_pointer_keeps_every_level(): void {
-    assert_eq(ptr_to(ptr_to(struct_named("A"))).mangle_frag().as_str(), "Ptr__Ptr__A", "nesting survives to the innermost type")
+    val nested = ptr_to(ptr_to(struct_named("A")))
+    assert_eq(nested.mangle_frag().as_str(), "Ptr__Ptr__A", "nesting survives to the innermost type")
 }
 
 @test fun a_borrowed_dyn_trait_keeps_its_dyn_identity(): void {
-    val dyn_ty = dyn_trait_type(intern("Score"), new_type_vec(), no_span())
+    val dyn_ty = dyn_trait_type(intern("Score"), List.new<Type>(), no_span())
     val bare = dyn_ty.mangle_frag()
     val borrowed = ref_to(dyn_ty).mangle_frag()
     assert_eq(borrowed.as_str(), bare.as_str(), "a borrowed dyn trait mangles as the dyn trait")
 }
 
 @test fun a_scalar_answers_the_scalar_table(): void {
-    assert_eq(bool_ty(no_span()).scalar_frag().as_str(), "bool", "bool is a scalar")
+    assert_eq(Type.new_bool(no_span()).scalar_frag().as_str(), "bool", "bool is a scalar")
 }
 
 @test fun a_struct_is_not_a_scalar(): void {

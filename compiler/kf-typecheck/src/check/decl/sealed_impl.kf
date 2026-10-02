@@ -3,7 +3,10 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.Sym
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 
 /// Each impl of this crate for another crate's sealed trait, reported at the

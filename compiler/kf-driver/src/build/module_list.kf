@@ -4,7 +4,10 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.Import
+import kf_core.ast.Module
+import kf_core.ast.crate_id_poison
+import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 import kf_codegen.emit.glue.deep_clone_top_decl
 import kf_codegen.emit.glue.deep_clone_import

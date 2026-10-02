@@ -1,6 +1,15 @@
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.CrateId
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.declaration.Param
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
 import kf_resolve.*
 import kf_typecheck.types.*
@@ -23,7 +32,7 @@ fun check_fn_body(metadata_owner: Ptr<TopDecl>, owner: String, owner_crate: Crat
     var presets = List.new<OpenDecision>()
     while attempt in 0..4 {
         val reported = (*diags).size()
-        var ctx = new_type_ctx(void_ty(no_span()), diags, Option.None, sigs)
+        var ctx = new_type_ctx(Type.new_void(no_span()), diags, Option.None, sigs)
         ctx.presets = presets.clone()
         ctx.fn_owner = owner.clone()
         ctx.impl_trait = impl_trait.clone()
@@ -45,10 +54,10 @@ fun check_fn_body(metadata_owner: Ptr<TopDecl>, owner: String, owner_crate: Crat
             ctx.params.push(String.from("self"))
             // Resolved, not assumed a struct: `impl Display for str` has a
             // primitive target.
-            var self_ty = poison_ty()
+            var self_ty = Type.new_poison()
             if ctx.self_ty.is_poison() {
                 val self_kind = TypeRefKind.Named(intern(self_name.as_str()), List.new<TypeRef>())
-                val self_tr = new_type_ref(no_span(), self_kind)
+                val self_tr = TypeRef.new(no_span(), self_kind)
                 self_ty = self_tr.resolve_type_ref(&var ctx)
             } else {
                 self_ty = ctx.self_ty.clone()
@@ -198,7 +207,7 @@ fun check_method_body(struct_name: String, generics: List<String>, impl_trait: S
                 // called `drop` would become the destructor. Allowed only in the
                 // destructor's shape, `fun drop(): void`.
                 if td.name.as_str() == "drop" {
-                    if !type_ref_is_void(unsafe { &*ret_ptr }) || params.size() > 0 {
+                    if !(unsafe { &*ret_ptr }).is_void() || params.size() > 0 {
                         emit_drop_shape_err(diags, td.span, struct_name.clone())
                     }
                 }

@@ -4,7 +4,15 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Arm
+import kf_core.ast.Intrinsic
+import kf_core.ast.view
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.FieldInit
+import kf_core.ast.declaration.DeclId
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.SwitchArm
 
 pub mutating fun TopDecl.resolve_decl_body(table: &var DeclTable): void {
     when (self.kind) {

@@ -1,6 +1,9 @@
 // One arm per StmtKind; a `let` also declares its binding.
 
-import kf_core.ast.*
+import kf_core.ast.view
+import kf_core.ast.types.*
+import kf_core.ast.expression.*
+import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_core.span.*
@@ -179,7 +182,7 @@ fun check_let(name: String, ann: Ptr<TypeRef>?, init_ptr: Ptr<Expr>, mutable: bo
             } else {
                 val lab = new_label(init.span, String.from("init type doesn't match declared"))
                 ctx.emit(new_diagnostic(Severity.Error, lab))
-                ty = poison_ty()
+                ty = Type.new_poison()
             }
         }
         None => {

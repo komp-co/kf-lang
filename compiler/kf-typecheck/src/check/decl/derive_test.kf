@@ -6,6 +6,11 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.annotation.new_annotation
 import kf_core.diagnostic.*
 
 fun derive_of(names: List<String>): Annotation {
@@ -118,7 +123,7 @@ fun enum_equal_derive_synthesizes_an_impl(): void {
 fun disabled_test_annotation_is_accepted(): void {
     var m = new_module(List.new<String>())
     val result: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *result = new_type_ref(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
+    unsafe { *result = TypeRef.new(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
     var td = new_top_decl(no_span(), String.from("paused"), TopDeclKind.Function(List.new<Param>(), result, List.new<Stmt>(), false, false, false, false))
     td.annotations.push(new_annotation(no_span(), "test_disabled", List.new<String>()))
     m.decls.push(td)
@@ -131,7 +136,7 @@ fun disabled_test_annotation_is_accepted(): void {
 fun annotated_function(annotation: Annotation): List<Diagnostic> {
     var m = new_module(List.new<String>())
     val result: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *result = new_type_ref(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
+    unsafe { *result = TypeRef.new(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
     val kind = TopDeclKind.Function(List.new<Param>(), result, List.new<Stmt>(), false, false, false, false)
     var td = new_top_decl(no_span(), String.from("f"), kind)
     td.annotations.push(annotation)

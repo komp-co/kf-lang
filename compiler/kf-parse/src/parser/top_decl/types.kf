@@ -1,7 +1,11 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
 import kf_parse.parser.*
 
 impl Parser {
@@ -164,7 +168,7 @@ impl Parser {
             return self.parse_type_ref_ptr()
         }
         val ret: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-        unsafe { *ret = new_type_ref(span, TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
+        unsafe { *ret = TypeRef.new(span, TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
         return ret
     }
 
@@ -218,7 +222,7 @@ impl Parser {
             ty = self.parse_type_ref_ptr()
         } else {
             self.parse_err(self.peek().span, String.from("expected `:` and a type after the parameter name (every parameter needs a type annotation)"))
-            unsafe { *ty = type_ref_poison(name_tok_span) }
+            unsafe { *ty = TypeRef.new_poison(name_tok_span) }
         }
         return new_param(name_tok_span, name, ty)
     }
@@ -365,7 +369,7 @@ impl Parser {
             ty = self.parse_type_ref_ptr()
         } else {
             self.parse_err(self.peek().span, String.from("expected `:` and a type after the field name (every field needs a type annotation)"))
-            unsafe { *ty = type_ref_poison(name_span) }
+            unsafe { *ty = TypeRef.new_poison(name_span) }
         }
 
         return new_field(name_span, name, ty, is_var, is_field_pub)

@@ -4,7 +4,9 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.*
 import kf_core.diagnostic.*
 import kf_typecheck.*
 

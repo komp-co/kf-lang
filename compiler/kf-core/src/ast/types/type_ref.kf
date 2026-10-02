@@ -1,6 +1,7 @@
 import alloc.list.*
 
 import kf_core.span.*
+import kf_core.ast.Sym
 
 // CONSTRAINT: TypeRef and TypeRefKind share this file so their typedefs are
 // emitted in source order.
@@ -32,19 +33,21 @@ pub enum TypeRefKind {
     Poison
 }
 
-pub fun new_type_ref(span: Span, kind: TypeRefKind): TypeRef {
-    return TypeRef { span: span, kind: kind }
-}
+impl TypeRef {
+    pub static fun new(span: Span, kind: TypeRefKind): Self {
+        return Self { span: span, kind: kind }
+    }
 
-pub fun type_ref_poison(span: Span): TypeRef {
-    return TypeRef { span: span, kind: TypeRefKind.Poison }
-}
+    pub static fun new_poison(span: Span): Self {
+        return TypeRef.new(span, TypeRefKind.Poison)
+    }
 
-/// `void` with no arguments. As an enum payload it carries nothing, so
-/// `Result<void, E>.Ok` has no payload.
-pub fun TypeRef.type_ref_is_void(): bool {
-    return when (self.kind) {
-        Named(name, args) => name.as_str().equals("void") && args.size() == 0
-        _ => false
+    /// `void` with no arguments. As an enum payload it carries nothing, so
+    /// `Result<void, E>.Ok` has no payload.
+    pub fun is_void(): bool {
+        return when (self.kind) {
+            Named(name, args) => name.as_str().equals("void") && args.size() == 0
+            _ => false
+        }
     }
 }

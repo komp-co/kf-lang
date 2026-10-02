@@ -3,7 +3,8 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.new_crate_id
 import kf_core.diagnostic.*
 import kf_assemble.*
 import kf_codegen.*

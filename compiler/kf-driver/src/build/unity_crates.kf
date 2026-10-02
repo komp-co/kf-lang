@@ -3,7 +3,7 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.new_crate_id
 import kf_assemble.no_overlay
 import kf_assemble.stamp_module_owner
 

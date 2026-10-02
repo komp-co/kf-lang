@@ -5,6 +5,8 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.stamp_decl_owner
 import kf_core.diagnostic.*
 import kf_parse.lexer.tokenize
 import kf_parse.parser.*

@@ -2,16 +2,19 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.intern
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
 
 fun transposed(): Type {
     var names = List.new<String>()
     names.push(String.from("A"))
     names.push(String.from("B"))
     var args = List.new<Type>()
-    args.push(generic_ty(String.from("B"), no_span()))
-    args.push(generic_ty(String.from("A"), no_span()))
-    return subst_all_generics(generic_ty(String.from("A"), no_span()), &names, &args)
+    args.push(Type.new_generic(String.from("B"), no_span()))
+    args.push(Type.new_generic(String.from("A"), no_span()))
+    return subst_all_generics(Type.new_generic(String.from("A"), no_span()), &names, &args)
 }
 
 // `Pair<B, A>` inside `impl Pair<A, B>`: the `B` put in for `A` is not then
@@ -26,8 +29,8 @@ fun transposed(): Type {
     names.push(String.from("A"))
     names.push(String.from("B"))
     var args = List.new<Type>()
-    args.push(bool_ty(no_span()))
-    args.push(int32_ty(no_span()))
+    args.push(Type.new_bool(no_span()))
+    args.push(Type.new_int32(no_span()))
     val written = Type { kind: TypeKind.Struct(intern("Pair__B__A")), provenance: Provenance.Inferred(no_span()) }
     val substituted = mangle_type(subst_all_generics(written, &names, &args))
     assert_eq(substituted.as_str(), "Pair__int32__bool", "B is int32, A is bool")

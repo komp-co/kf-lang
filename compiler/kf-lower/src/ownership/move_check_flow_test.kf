@@ -6,13 +6,19 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.*
+import kf_core.ast.types.Provenance
+import kf_core.ast.types.Type
+import kf_core.ast.types.TypeKind
+import kf_core.ast.expression.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
 import kf_core.diagnostic.*
 
 fun mk_if_stmt(then_body: List<Stmt>, else_body: List<Stmt>): Stmt {
-    val cond = new_expr(no_span(), ExprKind.LitBool(true))
+    val cond = Expr.new(no_span(), ExprKind.LitBool(true))
     val cp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *cp = cond }
-    return new_stmt(no_span(), StmtKind.If(cp, then_body, else_body))
+    return Stmt.new(no_span(), StmtKind.If(cp, then_body, else_body))
 }
 
 @test fun branch_both_move_no_diag(): void {
@@ -73,10 +79,10 @@ fun mk_if_stmt(then_body: List<Stmt>, else_body: List<Stmt>): Stmt {
     arms.push(arm)
     arms.push(none_arm)
 
-    val subj = new_expr(no_span(), ExprKind.Variable(intern("opt")))
+    val subj = Expr.new(no_span(), ExprKind.Variable(intern("opt")))
     val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *sp = subj }
-    var w = new_stmt(no_span(), StmtKind.When(sp, arms))
+    var w = Stmt.new(no_span(), StmtKind.When(sp, arms))
     w.move_check_stmt(&var ctx)
 
     val result = unsafe { *dp }
@@ -91,18 +97,18 @@ fun mk_if_stmt(then_body: List<Stmt>, else_body: List<Stmt>): Stmt {
 
     var args1 = List.new<Expr>()
     args1.push(mk_str_var(String.from("x")))
-    val c1 = new_expr(no_span(), ExprKind.Call(intern("foo"), args1))
+    val c1 = Expr.new(no_span(), ExprKind.Call(intern("foo"), args1))
     val c1p: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *c1p = c1 }
-    var s1 = new_stmt(no_span(), StmtKind.Expression(c1p))
+    var s1 = Stmt.new(no_span(), StmtKind.Expression(c1p))
     s1.move_check_stmt(&var ctx)
 
     var args2 = List.new<Expr>()
     args2.push(mk_str_var(String.from("x")))
-    val c2 = new_expr(no_span(), ExprKind.Call(intern("foo"), args2))
+    val c2 = Expr.new(no_span(), ExprKind.Call(intern("foo"), args2))
     val c2p: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *c2p = c2 }
-    var s2 = new_stmt(no_span(), StmtKind.Expression(c2p))
+    var s2 = Stmt.new(no_span(), StmtKind.Expression(c2p))
     s2.move_check_stmt(&var ctx)
 
     val result = unsafe { *dp }
@@ -110,10 +116,10 @@ fun mk_if_stmt(then_body: List<Stmt>, else_body: List<Stmt>): Stmt {
 }
 
 fun mk_while_stmt(body: List<Stmt>): Stmt {
-    val cond = new_expr(no_span(), ExprKind.LitBool(true))
+    val cond = Expr.new(no_span(), ExprKind.LitBool(true))
     val cp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *cp = cond }
-    return new_stmt(no_span(), StmtKind.While(cp, body))
+    return Stmt.new(no_span(), StmtKind.While(cp, body))
 }
 
 @test fun loop_no_move_no_diag(): void {
@@ -161,12 +167,12 @@ fun mk_while_stmt(body: List<Stmt>): Stmt {
 fun mk_call_stmt_one_arg(callee: str, arg: Expr): Stmt {
     var args = List.new<Expr>()
     args.push(arg)
-    var c = new_expr(no_span(), ExprKind.Call(intern(callee), args))
+    var c = Expr.new(no_span(), ExprKind.Call(intern(callee), args))
     c.mangled_callee = intern(callee)
-    c.ty = void_ty(no_span())
+    c.ty = Type.new_void(no_span())
     val cp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *cp = c }
-    return new_stmt(no_span(), StmtKind.Expression(cp))
+    return Stmt.new(no_span(), StmtKind.Expression(cp))
 }
 
 // Registers `callee`'s single param as a by-value move-sink.
@@ -300,7 +306,7 @@ fun return_of_binder_copies(subject: Expr): bool {
     arms.push(new_arm(no_span(), pp, null, body))
     val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *sp = subject }
-    var w = new_stmt(no_span(), StmtKind.When(sp, arms))
+    var w = Stmt.new(no_span(), StmtKind.When(sp, arms))
     w.move_check_stmt(&var ctx)
     return when (w.kind) {
         When(_s, checked) => when (checked.at(0).body.at(0).kind) {
@@ -312,7 +318,7 @@ fun return_of_binder_copies(subject: Expr): bool {
 }
 
 @test fun a_binder_over_a_fresh_value_moves_out(): void {
-    var made = new_expr(no_span(), ExprKind.Call(intern("make"), List.new<Expr>()))
+    var made = Expr.new(no_span(), ExprKind.Call(intern("make"), List.new<Expr>()))
     made.ty = intern("String").lang_struct_ty(no_span())
     assert_eq(return_of_binder_copies(made), false, "nothing else owns the call's result")
 }
@@ -325,13 +331,13 @@ fun return_of_binder_copies(subject: Expr): bool {
 fun var_through_copies(pointer_kind: TypeKind): bool {
     val dp = fresh_diag_ptr()
     var ctx = fresh_ctx(unsafe { &var *dp })
-    var p = new_expr(no_span(), ExprKind.Variable(intern("p")))
+    var p = Expr.new(no_span(), ExprKind.Variable(intern("p")))
     p.ty = Type { kind: pointer_kind, provenance: Provenance.Inferred(no_span()) }
-    var read = new_expr(no_span(), ExprKind.Deref(Box.new(p)))
+    var read = Expr.new(no_span(), ExprKind.Deref(Box.new(p)))
     read.ty = intern("String").lang_struct_ty(no_span())
     val ip: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *ip = read }
-    var s = new_stmt(no_span(), StmtKind.LetVar(intern("v"), null, ip))
+    var s = Stmt.new(no_span(), StmtKind.LetVar(intern("v"), null, ip))
     s.move_check_stmt(&var ctx)
     return (unsafe { ip.coerce }) == coerce_clone()
 }

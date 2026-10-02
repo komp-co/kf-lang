@@ -5,7 +5,11 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.empty_list_literal_receiver
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
 import kf_typecheck.types.nominal_name
 
 /// `[]` names the lang List, and is remembered as a literal.
@@ -16,7 +20,7 @@ mutating fun Expr.name_empty_list_literal(ctx: &var TypeCtx): void {
     }
     if !is_empty_literal { return }
     ctx.list_literals.push(self.span)
-    *self = collection_new_call(self.span, ctx.list_name())
+    *self = Expr.new_collection_new_call(self.span, ctx.list_name())
 }
 
 fun Expr.names_empty_list_literal(): bool {

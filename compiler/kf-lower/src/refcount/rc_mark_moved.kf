@@ -1,7 +1,9 @@
 // Consumed-move marking for the refcount pass.
 
 import alloc.list.*
-import kf_core.ast.*
+import kf_core.ast.Intrinsic
+import kf_core.ast.types.type_identity_display
+import kf_core.ast.expression.*
 import kf_lower.ownership.param_lookup
 
 // After a move the source owns nothing, so no frame drops it.

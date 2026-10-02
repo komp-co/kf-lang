@@ -5,6 +5,8 @@ pub struct DeclId {
     pub val raw: uint32
 }
 
-pub fun new_decl_id(raw: uint32): DeclId {
-    return DeclId { raw: raw }
+impl DeclId {
+    pub static fun new(raw: uint32): Self {
+        return Self { raw: raw }
+    }
 }

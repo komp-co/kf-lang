@@ -7,7 +7,10 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Import
+import kf_core.ast.Module
+import kf_core.ast.view
+import kf_core.ast.declaration.TopDecl
 
 import kf_codegen.*
 import kf_codegen.emit.dyn_traits.*

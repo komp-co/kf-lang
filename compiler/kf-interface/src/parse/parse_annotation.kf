@@ -3,7 +3,10 @@
 import alloc.list.*
 
 import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.ast.CrateId
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.*
+import kf_core.ast.annotation.mark_kind_of
 import json.reader.*
 import kf_interface.parse.*
 

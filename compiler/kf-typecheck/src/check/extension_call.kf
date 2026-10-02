@@ -6,7 +6,11 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
 import kf_core.span.*
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
@@ -25,7 +29,7 @@ pub fun dyn_or_extension_call(e: &var Expr, recv_ptr: Ptr<Expr>, recv: &Expr, na
     val link = chosen_extension(name.as_str(), &recv.ty, e.span, ctx)
     if link.byte_len() == 0 { return e.report_blocked_extension(name.as_str(), &recv.ty, ctx) }
     if link.as_str().equals(".") || !extension_arity_fits(link.as_str(), name.as_str(), args.size(), e.span, ctx) {
-        e.ty = poison_ty()
+        e.ty = Type.new_poison()
         return true
     }
     var call_args = List.new<Expr>()
@@ -54,7 +58,7 @@ pub mutating fun Expr.extension_function_call(name: Sym, args: &var List<Expr>, 
     if link.byte_len() == 0 { return false }
     if link.as_str().equals(".") {
         ctx.pretyped_args = 0
-        self.ty = poison_ty()
+        self.ty = Type.new_poison()
         return true
     }
     self.ty = check_call(link.clone(), args, self.type_args, self.span, ctx)

@@ -5,6 +5,8 @@ import alloc.list.*
 
 import kf_core.diagnostic.*
 import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_core.ast.declaration.TopDecl
 import kf_core.span.no_span
 import kf_typecheck.*
 import kf_typecheck.check.type_is_copy
@@ -15,7 +17,7 @@ pub fun Module.check_copy_impls(sigs: Ptr<SigTable>, table: Ptr<DeclTable>?, dia
     val copy_name = unsafe { sigs.lang_trait_name(lang_copy_key()) }
     if copy_name.as_str().equals("") { return }
     val drop_name = unsafe { sigs.lang_trait_name(lang_drop_key()) }
-    var ctx = new_type_ctx(void_ty(no_span()), diags, table, sigs)
+    var ctx = new_type_ctx(Type.new_void(no_span()), diags, table, sigs)
     while td in &self.decls {
         when (td.kind) {
             TraitImpl(tref, _methods) => {
