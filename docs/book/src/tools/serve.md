@@ -219,6 +219,9 @@ name, an extension's name.
 {"schema_version":1,"file":"/w/src/lib.kf","offset":120,"implementations":[{"file":"/w/src/lib.kf","byte_start":310,"byte_end":315}]}
 ```
 
+A declared annotation is a name too: `@shown` refers to its `annotation shown`
+declaration, for references, definition, rename and hover.
+
 **`tokens`** is every name in the file with what it is, sorted by position,
 which is what semantic highlighting paints:
 
