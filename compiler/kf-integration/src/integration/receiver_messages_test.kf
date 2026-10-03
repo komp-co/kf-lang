@@ -4,6 +4,28 @@
 import core.assert.assert_eq
 
 @test
+fun elvis_on_a_result_names_the_written_type(): void {
+    val said = reports("kf_recv_elvis_result", """import alloc.list.*
+pub fun first(xs: Result<List<int32>, int32>): uint64 {
+    val v = xs ?: return 0
+    return v.size()
+}
+""", "no variant `Some` on `Result<List<int32>, int32>` — `Some`, `None` and `?:` take an optional")
+    assert_eq(said, true, "the message spells the type as written")
+}
+
+@test
+fun elvis_on_a_result_is_not_also_non_exhaustive(): void {
+    val said = reports("kf_recv_elvis_cascade", """import alloc.list.*
+pub fun first(xs: Result<List<int32>, int32>): uint64 {
+    val v = xs ?: return 0
+    return v.size()
+}
+""", "non-exhaustive")
+    assert_eq(said, false, "the arm that names no variant is the one error")
+}
+
+@test
 fun a_val_field_borrowing_mutably_lends_to_a_mutating_call(): void {
     val said = reports("kf_recv_val_ref_field", """import alloc.list.*
 pub struct Sink { var items: List<int32> }

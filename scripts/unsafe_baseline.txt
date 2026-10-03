@@ -160,7 +160,7 @@
 2 compiler/kf-typecheck/src/check/check_value_call.kf
 5 compiler/kf-typecheck/src/check/control/block_tail.kf
 22 compiler/kf-typecheck/src/check/control/check_when.kf
-6 compiler/kf-typecheck/src/check/control/exhaustive.kf
+7 compiler/kf-typecheck/src/check/control/exhaustive.kf
 17 compiler/kf-typecheck/src/check/control/string_pattern.kf
 52 compiler/kf-typecheck/src/check/decl/check_decl.kf
 8 compiler/kf-typecheck/src/check/decl/check_function_body.kf
