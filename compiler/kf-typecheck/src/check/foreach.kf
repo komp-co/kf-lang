@@ -58,7 +58,7 @@ mutating fun Stmt.check_foreach(binder: Sym, subj_ptr: Ptr<Expr>, body: List<Stm
                 return
             }
         }
-        unsafe { self.kind = expand_foreach_ref(binder, self.binder, subj_ptr, body, span) }
+        unsafe { self.kind = expand_foreach_ref(binder, self.binder, subj_ptr, subj.is_owned_temporary(), body, span) }
     } else {
         unsafe { self.kind = expand_foreach(binder, self.binder, subj_ptr, body, span) }
     }

@@ -11,6 +11,8 @@ import kf_core.ast.lang_iterable_key
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.coerce_none
+import kf_core.ast.expression.coerce_written_amp
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import kf_core.diagnostic.new_label
@@ -29,7 +31,8 @@ pub fun foreach_tag(span: Span): String {
 /// `while name in &subject { body }` becomes:
 ///
 ///     if true {
-///         var __forit_N = (subject).iter()
+///         val __forsrc_N = subject          (only for a temporary, which then drops)
+///         var __forit_N = (&__forsrc_N).iter()
 ///         while true {
 ///             val __forptr_N = __forit_N.next_ptr()
 ///             if ptr_is_null(__forptr_N) { break }
@@ -37,13 +40,27 @@ pub fun foreach_tag(span: Span): String {
 ///             body
 ///         }
 ///     }
-fun expand_foreach_ref(binder: Sym, binder_at: Span, subj_ptr: Ptr<Expr>, body: List<Stmt>, span: Span): StmtKind {
+/// `temporary` when the subject is a value nothing else owns.
+fun expand_foreach_ref(
+    binder: Sym, binder_at: Span, subj_ptr: Ptr<Expr>, temporary: bool, body: List<Stmt>, span: Span
+): StmtKind {
     val tag = foreach_tag(span)
     val itname = "__forit_${tag}"
     val ptrname = "__forptr_${tag}"
+    var outer = List.new<Stmt>()
 
+    var iterated = subj_ptr
+    if temporary {
+        val srcname = intern("__forsrc_${tag}")
+        unsafe { (*subj_ptr).coerce = coerce_none() }
+        outer.push(Stmt.new(span, StmtKind.LetVal(srcname, null, subj_ptr)))
+        var src = Expr.new(span, ExprKind.Variable(srcname))
+        src.coerce = coerce_written_amp()
+        iterated = unsafe { alloc<Expr>() }
+        unsafe { *iterated = src }
+    }
     val iter_call_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *iter_call_ptr = Expr.new(span, ExprKind.MethodCall(subj_ptr, intern("iter"), List.new<Expr>())) }
+    unsafe { *iter_call_ptr = Expr.new(span, ExprKind.MethodCall(iterated, intern("iter"), List.new<Expr>())) }
     val let_it = Stmt.new(span, StmtKind.LetVar(intern(itname.as_str()), null, iter_call_ptr))
 
     val it_var_box: Ptr<Expr> = unsafe { alloc<Expr>() }
@@ -82,12 +99,28 @@ fun expand_foreach_ref(binder: Sym, binder_at: Span, subj_ptr: Ptr<Expr>, body: 
     unsafe { *while_cond = Expr.new(span, ExprKind.LitBool(true)) }
     val while_stmt = Stmt.new(span, StmtKind.While(while_cond, while_body))
 
-    var outer = List.new<Stmt>()
     outer.push(let_it)
     outer.push(while_stmt)
     val outer_cond: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *outer_cond = Expr.new(span, ExprKind.LitBool(true)) }
     return StmtKind.If(outer_cond, outer, List.new<Stmt>())
+}
+
+/// A value nothing else owns, which the loop must drop: a call's result that
+/// is not a borrow, or a literal.
+fun Expr.is_owned_temporary(): bool {
+    if self.ty.is_poison() { return false }
+    val by_value = when (self.ty.kind) {
+        RefTo(_m, _p) => false
+        _ => true
+    }
+    return by_value && when (self.kind) {
+        Call(_n, _a) => !self.is_variant_ctor
+        MethodCall(_r, _m, _a) => !self.is_variant_ctor
+        CallValue(_c, _a) => true
+        StructLit(_n, _f) => true
+        _ => false
+    }
 }
 
 /// Asked before expansion, so the diagnostic names the written loop.
