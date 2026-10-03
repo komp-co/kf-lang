@@ -158,6 +158,9 @@ declaration, that declaration's signature and documentation:
 {"schema_version":2,"file":"/w/src/main.kf","offset":195,"type":"int32","signature":null,"documentation":null,"byte_start":195,"byte_end":200}
 ```
 
+On the name a declaration introduces (`twice` in `fun twice(...)`), where its
+signature is written out, `signature` and `documentation` are null.
+
 `type` is null when `offset` covers no expression: whitespace, a keyword, a
 comment, a parameter's name. That is not an error; most of a file is not an
 expression. The name a `val` or `var` binds answers with the type of what
