@@ -201,9 +201,9 @@ repeated among the uses. A top-level declaration answers, and so does a
 method or a field: its uses are found by the type the checker gave each
 receiver, so `p.x` on a `Point` is not a use of another type's `x`, and a
 field's uses include `self.x` and `x:` in a struct literal. A parameter or a
-local resolves through the typechecker's own scope, which the resolver does
-not build, so one answers with a null `declaration` and no uses rather than
-a guess from spelling.
+local answers too: each use reaches the binding in scope where it is
+written, so a `val` shadowing another has uses of its own, and `x = ...`
+counts as a use of `x`.
 
 **`tokens`** is every name in the file with what it is, sorted by position,
 which is what semantic highlighting paints:

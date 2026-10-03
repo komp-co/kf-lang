@@ -1,7 +1,6 @@
 // Find references: every name in the crate referring to what the cursor's
-// name refers to, a top-level declaration or a member by its `Owner.name`
-// key. Locals and parameters resolve in typecheck's scope, which this does
-// not build.
+// name refers to: a top-level declaration, a member by its `Owner.name` key,
+// or a parameter or local by where its binder is written.
 
 import alloc.list.*
 
@@ -19,7 +18,8 @@ pub fun render_references_json(path: str, offset: uint32, crate: &TypedCrate): S
     out.field_string("file", path)
     out.field_uint32("offset", offset)
 
-    val names = crate.module.all_name_spans()
+    var names = crate.module.all_name_spans()
+    while local in &crate.module.local_name_spans() { names.push(local) }
     val target = names.target_at(crate.file_id, offset) ?: {
         out.field_null("declaration")
         out.field_raw("references", "[]")
