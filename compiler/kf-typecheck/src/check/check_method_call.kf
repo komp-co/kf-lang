@@ -10,6 +10,7 @@ import kf_core.ast.expression.Expr
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_core.diagnostic.with_fix_applic
+import kf_core.ast.types.type_node
 import kf_typecheck.types.*
 import kf_typecheck.traits.*
 import kf_typecheck.check.record_untyped_receiver
@@ -396,8 +397,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
                     return Type.new_poison()
                 }
                 val elem_ty = ty_from_frag_in_scope(elem_frag, _span, ctx)
-                val inner: Ptr<Type> = unsafe { alloc<Type>() }
-                unsafe { *inner = elem_ty }
+                val inner = type_node(elem_ty)
                 return Type { kind: TypeKind.RefTo(false, inner), provenance: Provenance.Inferred(_span) }
             }
             // A mutable borrow, mutated in place.
@@ -407,8 +407,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
                     return Type.new_poison()
                 }
                 val elem_ty = ty_from_frag_in_scope(elem_frag, _span, ctx)
-                val inner: Ptr<Type> = unsafe { alloc<Type>() }
-                unsafe { *inner = elem_ty }
+                val inner = type_node(elem_ty)
                 return Type { kind: TypeKind.RefTo(true, inner), provenance: Provenance.Inferred(_span) }
             }
             "size" => {

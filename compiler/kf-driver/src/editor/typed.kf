@@ -20,6 +20,8 @@ import kf_driver.build.CrateSource
 import kf_driver.build.assemble_crate_list
 import kf_shared.absolutize
 import kf_core.diagnostic.new_diagnostics
+import kf_core.ast.types.TypingNodes
+import kf_core.ast.types.restore_type_nodes
 
 /// `ok` is false for a file with no crate above it.
 pub struct TypedCrate {
@@ -34,6 +36,8 @@ pub struct TypedCrate {
     pub var root: String
     /// For answers spanning several files.
     pub var smap: Box<SourceMap>
+    /// Where the typing's type children live; they go with the crate.
+    pub var nodes: TypingNodes
 }
 
 /// `staged` marks absence: an emptied buffer is still a document. `crates`
@@ -53,9 +57,11 @@ pub fun typed_crate_with(file_path: str, overlay: &Overlay, crates: &List<CrateS
         val empty: Ptr<SigTable> = typing.sigs
         return TypedCrate {
             ok: false, file_id: 0, module: new_module(List.new<String>()), sigs: empty, typing: typing, source: "",
-            smap: fresh_source_map(), root: ""
+            smap: fresh_source_map(), root: "", nodes: TypingNodes.new()
         }
     }
+    val nodes = TypingNodes.new()
+    val previous = nodes.enter()
     val smap = fresh_source_map()
     var pdiags = new_diagnostics()
     // With the root's tests, since the buffer is often a `_test.kf`.
@@ -74,8 +80,10 @@ pub fun typed_crate_with(file_path: str, overlay: &Overlay, crates: &List<CrateS
     val sigs: Ptr<SigTable> = typed.sigs
 
     val root = crates.at(crates.size() - 1).root.clone()
+    restore_type_nodes(previous)
     var crate = TypedCrate {
-        ok: false, file_id: 0, module: merged, sigs: sigs, typing: typed, source: "", smap: smap, root: root
+        ok: false, file_id: 0, module: merged, sigs: sigs, typing: typed, source: "", smap: smap, root: root,
+        nodes: nodes
     }
     val _found = crate.focus(file_path)
     return crate

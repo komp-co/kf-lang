@@ -9,6 +9,7 @@ import kf_typecheck.check.ty_from_frag_in_scope
 import kf_typecheck.check.lent_slice_name
 import kf_core.span.no_span
 import kf_core.ast.dyn_meta.dyn_trait_type
+import kf_core.ast.types.type_node
 
 /// Binds `gname` from one param/argument pair through reference layers:
 /// a `&A` param routinely faces a bare `A` argument, and must bind so the
@@ -132,20 +133,17 @@ pub fun Type.subst_generic(name: String, with_ty: Type): Type {
         }
         PtrTo(p) => {
             val inner = subst_generic(unsafe { *p }, name, with_ty)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.PtrTo(np), provenance: self.provenance }
         }
         BoxOf(p) => {
             val inner = subst_generic(unsafe { *p }, name, with_ty)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.BoxOf(np), provenance: self.provenance }
         }
         RefTo(m, p) => {
             val inner = subst_generic(unsafe { *p }, name, with_ty)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.RefTo(m, np), provenance: self.provenance }
         }
         FnTy(_) => {
@@ -159,8 +157,7 @@ pub fun Type.subst_generic(name: String, with_ty: Type): Type {
         // `Self.Out` read through `C: Producer` means `C.Out` here.
         Projection(owner, member) => {
             val inner = subst_generic(unsafe { *owner }, name, with_ty)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.Projection(np, member), provenance: self.provenance }
         }
         _ => return (*self)

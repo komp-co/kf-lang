@@ -203,15 +203,13 @@ fun Sym.dyn_primitive_or_struct(): Type {
 
 fun dyn_reference_type(mutable: bool, inner: Type): Type {
     if inner.is_poison() { return Type.new_poison() }
-    val pointer: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *pointer = inner }
+    val pointer = type_node(inner)
     return Type { kind: TypeKind.RefTo(mutable, pointer), provenance: Provenance.Inferred(no_span()) }
 }
 
 fun dyn_pointer_type(inner: Type, boxed: bool): Type {
     if inner.is_poison() { return Type.new_poison() }
-    val pointer: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *pointer = inner }
+    val pointer = type_node(inner)
     if boxed { return Type { kind: TypeKind.BoxOf(pointer), provenance: Provenance.Inferred(no_span()) } }
     return Type { kind: TypeKind.PtrTo(pointer), provenance: Provenance.Inferred(no_span()) }
 }

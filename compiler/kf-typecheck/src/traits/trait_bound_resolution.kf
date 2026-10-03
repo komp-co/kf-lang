@@ -194,8 +194,7 @@ fun subst_trait_params(t: Type, trait_name: str, args: &List<String>, ctx: &var 
 fun named_or_generic_ty(name: str, ctx: &var TypeCtx): Type {
     val borrowed = ref_key_inner(name)
     if !borrowed.as_str().equals("") {
-        val inner: Ptr<Type> = unsafe { alloc<Type>() }
-        unsafe { *inner = named_or_generic_ty(borrowed.as_str(), ctx) }
+        val inner = type_node(named_or_generic_ty(borrowed.as_str(), ctx))
         return Type { kind: TypeKind.RefTo(ref_key_is_mut(name), inner), provenance: Provenance.Inferred(no_span()) }
     }
     while generic in &ctx.generics {

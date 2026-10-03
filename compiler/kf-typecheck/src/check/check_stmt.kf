@@ -150,8 +150,7 @@ fun is_written_borrow(code: uint8): bool {
 }
 
 pub fun borrow_of(inner: Type, mutable: bool, span: Span): Type {
-    val p: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *p = inner }
+    val p = type_node(inner)
     return Type { kind: TypeKind.RefTo(mutable, p), provenance: Provenance.Inferred(span) }
 }
 
