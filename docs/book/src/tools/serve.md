@@ -197,8 +197,10 @@ crate.
 Every span is a name: the declaration is `helper`, not the `fun` before it,
 and a use is the callee, not the whole call. `offset` may be on the
 declaration or on any use; both answer the same. The declaration is not
-repeated among the uses. A top-level declaration answers, and so does a
-method or a field: its uses are found by the type the checker gave each
+repeated among the uses. A top-level declaration answers, and a struct,
+enum or trait is also used wherever its name is written as a type: a
+parameter, a result, a field, an annotation, an `impl` header, a bound or a
+cast. A method or a field answers too: its uses are found by the type the checker gave each
 receiver, so `p.x` on a `Point` is not a use of another type's `x`, and a
 field's uses include `self.x` and `x:` in a struct literal. A parameter or a
 local answers too: each use reaches the binding in scope where it is
