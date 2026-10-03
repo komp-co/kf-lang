@@ -169,12 +169,16 @@ fun is_fresh_binary(init: Expr, ctx: &var RcCtx): bool {
     }
 }
 
-/// Fresh, a clone, or a moved bare variable. A deref is a view.
+/// Fresh, a clone, or a moved bare variable. A deref or a field read is a
+/// view, as it is when bound directly.
 fun if_branch_is_owned(bp: Ptr<Expr>, ctx: &var RcCtx): bool {
     val e = unsafe { *bp }
     if e.coerce == coerce_clone() { return true }
     if is_deref_init(e) { return false }
-    return true
+    return when (e.kind) {
+        FieldAccess(_, _) => false
+        _ => true
+    }
 }
 
 /// Every branch must be fresh; `if c { *xs.at(i) } else { fresh }` is not.
