@@ -143,3 +143,25 @@ import kf_core.ast.statement.StmtKind
     rc_insert_stmts(&var out, &var ctx)
     assert_eq(out.size(), 2, "moving `kept` out evaluates nothing, so `other` is released first")
 }
+
+fun field_read_of(owner: str, field: str, ty: Type): Ptr<Expr> {
+    val ov: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *ov = Expr.new(no_span(), ExprKind.Variable(intern(owner))) }
+    val read: Ptr<Expr> = unsafe { alloc<Expr>() }
+    var fa = Expr.new(no_span(), ExprKind.FieldAccess(ov, intern(field)))
+    fa.ty = ty
+    unsafe { *read = fa }
+    return read
+}
+
+@test fun an_if_choosing_between_fields_binds_a_view(): void {
+    var ctx = rc_ctx_for_test("m")
+    ctx.move_only_names.push(String.from("Rows"))
+    val cond: Ptr<Expr> = unsafe { alloc<Expr>() }
+    unsafe { *cond = Expr.new(no_span(), ExprKind.Variable(intern("c"))) }
+    val then_read = field_read_of("p", "a", struct_ty_named("Rows"))
+    val else_read = field_read_of("p", "b", struct_ty_named("Rows"))
+    var pick = Expr.new(no_span(), ExprKind.IfExpr(cond, then_read, else_read))
+    pick.ty = struct_ty_named("Rows")
+    assert_eq(binding_mode_tag(classify_binding(pick, &var ctx)) == 3, true, "if over two field reads -> Borrowed")
+}
