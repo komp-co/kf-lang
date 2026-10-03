@@ -158,10 +158,10 @@ fun Expr.name_expr(found: &var List<NameSpan>): void {
             name_expr_list(&args, found)
         }
         MethodCall(recv, _m, args) => {
-            name_expr_ptr(recv, found)
+            self.name_receiver(recv, found)
             name_expr_list(&args, found)
         }
-        FieldAccess(obj, _f) => name_expr_ptr(obj, found)
+        FieldAccess(obj, _f) => self.name_receiver(obj, found)
         Binary(l, _op, r) => {
             name_expr_ptr(l, found)
             name_expr_ptr(r, found)
@@ -211,8 +211,27 @@ fun Expr.written_name_span(): Span {
     return self.name_span
 }
 
+/// `Point` of `Point.new()` and `Color` of `Color.Red` name a type, not a
+/// value.
+fun Expr.name_receiver(recv: Ptr<Expr>, found: &var List<NameSpan>): void {
+    val at = found.size()
+    name_expr_ptr(recv, found)
+    if !self.is_static_call && !self.is_variant_ctor { return }
+    if at >= found.size() { return }
+    val written = found.get(at)
+    if written.role.as_str() != "variable" || written.span.start != recv.span.start { return }
+    val retyped = NameSpan {
+        span: written.span, decl: written.decl, role: intern("type"), is_decl: false, member: written.member
+    }
+    found.set(at, retyped)
+}
+
 /// Literals, operators and casts have no name.
 fun Expr.record_name(found: &var List<NameSpan>): void {
+    if self.is_variant_ctor {
+        self.record_variant(found)
+        return
+    }
     val role = when (self.kind) {
         Variable(_n) => "variable"
         Call(_n, _args) => "function"
@@ -227,6 +246,18 @@ fun Expr.record_name(found: &var List<NameSpan>): void {
     val whole = role.equals("variable") || role.equals("type")
     val span = if whole { self.span } else { self.written_name_span() }
     found.push(NameSpan { span: span, decl: self.decl, role: intern(role), is_decl: false, member: self.member_key() })
+}
+
+/// `Red` of `Color.Red` and `Some` of `Option.Some(x)` or `Some(x)`.
+fun Expr.record_variant(found: &var List<NameSpan>): void {
+    val span = when (self.kind) {
+        Call(_n, _args) => self.written_name_span()
+        MethodCall(_r, _m, _args) => self.written_name_span()
+        FieldAccess(_o, _f) => self.written_name_span()
+        _ => return
+    }
+    val role = intern("enum_member")
+    found.push(NameSpan { span: span, decl: self.decl, role: role, is_decl: false, member: intern("") })
 }
 
 /// `Point.sum` for `p.sum()`, `Point.x` for `p.x`; "" for anything else, or

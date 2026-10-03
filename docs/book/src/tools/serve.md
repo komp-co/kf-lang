@@ -229,7 +229,9 @@ which is what semantic highlighting paints:
 {"schema_version":1,"file":"/w/src/lib.kf","tokens":[{"byte_start":41,"byte_end":42,"type":"variable"},{"byte_start":84,"byte_end":93,"type":"function"}]}
 ```
 
-Types are `variable`, `function`, `method`, `field` and `type`.
+Types are `variable`, `function`, `method`, `field`, `type` and
+`enum_member`. Each token covers one identifier: `Point` of `Point.new()` is
+a `type`, and `Red` of `Color.Red` an `enum_member`.
 
 **`completion`** after a `.` is the fields and instance methods of the
 receiver's type:
