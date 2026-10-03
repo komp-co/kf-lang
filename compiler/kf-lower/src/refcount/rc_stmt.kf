@@ -102,7 +102,11 @@ fun hoist_borrowed_temps(ep: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>): 
         Unary(_op, inner) => hoist_borrowed_temps(inner, ctx, out)
         Deref(inner) => hoist_borrowed_temps(inner, ctx, out)
         Cast(inner, _t) => hoist_borrowed_temps(inner, ctx, out)
-        DynCoerce(inner, _vtable) => hoist_borrowed_temps(inner, ctx, out)
+        // A `&dyn` borrows its operand, a fresh value included.
+        DynCoerce(inner, _vtable) => {
+            hoist_borrowed_temps(inner, ctx, out)
+            maybe_hoist_borrowed_arg(inner, ctx, out)
+        }
         Retain(inner) => hoist_borrowed_temps(inner, ctx, out)
         IfExpr(c, t, el) => hoist_if_value(ep, c, t, el, ctx, out)
         StructLit(_n, finits) => {

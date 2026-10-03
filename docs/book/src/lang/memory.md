@@ -443,6 +443,28 @@ generic view, such as `Cursor<int32>` from
 being one in another crate. Core's [slices](arrays.md#any-length-slices),
 `&T[]` and `&var T[]`, are views written this way.
 
+A `val` field holding a `&var` cannot be pointed elsewhere, but a `mutating`
+call through it changes what it borrows. It still needs a writable view: from
+a method that is not `mutating`, it is rejected.
+
+```kflat
+struct Sink {
+    var items: List<int32>
+}
+
+impl Sink {
+    mutating fun emit(x: int32): void { self.items.push(x) }
+}
+
+view struct Ctx {
+    val sink: &var Sink
+}
+
+impl Ctx {
+    mutating fun report(x: int32): void { self.sink.emit(x) }
+}
+```
+
 ## Returning a borrow
 
 A function may return a borrow, and where it comes from is never written

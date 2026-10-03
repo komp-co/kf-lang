@@ -124,7 +124,12 @@ fun owning_origin(stmts: &List<Stmt>, at: uint64, origin: String, views: &List<S
     while j > 0 {
         j = j - 1
         if (stmts.at(j)).binding_name().as_str() == current.as_str() {
-            val further = (stmts.at(j)).borrow_binding_origin(views)
+            var further = (stmts.at(j)).borrow_binding_origin(views)
+            if further.as_str() == "" && (stmts.at(j)).declares_borrow_without_value(views) {
+                further = assigned_borrow_origin(stmts, j + 1, current.as_str(), views)
+                // Every value assigned borrows something that outlives the function.
+                if further.as_str() == "" { return further }
+            }
             if further.as_str() == "" { return current }
             current = further
         }
