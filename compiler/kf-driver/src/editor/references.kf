@@ -38,11 +38,12 @@ pub fun render_references_json(path: str, offset: uint32, crate: &TypedCrate): S
     return out.finish()
 }
 
-/// Top-level names and members, type names in type positions, then
-/// parameters and locals.
+/// Top-level names and members, type names in type positions, annotations,
+/// then parameters and locals.
 pub fun Module.every_name_span(): List<NameSpan> {
     var names = self.all_name_spans()
     while written in &self.type_name_spans() { names.push(written) }
+    while marked in &self.annotation_name_spans() { names.push(marked) }
     while local in &self.local_name_spans() { names.push(local) }
     return names
 }

@@ -25,7 +25,8 @@ the workspace is laid out.
 | Inlay hints | the type of every `val` or `var` written without one |
 | Signature help | the callee's parameters while typing a call |
 | Completion | the members of a receiver after `.`, and the names in scope elsewhere |
-| Go to definition, find references | where a name is declared, and every use of it: functions, types, methods, fields, parameters and locals |
+| Go to definition, find references | where a name is declared, and every use of it: functions, types, methods, fields, parameters, locals and annotations |
+| Go to implementation | the impls of a trait or a type, a type's extensions, and each impl's version of a trait method |
 | Rename | a declaration and every use of it, or the reason it would change what the code means |
 | Semantic highlighting | a name coloured by what it is |
 

@@ -51,6 +51,7 @@ people.
 | `hover` | `path`, `offset`, `crates` | what is at `offset`: its type, its declaration and that declaration's documentation |
 | `signature` | `path`, `offset`, `crates` | the call around `offset`: its callee's parameters and which one `offset` is in |
 | `references` | `path`, `offset`, `crates` | the declaration of what `offset` names, and every use of it |
+| `implementations` | `path`, `offset`, `crates` | what implements what `offset` names |
 | `completion` | `path`, `offset`, `crates` | what can be written at `offset` |
 | `rename` | `path`, `offset`, `crates`, and `new_name` when there is one | every name to replace, or why the rename is refused |
 | `inlays` | `path`, `crates` | the types of the file's bindings that name none |
@@ -206,6 +207,20 @@ field's uses include `self.x` and `x:` in a struct literal. A parameter or a
 local answers too: each use reaches the binding in scope where it is
 written, so a `val` shadowing another has uses of its own, and `x = ...`
 counts as a use of `x`.
+
+**`implementations`** is what implements the name at `offset`: for a trait,
+each `impl` of it and each extension written on it; for a struct or enum,
+its `impl` blocks, the trait impls for it and the extensions on it; for a
+trait's method, each impl's version of it. Each span is the name the
+implementation is written under: `Point` in `impl Loud for Point`, a method's
+name, an extension's name.
+
+```json
+{"schema_version":1,"file":"/w/src/lib.kf","offset":120,"implementations":[{"file":"/w/src/lib.kf","byte_start":310,"byte_end":315}]}
+```
+
+A declared annotation is a name too: `@shown` refers to its `annotation shown`
+declaration, for references, definition, rename and hover.
 
 **`tokens`** is every name in the file with what it is, sorted by position,
 which is what semantic highlighting paints:
