@@ -12,6 +12,7 @@ import kf_core.span.*
 import kf_core.ast.Module
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.types.Type
+import kf_interface.emit.tyref_to_source
 
 pub struct HoverDecl {
     pub val found: bool
@@ -65,16 +66,40 @@ fun Module.names_a_type(name: str): bool {
     return false
 }
 
-/// From any impl naming `owner`, inherent or trait, then the extension a call
-/// on `receiver` would pick; a poison `receiver` reaches no extension.
+/// From any impl naming `owner`, inherent or trait, then its fields, then
+/// the extension a call on `receiver` would pick; a poison `receiver` reaches
+/// no extension.
 fun TypedCrate.member_named(owner: str, name: str, receiver: &Type): HoverDecl {
     val own = self.impl_member_named(owner, name)
     if own.found { return own }
+    val field = self.field_named(owner, name)
+    if field.found { return field }
     if receiver.is_poison() { return no_hover_decl() }
     val links = self.callable_extensions(receiver)
     while td in &self.module.decls {
         if td.is_extension_in(&links) && td.ext_name.as_str() == name {
             return HoverDecl { found: true, label: td.signature_of().label, doc: td.span.doc_for_span(self) }
+        }
+    }
+    return no_hover_decl()
+}
+
+/// `val x: int32`, as the struct declares it.
+fun TypedCrate.field_named(owner: str, name: str): HoverDecl {
+    while td in &self.module.decls {
+        if td.name.as_str() == owner {
+            when (td.kind) {
+                Struct(fields, _pub) => {
+                    while f in &fields {
+                        if f.name.as_str() == name {
+                            val keyword = if f.is_var { "var" } else { "val" }
+                            val label = "${keyword} ${name}: ${f.ty.tyref_to_source()}"
+                            return HoverDecl { found: true, label: label, doc: f.span.doc_for_span(self) }
+                        }
+                    }
+                }
+                _ => { }
+            }
         }
     }
     return no_hover_decl()

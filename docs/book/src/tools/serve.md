@@ -159,8 +159,10 @@ declaration, that declaration's signature and documentation:
 ```
 
 `type` is null when `offset` covers no expression: whitespace, a keyword, a
-comment, a binder's name. That is not an error; most of a file is not an
-expression.
+comment, a parameter's name. That is not an error; most of a file is not an
+expression. The name a `val` or `var` binds answers with the type of what
+initializes it. A field after a `.` answers with its declaration as the
+signature (`val x: int32`) and the documentation above it.
 
 **`inlays`** is the types nobody wrote down: one hint per `val` or `var` with
 no annotation, at the byte where its name ends.
