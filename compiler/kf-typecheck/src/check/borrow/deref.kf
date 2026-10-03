@@ -5,6 +5,7 @@ import kf_core.ast.expression.*
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_core.span.*
+import kf_core.ast.types.type_node
 import kf_typecheck.types.display_type
 import kf_typecheck.check.promote_subscript_to_mut
 
@@ -44,8 +45,7 @@ pub mutating fun Expr.borrow_written_deref(written: uint8, ctx: &var TypeCtx): v
         RefTo(is_mut, _) => { mutable = mutable && is_mut }
         _ => { }
     }
-    val pointee: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *pointee = self.ty }
+    val pointee = type_node(self.ty)
     operand.ty = Type { kind: TypeKind.RefTo(mutable, pointee), provenance: Provenance.Inferred(self.span) }
     operand.coerce = coerce_none()
     (*self) = operand

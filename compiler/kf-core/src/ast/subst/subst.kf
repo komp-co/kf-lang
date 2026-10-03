@@ -145,20 +145,17 @@ pub fun Type.subst_type(names: &var List<String>, repls: &var List<TypeRef>): Ty
         }
         PtrTo(p) => {
             val inner = subst_type(unsafe { &*p }, names, repls)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.PtrTo(np), provenance: self.provenance }
         }
         BoxOf(p) => {
             val inner = subst_type(unsafe { &*p }, names, repls)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.BoxOf(np), provenance: self.provenance }
         }
         RefTo(m, p) => {
             val inner = subst_type(unsafe { &*p }, names, repls)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.RefTo(m, np), provenance: self.provenance }
         }
         FnTy(_) => {
@@ -172,8 +169,7 @@ pub fun Type.subst_type(names: &var List<String>, repls: &var List<TypeRef>): Ty
         // Only the owner is substituted; the impl chooses the member.
         Projection(owner, member) => {
             val inner = subst_type(unsafe { &*owner }, names, repls)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.Projection(np, member), provenance: self.provenance }
         }
         _ => return unsafe { *self }
@@ -229,8 +225,7 @@ fun TypeRef.tref_to_type_shallow(): Type {
         }
         Reference(is_mut, inner) => {
             val it = tref_to_type_shallow(unsafe { &*inner })
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = it }
+            val np = type_node(it)
             return Type { kind: TypeKind.RefTo(is_mut, np), provenance: Provenance.Inferred(no_span()) }
         }
         Function(params, ret) => {

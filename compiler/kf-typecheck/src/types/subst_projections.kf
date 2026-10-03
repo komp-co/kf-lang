@@ -232,20 +232,17 @@ pub fun Type.resolved_projection_type(self_name: str, sigs: Ptr<SigTable>): Type
         }
         PtrTo(p) => {
             val inner = resolved_projection_type(unsafe { &*p }, self_name, sigs)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.PtrTo(np), provenance: self.provenance }
         }
         BoxOf(p) => {
             val inner = resolved_projection_type(unsafe { &*p }, self_name, sigs)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.BoxOf(np), provenance: self.provenance }
         }
         RefTo(m, p) => {
             val inner = resolved_projection_type(unsafe { &*p }, self_name, sigs)
-            val np: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *np = inner }
+            val np = type_node(inner)
             return Type { kind: TypeKind.RefTo(m, np), provenance: self.provenance }
         }
         // As a type argument the projection lives in the instance name.
@@ -327,8 +324,7 @@ fun joined_segments(segs: &List<String>, start: uint64, end: uint64): String {
 
 /// A fresh owner node: the caller's Type is dropped independently.
 fun Type.rebuilt_projection(owner: Type, member: Sym): Type {
-    val np: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *np = owner }
+    val np = type_node(owner)
     return Type { kind: TypeKind.Projection(np, member), provenance: self.provenance }
 }
 

@@ -65,8 +65,7 @@ fun bound_arg_type(name: String, recv: &RecvBinding, span: Span, ctx: &var TypeC
     val borrowed = ref_key_inner(name.as_str())
     if !borrowed.as_str().equals("") {
         val is_mut = ref_key_is_mut(name.as_str())
-        val inner: Ptr<Type> = unsafe { alloc<Type>() }
-        unsafe { *inner = bound_arg_type(borrowed, recv, span, ctx) }
+        val inner = type_node(bound_arg_type(borrowed, recv, span, ctx))
         return Type { kind: TypeKind.RefTo(is_mut, inner), provenance: Provenance.Inferred(span) }
     }
     var i = 0

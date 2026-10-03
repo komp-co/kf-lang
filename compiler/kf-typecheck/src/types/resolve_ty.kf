@@ -185,8 +185,7 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
         }
         Reference(mutable, inner_ptr) => {
             val inner = (unsafe { *inner_ptr }).resolve_type_ref(ctx)
-            val p: Ptr<Type> = unsafe { alloc<Type>() }
-            unsafe { *p = inner }
+            val p = type_node(inner)
             return Type {
                 kind: TypeKind.RefTo(mutable, p),
                 provenance: Provenance.Declared(self.span)
