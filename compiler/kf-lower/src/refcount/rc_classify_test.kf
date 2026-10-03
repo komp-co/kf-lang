@@ -159,8 +159,9 @@ fun field_read_of(owner: str, field: str, ty: Type): Ptr<Expr> {
     ctx.move_only_names.push(String.from("Rows"))
     val cond: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *cond = Expr.new(no_span(), ExprKind.Variable(intern("c"))) }
-    var pick = Expr.new(no_span(),
-        ExprKind.IfExpr(cond, field_read_of("p", "a", struct_ty_named("Rows")), field_read_of("p", "b", struct_ty_named("Rows"))))
+    val then_read = field_read_of("p", "a", struct_ty_named("Rows"))
+    val else_read = field_read_of("p", "b", struct_ty_named("Rows"))
+    var pick = Expr.new(no_span(), ExprKind.IfExpr(cond, then_read, else_read))
     pick.ty = struct_ty_named("Rows")
     assert_eq(binding_mode_tag(classify_binding(pick, &var ctx)) == 3, true, "if over two field reads -> Borrowed")
 }
