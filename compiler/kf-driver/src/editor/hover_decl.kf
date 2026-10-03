@@ -26,7 +26,9 @@ fun no_hover_decl(): HoverDecl {
 }
 
 /// The more specific answer wins: a method `p.shifted` over the local `p`.
+/// Nothing on the name a declaration introduces, where it is written out.
 pub fun TypedCrate.hover_decl_at(offset: uint32): HoverDecl {
+    if self.module.declares_name_at(self.file_id, offset) { return no_hover_decl() }
     val member = self.hover_member_at(offset)
     if member.found { return member }
     return self.hover_toplevel_at(offset)
@@ -50,6 +52,17 @@ fun TypedCrate.hover_member_at(offset: uint32): HoverDecl {
     val owner = hit.ty.type_base_name()
     if owner.as_str() == "" { return no_hover_decl() }
     return self.member_named(owner.as_str(), name.as_str(), &hit.ty)
+}
+
+/// A top-level declaration's name, or a method's in an impl or trait.
+fun Module.declares_name_at(file_id: uint32, offset: uint32): bool {
+    while td in &self.decls {
+        if td.name_span.name_covers(file_id, offset) { return true }
+        while member in &td.impl_members() {
+            if member.name_span.name_covers(file_id, offset) { return true }
+        }
+    }
+    return false
 }
 
 fun Module.names_a_type(name: str): bool {
