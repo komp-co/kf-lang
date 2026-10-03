@@ -219,6 +219,10 @@ the compiler scans back over the name, expects a `.`, and types what comes
 before it. `prefix` is the partial name; the client filters on it. A
 `static fun` is left out, since it takes no receiver, and a generic's
 members are shown as declared (`push(item: T)`, not `push(item: int32)`).
+Extensions come after the type's own members, and only those a call on the
+receiver would pick: one whose bound the type does not meet is left out, and
+a type's own method hides an extension of the same name. Hover on a method
+call picks the same way.
 
 Anywhere else, the items are the names in scope at `offset`, and
 `receiver_type` is null:
