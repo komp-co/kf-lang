@@ -1,12 +1,15 @@
 // Every name in the crate and what it refers to, walked once for both
 // find-references and semantic tokens. The declaration is what Resolve
-// stamped; a poisoned one is a parameter, local or field, kept for its role.
+// stamped; a poisoned one is a parameter, local or member, kept for its role.
+// A member (method or field) is keyed `Owner.name` instead, the owner read
+// from the receiver's checked type.
 
 import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
 import kf_core.ast.expression.Expr
+import kf_core.ast.types.Type
 import kf_core.ast.declaration.DeclId
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.statement.Stmt
@@ -21,6 +24,8 @@ pub struct NameSpan {
     /// cursor on either finds it; they differ because a declaration is not a
     /// reference to itself.
     pub val is_decl: bool
+    /// `Point.sum` for a method or field, else "".
+    pub val member: Sym
 }
 
 /// In source order per declaration.
@@ -52,18 +57,38 @@ fun TopDecl.name_decl(found: &var List<NameSpan>): void {
     self.name_decl_own(found)
     when (self.kind) {
         Function(_p, _r, body, _pub, _u, _mut, _st) => name_stmt_list(body, found)
-        ImplBlock(methods) => name_decl_list(&methods, found)
-        TraitDecl(methods, _pub, _supers) => name_decl_list(&methods, found)
-        TraitImpl(_trait_ref, methods) => name_decl_list(&methods, found)
+        Struct(fields, _pub) => {
+            while field in &fields {
+                found.push(member_name(field.span, "field", self.name.as_str(), field.name.as_str(), true))
+            }
+        }
+        ImplBlock(methods) => self.name_methods(&methods, found)
+        TraitDecl(methods, _pub, _supers) => self.name_methods(&methods, found)
+        TraitImpl(_trait_ref, methods) => self.name_methods(&methods, found)
         _ => {}
     }
+}
+
+/// Each method's own name under this block's owner, then its body.
+fun TopDecl.name_methods(methods: &List<TopDecl>, found: &var List<NameSpan>): void {
+    while method in &methods {
+        if !method.name_span.is_none() && method.decl.is_none() {
+            found.push(member_name(method.name_span, "method", self.name.as_str(), method.name.as_str(), true))
+        }
+        method.name_decl(found)
+    }
+}
+
+fun member_name(span: Span, role: str, owner: str, name: str, is_decl: bool): NameSpan {
+    return NameSpan { span: span, decl: null, role: intern(role), is_decl: is_decl, member: intern("${owner}.${name}") }
 }
 
 /// Nothing for a synthesized declaration or one Resolve never stamped.
 fun TopDecl.name_decl_own(found: &var List<NameSpan>): void {
     if self.name_span.is_none() { return }
     if self.decl.is_none() { return }
-    found.push(NameSpan { span: self.name_span, decl: self.decl, role: self.decl_role(), is_decl: true })
+    val role = self.decl_role()
+    found.push(NameSpan { span: self.name_span, decl: self.decl, role: role, is_decl: true, member: intern("") })
 }
 
 fun TopDecl.decl_role(): Sym {
@@ -165,7 +190,9 @@ fun Expr.name_expr(found: &var List<NameSpan>): void {
             name_arm_list(&arms, found)
         }
         StructLit(_name, fields) => {
+            val owner = self.ty.type_base_name()
             while field in &fields {
+                found.push(member_name(field.span, "field", owner.as_str(), field.name.as_str(), false))
                 name_expr_ptr(field.value, found)
             }
         }
@@ -211,5 +238,22 @@ fun Expr.record_name(found: &var List<NameSpan>): void {
     if role.byte_len() == 0 { return }
     val whole = role.equals("variable") || role.equals("type")
     val span = if whole { self.span } else { self.written_name_span() }
-    found.push(NameSpan { span: span, decl: self.decl, role: intern(role), is_decl: false })
+    found.push(NameSpan { span: span, decl: self.decl, role: intern(role), is_decl: false, member: self.member_key() })
+}
+
+/// `Point.sum` for `p.sum()`, `Point.x` for `p.x`; "" for anything else, or
+/// a receiver the checker could not type.
+fun Expr.member_key(): Sym {
+    return when (self.kind) {
+        MethodCall(recv, m, _args) => owner_key(&recv.ty, m.as_str())
+        FieldAccess(obj, f) => owner_key(&obj.ty, f.as_str())
+        _ => intern("")
+    }
+}
+
+fun owner_key(receiver: &Type, name: str): Sym {
+    if receiver.is_poison() { return intern("") }
+    val owner = receiver.type_base_name()
+    if owner.as_str() == "" { return intern("") }
+    return intern("${owner}.${name}")
 }
