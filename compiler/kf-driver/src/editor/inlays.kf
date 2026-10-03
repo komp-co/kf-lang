@@ -71,9 +71,11 @@ fun inlay_arm_list(arms: &List<Arm>, crate: &TypedCrate, arr: &var JsonWriter): 
 }
 
 /// Nothing for a binding in another file, an annotated one, one without an
-/// initializer, or a poisoned one.
+/// initializer, or a poisoned one; nor for one the compiler wrote, such as a
+/// loop's variable, whose statement span is empty.
 fun Stmt.inlay_binding(ann: Ptr<TypeRef>?, init_opt: Ptr<Expr>?, crate: &TypedCrate, arr: &var JsonWriter): void {
     if self.span.file_id != crate.file_id { return }
+    if self.span.end <= self.span.start { return }
     if ann.is_some() { return }
     val init = init_opt ?: return
     val ty = unsafe { init.ty }
