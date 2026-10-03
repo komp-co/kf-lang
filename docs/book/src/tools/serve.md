@@ -264,16 +264,18 @@ no `edits`, when:
 | | |
 |---|---|
 | the new name is not one | it must lex as a single identifier |
-| the new name is taken | another top-level declaration in the crate has it |
+| the new name is taken | another top-level declaration in the crate has it, the type has another member of that name, or a local's function already uses it |
 | the new name is the old one | that is not a rename |
 | `offset` is not on a name | a keyword or whitespace names no declaration |
 | the declaration is not the crate's | it is in a dependency; rename it there |
+| a name is written once for two | `y` in `Point { x: 1, y }` is the field and a local; write it out as `y: y` first |
+| a method belongs to a trait | the trait and every impl would have to change together |
+| a use's receiver has no type | that use would be left behind; fix the errors around it first |
+| an extension has the new name | a call of it could start reaching the renamed member |
 
 Without a `new_name`, every check that needs none runs, and `range` is the
-name under the cursor. Collisions are checked crate-wide rather than at each
-use: the resolver stamps only top-level declarations, so a local shadowing
-the new name somewhere would go unseen, which is why rename declines on
-locals entirely.
+name under the cursor. A local's new name is refused if anything in its
+function already has it, so no use can be captured or shadowed.
 
 ## Errors
 

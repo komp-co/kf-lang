@@ -35,18 +35,6 @@ pub fun Module.all_name_spans(): List<NameSpan> {
     return found
 }
 
-pub fun spans_for_decl(names: &List<NameSpan>, decl: DeclId): List<Span> {
-    var out = List.new<Span>()
-    while n in &names {
-        // A local, parameter or method matches nothing.
-        when (n.decl) {
-            Some(nd) => { if nd.raw == decl.raw && !n.is_decl { out.push(n.span) } }
-            None => { }
-        }
-    }
-    return out
-}
-
 fun name_decl_list(decls: &List<TopDecl>, found: &var List<NameSpan>): void {
     while decl in &decls {
         decl.name_decl(found)
