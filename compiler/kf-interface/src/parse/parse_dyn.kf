@@ -147,9 +147,9 @@ mutating fun JsonReader.load_dyn_symbols(): DynSymbolLoad {
 pub fun parse_dyn_metadata_type(source: str): Type {
     val tokens = tokenize(source, 0)
     var parser = new_parser(tokens)
-    val parsed = parser.parse_type_ref_ptr()
+    val parsed = parser.parse_type_ref()
     if parser.diags.size() > 0 { return Type.new_poison() }
-    return dyn_type_from_ref(unsafe { *parsed })
+    return dyn_type_from_ref(parsed)
 }
 
 fun dyn_type_from_ref(reference: TypeRef): Type {

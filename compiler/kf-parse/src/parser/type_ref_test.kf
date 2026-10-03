@@ -246,3 +246,34 @@ fun a_comparison_is_not_a_type_argument_list(): void {
     var args = List.new<TypeRef>()
     assert_eq(p.parse_type_argument_list(&var args, true), false, "`)` cannot follow a type argument")
 }
+
+/// The head name of `t`, "poison" for a poisoned one, "" for any other shape.
+fun head_of(t: &TypeRef): String {
+    return when (t.kind) {
+        Named(name, _args) => name.as_string()
+        Poison => String.from("poison")
+        _ => String.from("")
+    }
+}
+
+@test
+fun a_parameter_without_a_type_reads_as_poison(): void {
+    var p = parser_for("fun f(x) {}")
+    val td = p.parse_top_decl()
+    val head = when (td.kind) {
+        Function(params, _, _, _, _, _, _) => head_of(&*params.at(0).ty)
+        _ => String.from("not a function")
+    }
+    assert_eq(head.as_str(), "poison", "the missing annotation")
+}
+
+@test
+fun an_extern_without_a_result_reads_as_poison(): void {
+    var p = parser_for("extern \"C\" fun f(x: int32)")
+    val td = p.parse_top_decl()
+    val head = when (td.kind) {
+        Extern(_, ret, _, _) => head_of(&*ret)
+        _ => String.from("not an extern")
+    }
+    assert_eq(head.as_str(), "poison", "the missing result")
+}

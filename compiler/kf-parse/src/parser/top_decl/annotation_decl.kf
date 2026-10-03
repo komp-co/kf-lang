@@ -77,8 +77,7 @@ impl Parser {
         var bounds = List.new<TypeRef>()
         if self.take_op(Operator.Colon) {
             while true {
-                val bound = self.parse_type_ref_ptr()
-                bounds.push(unsafe { *bound })
+                bounds.push(self.parse_type_ref())
                 if !self.take_op(Operator.Plus) { break }
             }
             if !marked.takes_bounds() {
