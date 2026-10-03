@@ -256,7 +256,6 @@ fun head_of(t: &TypeRef): String {
     }
 }
 
-
 @test
 fun a_parameter_without_a_type_reads_as_poison(): void {
     var p = parser_for("fun f(x) {}")
