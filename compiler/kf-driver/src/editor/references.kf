@@ -18,8 +18,7 @@ pub fun render_references_json(path: str, offset: uint32, crate: &TypedCrate): S
     out.field_string("file", path)
     out.field_uint32("offset", offset)
 
-    var names = crate.module.all_name_spans()
-    while local in &crate.module.local_name_spans() { names.push(local) }
+    val names = crate.module.every_name_span()
     val target = names.target_at(crate.file_id, offset) ?: {
         out.field_null("declaration")
         out.field_raw("references", "[]")
@@ -37,6 +36,13 @@ pub fun render_references_json(path: str, offset: uint32, crate: &TypedCrate): S
     }
     out.field_raw("references", arr.finish().as_str())
     return out.finish()
+}
+
+/// Top-level names and members, then parameters and locals.
+pub fun Module.every_name_span(): List<NameSpan> {
+    var names = self.all_name_spans()
+    while local in &self.local_name_spans() { names.push(local) }
+    return names
 }
 
 /// The narrowest name at `offset` that refers to something.

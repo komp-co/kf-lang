@@ -32,7 +32,6 @@ the workspace is laid out.
 The outline, folds and selection come from a parse, so they answer while the
 file is half-written. The rest come from the file's crate typed once and
 reused until the next edit, so moving around a file costs no more checking.
-Rename reaches top-level declarations only.
 
 Install it once, and every editor starts it the same way:
 
