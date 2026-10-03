@@ -128,9 +128,7 @@ impl Parser {
             unsafe { self.advance() } // consume `:`
             while true {
                 val before: uint64 = self.pos
-                val bound_ptr = self.parse_type_ref_ptr()
-                bounds.push(unsafe { *bound_ptr })
-                unsafe { dealloc<TypeRef>(bound_ptr) }
+                bounds.push(self.parse_type_ref())
                 if is_op(self.peek(), Operator.Plus) {
                     unsafe { self.advance() }
                 } else {
@@ -220,13 +218,7 @@ impl Parser {
 
         val params = self.parse_param_list()
 
-        var ret: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-        if is_op(self.peek(), Operator.Colon) {
-            unsafe { self.advance() }
-            ret = self.parse_type_ref_ptr()
-        } else {
-            unsafe { *ret = TypeRef.new_poison(span) }
-        }
+        val ret = if self.take_op(Operator.Colon) { self.parse_type_ref_ptr() } else { poison_type_ref_at(span) }
 
         var td = new_top_decl(span, name, TopDeclKind.Extern(params, ret, is_pub, false))
         td.name_span = name_at

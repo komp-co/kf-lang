@@ -155,9 +155,7 @@ impl Parser {
                 break
             }
             val before: uint64 = self.pos
-            val arg_ptr = self.parse_type_ref_ptr()
-            val arg: TypeRef = unsafe { *arg_ptr }
-            unsafe { dealloc<TypeRef>(arg_ptr) }
+            val arg = self.parse_type_ref()
             if is_op(self.peek(), Operator.Colon) { self.report_receiver_bound(&arg, receiver_name) }
             args.push(arg)
             if is_op(self.peek(), Operator.Comma) {
@@ -174,9 +172,8 @@ impl Parser {
         unsafe { self.advance() } // consume `:`
         var shown = String.from("")
         while true {
-            val bound_ptr = self.parse_type_ref_ptr()
-            if shown.byte_len() == 0 { shown = (unsafe { &*bound_ptr }).type_ref_head_name() }
-            unsafe { dealloc<TypeRef>(bound_ptr) }
+            val bound = self.parse_type_ref()
+            if shown.byte_len() == 0 { shown = bound.type_ref_head_name() }
             if !is_op(self.peek(), Operator.Plus) { break }
             unsafe { self.advance() } // consume `+`, next bound
         }
