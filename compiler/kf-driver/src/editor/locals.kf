@@ -47,9 +47,11 @@ fun TopDecl.local_decl(found: &var List<NameSpan>): void {
     }
 }
 
+/// An extension's `self` is written as its receiver's type, so it binds no
+/// name of its own.
 fun bind_params(params: &List<Param>, scope: &var List<Binding>, found: &var List<NameSpan>): void {
     while param in &params {
-        bind(param.name, param.span, scope, found)
+        if param.name.as_str() != "self" { bind(param.name, param.span, scope, found) }
     }
 }
 

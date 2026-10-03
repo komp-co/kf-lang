@@ -96,6 +96,8 @@ fun why_not(new_name: str, crate: &TypedCrate, names: &List<NameSpan>, target: N
         None => {
             if named.member.as_str().starts_with("local ") {
                 if validate_only { String.from("") } else { crate.local_clash(names, &named, new_name) }
+            } else if named.member.as_str().starts_with("trait ") {
+                if validate_only { String.from("") } else { crate.module.colliding_name(new_name) }
             } else {
                 crate.member_refusal(names, &named, old.as_str(), new_name)
             }
@@ -131,6 +133,18 @@ fun Module.colliding_decl(new_name: str, target: DeclId): String {
         if td.name.as_str() == new_name && td_decl.raw != target.raw {
             val m = "`${new_name}` is already declared in this crate (${td.decl_noun()}); renaming would change which one a use refers to"
             return m
+        }
+    }
+    return ""
+}
+
+/// Why a trait cannot take `new_name`, which any top-level declaration
+/// already has, or "".
+fun Module.colliding_name(new_name: str): String {
+    while td in &self.decls {
+        if td.name.as_str() == new_name && td.ext_name.as_str() == "" {
+            val m = "`${new_name}` is already declared in this crate (${td.decl_noun()})"
+            return "${m}; renaming would change which one a use refers to"
         }
     }
     return ""

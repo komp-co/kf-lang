@@ -12,7 +12,8 @@ pub fun render_tokens_json(path: str, crate: &TypedCrate): String {
     var out = JsonWriter.object()
     out.field_uint32("schema_version", 1)
     out.field_string("file", path)
-    val names = crate.module.all_name_spans()
+    var names = crate.module.all_name_spans()
+    while written in &crate.module.type_name_spans() { names.push(written) }
     val ordered = tokens_in_file(&names, crate.file_id)
     var arr = JsonWriter.array()
     while t in &ordered {
