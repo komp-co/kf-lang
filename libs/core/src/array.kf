@@ -41,11 +41,6 @@ impl<T, N: uint64> Array<T, N> {
     }
 }
 
-fun checked_index(i: uint64, n: uint64): uint64 {
-    if i >= n { panic("array index out of bounds") }
-    return i
-}
-
 /// Each element cloned into a new array.
 impl<T: Clone, N: uint64> Clone for Array<T, N> {
     fun clone(): Array<T, N> {

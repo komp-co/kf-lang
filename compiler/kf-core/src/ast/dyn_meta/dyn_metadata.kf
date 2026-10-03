@@ -1,4 +1,8 @@
 import alloc.list.*
+import kf_core.ast.CrateId
+import kf_core.ast.Linkage
+import kf_core.ast.Sym
+import kf_core.ast.types.Type
 
 @derive(Clone)
 pub struct DynMethodSlot {

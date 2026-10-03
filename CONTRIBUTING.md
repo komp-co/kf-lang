@@ -97,48 +97,60 @@ A `classify` job first decides what the PR needs (`scripts/ci-classify.sh`):
 |---|---|
 | only Markdown | none |
 | only Markdown and `//` comment lines in `.kf` files | fixpoint (includes the ratchets: file size, line length, unsafe blocks) |
-| anything else | all four |
+| anything else | all five |
 
 The compiler's [`json`](https://github.com/komp-co/json) dependency comes
 from the index at the version `compiler/kf.lock` pins, so a change to `json`
 reaches komp only through a PR that moves the lock (`komp update compiler`).
-The four jobs are:
+The five jobs are:
 
 1. **fixpoint** — `sh scripts/check.sh --fixpoint`, the self-host fixpoint
    (stage1 == stage2),
-2. **cli** — the CLI checks from `scripts/check.sh --sweep`,
+2. **cli** — the CLI checks from `scripts/check.sh --sweep`, with the
+   sanitizer probes,
 3. **sweep-driver** — the `kf-integration` test suite, the slowest crate,
-4. **sweep-rest** — every other crate's test suite.
+4. **sweep-rest** — every other crate's test suite,
+5. **fuzz** — the [front-end fuzzer](#fuzzing) on fixed seeds; at night, on
+   fresh ones. It runs only in CI, beside the others.
 
-The fixpoint job uploads the komp it verified, and the other three wait for
+The fixpoint job uploads the komp it verified, and the others wait for
 it and reuse it rather than each building one from the seed. `cc` goes through
 ccache, kept across runs with `actions/cache`.
 
-All four are required checks on `development` and `main`; a job skipped by
-`classify` counts as passed. Each CI run costs about ten minutes, so group related changes into one
+The first four are required checks on `development` and `main`, and fuzz
+should be too once branch protection names it; a job skipped by `classify`
+counts as passed. Each CI run costs about ten minutes, so group related changes into one
 PR rather than opening many small ones.
 
-Before the full gate, run the preflight. It takes seconds to a couple of
-minutes and catches what most often fails a gate run late: the ratchets,
-formatting, and the lints of every crate your branch changed.
-
-```sh
-sh scripts/preflight.sh
-```
-
-Then run both gates locally before pushing — same checks, no round trip. It
-takes minutes and grows with the tree, so time it rather than trusting a
-figure quoted here:
+Before pushing, run the quick gate. It runs the ratchets, the formatting
+check, the lints, and the tests of every crate your branch changes and of
+every crate that depends on one of them, against the merge base with
+`origin/development`:
 
 ```sh
 sh scripts/check.sh
 ```
 
-The gate runs its cheap checks first too: the ratchets before the fixpoint,
-and the changed crates' lints before the CLI checks and the sweep. A fixpoint
-that passed is cached under `~/.cache/kflat/gate`, keyed by the sources it
-compiled with test files left out, so a rerun after fixing a test or a fixture
-does not repeat it. `KF_GATE_CACHE=0` turns the cache off.
+It leaves to CI what CI already runs in parallel: the fixpoint, the CLI
+checks, the asan probes, `kf-integration` (the slowest crate, eleven minutes
+alone) and the fuzzer. Do not run the full gate before every push as well;
+CI is that run, on a clean checkout. When a CI job goes red, reproduce it with
+the full gate, or just its half:
+
+```sh
+sh scripts/check.sh --full        # everything CI runs
+sh scripts/check.sh --fixpoint    # the fixpoint job
+CRATES="compiler/kf-integration" sh scripts/check.sh --sweep
+komp test compiler/kf-integration --case <substring>   # some fixtures only
+```
+
+`sh scripts/preflight.sh` is quicker still, seconds: the ratchets, the
+formatting of changed files, and the changed crates' lints.
+
+The quick gate builds its komp from the seed, unless a fixpoint passed for
+the same sources: that komp is cached under `~/.cache/kflat/gate`, keyed by
+the sources it compiled with test files left out, and reused by both gates.
+`KOMP_PREBUILT` names another; `KF_GATE_CACHE=0` turns the cache off.
 
 It reports every crate rather than stopping at the first failure, so one red
 run tells you everything that is broken instead of only the earliest thing.
@@ -155,6 +167,42 @@ Two ways to get a wrong answer out of it:
   every job already starts from its own checkout.
 - **Do not pipe it into `tail`.** You get `tail`'s exit code, which is always
   0. Redirect to a log and check `$?`.
+
+## Fuzzing
+
+`tools/kf-fuzz` holds kflatc to one rule: whatever its input, it ends with
+diagnostics. It mutates the `tests/cases` fixtures (deleted, duplicated and
+swapped tokens, unbalanced delimiters, odd bytes, truncation) and, in its
+`kfi` mode, the library interfaces they build against, then compiles each
+mutant. A crash, a panic or a hang is a finding, named by a signature: the
+panic's message, or the signal or hang and, when gdb is installed, the
+function it struck in.
+
+The `fuzz` job runs it through `scripts/check_fuzz.sh`: first every fixture
+as written (`kf_fuzz corpus`), since a `build: fail` fixture also passes when
+kflatc crashes, then mutants over fixed seeds. It fails on a signature
+`tools/kf-fuzz/known.txt` does not name; the
+nightly run gives it fresh seeds and uploads what it finds. It is not part
+of `scripts/check.sh`; run the script yourself to fuzz a change locally:
+
+```sh
+sh scripts/check_fuzz.sh bin/komp
+```
+
+When the gate reports a finding, it prints the seed. Rebuild the program,
+shrink it, and turn it into a fixture:
+
+```sh
+tools/kf-fuzz/target/kflat/kf_fuzz front --seeds 229..229 --emit /tmp/f
+tools/kf-reduce/target/kflat/kf_reduce /tmp/f/front-seed229.kf -- \
+    tools/kf-fuzz/target/kflat/kf_fuzz judge --expect "SIGNATURE"
+```
+
+`kf_fuzz judge` prints a program's signature, and with `--expect` exits 0
+only on that one, which makes it the reducer's predicate. The reduced program
+goes to `tests/cases` with the fix. A finding left for later gets an issue,
+and its signature a line in `known.txt` naming it; the line goes when the
+issue closes, so a recurrence fails the gate again.
 
 ## The bootstrap seed
 

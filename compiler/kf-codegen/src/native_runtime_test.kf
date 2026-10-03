@@ -68,7 +68,7 @@ fun the_infallible_allocators_are_wrappers_over_the_fallible_ones(): void {
 fun the_failure_handler_does_not_return(): void {
     val text = read_file("libs/core/native/core.c")
     val core = text.as_str()
-    assert_eq(core.contains("panic(\"out of memory\");"), true, "it reports")
+    assert_eq(core.contains("panic(\"panic[out_of_memory]: out of memory\");"), true, "it reports")
     // Not `abort`: that is libc's.
     assert_eq(core.contains("    __builtin_trap();"), true, "and it does not come back")
 }

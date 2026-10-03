@@ -73,12 +73,14 @@ that drive whole projects through both.
 
 ## Contributing
 
-`scripts/check.sh` is what CI runs, locally: the self-hosting fixpoint, the
-file-size ratchet, the CLI regressions, and every crate's test suite. Run it
-whole before pushing — it takes minutes and grows with the tree.
+Run `scripts/check.sh` before pushing: the quick gate, with the ratchets,
+formatting, lints, and the tests of the crates your branch changes and of
+those that depend on them. CI runs everything else, and `--full` runs that
+locally, to reproduce a red CI job.
 
 ```sh
-scripts/check.sh              # everything
+scripts/check.sh              # the quick gate, before pushing
+scripts/check.sh --full       # everything CI runs
 scripts/check.sh --fixpoint   # the fixpoint alone
 scripts/check.sh --sweep      # CLI checks and the crate sweep
 ```

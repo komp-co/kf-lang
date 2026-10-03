@@ -9,14 +9,14 @@ impl SliceMut<T> {
     /// Moves every element `k` places towards the front, the first `k`
     /// wrapping round to the end. `k` past the length panics.
     pub fun rotate_left(k: uint64): void {
-        if k > self.len { panic("rotate_left past the slice's length") }
+        if k > self.len { panic_with(Fault.PositionOutOfBounds(k, self.len)) }
         self.rotate_range(0, k, self.len)
     }
 
     /// Moves every element `k` places towards the back, the last `k` wrapping
     /// round to the front. `k` past the length panics.
     pub fun rotate_right(k: uint64): void {
-        if k > self.len { panic("rotate_right past the slice's length") }
+        if k > self.len { panic_with(Fault.PositionOutOfBounds(k, self.len)) }
         self.rotate_range(0, self.len - k, self.len)
     }
 
@@ -48,7 +48,7 @@ impl SliceMut<T: Clone> {
     /// Every element replaced by a copy of the one at the same place in
     /// `source`; a `source` of another length panics.
     pub fun copy_from(source: Slice<T>): void {
-        if source.size() != self.len { panic("copy_from a slice of another length") }
+        if source.size() != self.len { panic_with(Fault.LengthMismatch(self.len, source.size())) }
         while i in 0..self.len { self.set(i, source.at(i).clone()) }
     }
 }

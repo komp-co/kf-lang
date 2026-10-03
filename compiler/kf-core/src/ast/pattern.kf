@@ -1,6 +1,8 @@
 import alloc.list.*
 
 import kf_core.span.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.statement.Stmt
 
 @derive(Clone)
 pub struct Pattern {
@@ -88,11 +90,14 @@ pub fun Stmt.stmt_value_expr(): Ptr<Expr>? {
     }
 }
 
-/// Every path through `s` produces a value; an `if` or `when` answers
-/// through every branch. The parser and checker both ask.
+/// Every path through `s` produces a value or jumps away; an `if` or `when`
+/// answers through every branch. The parser and checker both ask.
 pub fun Stmt.tail_yields_value(): bool {
     when (self.kind) {
         Expression(_ep) => return true
+        Return(_) => return true
+        Break => return true
+        Continue => return true
         If(_c, then_body, else_body) => {
             if !list_yields_value(&then_body) { return false }
             return list_yields_value(&else_body)
@@ -109,6 +114,16 @@ pub fun Stmt.tail_yields_value(): bool {
         _ => return false
     }
     return false
+}
+
+/// A `return`, `break` or `continue`: a tail that yields by never finishing.
+pub fun Stmt.is_jump(): bool {
+    return when (self.kind) {
+        Return(_) => true
+        Break => true
+        Continue => true
+        _ => false
+    }
 }
 
 pub fun list_yields_value(stmts: &List<Stmt>): bool {

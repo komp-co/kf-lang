@@ -111,6 +111,20 @@ fun area(s: &Shape): int32 {
 The compiler checks exhaustiveness: if `Empty` were missing, the compiler
 would reject the `when`. A wildcard arm also catches all remaining variants.
 
+A variant whose payload has no values cannot be built, so it needs no arm.
+`Ok` of a `Result<Never, E>` is one; so is any variant holding an enum with no
+variants:
+
+```kflat
+import core.traits.Never
+
+fun widen<E>(r: Result<Never, E>): Result<bool, E> {
+    when (r) {
+        Err(e) => { return Result.Err<bool, E>(e) }
+    }
+}
+```
+
 ## The lowercase-binds rule
 
 A bare name in a pattern arm that starts with a lowercase letter **binds the
@@ -236,3 +250,20 @@ the same question with a different number of paths.
 An arm that yields nothing — one ending in a binding, or in an `if` with no
 `else` — is an error, since the `when` as a whole would have no value on that
 path.
+
+An arm that never finishes needs no value. It may end in `return`, `break` or
+`continue`, or in a call that cannot return, such as `panic` or a function
+returning [`Never`](functions.md#functions-that-never-return):
+
+```kflat
+while x in &xs {
+    val half = when (x % 2) {
+        0 => x / 2
+        _ => continue
+    }
+    total = total + half
+}
+```
+
+Such an arm is typed `Never`, which joins any other arm's type. The same holds
+for a branch of [`if` as a value](control-flow.md#if-as-a-value).

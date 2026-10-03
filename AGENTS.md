@@ -23,6 +23,8 @@ docs/book/   — the user-facing book
 libs/        — KFlat language libraries (core, alloc, std)
 scripts/     — check.sh and the ratchets CI runs
 tests/       — black-box executable integration fixtures
+tools/       — kf-fuzz and kf-reduce: the front-end fuzzer, and the reducer
+               that shrinks what it finds
 build.sh     — root-level compiler build entry point
 ```
 
@@ -47,7 +49,8 @@ no single-file mode.
 | Command | Purpose |
 |---|---|
 | `sh bootstrap/build.sh` | Full build from the released seed via `cc` + fixpoint self-compile |
-| `sh scripts/check.sh` | All CI gates: fixpoint, ratchets, CLI checks, crate test sweep |
+| `sh scripts/check.sh` | The quick gate before pushing: ratchets, formatting, lints, changed crates' tests |
+| `sh scripts/check.sh --full` | Everything CI runs, to reproduce a red job |
 | `komp test compiler/<crate>` | Run one crate's `@test` functions |
 | `komp build <dir>` | Compile to C and link, artifacts under `target/kflat` |
 | `komp run <dir>` | Build and execute |
@@ -149,11 +152,15 @@ fun int32_ty_is_not_poison(): void {
 
 - New functions with branching logic ship with tests in the same commit
 - Bug fixes include a regression test; run `komp test` on the crate before
-  every commit, and `sh scripts/check.sh` before pushing
+  every commit, and `sh scripts/check.sh` (the quick gate) before pushing;
+  CI runs the full gate, so do not run `--full` as well unless a job is red
 - A change that breaks an existing test fixes the test or the change in the
   same commit — never leave the suite red
 - One assertion per test; split unrelated assertions into named tests
 - End-to-end behaviour goes in `tests/cases/*.kf` as a directive fixture
+- A fuzz finding is fixed with its reduced program as a fixture, or filed and
+  named in `tools/kf-fuzz/known.txt`; CONTRIBUTING.md has the steps
+- `tools/` drives kflatc and komp as programs and imports no compiler crate
 
 ### Verifying a change
 

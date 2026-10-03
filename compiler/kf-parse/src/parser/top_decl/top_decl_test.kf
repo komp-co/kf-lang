@@ -2,7 +2,10 @@ import core.assert.assert_eq
 import core.assert.fail
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.Module
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.declaration.TopDeclKind
+import kf_core.ast.declaration.new_top_decl
 import kf_parse.parser.*
 
 @test fun parse_generic_struct_records_type_params(): void {
@@ -374,4 +377,16 @@ fun impl_method_count(td: TopDecl): uint64 {
     // A synthesized declaration has no name span.
     val td = new_top_decl(Span { file_id: 1, start: 7, end: 9 }, String.from("s"), TopDeclKind.Poison)
     assert_eq(td.decl_name_span().start, 7 as uint32, "falls back rather than reporting no location")
+}
+
+@test fun an_import_that_names_no_module_is_left_out(): void {
+    var p = parser_for("import ).list.*\nfun f(): void {}")
+    val m = p.parse_module(List.new<String>())
+    assert_eq(m.imports.size(), 0, "reported, and nothing for the resolver")
+}
+
+@test fun an_import_that_names_no_module_is_reported(): void {
+    var p = parser_for("import .list.*")
+    val _m = p.parse_module(List.new<String>())
+    assert_eq(p.diags.size() > 0, true, "an error at the import")
 }

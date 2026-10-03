@@ -30,7 +30,7 @@ impl Option<T> {
             Some(v) => { return v }
             None => {}
         }
-        unsafe { panic("Option.unwrap called on a None") }
+        panic_with(Fault.UnwrapNone)
     }
 }
 
