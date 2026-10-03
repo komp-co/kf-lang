@@ -177,7 +177,7 @@
 2 compiler/kf-typecheck/src/check/decl/unused_import.kf
 2 compiler/kf-typecheck/src/check/decl/wildcard_import.kf
 8 compiler/kf-typecheck/src/check/extension_bounds.kf
-14 compiler/kf-typecheck/src/check/extension_call.kf
+15 compiler/kf-typecheck/src/check/extension_call.kf
 25 compiler/kf-typecheck/src/check/foreach.kf
 20 compiler/kf-typecheck/src/check/foreach_counted.kf
 18 compiler/kf-typecheck/src/check/foreach_ref.kf

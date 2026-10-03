@@ -26,6 +26,15 @@ pub fun first(xs: Result<List<int32>, int32>): uint64 {
 }
 
 @test
+fun a_mutating_extension_on_a_shared_self_asks_for_mutating(): void {
+    val said = reports("kf_recv_mutating_ext", """struct Opts { var n: int32 }
+mutating fun Opts.set(n: int32): void { self.n = n }
+pub fun Opts.bad(): void { self.set(3) }
+""", "cannot call mutating method `set` on `self` here; mark the enclosing method `mutating`")
+    assert_eq(said, true, "an extension is reported as an impl's method is")
+}
+
+@test
 fun a_val_field_borrowing_mutably_lends_to_a_mutating_call(): void {
     val said = reports("kf_recv_val_ref_field", """import alloc.list.*
 pub struct Sink { var items: List<int32> }

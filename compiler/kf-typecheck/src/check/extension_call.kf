@@ -32,6 +32,11 @@ pub fun dyn_or_extension_call(e: &var Expr, recv_ptr: Ptr<Expr>, recv: &Expr, na
         e.ty = Type.new_poison()
         return true
     }
+    if recv.cannot_lend_to(link.as_str(), ctx) {
+        emit_immutable_recv_err(name.as_string(), recv, e.span, ctx)
+        e.ty = Type.new_poison()
+        return true
+    }
     var call_args = List.new<Expr>()
     // Owned copies: the store below frees the method call they came from.
     call_args.push(recv.clone())
@@ -286,4 +291,17 @@ pub fun unimported_extension_note(wanted: str, ctx: &var TypeCtx): String {
     }
     if found.as_str() == "" { return "" }
     return ": `${found.as_str()}` declares an extension `${wanted}`, and this file does not import it"
+}
+
+/// A `mutating` extension's `&var` receiver, asked of a place that cannot
+/// lend one: reported in method terms, as an impl's method is.
+fun Expr.cannot_lend_to(link: str, ctx: &var TypeCtx): bool {
+    val sig = unsafe { (*ctx.sigs).find_signature(link) } ?: return false
+    if sig.params.is_empty() { return false }
+    val wants_var = when (sig.params.at(0).kind) {
+        RefTo(v, _) => v
+        _ => false
+    }
+    if !wants_var || self.place_root_name().is_empty() { return false }
+    return !self.place_is_mutable(ctx) && !self.lends_through_its_borrow(&self.ty, ctx)
 }
