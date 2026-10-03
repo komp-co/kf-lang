@@ -180,7 +180,7 @@
 16 compiler/kf-typecheck/src/check/extension_call.kf
 25 compiler/kf-typecheck/src/check/foreach.kf
 20 compiler/kf-typecheck/src/check/foreach_counted.kf
-18 compiler/kf-typecheck/src/check/foreach_ref.kf
+21 compiler/kf-typecheck/src/check/foreach_ref.kf
 1 compiler/kf-typecheck/src/check/function_value.kf
 2 compiler/kf-typecheck/src/check/instance_bounds.kf
 3 compiler/kf-typecheck/src/check/integer_literal.kf
