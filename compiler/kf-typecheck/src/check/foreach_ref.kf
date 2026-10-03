@@ -37,7 +37,7 @@ pub fun foreach_tag(span: Span): String {
 ///             body
 ///         }
 ///     }
-fun expand_foreach_ref(binder: Sym, subj_ptr: Ptr<Expr>, body: List<Stmt>, span: Span): StmtKind {
+fun expand_foreach_ref(binder: Sym, binder_at: Span, subj_ptr: Ptr<Expr>, body: List<Stmt>, span: Span): StmtKind {
     val tag = foreach_tag(span)
     val itname = "__forit_${tag}"
     val ptrname = "__forptr_${tag}"
@@ -66,7 +66,10 @@ fun expand_foreach_ref(binder: Sym, subj_ptr: Ptr<Expr>, body: List<Stmt>, span:
     unsafe { *ptr_var_box = Expr.new(span, ExprKind.Variable(intern(ptrname.as_str()))) }
     val deref: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *deref = Expr.new(span, ExprKind.Deref(ptr_var_box)) }
-    val let_binder = Stmt.new(span, StmtKind.LetVal(binder, null, deref))
+    // Empty, as the counted loop's: the binding is the compiler's, not written.
+    val head = Span { file_id: span.file_id, start: span.start, end: span.start }
+    var let_binder = Stmt.new(head, StmtKind.LetVal(binder, null, deref))
+    let_binder.binder = binder_at
 
     var while_body = List.new<Stmt>()
     while_body.push(let_ptr)

@@ -82,7 +82,8 @@ pub fun Expr.counted_range_is_integer(): bool {
 ///
 /// The increment precedes the body, so `continue` cannot skip it. `end` is
 /// evaluated once, as the cursor would.
-pub fun expand_foreach_counted(binder: Sym, start: Expr, end: Expr, body: List<Stmt>, span: Span): StmtKind {
+pub fun expand_foreach_counted(binder: Sym, binder_at: Span, start: Expr, end: Expr, body: List<Stmt>,
+    span: Span): StmtKind {
     val tag = foreach_tag(span)
     val ixname = "__forix_${tag}"
     val endname = "__forend_${tag}"
@@ -101,7 +102,8 @@ pub fun expand_foreach_counted(binder: Sym, start: Expr, end: Expr, body: List<S
     val head = Span { file_id: span.file_id, start: span.start, end: span.start }
     val cur_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *cur_ptr = Expr.new(head, ExprKind.Variable(intern(ixname.as_str()))) }
-    val let_binder = Stmt.new(head, StmtKind.LetVal(binder, null, cur_ptr))
+    var let_binder = Stmt.new(head, StmtKind.LetVal(binder, null, cur_ptr))
+    let_binder.binder = binder_at
 
     // `__forix_N = __forix_N + 1`
     val bump_lhs: Ptr<Expr> = unsafe { alloc<Expr>() }

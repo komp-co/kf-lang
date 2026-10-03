@@ -82,10 +82,10 @@ fun the_declaration_is_not_one_of_its_own_references(): void {
 }
 
 @test
-fun references_are_silent_on_a_local(): void {
-    // Offset 41 is the parameter `n`, which Resolve leaves poisoned.
+fun a_parameters_use_names_the_parameter(): void {
+    // Offset 41 is the `n` of `n + 1`; the parameter is written at 11.
     val json = references_at(41)
-    assert_eq(json.as_str().contains("\"references\":[]"), true, "a parameter reports nothing rather than guessing by spelling")
+    assert_eq(json.as_str().contains("\"declaration\":{\"file\":\"${scratch_path("kf_query_refs/src/lib.kf")}\",\"byte_start\":11"), true, "the parameter in the signature")
 }
 
 @test
