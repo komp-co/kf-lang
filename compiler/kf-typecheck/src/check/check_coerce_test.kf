@@ -30,3 +30,12 @@ import kf_typecheck.types.nominal_name
     }
     assert_eq(pointee.as_str(), "app__Square", "the pointee is the struct")
 }
+
+@test fun a_char_fragment_is_the_char_type(): void {
+    val t = ty_from_mangle_frag(String.from("char"), no_span(), intern("String"))
+    val is_char = when (t.kind) {
+        Char => true
+        _ => false
+    }
+    assert_eq(is_char, true, "`Array__char__3`'s element is a char, not a struct")
+}
