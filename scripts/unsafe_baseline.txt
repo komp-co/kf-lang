@@ -161,7 +161,7 @@
 22 compiler/kf-typecheck/src/check/control/check_when.kf
 7 compiler/kf-typecheck/src/check/control/exhaustive.kf
 17 compiler/kf-typecheck/src/check/control/string_pattern.kf
-52 compiler/kf-typecheck/src/check/decl/check_decl.kf
+51 compiler/kf-typecheck/src/check/decl/check_decl.kf
 8 compiler/kf-typecheck/src/check/decl/check_function_body.kf
 7 compiler/kf-typecheck/src/check/decl/check_impl_header.kf
 3 compiler/kf-typecheck/src/check/decl/check_pub_signature.kf
@@ -171,6 +171,7 @@
 24 compiler/kf-typecheck/src/check/decl/derive_equal_enum.kf
 63 compiler/kf-typecheck/src/check/decl/derive_synth.kf
 11 compiler/kf-typecheck/src/check/decl/extension_decl.kf
+1 compiler/kf-typecheck/src/check/decl/lang_traits.kf
 1 compiler/kf-typecheck/src/check/decl/method_annotation.kf
 3 compiler/kf-typecheck/src/check/decl/no_mangle_check.kf
 6 compiler/kf-typecheck/src/check/decl/rewrite_placeholders.kf

@@ -250,10 +250,8 @@ pub fun mangle_base_name(n: String): String {
     return n
 }
 
-// Raw `str` equality is a runtime comparison, not a method call; other
-// primitives use core's trait impls.
 fun ty_satisfies_intrinsically(base: str, trait_name: str, ctx: &var TypeCtx): bool {
-    return base == "str" && trait_name == ctx.lang_trait_name(lang_equal_key()).as_str()
+    return ctx.sig_table().implements_intrinsically(base, trait_name)
 }
 
 pub fun check_generic_bounds(owner: String, param: String, bound_ty: &Type, span: Span, ctx: &var TypeCtx): void {

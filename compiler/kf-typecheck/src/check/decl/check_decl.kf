@@ -58,17 +58,7 @@ pub fun check_decl_module(m: &var Module,
     // The `?`, `[N]` and `&T[]` placeholders become the library's names.
     val heads = unsafe { (*sig_ptr).note_lang_types(&m) }
     m.rewrite_placeholder_module(heads)
-    while td in &m.decls {
-        when (td.kind) {
-            TraitDecl(_members, _is_pub, _supers) => {
-                val lkey = (&td).lang_key_of()
-                if !lkey.as_str().equals("") {
-                    unsafe { (*sig_ptr).note_lang_trait(lkey.as_str(), td.name) }
-                }
-            }
-            _ => {}
-        }
-    }
+    m.note_lang_traits(sig_ptr)
 
     // What each trait impl chose for its associated types.
     // CONSTRAINT: after identities (`type Out = Widget` needs Widget), before
@@ -215,6 +205,7 @@ pub fun Module.assoc_projection_registry(): Ptr<SigTable> {
     while decl in &self.decls {
         decl.register_assoc_bindings_decl(sig_ptr, &var sink)
     }
+    self.note_lang_traits(sig_ptr)
     return sig_ptr
 }
 
