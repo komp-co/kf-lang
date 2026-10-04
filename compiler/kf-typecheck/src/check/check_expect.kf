@@ -81,6 +81,7 @@ pub mutating fun Expr.apply_expected(expected: Type, ctx: &var TypeCtx): bool {
 
     if try_dyn_coerce(self, expected.clone(), ctx) { return true }
     if self.lend_as_slice(&expected, ctx) { return true }
+    if self.lend_through_deref(&expected, ctx) { return true }
 
     // An integer literal takes a numeric slot's type when the value fits.
     when (self.kind) {
@@ -321,15 +322,16 @@ mutating fun Expr.rewrite_null_to_none(inst: &GenericInst, ctx: &var TypeCtx): v
     self.reset_call_annotations()
 }
 
-/// A raw `str` becomes the lang string's `from(str)`, checked immediately so
-/// later passes see the resolved impl.
+/// A string literal becomes the lang string's `from_literal`, which points at
+/// the literal rather than copying it; checked immediately so later passes see
+/// the resolved call.
 mutating fun Expr.rewrite_str_to_string(ctx: &var TypeCtx): void {
     val span = self.span
     val snapshot = *self
     var args = List.new<Expr>()
     args.push(snapshot)
     val recv = Box.new(Expr.new(span, ExprKind.Variable(ctx.string_name())))
-    self.kind = ExprKind.MethodCall(recv, intern("from"), args)
+    self.kind = ExprKind.MethodCall(recv, intern("from_literal"), args)
     self.reset_call_annotations()
     check_expr(self, ctx)
 }
