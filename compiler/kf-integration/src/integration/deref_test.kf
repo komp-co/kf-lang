@@ -75,7 +75,8 @@ fun run_through_deref(main: str): int32 {
     val app = scratch_path("kf_deref_app")
     val natives = "libs/core/native/core.c libs/core/native/core_hosted.c"
     val sources = "cp -R libs/core/src/. ${core}/src/ && cp ${natives} ${core}/native/"
-    val prep = unsafe { system("rm -rf ${core} ${app} && mkdir -p ${core}/src ${core}/native ${app}/src && ${sources}") }
+    val dirs = "${core}/src ${core}/native ${app}/src"
+    val prep = unsafe { system("rm -rf ${core} ${app} && mkdir -p ${dirs} && ${sources}") }
     if prep != 0 { return 0 - 1 }
     write_file("${core}/src/deref.kf".as_str(), DEREF_TRAITS)
     write_file("${core}/kf.toml".as_str(), """[project]
@@ -118,7 +119,9 @@ fun deref_leaves_the_receivers_own_method_first(): void {
 
 @test
 fun deref_mut_serves_a_mutating_method(): void {
-    val code = run_through_deref("    var h = Holder { inner: Counter { hits: 5 } }\n    h.bump()\n    return h.total()")
+    val code = run_through_deref("""    var h = Holder { inner: Counter { hits: 5 } }
+    h.bump()
+    return h.total()""")
     assert_eq(code, 6, "`bump` changes the Holder's own Counter")
 }
 
@@ -130,7 +133,8 @@ fun deref_mut_needs_a_writable_receiver(): void {
 
 @test
 fun deref_follows_the_chain(): void {
-    val code = run_through_deref("    val o = Outer { holder: Holder { inner: Counter { hits: 7 } } }\n    return o.total()")
+    val code = run_through_deref("""    val o = Outer { holder: Holder { inner: Counter { hits: 7 } } }
+    return o.total()""")
     assert_eq(code, 7, "Outer to Holder to Counter")
 }
 
@@ -142,6 +146,8 @@ fun deref_lends_an_argument_its_target(): void {
 
 @test
 fun deref_mut_lends_a_mutable_argument(): void {
-    val code = run_through_deref("    var h = Holder { inner: Counter { hits: 3 } }\n    bump(&var h)\n    return h.total()")
+    val code = run_through_deref("""    var h = Holder { inner: Counter { hits: 3 } }
+    bump(&var h)
+    return h.total()""")
     assert_eq(code, 4, "`&var Holder` fills a `&var Counter` slot")
 }

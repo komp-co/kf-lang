@@ -106,7 +106,7 @@ fun str_type_list(): List<Type> {
     val _decided = read.apply_expected(ctx.string_name().lang_struct_ty(no_span()), &var ctx)
     val node = unsafe { *init_ptr }
     when (node.kind) {
-        MethodCall(_recv, name, _args) => assert_eq(name.as_str(), "from_literal", "the literal is pointed at, not copied")
+        MethodCall(_recv, name, _args) => assert_eq(name.as_str(), "from_literal", "pointed at, not copied")
         _ => fail("expected a String.from_literal call")
     }
 }

@@ -37,7 +37,7 @@ impl FromText for int64 {
 
 impl FromTextRadix for int64 {
     static fun from_text_radix(text: str, radix: uint32): Result<int64, ParseError> {
-        return Result.Ok(text.signed_up_to(radix, int64.max_value() as uint64)? as int64)
+        return Result.Ok(text.signed_up_to(radix, int64.max_value() as uint64)?)
     }
 }
 
@@ -77,6 +77,6 @@ impl FromText for uint64 {
 
 impl FromTextRadix for uint64 {
     static fun from_text_radix(text: str, radix: uint32): Result<uint64, ParseError> {
-        return Result.Ok(text.unsigned_up_to(radix, uint64.max_value() as uint64)? as uint64)
+        return Result.Ok(text.unsigned_up_to(radix, uint64.max_value())?)
     }
 }

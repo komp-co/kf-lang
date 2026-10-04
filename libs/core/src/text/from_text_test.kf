@@ -59,7 +59,8 @@ import core.renders_as
 }
 
 @test fun a_digit_past_the_radix_is_invalid(): void {
-    assert_eq(uint8.from_text_radix("19", 8), Result.Err<uint8, ParseError>(ParseError.InvalidDigit(1)), "no 9 in octal")
+    val no_nine = Result.Err<uint8, ParseError>(ParseError.InvalidDigit(1))
+    assert_eq(uint8.from_text_radix("19", 8), no_nine, "no 9 in octal")
 }
 
 @test fun a_float_reads_its_fraction(): void {

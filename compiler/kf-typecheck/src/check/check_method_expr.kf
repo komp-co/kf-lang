@@ -283,9 +283,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
         }
         if !handled {
             val enum_name = try_get_enum_recv_name(recv_raw.kind, ctx)
-            val name_str = enum_name.as_str()
-            val is_empty = name_str.equals("")
-            if !is_empty {
+            if enum_name.as_str() != "" {
                 e.ty = check_variant_construction(enum_name, &var e.type_args, method_name, args, e.span, ctx)
                 e.is_variant_ctor = true
             } else {
