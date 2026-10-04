@@ -38,6 +38,8 @@ pub struct ServeSession {
     var typed: List<TypedCrate>
     /// Which crates `typed` holds.
     var typed_key: String
+    /// Whether `typed` checked every crate's bodies, not only the queried one's.
+    var typed_every_body: bool
     /// Where `check` writes the interfaces of its `sources`: empty until
     /// the first needs it.
     var staged_interfaces: List<TempDir>
@@ -49,7 +51,7 @@ impl ServeSession {
     pub static fun new(): ServeSession {
         return ServeSession {
             greeted: false, buffers: no_overlay(), typed: List.new<TypedCrate>(), typed_key: "",
-            staged_interfaces: List.new<TempDir>(), stopping: false
+            typed_every_body: false, staged_interfaces: List.new<TempDir>(), stopping: false
         }
     }
 
@@ -115,10 +117,13 @@ impl ServeSession {
     mutating fun typed_answer(id: str, method: str, line: str): String {
         val params = read_typed_params(line) ?: return invalid_params(id, method)
         if needs_offset(method) && params.offset < 0 { return invalid_params(id, method) }
-        if self.typed.is_empty() || self.typed_key.as_str() != params.key.as_str() {
+        val every_body = searches_every_body(method)
+        val stale = self.typed_key.as_str() != params.key.as_str() || every_body && !self.typed_every_body
+        if self.typed.is_empty() || stale {
             self.typed = List.new<TypedCrate>()
-            self.typed.push(typed_crate_with(params.path.as_str(), &self.buffers, &params.crates))
+            self.typed.push(typed_crate_with(params.path.as_str(), &self.buffers, &params.crates, every_body))
             self.typed_key = params.key.clone()
+            self.typed_every_body = every_body
         }
         if !self.typed[0].focus(params.path.as_str()) {
             return error_line(id, "not_in_crate", "`${params.path}` is not a file the last crate compiles")

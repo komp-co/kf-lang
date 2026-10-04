@@ -104,7 +104,10 @@ last: a crate's `loads` from `komp metadata`, then the crate itself. They
 are typed from source, staged text included, once; every later typed request
 naming the same crates reuses that until a `stage` or `unstage` changes a
 buffer, so moving around a file that is not being edited costs no more
-checking. A file the last crate does not compile is refused as
+checking. Only the last crate's function bodies are checked; the
+dependencies are typed as their signatures, which is all an answer about the
+file reads of them. `references` and `rename` search for uses, which a
+dependency's bodies may hold, so they check every crate's bodies. A file the last crate does not compile is refused as
 `not_in_crate`. `rename` without a `new_name` asks only whether the name at
 `offset` can be renamed, as an editor does before asking for the new name.
 
