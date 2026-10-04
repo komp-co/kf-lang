@@ -8,16 +8,18 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.intern
+import core.text.byte_at_in
 import kf_core.ast.lang_placeholder
 import kf_core.ast.lang_string_key
 
 pub fun raw_literal_body(src: str, from: uint32, to: uint32): String {
     var out = String.from("")
+    val n = src.byte_len()
     var i: uint64 = from as uint64
     val end: uint64 = to as uint64
     while i < end {
-        val b: uint8 = src.byte_at(i)
-        if b == 92 && i + 1 < end && src.byte_at(i + 1) == 36 {
+        val b: uint8 = src.byte_at_in(n, i)
+        if b == 92 && i + 1 < end && src.byte_at_in(n, i + 1) == 36 {
             out.push_byte(36 as uint8)
             i = i + 2
         } else {
