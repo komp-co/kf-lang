@@ -3,7 +3,7 @@ import core.assert.fail
 import core.assert.assert
 
 // Bump in the same commit that adds or removes a keyword.
-fun expected_keyword_count(): uint64 { return 27 }
+fun expected_keyword_count(): uint64 { return 28 }
 
 fun reachable_keyword_count(): uint64 {
     var i: uint64 = 0

@@ -135,6 +135,7 @@ fun keyword_fits(k: Keyword, pos: CompletionPos): bool {
     return when (k) {
         Fun => pos_is_item(pos)
         Pub => pos_is_item(pos)
+        Internal => pos_is_item(pos)
         Struct => pos_is_item(pos)
         Enum => pos_is_item(pos)
         Trait => pos_is_item(pos)

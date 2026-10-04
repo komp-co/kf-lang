@@ -254,7 +254,7 @@ pub fun register_sigs(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: &var Diag
         Function(params, ret_ptr, _body, is_pub, _unsafe, _mutating, _static) => {
             // Test runners are a separate module calling @test functions by
             // name.
-            val is_runner_visible = is_pub || (&td).has_annotation("test")
+            val is_runner_visible = is_pub || td.is_internal || (&td).has_annotation("test")
             // Bounds first: a signature naming a bounded type checks its
             // arguments against them.
             register_bounds(td.name.as_string(), td.generics, sig_ptr)
@@ -264,7 +264,7 @@ pub fun register_sigs(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: &var Diag
         Constant(_ty, _value, _pub) => register_constant(td, sig_ptr, diags, table)
         Extern(params, ret_ptr, is_pub, _variadic) => {
             // An extern's signature types its calls.
-            register_fn_sig(td, td.name.as_string(), params, ret_ptr, List.new<String>(), td.crate, td.module_path, td.span.file_id, is_pub, sig_ptr, diags, table)
+            register_fn_sig(td, td.name.as_string(), params, ret_ptr, List.new<String>(), td.crate, td.module_path, td.span.file_id, is_pub || td.is_internal, sig_ptr, diags, table)
         }
         ImplBlock(methods) => {
             val struct_name = td.name.as_string()

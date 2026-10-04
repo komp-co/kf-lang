@@ -19,7 +19,7 @@ pub fun register_constant(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: &var 
             ctx.owner_module = td.module_path
             ctx.owner_file = td.span.file_id
             val ty = value.type_as_constant(&var *written, &var ctx)
-            unsafe { sig_ptr.insert_constant(&td, is_pub, ty, (*value).clone()) }
+            unsafe { sig_ptr.insert_constant(&td, is_pub || td.is_internal, ty, (*value).clone()) }
         }
         _ => { }
     }

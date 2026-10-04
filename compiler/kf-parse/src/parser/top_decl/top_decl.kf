@@ -82,8 +82,14 @@ impl Parser {
         when (kw) {
             Fun => return self.parse_fun(span, false, false, false)
             Pub => {
-                unsafe { self.advance() }
-                return self.parse_pub_top(span)
+                self.advance()
+                return self.parse_visible_top(span, true)
+            }
+            Internal => {
+                self.advance()
+                var td = self.parse_visible_top(span, false)
+                td.is_internal = true
+                return td
             }
             // Unsupported keywords still advance, or parse_module would loop.
             Struct => return self.parse_struct(span, false)
@@ -152,42 +158,44 @@ impl Parser {
         }
     }
 
-    mutating fun parse_pub_top(span: Span): TopDecl {
+    /// After `pub`, or after `internal` with `is_pub` false.
+    mutating fun parse_visible_top(span: Span, is_pub: bool): TopDecl {
         if is_keyword(self.peek(), Keyword.Fun) {
-            return self.parse_fun(span, true, false, false)
+            return self.parse_fun(span, is_pub, false, false)
         }
         if is_keyword(self.peek(), Keyword.Mutating) {
-            return self.parse_top_mutating(span, true)
+            return self.parse_top_mutating(span, is_pub)
         }
         if is_keyword(self.peek(), Keyword.Struct) {
-            return self.parse_struct(span, true)
+            return self.parse_struct(span, is_pub)
         }
         if is_keyword(self.peek(), Keyword.Enum) {
-            return self.parse_enum(span, true)
+            return self.parse_enum(span, is_pub)
         }
         if is_keyword(self.peek(), Keyword.Extern) {
-            return self.parse_extern(span, true)
+            return self.parse_extern(span, is_pub)
         }
         if is_keyword(self.peek(), Keyword.Trait) {
-            return self.parse_trait(span, true)
+            return self.parse_trait(span, is_pub)
         }
         if is_keyword(self.peek(), Keyword.Val) {
-            return self.parse_constant(span, true)
+            return self.parse_constant(span, is_pub)
         }
         if is_keyword(self.peek(), Keyword.Var) {
-            return self.parse_top_var(span, true)
+            return self.parse_top_var(span, is_pub)
         }
         if self.at_sealed_trait() {
-            return self.parse_sealed_trait(span, true)
+            return self.parse_sealed_trait(span, is_pub)
         }
         if self.at_view_type() {
-            return self.parse_view_type(span, true)
+            return self.parse_view_type(span, is_pub)
         }
         if self.at_annotation_decl() {
-            return self.parse_annotation_decl(span, true)
+            return self.parse_annotation_decl(span, is_pub)
         }
         if self.at_template_decl() {
-            self.parse_err(span, String.from("a template takes its visibility from its annotation: drop the `pub`"))
+            val written = if is_pub { "pub" } else { "internal" }
+            self.parse_err(span, "a template takes its visibility from its annotation: drop the `${written}`")
             return self.parse_template_decl(span)
         }
         return new_top_decl(span, "", TopDeclKind.Poison)

@@ -310,6 +310,8 @@ pub struct SigTable {
     /// In declaration order, which is the order `annotated` lists.
     pub var annotated: List<AnnotatedItem>
     pub var constants: List<ConstantValue>
+    /// `internal` functions and values, by `module name`.
+    pub var internal_names: HashMap<String, bool>
 }
 
 pub fun new_sig_table(): SigTable {
@@ -358,7 +360,8 @@ pub fun new_sig_table(): SigTable {
         fn_types: List.new<Type>(),
         annotations: List.new<DeclaredAnnotation>(),
         annotated: List.new<AnnotatedItem>(),
-        constants: List.new<ConstantValue>()
+        constants: List.new<ConstantValue>(),
+        internal_names: HashMap.new<String, bool>()
     }
 }
 

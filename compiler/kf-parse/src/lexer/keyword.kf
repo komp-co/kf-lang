@@ -32,6 +32,8 @@ pub enum Keyword {
     /// `type Item` in a trait body, `type Item = int32` in an impl body.
     TypeKw
     Dyn
+    /// Visible to every module of the crate, and to no other crate.
+    Internal
 }
 
 /// The one place a keyword's spelling is written.
@@ -64,6 +66,7 @@ pub fun kw_str(k: Keyword): str {
         Trait => "trait"
         TypeKw => "type"
         Dyn => "dyn"
+        Internal => "internal"
     }
 }
 
@@ -98,6 +101,7 @@ pub fun keyword_at(i: uint64): Keyword? {
     if i == 24 { return Keyword.Trait }
     if i == 25 { return Keyword.TypeKw }
     if i == 26 { return Keyword.Dyn }
+    if i == 27 { return Keyword.Internal }
     return null
 }
 

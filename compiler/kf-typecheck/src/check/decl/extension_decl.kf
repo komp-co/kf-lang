@@ -28,6 +28,15 @@ pub fun insert_fn_sig(sigs: Ptr<SigTable>, owner: Ptr<TopDecl>, sig: FnSignature
             unsafe { (*sigs).ext_trait_params.push(intern(trait_param.as_str())) }
         }
     }
+    // Hidden support arrives `pub` only when written `internal`, so its own
+    // crate's generics reach it; no other crate may.
+    if (owner as uint64) != 0 {
+        unsafe {
+            if owner.is_internal || (owner.linkage.is_hidden() && sig.is_pub) {
+                (*sigs).note_internal(sig.owner_module, sig.name.as_str())
+            }
+        }
+    }
     unsafe { sigs.insert(sig) }
 }
 

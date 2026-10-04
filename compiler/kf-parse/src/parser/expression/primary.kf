@@ -160,6 +160,7 @@ impl Parser {
             Trait => return self.kw_expr_err(kw, span)
             TypeKw => return self.kw_expr_err(kw, span)
             Dyn => return self.kw_expr_err(kw, span)
+            Internal => return self.kw_expr_err(kw, span)
         }
     }
 
