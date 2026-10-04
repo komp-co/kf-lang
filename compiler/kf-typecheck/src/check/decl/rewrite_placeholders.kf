@@ -285,6 +285,7 @@ mutating fun TopDecl.rewrite_placeholder_decl(heads: LangHeads): void {
         AssocTypeBinding(boxed) => rewrite_placeholder_box(boxed, heads)
         AnnotationDecl(_params, _target, _pub) => {}
         Template(_kind, _marked, _body) => {}
+        Constant(ty, _value, _pub) => rewrite_placeholder_box(ty, heads)
         Poison => {}
     }
 }

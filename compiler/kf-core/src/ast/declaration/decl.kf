@@ -205,6 +205,9 @@ pub enum TopDeclKind {
     /// each declaration of that kind it marks. The outer `name` is the
     /// annotation's. Payload: the kind, `T`, the declarations.
     Template(MarkKind, Sym, List<TopDecl>)
+    /// `val NAME: TYPE = LITERAL` at top level: each use of the name is the
+    /// literal. Payload: type, initializer, is_pub.
+    Constant(Box<TypeRef>, Box<Expr>, bool)
     /// Parse error.
     Poison
 }

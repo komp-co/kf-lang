@@ -215,6 +215,7 @@ fun Stmt.collect_stmt_names(out: &var List<String>): void {
 }
 
 fun Expr.collect_expr_names(out: &var List<String>): void {
+    if !self.constant.as_str().is_empty() { out.push(self.constant.as_string()) }
     while type_arg in &self.type_args {
         (type_arg).collect_tyref_names(out)
     }

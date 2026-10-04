@@ -58,7 +58,8 @@ fun Expr.rebuild_expr(new_kind: ExprKind, names: &var List<String>, repls: &var 
         dynamic_layout: intern(subst_mangled_name(self.dynamic_layout.as_str(), names, repls).as_str()),
         is_safe_call_value: self.is_safe_call_value,
         is_variant_ctor: self.is_variant_ctor,
-        derefs_at_call: self.derefs_at_call
+        derefs_at_call: self.derefs_at_call,
+        constant: self.constant
     }
 }
 

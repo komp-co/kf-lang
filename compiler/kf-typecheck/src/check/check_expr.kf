@@ -97,7 +97,7 @@ pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
         Variable(name) => {
             ctx.note_use(name.as_str(), e.span)
             if !ctx.is_declared(name.as_str()) {
-                if e.name_function_value(name, ctx) { return }
+                if e.name_top_level_value(name, ctx) { return }
                 report_undeclared_variable(name.as_str(), e.span, ctx)
             }
             e.ty = ctx.lookup(name.as_str())
