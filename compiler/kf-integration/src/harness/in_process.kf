@@ -241,13 +241,13 @@ fun merge_modules(modules: &List<Module>): Module {
 /// As the file sits on disk, in the project around it. For tests, which
 /// have no komp to name the crates.
 pub fun typed_crate_for(file_path: str): TypedCrate {
-    return typed_crate_staged(file_path, "", false, &crate_sources(&project_crates_around(file_path)))
+    return typed_crate_staged(file_path, "", false, &crate_sources(&project_crates_around(file_path)), false)
 }
 
 /// With `buffer` standing in for the file's text, so offsets match the
 /// document the editor shows.
 pub fun typed_crate_for_overlay(file_path: str, buffer: str): TypedCrate {
-    return typed_crate_staged(file_path, buffer, true, &crate_sources(&project_crates_around(file_path)))
+    return typed_crate_staged(file_path, buffer, true, &crate_sources(&project_crates_around(file_path)), false)
 }
 
 fun crate_sources(crates: &List<BuildCrate>): List<CrateSource> {
