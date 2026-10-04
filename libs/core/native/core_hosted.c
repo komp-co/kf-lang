@@ -5,6 +5,7 @@
 #include "core.h"
 #endif
 
+#include <ctype.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -125,6 +126,62 @@ const char* float32_display_str(float value) {
     if ((float)strtod(buffer, NULL) != value) {
         snprintf(buffer, KF_FLOAT_WIDTH, "%.9g", (double)value);
     }
+    return buffer;
+}
+
+/*
+ * Reading a float out of text, for `FromText`. strtod also skips leading
+ * space and reads hex floats; both are refused at their first byte so the
+ * text means what it says in decimal.
+ */
+uint64_t kf_float_text_prefix(const char* text) {
+    if (isspace((unsigned char)text[0])) return 0;
+    const char* digits = text;
+    if (*digits == '+' || *digits == '-') digits++;
+    if (digits[0] == '0' && (digits[1] == 'x' || digits[1] == 'X')) return (uint64_t)(digits + 1 - text);
+    char* end;
+    strtod(text, &end);
+    return (uint64_t)(end - text);
+}
+
+double kf_float64_from_text(const char* text) {
+    return strtod(text, NULL);
+}
+
+float kf_float32_from_text(const char* text) {
+    return strtof(text, NULL);
+}
+
+/*
+ * A float64 in fixed or exponential notation with a chosen number of
+ * decimals, at most KF_DECIMALS_MAX. The integer part of a float64 has at
+ * most 309 digits, so a slot holds the longest.
+ *
+ * CONSTRAINT: shares the float ring's lifetime rule.
+ */
+#define KF_DECIMALS_MAX 100
+#define KF_NOTATION_WIDTH 420
+
+static char kf_notation_ring[KF_FLOAT_SLOTS][KF_NOTATION_WIDTH];
+static unsigned kf_notation_next = 0;
+
+static char* kf_notation_slot(void) {
+    char* slot = kf_notation_ring[kf_notation_next];
+    kf_notation_next = (kf_notation_next + 1) % KF_FLOAT_SLOTS;
+    return slot;
+}
+
+const char* kf_float64_fixed_str(double value, uint32_t decimals) {
+    char* buffer = kf_notation_slot();
+    if (decimals > KF_DECIMALS_MAX) decimals = KF_DECIMALS_MAX;
+    snprintf(buffer, KF_NOTATION_WIDTH, "%.*f", (int)decimals, value);
+    return buffer;
+}
+
+const char* kf_float64_exponential_str(double value, uint32_t decimals) {
+    char* buffer = kf_notation_slot();
+    if (decimals > KF_DECIMALS_MAX) decimals = KF_DECIMALS_MAX;
+    snprintf(buffer, KF_NOTATION_WIDTH, "%.*e", (int)decimals, value);
     return buffer;
 }
 

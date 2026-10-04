@@ -417,6 +417,52 @@ disambiguates them, so the suffix went with the free function.
 The names say which base they use, because silently being the wrong base is
 a bad way to find out.
 
+## Numbers and text
+
+`parse` reads a number out of text. It allocates nothing, and a failure says
+why:
+
+```kflat
+"42".parse<int32>()                 // Ok(42)
+"-17".parse<int64>()                // Ok(-17)
+"300".parse<uint8>()                // Err(Overflow)
+"12x".parse<int32>()                // Err(InvalidDigit(2))
+uint32.from_text_radix("ff", 16)    // Ok(255)
+"6.02e23".parse<float64>()          // Ok(6.02e23)
+```
+
+The text must be the number and nothing else: no surrounding space and no
+`0x` prefix. A whole number takes an optional sign, and only a signed type
+takes `-`. `from_text_radix` reads radixes 2 to 36, with letters for digits
+past 9 in either case. A float reads decimal digits, a fraction and an
+exponent, or `inf`, `infinity` and `nan`. The C library reads its value, so it
+is correctly rounded. `ParseError` is `Empty`, `InvalidDigit(at)` or
+`Overflow`, and renders as a sentence:
+
+```kflat
+when ("12x".parse<int32>()) {
+    Ok(n) => println("${n}")
+    Err(why) => println("${why}")   // invalid digit at byte 2
+}
+```
+
+`parse<T>` asks `T.from_text`, so a type of your own joins by implementing
+`FromText`.
+
+In the other direction, `"${x}"` writes the shortest form that reads back as
+the same value. For a fixed form, write into any sink, or ask alloc for a
+`String`:
+
+```kflat
+(2.0 / 3.0).to_fixed(2)             // "0.67"
+(1234.5).to_exponential(2)          // "1.23e+03"
+(255 as uint64).to_radix(16)        // "ff"
+(5 as uint64).write_radix(&var out, 2, 8)   // writes 00000101
+```
+
+`write_fixed` and `write_exponential` take at most 100 decimals.
+`write_radix`'s last argument is the width to pad to with zeros.
+
 ## Duration, Date, and DateTime
 
 Time arithmetic is pure, so it lives here; reading a clock is
