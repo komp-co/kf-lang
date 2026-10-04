@@ -114,7 +114,7 @@
 31 compiler/kf-parse/src/parser/expression/primary.kf
 9 compiler/kf-parse/src/parser/lambda.kf
 5 compiler/kf-parse/src/parser/module.kf
-3 compiler/kf-parse/src/parser/parser.kf
+2 compiler/kf-parse/src/parser/parser.kf
 30 compiler/kf-parse/src/parser/statement/bindings.kf
 45 compiler/kf-parse/src/parser/statement/control.kf
 18 compiler/kf-parse/src/parser/statement/statement.kf
@@ -124,8 +124,8 @@
 13 compiler/kf-parse/src/parser/top_decl/extension.kf
 29 compiler/kf-parse/src/parser/top_decl/impl.kf
 1 compiler/kf-parse/src/parser/top_decl/signature_target.kf
-13 compiler/kf-parse/src/parser/top_decl/top_decl.kf
-40 compiler/kf-parse/src/parser/top_decl/types.kf
+12 compiler/kf-parse/src/parser/top_decl/top_decl.kf
+39 compiler/kf-parse/src/parser/top_decl/types.kf
 21 compiler/kf-parse/src/parser/type_ref.kf
 6 compiler/kf-resolve/src/import_validation.kf
 1 compiler/kf-resolve/src/resolve_body.kf
@@ -170,7 +170,7 @@
 1 compiler/kf-typecheck/src/check/decl/derive.kf
 24 compiler/kf-typecheck/src/check/decl/derive_equal_enum.kf
 63 compiler/kf-typecheck/src/check/decl/derive_synth.kf
-11 compiler/kf-typecheck/src/check/decl/extension_decl.kf
+12 compiler/kf-typecheck/src/check/decl/extension_decl.kf
 1 compiler/kf-typecheck/src/check/decl/lang_traits.kf
 1 compiler/kf-typecheck/src/check/decl/method_annotation.kf
 3 compiler/kf-typecheck/src/check/decl/no_mangle_check.kf

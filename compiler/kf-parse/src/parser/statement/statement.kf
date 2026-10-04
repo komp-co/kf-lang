@@ -62,6 +62,7 @@ impl Parser {
             // `type` is meaningful only in a trait or impl body.
             TypeKw => self.advance_and_poison_stmt(span)
             Dyn => self.advance_and_poison_stmt(span)
+            Internal => self.advance_and_poison_stmt(span)
             // Not a statement start: skipped so the block loop progresses.
             Fun => self.advance_and_poison_stmt(span)
             Else => self.advance_and_poison_stmt(span)

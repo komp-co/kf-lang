@@ -8,8 +8,14 @@ impl SigTable {
     /// `pub`.
     pub fun lookup_callee(name: str, through: Sym, caller_file: uint32, caller_crate: CrateId,
         caller_module: Sym): FnSignature? {
-        if through.id != 0 { return self.find_through_alias(name, through, caller_file) }
-        return self.find_imported_signature(name, caller_file, caller_crate, caller_module)
+        if through.id != 0 {
+            val aliased = self.find_through_alias(name, through, caller_file) ?: return null
+            if self.hides_from(&aliased, caller_crate) { return null }
+            return aliased
+        }
+        val sig = self.find_imported_signature(name, caller_file, caller_crate, caller_module) ?: return null
+        if self.hides_from(&sig, caller_crate) { return null }
+        return sig
     }
 
     /// In the aliased module, or in one it exports that name from.

@@ -57,6 +57,7 @@ pub fun TopDecl.deep_clone_top_decl(): TopDecl {
                 unsafe { *ty = clone_type_ref(&*field.ty) }
                 var copied = new_field(field.span, field.name.as_string(), ty, field.is_var, field.is_pub)
                 copied.annotations = field.annotations.clone()
+                copied.is_internal = field.is_internal
                 clone_fields.push(copied)
             }
             return self.copied_top_decl(TopDeclKind.Struct(clone_fields, is_pub))
@@ -137,6 +138,7 @@ fun TopDecl.copied_top_decl(kind: TopDeclKind): TopDecl {
     out.resolves_in = self.resolves_in
     out.is_sealed = self.is_sealed
     out.is_view = self.is_view
+    out.is_internal = self.is_internal
     out.implemented_lang_trait = self.implemented_lang_trait
     return out
 }

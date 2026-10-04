@@ -19,6 +19,7 @@ impl SigTable {
     /// `value` is typed as `ty`, its declared type.
     pub mutating fun insert_constant(td: &TopDecl, is_pub: bool, ty: Type, value: Expr): void {
         self.constants.push(ConstantValue { name: td.name, owner_module: td.module_path, value: value })
+        if td.is_internal { self.note_internal(td.module_path, td.name.as_str()) }
         self.insert(FnSignature {
             name: td.name.as_string(), params: List.new<Type>(), ret: ty, generics: List.new<String>(),
             is_static: false, is_mutating: false, owner_module: td.module_path, owner_crate: td.crate,

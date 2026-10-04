@@ -17,7 +17,9 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             o.field_string("kind", "fun")
             o.field_bool("hidden", hidden)
             o.field_string("name", td.name.as_str())
-            o.field_bool("pub", is_pub)
+            // Hidden support written `internal` stays reachable from the
+            // crate's other modules, whose shipped generics call it.
+            o.field_bool("pub", is_pub || td.is_internal)
             var link = td.crate.symbol_prefix()
             link.append(td.name.as_str())
             o.field_string("link_name", link.as_str())

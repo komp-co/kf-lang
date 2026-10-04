@@ -335,11 +335,8 @@ impl Parser {
 
     /// `[pub] (val|var) name: Type`.
     mutating fun parse_field(): Field {
-        var is_field_pub: bool = false
-        if is_keyword(self.peek(), Keyword.Pub) {
-            is_field_pub = true
-            unsafe { self.advance() }
-        }
+        val is_field_pub = self.take_keyword(Keyword.Pub)
+        val is_field_internal = !is_field_pub && self.take_keyword(Keyword.Internal)
 
         var is_var: bool = false
         if is_keyword(self.peek(), Keyword.Var) {
@@ -358,7 +355,9 @@ impl Parser {
 
         if is_op(self.peek(), Operator.Colon) {
             unsafe { self.advance() }
-            return new_field(name_span, name, self.parse_type_ref_ptr(), is_var, is_field_pub)
+            var field = new_field(name_span, name, self.parse_type_ref_ptr(), is_var, is_field_pub)
+            field.is_internal = is_field_internal
+            return field
         }
         self.parse_err(self.peek().span, String.from("expected `:` and a type after the field name (every field needs a type annotation)"))
         return new_field(name_span, name, poison_type_ref_at(name_span), is_var, is_field_pub)
