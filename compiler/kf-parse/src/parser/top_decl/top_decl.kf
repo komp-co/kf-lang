@@ -29,37 +29,37 @@ impl Parser {
                 if self.at_template_decl() { return self.parse_template_decl(t.span) }
                 if self.at_sealed_trait() { return self.parse_sealed_trait(t.span, false) }
                 if self.at_view_type() { return self.parse_view_type(t.span, false) }
-                self.parse_err(t.span, "expected a declaration (`fun`, `struct`, `enum`, `impl`, `trait`, `extern`, `import`), found ${tok_str(self.peek())}")
+                self.parse_err(t.span, "expected a declaration (`fun`, `val`, `struct`, `enum`, `impl`, `trait`, `extern`, `import`), found ${tok_str(self.peek())}")
                 unsafe { self.advance() }
                 self.sync_to_newline()
                 return new_top_decl(t.span, "", TopDeclKind.Poison)
             }
             Op(_) => {
-                self.parse_err(t.span, "expected a declaration (`fun`, `struct`, `enum`, `impl`, `trait`, `extern`, `import`), found ${tok_str(self.peek())}")
+                self.parse_err(t.span, "expected a declaration (`fun`, `val`, `struct`, `enum`, `impl`, `trait`, `extern`, `import`), found ${tok_str(self.peek())}")
                 unsafe { self.advance() }
                 self.sync_to_newline()
                 return new_top_decl(t.span, "", TopDeclKind.Poison)
             }
             IntLiteral(_) => {
-                self.parse_err(t.span, "expected a declaration (`fun`, `struct`, `enum`, `impl`, `trait`, `extern`, `import`), found ${tok_str(self.peek())}")
+                self.parse_err(t.span, "expected a declaration (`fun`, `val`, `struct`, `enum`, `impl`, `trait`, `extern`, `import`), found ${tok_str(self.peek())}")
                 unsafe { self.advance() }
                 self.sync_to_newline()
                 return new_top_decl(t.span, "", TopDeclKind.Poison)
             }
             StringLiteral(_) => {
-                self.parse_err(t.span, "expected a declaration (`fun`, `struct`, `enum`, `impl`, `trait`, `extern`, `import`), found ${tok_str(self.peek())}")
+                self.parse_err(t.span, "expected a declaration (`fun`, `val`, `struct`, `enum`, `impl`, `trait`, `extern`, `import`), found ${tok_str(self.peek())}")
                 unsafe { self.advance() }
                 self.sync_to_newline()
                 return new_top_decl(t.span, "", TopDeclKind.Poison)
             }
             FloatLiteral(_) => {
-                self.parse_err(t.span, "expected a declaration (`fun`, `struct`, `enum`, `impl`, `trait`, `extern`, `import`), found ${tok_str(self.peek())}")
+                self.parse_err(t.span, "expected a declaration (`fun`, `val`, `struct`, `enum`, `impl`, `trait`, `extern`, `import`), found ${tok_str(self.peek())}")
                 unsafe { self.advance() }
                 self.sync_to_newline()
                 return new_top_decl(t.span, "", TopDeclKind.Poison)
             }
             CharLiteral(_) => {
-                self.parse_err(t.span, "expected a declaration (`fun`, `struct`, `enum`, `impl`, `trait`, `extern`, `import`), found ${tok_str(self.peek())}")
+                self.parse_err(t.span, "expected a declaration (`fun`, `val`, `struct`, `enum`, `impl`, `trait`, `extern`, `import`), found ${tok_str(self.peek())}")
                 unsafe { self.advance() }
                 self.sync_to_newline()
                 return new_top_decl(t.span, "", TopDeclKind.Poison)
@@ -70,7 +70,7 @@ impl Parser {
             }
             Eof => return new_top_decl(t.span, "", TopDeclKind.Poison)
             LexError(_) => {
-                self.parse_err(t.span, "expected a declaration (`fun`, `struct`, `enum`, `impl`, `trait`, `extern`, `import`), found ${tok_str(self.peek())}")
+                self.parse_err(t.span, "expected a declaration (`fun`, `val`, `struct`, `enum`, `impl`, `trait`, `extern`, `import`), found ${tok_str(self.peek())}")
                 unsafe { self.advance() }
                 self.sync_to_newline()
                 return new_top_decl(t.span, "", TopDeclKind.Poison)
@@ -82,16 +82,22 @@ impl Parser {
         when (kw) {
             Fun => return self.parse_fun(span, false, false, false)
             Pub => {
-                unsafe { self.advance() }
-                return self.parse_pub_top(span)
+                self.advance()
+                return self.parse_visible_top(span, true)
+            }
+            Internal => {
+                self.advance()
+                var td = self.parse_visible_top(span, false)
+                td.is_internal = true
+                return td
             }
             // Unsupported keywords still advance, or parse_module would loop.
             Struct => return self.parse_struct(span, false)
             Enum => return self.parse_enum(span, false)
             Impl => return self.parse_impl(span)
             Extern => return self.parse_extern(span, false)
-            Val => return self.advance_and_poison(span)
-            Var => return self.advance_and_poison(span)
+            Val => return self.parse_constant(span, false)
+            Var => return self.parse_top_var(span, false)
             Return => return self.advance_and_poison(span)
             If => return self.advance_and_poison(span)
             Else => return self.advance_and_poison(span)
@@ -134,7 +140,7 @@ impl Parser {
     }
 
     mutating fun advance_and_poison(span: Span): TopDecl {
-        self.parse_err(span, "expected a declaration (`fun`, `struct`, `enum`, `impl`, `trait`, `extern`, `import`), found ${tok_str(self.peek())}")
+        self.parse_err(span, "expected a declaration (`fun`, `val`, `struct`, `enum`, `impl`, `trait`, `extern`, `import`), found ${tok_str(self.peek())}")
         unsafe { self.advance() }
         self.sync_to_newline()
         return new_top_decl(span, "", TopDeclKind.Poison)
@@ -152,36 +158,44 @@ impl Parser {
         }
     }
 
-    mutating fun parse_pub_top(span: Span): TopDecl {
+    /// After `pub`, or after `internal` with `is_pub` false.
+    mutating fun parse_visible_top(span: Span, is_pub: bool): TopDecl {
         if is_keyword(self.peek(), Keyword.Fun) {
-            return self.parse_fun(span, true, false, false)
+            return self.parse_fun(span, is_pub, false, false)
         }
         if is_keyword(self.peek(), Keyword.Mutating) {
-            return self.parse_top_mutating(span, true)
+            return self.parse_top_mutating(span, is_pub)
         }
         if is_keyword(self.peek(), Keyword.Struct) {
-            return self.parse_struct(span, true)
+            return self.parse_struct(span, is_pub)
         }
         if is_keyword(self.peek(), Keyword.Enum) {
-            return self.parse_enum(span, true)
+            return self.parse_enum(span, is_pub)
         }
         if is_keyword(self.peek(), Keyword.Extern) {
-            return self.parse_extern(span, true)
+            return self.parse_extern(span, is_pub)
         }
         if is_keyword(self.peek(), Keyword.Trait) {
-            return self.parse_trait(span, true)
+            return self.parse_trait(span, is_pub)
+        }
+        if is_keyword(self.peek(), Keyword.Val) {
+            return self.parse_constant(span, is_pub)
+        }
+        if is_keyword(self.peek(), Keyword.Var) {
+            return self.parse_top_var(span, is_pub)
         }
         if self.at_sealed_trait() {
-            return self.parse_sealed_trait(span, true)
+            return self.parse_sealed_trait(span, is_pub)
         }
         if self.at_view_type() {
-            return self.parse_view_type(span, true)
+            return self.parse_view_type(span, is_pub)
         }
         if self.at_annotation_decl() {
-            return self.parse_annotation_decl(span, true)
+            return self.parse_annotation_decl(span, is_pub)
         }
         if self.at_template_decl() {
-            self.parse_err(span, String.from("a template takes its visibility from its annotation: drop the `pub`"))
+            val written = if is_pub { "pub" } else { "internal" }
+            self.parse_err(span, "a template takes its visibility from its annotation: drop the `${written}`")
             return self.parse_template_decl(span)
         }
         return new_top_decl(span, "", TopDeclKind.Poison)

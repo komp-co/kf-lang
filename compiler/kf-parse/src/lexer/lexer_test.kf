@@ -139,34 +139,9 @@ fun is_arrow_op(o: Operator): bool {
 
 // kf_parse.parser cannot be imported here without a cycle.
 fun is_fun_keyword(k: Keyword): bool {
-    when (k) {
-        Fun => return true
-        Val => return false
-        Var => return false
-        Return => return false
-        If => return false
-        Else => return false
-        While => return false
-        True => return false
-        False => return false
-        Import => return false
-        Pub => return false
-        Struct => return false
-        Enum => return false
-        Impl => return false
-        Extern => return false
-        When => return false
-        Mutating => return false
-        Static => return false
-        Unsafe => return false
-        As => return false
-        Break => return false
-        Continue => return false
-        For => return false
-        In => return false
-        Trait => return false
-        TypeKw => return false
-        Dyn => return false
+    return when (k) {
+        Fun => true
+        _ => false
     }
 }
 

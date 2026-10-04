@@ -25,6 +25,11 @@ pub fun is_typed_method(method: str): bool {
     }
 }
 
+/// Whether `method` searches for uses, which a dependency's bodies hold too.
+pub fun searches_every_body(method: str): bool {
+    return method == "references" || method == "rename"
+}
+
 /// Whether `method` asks about a position, and so needs an `offset`.
 pub fun needs_offset(method: str): bool {
     return method != "inlays" && method != "tokens"

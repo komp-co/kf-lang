@@ -175,3 +175,40 @@ The compiler renames each shadowed binding internally so that move-checking,
 drop insertion, and code generation see them as distinct variables. The
 inner binding's drop (if any) runs when its block ends, independently of the
 outer one.
+
+## Top-level values
+
+A `val` outside any function names a constant: a number, `char`, `bool` or
+string literal, a negated number, or an array literal of those. Its type is
+always written, and `T[]` takes its length from the literal:
+
+```kflat
+val MAX_DEPTH: int32 = 64
+val DIGITS: char[] = "0123456789"
+val PRIMES: int32[] = [2, 3, 5, 7]
+
+fun is_digit(c: char): bool {
+    return DIGITS.contains(&c)
+}
+```
+
+Each use of the name is the literal, typed as declared, as if it were written
+there. Nothing runs at startup and there is no storage to take the address
+of; an array is built in place at each use, as an array literal is.
+
+Anything computed belongs in a function, and there is no global mutable
+state:
+
+```console
+$ komp check .
+src/main.kf:2:20: error: a top-level `val` holds a literal; compute anything else in a function
+    val THREE: int32 = three()
+                       ^~~~~~~
+src/main.kf:1:1: error: a top-level binding cannot be a `var`: there is no global mutable state
+    var COUNTER: int32 = 0
+    ^~~
+```
+
+A top-level `val` is imported and exported like a function: its own module
+sees it, another module imports it by name, and `pub` lets another crate
+import it too. A local of the same name shadows it.

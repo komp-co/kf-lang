@@ -13,14 +13,15 @@ import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
 
 pub mutating fun Module.move_check_module(diags: &var Diagnostics, mob_count: Ptr<MobCount>, smap: Ptr<SourceMap>, lints: &var Diagnostics, list_name: Sym): void {
-    val names = self.compute_move_only_names(list_name)
-    val copies = self.copy_type_names()
     // Built once and shared by pointer: it holds move-only lists.
     var param_table = self.build_param_table()
     // Module-scoped: mono turns one source line into many functions.
     var warnings = self.new_warn_state()
+    var ctx = new_move_ctx(diags, self.compute_move_only_names(list_name), &var param_table, mob_count, "", smap,
+        &var warnings)
+    ctx.copy_names = self.copy_type_names()
     while i in 0..self.decls.size() {
-        self.decls.at_mut(i).move_check_top_decl(diags, names, &copies, &var param_table, mob_count, smap, &var warnings)
+        self.decls.at_mut(i).move_check_top_decl_in(&var ctx, "")
     }
     // Hands the module's advisories to the caller's channel, which the driver
     // levels and prints. Each is copied explicitly: pushing one by value
@@ -30,27 +31,24 @@ pub mutating fun Module.move_check_module(diags: &var Diagnostics, mob_count: Pt
     }
 }
 
-mutating fun TopDecl.move_check_top_decl(diags: &var Diagnostics, names: List<String>, copies: &List<String>,
-    ptable: Ptr<List<ParamEntry>>, mob_count: Ptr<MobCount>, smap: Ptr<SourceMap>, warn: Ptr<WarnState>): void {
-    self.move_check_top_decl_in(diags, names, copies, ptable, mob_count, smap, "", warn)
-}
-
-/// `self_owner` is the enclosing impl's target, or "" at the top level.
-mutating fun TopDecl.move_check_top_decl_in(diags: &var Diagnostics, names: List<String>, copies: &List<String>,
-    ptable: Ptr<List<ParamEntry>>, mob_count: Ptr<MobCount>, smap: Ptr<SourceMap>, self_owner: str,
-    warn: Ptr<WarnState>): void {
+/// `ctx` holds the module's tables, shared by every function it walks; each
+/// function starts owning, moving and borrowing nothing. `self_owner` is the
+/// enclosing impl's target, or "" at the top level.
+mutating fun TopDecl.move_check_top_decl_in(ctx: &var MoveCtx, self_owner: str): void {
     when (self.kind) {
         Function(params, _, body, _, _, _, _) => {
-            var ctx = new_move_ctx(diags, clone_str_list(names), ptable, mob_count, self.name.as_string(), smap, warn)
+            ctx.owned = List.new<Sym>()
+            ctx.moved = List.new<MovedEntry>()
+            ctx.borrowed = List.new<Sym>()
+            ctx.consumed_here = List.new<Sym>()
             ctx.self_owner = String.from(self_owner)
-            ctx.copy_names = clone_str_list(copies)
-            declare_owned_value_params(params, &var ctx)
-            move_check_stmt_list(&var body, &var ctx)
+            ctx.cur_fn = self.name.as_string()
+            declare_owned_value_params(params, ctx)
+            move_check_stmt_list(&var body, ctx)
         }
         ImplBlock(methods) => {
             while i in 0..methods.size() {
-                methods.at_mut(i).move_check_top_decl_in(diags, names, copies, ptable, mob_count, smap,
-                    self.name.as_str(), warn)
+                methods.at_mut(i).move_check_top_decl_in(ctx, self.name.as_str())
             }
         }
         Struct(_, _) => return
@@ -60,6 +58,7 @@ mutating fun TopDecl.move_check_top_decl_in(diags: &var Diagnostics, names: List
         AssocTypeBinding(_chosen) => return
         AnnotationDecl(_params, _target, _pub) => return
         Template(_kind, _marked, _body) => return
+        Constant(_ty, _value, _pub) => return
         TraitDecl(_, _, _) => return
         TraitImpl(_, _) => return
         Poison => return

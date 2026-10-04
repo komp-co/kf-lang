@@ -39,8 +39,9 @@ import shapes.geometry.*           // every pub function of the module
 ```
 
 A function from any other module — a sibling directory in this crate, or
-another crate — needs an import, and must be `pub`. Imports appear before
-any declarations.
+another crate — needs an import, and must be `pub`. A
+[top-level `val`](bindings.md#top-level-values) is imported the same way.
+Imports appear before any declarations.
 
 ```kflat
 // src/geometry/point.kf
@@ -173,11 +174,46 @@ extension is called through its receiver, so it keeps its name: `as` on one
 is an error. `export` and `from` are not reserved words; they are read this
 way only at the start of an export.
 
-## pub
+## pub and internal
 
-`pub` makes a function visible outside its module — to the other modules of
-its crate and to dependent crates alike, in both cases through an import.
-Without `pub`, a function is visible only inside its own directory.
+A function or a [top-level `val`](bindings.md#top-level-values) is visible
+only inside its own directory unless it says otherwise:
+
+| Written | Visible to |
+|---|---|
+| nothing | its own module |
+| `internal` | every module of its crate, through an import |
+| `pub` | every module of its crate and every dependent crate, through an import |
+
+```kflat
+// src/a/helpers.kf
+internal fun double(n: int32): int32 { return n * 2 }
+
+// src/b/api.kf
+import shapes.a.double
+
+pub fun quad(n: int32): int32 { return double(double(n)) }
+```
+
+An `internal` declaration stays out of the crate's
+[interface](#interface-files-kfi), so to another crate it does not exist:
+
+```console
+$ komp check .
+src/main.kf:1:1: error: cannot find `double` in module `shapes.a`
+    import shapes.a.double
+    ^~~~~~~~~~~~~~~~~~~~~~
+src/main.kf:4:12: error: cannot find function `double` in this scope
+        return double(1)
+               ^~~~~~~~~
+```
+
+A public generic may still call an `internal` helper from its own module: the
+helper travels in the interface with the generic, for the generic alone.
+
+`internal` is also accepted on a struct, an enum, a trait, a method and a
+field. There it means what leaving `pub` off means today, since those are not
+yet held to their module.
 
 On a struct or a field, `pub` is not checked yet: a private field can be
 read and written from any module and any crate, and naming a dependency's

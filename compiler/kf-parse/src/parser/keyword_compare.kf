@@ -33,5 +33,6 @@ fun keyword_tag(k: Keyword): int32 {
         Trait => 26
         TypeKw => 27
         Dyn => 28
+        Internal => 29
     }
 }

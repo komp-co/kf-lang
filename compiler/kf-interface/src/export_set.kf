@@ -27,13 +27,12 @@ pub fun decl_is_exported(td: &TopDecl): bool {
     }
 }
 
-/// A public generic, or a trait declaring an associated type: sent as source.
+/// A public generic, a trait declaring an associated type, or a public
+/// top-level `val`: sent as source.
 /// Synthesized declarations (derive) are excluded; the consumer re-synthesizes
 /// them.
 pub fun decl_is_exported_template(td: &TopDecl): bool {
-    if td.generics.size() == 0 {
-        if !td.trait_declares_assoc_type() { return false }
-    }
+    if td.generics.size() == 0 && !td.trait_declares_assoc_type() && !td.is_constant() { return false }
     if is_mangled_decl_name(td.name.as_str()) { return false }
     if td.decl_end == 0 as uint32 { return false }
     return when (td.kind) {
@@ -43,6 +42,15 @@ pub fun decl_is_exported_template(td: &TopDecl): bool {
         TraitDecl(_methods, is_pub, _) => is_pub
         ImplBlock(_methods) => true
         TraitImpl(_trait_ref, _methods) => true
+        Constant(_ty, _value, is_pub) => is_pub
+        _ => false
+    }
+}
+
+/// A top-level `val`, which travels as source: its uses are its literal.
+pub fun TopDecl.is_constant(): bool {
+    return when (self.kind) {
+        Constant(_ty, _value, _pub) => true
         _ => false
     }
 }
@@ -181,6 +189,7 @@ fun hidden_supportable(td: TopDecl): bool {
         ImplBlock(_methods) => true
         TraitImpl(_t, _methods) => true
         Extern(_ep, _er, _epub, _eu) => true
+        Constant(_ty, _value, _pub) => true
         _ => false
     }
 }

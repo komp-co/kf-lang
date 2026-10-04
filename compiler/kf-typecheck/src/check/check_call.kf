@@ -88,6 +88,7 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
         return Type.new_poison()
     }
     val sig = found_sig ?: return Type.new_poison()
+    if sig.rejects_call_of_constant(span, ctx) { return Type.new_poison() }
     if through.id != 0 && !sig.is_pub && sig.owner_module.id != ctx.owner_module.id {
         report_not_in_module(name.as_str(), through, true, span, ctx)
         return Type.new_poison()

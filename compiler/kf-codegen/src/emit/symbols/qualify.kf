@@ -91,6 +91,7 @@ mutating fun TopDecl.qualify_decl(names: &var List<String>, repls: &var List<Typ
         AssocTypeBinding(_chosen) => return
         AnnotationDecl(_params, _target, _pub) => return
         Template(_kind, _marked, _body) => return
+        Constant(_ty, _value, _pub) => return
         TraitDecl(_meths, _pub, _) => return
         Poison => return
     }

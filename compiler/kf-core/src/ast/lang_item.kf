@@ -121,6 +121,7 @@ impl Module {
     /// dependencies' declarations.
     pub fun lang_type_name(key: str): Sym {
         while td in &self.decls {
+            if td.annotations.is_empty() { continue }
             var is_type = false
             when (td.kind) {
                 Struct(_fields, _is_pub) => { is_type = true }
@@ -135,6 +136,7 @@ impl Module {
     /// The trait marked `@lang(key)`, or the empty name.
     pub fun lang_trait_name(key: str): Sym {
         while td in &self.decls {
+            if td.annotations.is_empty() { continue }
             var is_trait = false
             when (td.kind) {
                 TraitDecl(_members, _is_pub, _supers) => { is_trait = true }

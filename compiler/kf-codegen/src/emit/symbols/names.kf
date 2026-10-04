@@ -4,6 +4,8 @@
 // plugs into kf-core's substitution helpers. The walks live in qualify.kf.
 
 import alloc.list.*
+import alloc.hash_map.HashMap
+import core.text.byte_at_in
 
 import kf_core.span.no_span
 import kf_core.ast.*
@@ -108,13 +110,16 @@ pub fun Module.collect_fn_renames(names: &var List<String>, repls: &var List<Typ
 }
 
 fun Module.collect_unique_method_renames(names: &var List<String>, repls: &var List<TypeRef>): void {
+    val counts = self.method_name_counts()
+    val containers = self.container_names()
     while owner in &self.decls {
         when (owner.kind) {
             ImplBlock(methods) => {
                 while method in &methods {
                     val raw_name = method_source_name(method.name.as_string())
-                    if !method_name_is_runtime_owned(raw_name.as_str()) && self.method_name_count(raw_name.as_str()) == 1 && !self.module_has_free_symbol(raw_name.as_str()) {
-                        val link = self.method_link_name(owner, method)
+                    val unique = counts.count_of(&raw_name) == 1
+                    if !method_name_is_runtime_owned(raw_name.as_str()) && unique && !self.module_has_free_symbol(raw_name.as_str()) {
+                        val link = self.method_link_name(owner, method, &containers)
                         if link.as_str() != "" {
                             push_rename(raw_name, link, names, repls)
                         }
@@ -144,8 +149,9 @@ fun Module.collect_method_value_renames(names: &var List<String>, repls: &var Li
 fun Module.push_method_value_renames(owner: &TopDecl, methods: &List<TopDecl>, names: &var List<String>,
     repls: &var List<TypeRef>): void {
     val checked_owner = owner.unprefixed_name()
+    val containers = self.container_names()
     while method in &methods {
-        val link = self.method_link_name(owner, method)
+        val link = self.method_link_name(owner, method, &containers)
         if link.as_str() != "" {
             push_rename("${checked_owner.as_str()}_${method.name.as_str()}", link, names, repls)
         }
@@ -160,15 +166,24 @@ fun TopDecl.unprefixed_name(): String {
     return name.substring(prefix.byte_len(), name.byte_len())
 }
 
+/// The library's list and option types, which `method_link_name` asks about
+/// for every method: looked up once.
+struct ContainerNames {
+    val list: Sym
+    val option: Sym
+}
+
+fun Module.container_names(): ContainerNames {
+    return ContainerNames { list: self.lang_type_name(lang_list_key()), option: self.lang_type_name(lang_option_key()) }
+}
+
 /// The method's C symbol; "" for an impl with no owning crate.
-fun Module.method_link_name(owner: &TopDecl, method: &TopDecl): String {
+fun Module.method_link_name(owner: &TopDecl, method: &TopDecl, containers: &ContainerNames): String {
     val link = method.link_name.as_string()
     if link.as_str() != "" || owner.crate.is_poison() { return link }
-    val list_name = self.lang_type_name(lang_list_key())
-    val option_name = self.lang_type_name(lang_option_key())
     // A builtin type's impls are emitted unprefixed (`int8_add__Add`).
     val unprefixed = is_mangled_decl_name(owner.name.as_str()) || is_runtime_type_name(owner.name.as_str()) ||
-        is_container_type_name(owner.name.as_str(), list_name, option_name) ||
+        is_container_type_name(owner.name.as_str(), containers.list, containers.option) ||
         self.type_is_no_mangle(owner.name.as_str())
     val prefix = if unprefixed { String.from("") } else { String.from(owner.crate.symbol_prefix().as_str()) }
     return prefix + owner.name.as_string() + String.from("_") + method.name.as_string()
@@ -187,20 +202,29 @@ fun Module.module_has_free_symbol(name: str): bool {
     return false
 }
 
-fun Module.method_name_count(name: str): uint64 {
-    var count: uint64 = 0
+/// How many inherent methods answer to each source name, counted in one walk.
+fun Module.method_name_counts(): HashMap<String, uint64> {
+    var counts = HashMap.new<String, uint64>()
     while owner in &self.decls {
         when (owner.kind) {
             ImplBlock(methods) => {
                 while method in &methods {
                     val raw_name = method_source_name(method.name.as_string())
-                    if raw_name.as_str() == name { count = count + 1 }
+                    val seen = counts.count_of(&raw_name)
+                    counts.insert(raw_name, seen + 1)
                 }
             }
             _ => {}
         }
     }
-    return count
+    return counts
+}
+
+fun HashMap<String, uint64>.count_of(name: &String): uint64 {
+    return when (self.get(name)) {
+        Some(count) => *count
+        None => 0
+    }
 }
 
 // `score__Score` still answers the call `score()`.
@@ -209,7 +233,7 @@ fun method_source_name(name: String): String {
     val length = source.byte_len()
     var i: uint64 = 0
     while i + 1 < length {
-        if source.byte_at(i) == 95 && source.byte_at(i + 1) == 95 {
+        if source.byte_at_in(length, i) == 95 && source.byte_at_in(length, i + 1) == 95 {
             return source.substring(0, i)
         }
         i = i + 1

@@ -14,33 +14,29 @@ import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import kf_lower.ownership.*
 pub mutating fun Module.rc_insert_module(list_name: Sym): void {
-    val names = self.compute_move_only_names(list_name)
     var param_table = self.build_param_table()
     var payloads = self.variant_payloads_of()
-    val string_name = self.lang_type_name(lang_string_key())
-    val free = self.borrow_free_names(string_name, list_name)
+    var ctx = new_rc_ctx(String.from(""))
+    ctx.move_only_names = self.compute_move_only_names(list_name)
+    ctx.string_name = self.lang_type_name(lang_string_key())
+    ctx.borrow_free = self.borrow_free_names(ctx.string_name, list_name)
+    ctx.use_tables(&var param_table, &var payloads)
     while i in 0..self.decls.size() {
-        rc_insert_top_decl_pv(self.decls.at_mut(i), names, &var param_table, &var payloads, string_name, &free)
+        rc_insert_top_decl_pv(self.decls.at_mut(i), &var ctx)
     }
 }
 
-/// `vp` says which payloads each enum variant owns, so a `when` arm can take
-/// responsibility for those it binds.
-pub fun rc_insert_top_decl_pv(td: &var TopDecl, names: List<String>, tp: Ptr<List<ParamEntry>>, vp: Ptr<VariantPayloads>,
-    string_name: Sym, free: &List<String>): void {
+/// `ctx` holds the module's tables, shared by every function it walks;
+/// each function starts with no frames and its own block numbering.
+pub fun rc_insert_top_decl_pv(td: &var TopDecl, ctx: &var RcCtx): void {
     when (td.kind) {
         Function(params, ret, body, p, u, m, s) => {
-            val fn_name_a = td.name.as_string()
-            var ctx = new_rc_ctx(fn_name_a)
-            // Deep-cloned: `names` is shared across decls and RcCtx frees it.
-            ctx.move_only_names = clone_str_list(&names)
-            ctx.borrow_free = clone_str_list(free)
-            ctx.ptable = tp
-            ctx.variants = vp
-            ctx.string_name = string_name
+            ctx.fn_name = td.name.as_string()
+            ctx.frame_stack = List.new<RcFrame>()
+            ctx.block_counter = 0
             val _idx = ctx.push_frame(false)
-            track_value_params(&params, &var ctx)
-            rc_insert_stmts(&var body, &var ctx)
+            track_value_params(&params, ctx)
+            rc_insert_stmts(&var body, ctx)
             append_releases(&var body, ctx.pop_frame())
             // CONSTRAINT: a binder is a copy of the payload, so the grown body
             // is moved back into place.
@@ -49,7 +45,7 @@ pub fun rc_insert_top_decl_pv(td: &var TopDecl, names: List<String>, tp: Ptr<Lis
         }
         ImplBlock(methods) => {
             while i in 0..methods.size() {
-                rc_insert_top_decl_pv(methods.at_mut(i), names, tp, vp, string_name, free)
+                rc_insert_top_decl_pv(methods.at_mut(i), ctx)
             }
         }
         Struct(_, _) => return
@@ -59,6 +55,7 @@ pub fun rc_insert_top_decl_pv(td: &var TopDecl, names: List<String>, tp: Ptr<Lis
         AssocTypeBinding(_chosen) => return
         AnnotationDecl(_params, _target, _pub) => return
         Template(_kind, _marked, _body) => return
+        Constant(_ty, _value, _pub) => return
         TraitDecl(_, _, _) => return
         TraitImpl(_, _) => return
         Poison => return

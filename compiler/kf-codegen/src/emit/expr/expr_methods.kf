@@ -82,14 +82,15 @@ fun emit_method_call(recv_p: Ptr<Expr>, mname: String, mangled: String, margs: L
     }
     // These take self by value, so a pointer receiver is dereferenced.
     if self_is_by_value(callee.as_str()) {
+        val views = margs.read_through_str_borrows()
         if ty_is_pointer(recv.ty) {
             var dp = List.new<String>()
             dp.push(String.from("(*"))
             dp.push(recv_c)
             dp.push(String.from(")"))
-            return build_method_call(callee, concat_all(dp), margs)
+            return build_method_call(callee, concat_all(dp), views)
         }
-        return build_method_call(callee, recv_c, margs)
+        return build_method_call(callee, recv_c, views)
     }
     // `<T>_clone` is already the by-pointer entry.
     val ecallee = callee
@@ -260,6 +261,28 @@ fun ty_is_pointer(t: Type): bool {
         PtrTo(_) => true
         BoxOf(_) => true
         RefTo(_, _) => true
+        _ => false
+    }
+}
+
+/// A runtime `str` method takes `str` arguments as views. A generic instance
+/// passes the `&T` its body was written against, which is read through.
+fun List<Expr>.read_through_str_borrows(): List<Expr> {
+    var out = List.new<Expr>()
+    while arg in &self {
+        var passed = arg.clone()
+        if passed.ty.is_borrowed_str() { passed.derefs_at_call = true }
+        out.push(passed)
+    }
+    return out
+}
+
+fun Type.is_borrowed_str(): bool {
+    return when (self.kind) {
+        RefTo(_mutable, pointee) => when (pointee.kind) {
+            StrTy => true
+            _ => false
+        }
         _ => false
     }
 }
