@@ -1,6 +1,8 @@
-// Find references: every name in the crate carrying the declaration the
-// cursor's name carries. Only top-level declarations answer; locals and
-// parameters resolve in typecheck's scope, which this does not build.
+// Find references: every name in the crate referring to what the cursor's
+// name refers to: a top-level declaration, a member by its `Owner.name` key,
+// or a parameter or local by where its binder is written.
+
+import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.Module
@@ -16,25 +18,77 @@ pub fun render_references_json(path: str, offset: uint32, crate: &TypedCrate): S
     out.field_string("file", path)
     out.field_uint32("offset", offset)
 
-    val target = crate.module.decl_at_offset(crate.file_id, offset) ?: {
+    val names = crate.module.every_name_span()
+    val target = names.target_at(crate.file_id, offset) ?: {
         out.field_null("declaration")
         out.field_raw("references", "[]")
         return out.finish()
     }
-    val declared = crate.module.declaration_span(target)
+    val declared = crate.module.target_declaration(&names, &target)
     if declared.end > declared.start {
         out.field_raw("declaration", declared.span_object(crate.smap).as_str())
     } else {
         out.field_null("declaration")
     }
-    val names = crate.module.all_name_spans()
-    val spans = spans_for_decl(&names, target)
     var arr = JsonWriter.array()
-    while s in &spans {
-        arr.write_raw(s.span_object(crate.smap).as_str())
+    while n in &names {
+        if !n.is_decl && n.same_target(&target) { arr.write_raw(n.span.span_object(crate.smap).as_str()) }
     }
     out.field_raw("references", arr.finish().as_str())
     return out.finish()
+}
+
+/// Top-level names and members, type names in type positions, annotations,
+/// then parameters and locals.
+pub fun Module.every_name_span(): List<NameSpan> {
+    var names = self.all_name_spans()
+    while written in &self.type_name_spans() { names.push(written) }
+    while marked in &self.annotation_name_spans() { names.push(marked) }
+    while local in &self.local_name_spans() { names.push(local) }
+    return names
+}
+
+/// The narrowest name at `offset` that refers to something.
+fun List<NameSpan>.target_at(file_id: uint32, offset: uint32): NameSpan? {
+    var best: NameSpan? = null
+    var best_width: uint32 = 0
+    while n in &self {
+        if n.span.name_covers(file_id, offset) && n.refers() {
+            val width = n.span.end - n.span.start
+            if best.is_none() || width <= best_width {
+                best = Option.Some(n)
+                best_width = width
+            }
+        }
+    }
+    return best
+}
+
+fun NameSpan.refers(): bool {
+    return self.decl.is_some() || self.member.as_str() != ""
+}
+
+/// The same declaration, or else the same member.
+fun NameSpan.same_target(other: &NameSpan): bool {
+    when (self.decl) {
+        Some(mine) => {
+            val theirs = other.decl ?: return false
+            return mine.raw == theirs.raw
+        }
+        None => { }
+    }
+    return self.member.as_str() != "" && self.member.as_str() == other.member.as_str()
+}
+
+/// Where the target is declared: a member's name inside its struct or impl.
+fun Module.target_declaration(names: &List<NameSpan>, target: &NameSpan): Span {
+    val decl = target.decl ?: {
+        while n in &names {
+            if n.is_decl && n.same_target(target) { return n.span }
+        }
+        return no_span()
+    }
+    return self.declaration_span(decl)
 }
 
 pub fun Span.span_object(smap: Ptr<SourceMap>): String {

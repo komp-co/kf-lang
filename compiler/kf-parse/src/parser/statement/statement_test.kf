@@ -177,6 +177,13 @@ fun first_binder_span(src: str): Span {
     assert_eq(b.end, 22, "a one-character name is one byte long")
 }
 
+@test fun a_loop_records_where_its_variable_is_written(): void {
+    // "fun f(): void { while item in xs { } }"
+    //                        ^22
+    val b = first_binder_span("fun f(): void { while item in xs { } }")
+    assert_eq(b.start, 22, "the loop variable, not `while`")
+}
+
 @test fun extra_space_moves_the_binder_with_the_name(): void {
     // Read from the token, so padding before the name shifts it.
     val b = first_binder_span("fun f(): int32 { val    total = 1\nreturn total }")

@@ -14,7 +14,7 @@ pub fun doc_comment_above(src: str, file_id: uint32, decl_start: uint32): String
     val r = tokenize_with_comments(src, file_id)
     var lines = List.new<String>()
     // Upward a line at a time; `edge` is where the next comment must end.
-    var edge = line_start_before(src, decl_start)
+    var edge = above_annotations(src, line_start_before(src, decl_start))
     while true {
         val idx = doc_comment_ending_at(src, &r.comments, edge)
         if idx < 0 { break }
@@ -33,6 +33,19 @@ pub fun doc_comment_above(src: str, file_id: uint32, decl_start: uint32): String
         if i > 0 { out.append("\n") }
     }
     return out
+}
+
+/// Up past the `@...` lines written between a declaration and its
+/// documentation.
+fun above_annotations(src: str, edge: uint32): uint32 {
+    var at = edge
+    while at > 0 {
+        val above = line_start_before(src, at - 1)
+        val line = src.substring(above as uint64, (at - 1) as uint64)
+        if !line.as_str().trim().starts_with("@") { return at }
+        at = above
+    }
+    return at
 }
 
 /// 0 for offset 0, which the caller reads as "stop".

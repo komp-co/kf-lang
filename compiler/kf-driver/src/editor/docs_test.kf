@@ -47,3 +47,9 @@ fun a_doc_marker_inside_a_string_is_not_a_comment(): void {
     val src = "val s = \"/// not a doc\"\n"
     assert_eq(doc_comment_above(src, 1, end_of(src)).as_str(), "", "a marker in a string documents nothing")
 }
+
+@test
+fun an_annotation_between_the_doc_and_the_declaration_is_stepped_over(): void {
+    val src = "/// A point.\n@shown\n@derive(Clone)\n"
+    assert_eq(doc_comment_above(src, 1, end_of(src)).as_str(), "A point.", "the doc still belongs to what follows")
+}

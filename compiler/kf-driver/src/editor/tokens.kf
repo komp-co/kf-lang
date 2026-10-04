@@ -3,6 +3,8 @@
 
 import alloc.list.*
 
+import kf_core.span.*
+
 import json.writer.*
 
 /// `{"schema_version":1,"file":..,"tokens":[{"byte_start":..,"byte_end":..,"type":".."}]}`
@@ -12,10 +14,17 @@ pub fun render_tokens_json(path: str, crate: &TypedCrate): String {
     var out = JsonWriter.object()
     out.field_uint32("schema_version", 1)
     out.field_string("file", path)
-    val names = crate.module.all_name_spans()
+    var names = crate.module.all_name_spans()
+    while written in &crate.module.type_name_spans() { names.push(written) }
     val ordered = tokens_in_file(&names, crate.file_id)
     var arr = JsonWriter.array()
+    var last_start: uint32 = 0
+    var any = false
     while t in &ordered {
+        if !crate.source.as_str().is_identifier_at(t.span) { continue }
+        if any && t.span.start == last_start { continue }
+        any = true
+        last_start = t.span.start
         var o = JsonWriter.object()
         o.field_uint32("byte_start", t.span.start)
         o.field_uint32("byte_end", t.span.end)
@@ -26,7 +35,23 @@ pub fun render_tokens_json(path: str, crate: &TypedCrate): String {
     return out.finish()
 }
 
-/// In source order. The walk is nearly sorted but argument lists nest.
+/// Whether `span` covers exactly one identifier: never a literal, a bracket,
+/// or a call's whole span.
+fun str.is_identifier_at(span: Span): bool {
+    if span.end <= span.start || (span.end as uint64) > self.byte_len() { return false }
+    var i = span.start as uint64
+    while i < span.end as uint64 {
+        val c = self.byte_at(i)
+        val letter = (c >= 97 && c <= 122) || (c >= 65 && c <= 90) || c == 95
+        val digit = c >= 48 && c <= 57
+        if !letter && !(digit && i > span.start as uint64) { return false }
+        i = i + 1
+    }
+    return true
+}
+
+/// In source order, a type ahead of anything else at the same place. The walk
+/// is nearly sorted but argument lists nest.
 fun tokens_in_file(names: &List<NameSpan>, file_id: uint32): List<NameSpan> {
     var mine = List.new<NameSpan>()
     while n in &names {
@@ -43,7 +68,9 @@ fun sorted_by_start(names: &List<NameSpan>): List<NameSpan> {
     while n in &names {
         var at: uint64 = out.size()
         while at > 0 {
-            if out.get(at - 1).span.start <= n.span.start { break }
+            val before = out.get(at - 1)
+            if before.span.start < n.span.start { break }
+            if before.span.start == n.span.start && n.role.as_str() != "type" { break }
             at = at - 1
         }
         out = inserted_at(&out, at, n)
