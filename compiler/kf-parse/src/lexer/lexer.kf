@@ -2,6 +2,7 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.intern
+import core.text.byte_at_in
 
 /// Tokenizer. Errors become `LexError` tokens, which the parser reports.
 pub struct Lexer {
@@ -21,7 +22,7 @@ impl Lexer {
         if self.pos >= self.len {
             return 0
         }
-        return self.src.as_str().byte_at(self.pos)
+        return self.src.as_str().byte_at_in(self.len, self.pos)
     }
 
     pub fun peek_at(offset: uint64): uint8 {
@@ -29,7 +30,7 @@ impl Lexer {
         if p >= self.len {
             return 0
         }
-        return self.src.as_str().byte_at(p)
+        return self.src.as_str().byte_at_in(self.len, p)
     }
 
     pub fun at_end(): bool {
@@ -565,72 +566,6 @@ fun tokenize_inner(source: str, file_id: uint32, comments: &var List<Span>, keep
     val eof_span = Span { file_id: file_id, start: pos_end, end: pos_end }
     toks.push(new_token(TokenKind.Eof, eof_span))
     return toks
-}
-
-fun digit_value(b: uint8, radix: int64): int64 {
-    var v = -1
-    if b >= 48 && b <= 57 { v = (b - 48) as int64 }
-    if b >= 97 && b <= 102 { v = ((b - 97) as int64) + 10 }
-    if b >= 65 && b <= 70 { v = ((b - 65) as int64) + 10 }
-    if v >= radix { return -1 }
-    return v
-}
-
-fun digits_text(src: str, from: uint32, to: uint32): String {
-    var out = ""
-    var seg: uint32 = from
-    var i: uint32 = from
-    while i < to {
-        if src.byte_at(i as uint64) == 95 {
-            val chunk = slice_to_string(src, seg, i)
-            out.append(chunk.as_str())
-            seg = i + 1
-        }
-        i = i + 1
-    }
-    val tail = slice_to_string(src, seg, to)
-    out.append(tail.as_str())
-    return out
-}
-
-/// Where the first undecodable escape starts in the source, or -1.
-///
-/// CONSTRAINT: separate from `literal_body`. A String returned inside a
-/// struct and read out of its field does not survive the trip.
-fun literal_bad_escape_at(src: str, from: uint32, to: uint32): int64 {
-    var i: uint64 = from as uint64
-    val end: uint64 = to as uint64
-    while i < end {
-        if src.byte_at(i) != 92 {
-            i = i + 1
-        } else {
-            val esc = decode_escape(src, i, end)
-            if esc.width == 0 { return i as int64 }
-            i = i + 1 + esc.width
-        }
-    }
-    return 0 - 1
-}
-
-/// The bytes the literal denotes, escapes decoded. Callers check
-/// `literal_bad_escape_at` first.
-fun literal_body(src: str, from: uint32, to: uint32): String {
-    var out = String.from("")
-    var i: uint64 = from as uint64
-    val end: uint64 = to as uint64
-    while i < end {
-        val b: uint8 = src.byte_at(i)
-        if b != 92 {
-            out.push_byte(b)
-            i = i + 1
-        } else {
-            val esc = decode_escape(src, i, end)
-            if esc.width == 0 { return out }
-            out.push_byte(esc.value)
-            i = i + 1 + esc.width
-        }
-    }
-    return out
 }
 
 fun build_unexpected_byte_msg(b: uint8): String {
