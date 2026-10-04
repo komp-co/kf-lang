@@ -52,6 +52,7 @@ mutating fun TopDecl.block_expr_top_decl(): void {
         AssocTypeBinding(_chosen) => return
         AnnotationDecl(_params, _target, _pub) => return
         Template(_kind, _marked, _body) => return
+        Constant(_ty, _value, _pub) => return
         TraitDecl(_, _, _) => return
         TraitImpl(_, _) => return
         Poison => return

@@ -39,8 +39,9 @@ import shapes.geometry.*           // every pub function of the module
 ```
 
 A function from any other module — a sibling directory in this crate, or
-another crate — needs an import, and must be `pub`. Imports appear before
-any declarations.
+another crate — needs an import, and must be `pub`. A
+[top-level `val`](bindings.md#top-level-values) is imported the same way.
+Imports appear before any declarations.
 
 ```kflat
 // src/geometry/point.kf

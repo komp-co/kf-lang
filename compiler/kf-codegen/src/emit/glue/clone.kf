@@ -106,6 +106,7 @@ pub fun TopDecl.deep_clone_top_decl(): TopDecl {
             return self.copied_top_decl(TopDeclKind.TraitImpl(clone_trait_ref, deep_clone_methods(&methods)))
         }
         Template(kind, marked, body) => return self.copied_top_decl(TopDeclKind.Template(kind, marked, deep_clone_methods(&body)))
+        Constant(_ty, _value, _pub) => return self.clone()
         Poison => return self.copied_top_decl(TopDeclKind.Poison)
     }
 }

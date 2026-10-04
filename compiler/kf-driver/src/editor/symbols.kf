@@ -57,6 +57,7 @@ fun TopDecl.symbol_kind_of(nested: bool): str {
         AssocTypeBinding(_chosen) => "type"
         AnnotationDecl(_params, _target, _pub) => "annotation"
         Template(_kind, _marked, _body) => "template"
+        Constant(_ty, _value, _pub) => "constant"
         Poison => ""
     }
 }

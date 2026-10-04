@@ -58,6 +58,7 @@ mutating fun TopDecl.move_check_top_decl_in(ctx: &var MoveCtx, self_owner: str):
         AssocTypeBinding(_chosen) => return
         AnnotationDecl(_params, _target, _pub) => return
         Template(_kind, _marked, _body) => return
+        Constant(_ty, _value, _pub) => return
         TraitDecl(_, _, _) => return
         TraitImpl(_, _) => return
         Poison => return

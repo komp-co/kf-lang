@@ -184,7 +184,7 @@ fun array_type_ref(element: TypeRef, length: uint64, array_name: Sym, span: Span
 /// `T[]` given the length of what initializes it: a literal's element count
 /// (a string's bytes or characters), or the length of the array it copies. Left as written otherwise, for the
 /// argument check to report.
-fun TypeRef.with_initializer_length(init: &Expr, ctx: &var TypeCtx): TypeRef {
+pub fun TypeRef.with_initializer_length(init: &Expr, ctx: &var TypeCtx): TypeRef {
     when (self.kind) {
         Named(head, args) => {
             if head.id != ctx.array_name().id || args.size() != 2 || !args.at(1).is_wildcard() { return self.clone() }
