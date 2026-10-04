@@ -27,16 +27,22 @@ impl Write for Counter {
     }
 }
 
-// One write per digit; nothing is built first.
-@test fun a_number_reaches_the_sink_one_digit_at_a_time(): void {
+@test fun a_number_reaches_the_sink_in_one_write(): void {
     var c = Counter { writes: 0, bytes: 0 }
     (405 as int64).display(&var c)
-    assert_eq(c.writes, 3 as uint64, "three digits, three writes")
-    assert_eq(c.bytes, 3 as uint64, "and three bytes")
+    assert_eq(c.writes, 1 as uint64, "the digits are written together")
+}
 
+@test fun a_number_writes_each_digit(): void {
+    var c = Counter { writes: 0, bytes: 0 }
+    (405 as int64).display(&var c)
+    assert_eq(c.bytes, 3 as uint64, "three digits, three bytes")
+}
+
+@test fun a_negative_number_writes_its_sign_first(): void {
     var neg = Counter { writes: 0, bytes: 0 }
     (-405 as int64).display(&var neg)
-    assert_eq(neg.writes, 4 as uint64, "the sign is its own write")
+    assert_eq(neg.writes, 2 as uint64, "the sign, then the digits")
 }
 
 // Short when short reads back as the same value, exact when it does not.

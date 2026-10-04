@@ -242,9 +242,5 @@ pub fun String.decode_at(i: uint64): Utf8Scalar { return self.as_str().decode_at
 @prelude
 pub mutating fun String.push(c: char): void {
     val e = c.encode_utf8()
-    if e.width == 0 { return }
-    self.push_byte(e.b0)
-    if e.width > 1 { self.push_byte(e.b1) }
-    if e.width > 2 { self.push_byte(e.b2) }
-    if e.width > 3 { self.push_byte(e.b3) }
+    while i in 0..e.width { self.push_byte(e.bytes[i]) }
 }

@@ -1,25 +1,21 @@
-// Numbers rendered into a sink one digit at a time.
+// Numbers rendered into a sink.
 //
 // CONSTRAINT: allocates nothing.
 
-fun digit(d: uint64): str {
-    if d == 0 { return "0" }
-    if d == 1 { return "1" }
-    if d == 2 { return "2" }
-    if d == 3 { return "3" }
-    if d == 4 { return "4" }
-    if d == 5 { return "5" }
-    if d == 6 { return "6" }
-    if d == 7 { return "7" }
-    if d == 8 { return "8" }
-    return "9"
-}
-
-/// Write `v` in base ten.
+/// Write `v` in base ten, in one write.
 @prelude
 pub fun write_uint64(out: &var dyn Write, v: uint64): void {
-    if v >= 10 { write_uint64(out, v / 10) }
-    out.write_str(digit(v % 10))
+    // 20 digits hold every `uint64`; the last byte stays the terminator.
+    var digits = Array<uint8, 21> {}
+    var start: uint64 = 20
+    var rest = v
+    while true {
+        start = start - 1
+        *digits.at_mut(start) = ('0' as uint64 + rest % 10) as uint8
+        rest = rest / 10
+        if rest == 0 { break }
+    }
+    out.write_str(unsafe { ((&digits) as Ptr<uint8> + start) as str })
 }
 
 /// Write `v` in base ten, with a leading `-` when it is negative.

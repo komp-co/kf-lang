@@ -235,11 +235,13 @@ normalization are not offered.
 ```kflat
 val e = c.encode_utf8()
 e.width        // 1-4, or 0 if the scalar is not encodable
-e.b0 … e.b3    // read `width` of them, in order
+e.bytes[0]     // read `width` of them, in order
+e.as_str()     // the same bytes as text
 ```
 
-Four fixed bytes rather than a list, because an encoded scalar is never longer
-than four and `core` has no allocator to reach for. `width` is 0 for a
+Five bytes in an array rather than a list, because an encoded scalar is never
+longer than four, the fifth ends the text, and `core` has no allocator to reach
+for. `width` is 0 for a
 surrogate or a value past the last code point — the two things a `char` can
 hold that UTF-8 cannot represent.
 

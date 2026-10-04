@@ -51,13 +51,13 @@ pub fun is_leap_year(year: int64): bool {
     return year % 400 == 0
 }
 
+/// In a common year, January first.
+val DAYS_IN_MONTH: uint8[12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+/// `month` is 1 to 12; any other panics.
 pub fun days_in_month(year: int64, month: int64): int64 {
-    if month == 2 {
-        if is_leap_year(year) { return 29 }
-        return 28
-    }
-    if month == 4 || month == 6 || month == 9 || month == 11 { return 30 }
-    return 31
+    if month == 2 && is_leap_year(year) { return 29 }
+    return DAYS_IN_MONTH[(month - 1) as uint64] as int64
 }
 
 impl Date {
