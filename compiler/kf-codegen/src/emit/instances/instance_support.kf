@@ -41,22 +41,28 @@ pub fun Module.collect_instance_support(m: &Module): InstanceSupport {
     var instance_callees = NameSet.new()
     var instance_types = NameSet.new()
     var instance_names = NameSet.new()
+    // Each instance declaration is scanned once, when first referenced; what
+    // it references may reach declarations already passed, hence the rounds.
+    var scanned = List.new<bool>()
+    while _i in 0..m.decls.size() { scanned.push(false) }
     var progress = true
     while progress {
         progress = false
-        while td in &m.decls {
-            if td.linkage.is_template() {
-                if instance_is_referenced(td, &callees, &type_refs) {
-                    // Every declaration of the name is scanned: layout,
-                    // inherent impl and trait impl.
-                    if !instance_names.has(td.name.as_str()) {
-                        instance_names.add(td.name.as_string())
-                        progress = true
-                    }
-                    td.scan_decl_references(&var instance_callees, &var instance_types)
-                    callees.add_all(&instance_callees)
-                    type_refs.add_all(&instance_types)
-                }
+        while i in 0..m.decls.size() {
+            val td = m.decls.at(i)
+            if !*scanned.at(i) && td.linkage.is_template() && instance_is_referenced(td, &callees, &type_refs) {
+                scanned.set(i, true)
+                progress = true
+                // Every declaration of the name is scanned: layout, inherent
+                // impl and trait impl.
+                instance_names.add(td.name.as_string())
+                var found_callees = NameSet.new()
+                var found_types = NameSet.new()
+                td.scan_decl_references(&var found_callees, &var found_types)
+                callees.add_all(&found_callees)
+                type_refs.add_all(&found_types)
+                instance_callees.add_all(&found_callees)
+                instance_types.add_all(&found_types)
             }
         }
     }
@@ -91,7 +97,7 @@ fun support_module(decls: List<TopDecl>, crate: CrateId): Module {
     return Module { crate: crate, path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 }
 
-fun instance_is_referenced(td: TopDecl, callees: &NameSet, type_refs: &NameSet): bool {
+fun instance_is_referenced(td: &TopDecl, callees: &NameSet, type_refs: &NameSet): bool {
     when (td.kind) {
         Function(_p, _r, _b, _pub, _u, _m, _s) => return callees.has(td.name.as_str())
         Struct(_f, _p) => {
@@ -110,7 +116,7 @@ fun instance_is_referenced(td: TopDecl, callees: &NameSet, type_refs: &NameSet):
     }
 }
 
-fun classify_out_of_view(td: TopDecl, callees: &NameSet, type_refs: &NameSet, callee_fns: &var List<TopDecl>, callee_impls: &var List<TopDecl>, private_types: &var List<TopDecl>): void {
+fun classify_out_of_view(td: &TopDecl, callees: &NameSet, type_refs: &NameSet, callee_fns: &var List<TopDecl>, callee_impls: &var List<TopDecl>, private_types: &var List<TopDecl>): void {
     when (td.kind) {
         Function(_p, _r, _b, _pub, _u, _m, _s) => {
             if callees.has(td.name.as_str()) {
