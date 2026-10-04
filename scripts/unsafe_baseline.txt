@@ -173,7 +173,7 @@
 11 compiler/kf-typecheck/src/check/decl/extension_decl.kf
 1 compiler/kf-typecheck/src/check/decl/method_annotation.kf
 3 compiler/kf-typecheck/src/check/decl/no_mangle_check.kf
-23 compiler/kf-typecheck/src/check/decl/rewrite_placeholders.kf
+6 compiler/kf-typecheck/src/check/decl/rewrite_placeholders.kf
 2 compiler/kf-typecheck/src/check/decl/unused_import.kf
 2 compiler/kf-typecheck/src/check/decl/wildcard_import.kf
 8 compiler/kf-typecheck/src/check/extension_bounds.kf

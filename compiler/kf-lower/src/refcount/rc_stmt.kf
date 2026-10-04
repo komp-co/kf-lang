@@ -158,10 +158,11 @@ fun maybe_hoist_receiver(recv_ptr: Ptr<Expr>, ctx: &var RcCtx, out: &var List<St
     maybe_hoist_owned_temp(recv_ptr, ctx, out)
 }
 
-// A fresh rvalue passed by borrow leaks its temporary, so it is hoisted. Only
-// by borrow: a by-value argument is dropped by the callee.
+// A fresh rvalue passed by borrow, `&` or as a `str`, leaks its temporary, so
+// it is hoisted. Only by borrow: a by-value argument is dropped by the callee.
 fun maybe_hoist_borrowed_arg(arg_ptr: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>): void {
-    if unsafe { arg_ptr.coerce } != coerce_addr_of() { return }
+    val coerce = unsafe { arg_ptr.coerce }
+    if coerce != coerce_addr_of() && coerce != coerce_to_cstr() { return }
     maybe_hoist_owned_temp(arg_ptr, ctx, out)
 }
 
