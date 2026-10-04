@@ -36,20 +36,16 @@ pub mutating fun Module.desugar_when_expr_module(): void {
     }
 }
 
+/// In place: the binders over `self.kind` are its payload.
 mutating fun TopDecl.when_expr_top_decl(): void {
     when (self.kind) {
-        Function(params, ret, body, p, u, mu, st) => {
+        Function(_params, _ret, body, _p, _u, _mu, _st) => {
             if !stmts_hold_a_when_value(&body) { return }
             var temps = WhenTemps { n: 0 }
             val new_body = when_expr_stmt_list(&body, &var temps)
-            self.kind = TopDeclKind.Function(params, ret, new_body, p, u, mu, st)
+            replace_stmts(&var body, new_body)
         }
-        ImplBlock(methods) => {
-            while i in 0..methods.size() {
-                when_expr_top_decl(methods.at_mut(i))
-            }
-            self.kind = TopDeclKind.ImplBlock(methods)
-        }
+        ImplBlock(methods) => when_expr_methods(&var methods)
         Struct(_, _) => return
         EnumDecl(_, _) => return
         Extern(_, _, _, _) => return
@@ -60,6 +56,17 @@ mutating fun TopDecl.when_expr_top_decl(): void {
         TraitDecl(_, _, _) => return
         TraitImpl(_, _) => return
         Poison => return
+    }
+}
+
+/// The old statements are dropped.
+fun replace_stmts(into: &var List<Stmt>, stmts: List<Stmt>): void {
+    *into = stmts
+}
+
+fun when_expr_methods(methods: &var List<TopDecl>): void {
+    while i in 0..methods.size() {
+        when_expr_top_decl(methods.at_mut(i))
     }
 }
 
@@ -80,12 +87,12 @@ fun when_expr_stmt(s: Stmt, temps: &var WhenTemps, out: &var List<Stmt>): void {
                 return
             }
             val rp = opt_ptr ?: return
-            when (unsafe { rp.kind }) {
+            when (rp.kind) {
                 // A `when` that is the operand returns from its arms directly.
                 WhenExpr(subj_ptr, arms) => {
                     // The subject may be a `when` value itself (`a?.b?.c`).
                     hoist_when_values(subj_ptr, temps, out)
-                    out.push(Stmt.new(s.span, StmtKind.When(subj_ptr, arms_returning(&arms, temps))))
+                    out.push(Stmt.new(s.span, StmtKind.When(Box.new(subj_ptr.clone()), arms_returning(&arms, temps))))
                 }
                 _ => {
                     hoist_when_values(rp, temps, out)
@@ -161,21 +168,18 @@ fun expand_let(s: Stmt, name: Sym, ty: Box<TypeRef>?, init_ptr: Ptr<Expr>?, is_v
             val temp = temps.fresh_when_temp()
 
             // Declared without a value; the annotation is required.
-            val ann: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-            unsafe { *ann = type_to_type_ref(&value_ty, span) }
-            out.push(Stmt.new(span, StmtKind.LetVar(temp, ann, null)))
+            val annotation = Box.new(type_to_type_ref(&value_ty, span))
+            out.push(Stmt.new(span, StmtKind.LetVar(temp, annotation, null)))
 
-            out.push(Stmt.new(span, StmtKind.When(subj_ptr, arms_assigning(&arms, temp, temps))))
+            // `s` owns the subject and is dropped; the new `when` needs its own.
+            val subject = Box.new(subj_ptr.clone())
+            out.push(Stmt.new(span, StmtKind.When(subject, arms_assigning(&arms, temp, temps))))
 
-            val vp: Ptr<Expr> = unsafe { alloc<Expr>() }
             var v = Expr.new(span, ExprKind.Variable(temp))
             v.ty = value_ty
-            unsafe { *vp = v }
-            if is_val {
-                out.push(Stmt.new(span, StmtKind.LetVal(name, ty, vp)))
-            } else {
-                out.push(Stmt.new(span, StmtKind.LetVar(name, ty, vp)))
-            }
+            val value = Box.new(v)
+            val kind = if is_val { StmtKind.LetVal(name, ty, value) } else { StmtKind.LetVar(name, ty, value) }
+            out.push(Stmt.new(span, kind))
         }
         _ => out.push(s)
     }
@@ -225,17 +229,15 @@ fun arms_returning(arms: &List<Arm>, temps: &var WhenTemps): List<Arm> {
     var out = List.new<Arm>()
     while a in &arms {
         var body = List.new<Stmt>()
-        when (arm_value_expr(&a)) {
-            Some(vp) => {
-                a.arm_steps_into(temps, &var body)
-                // A `when` inside the arm's value is hoisted inside this arm.
-                hoist_when_values(vp, temps, &var body)
-                val span = unsafe { vp.span }
-                if is_never_produced(vp) {
-                    body.push(Stmt.new(span, StmtKind.Expression(vp)))
+        when (a.steps_and_value(temps, &var body)) {
+            Some(value) => {
+                val span = value.span
+                val returned = if value.ty.is_never() {
+                    StmtKind.Expression(value)
                 } else {
-                    body.push(Stmt.new(span, StmtKind.Return(Option.Some(vp))))
+                    StmtKind.Return(Option.Some(value))
                 }
+                body.push(Stmt.new(span, returned))
             }
             None => body = when_expr_stmt_list(&a.body, temps)
         }
@@ -248,16 +250,15 @@ fun arms_assigning(arms: &List<Arm>, temp: Sym, temps: &var WhenTemps): List<Arm
     var out = List.new<Arm>()
     while a in &arms {
         var body = List.new<Stmt>()
-        when (arm_value_expr(&a)) {
-            Some(vp) => {
-                a.arm_steps_into(temps, &var body)
-                hoist_when_values(vp, temps, &var body)
-                val span = unsafe { vp.span }
-                if is_never_produced(vp) {
-                    body.push(Stmt.new(span, StmtKind.Expression(vp)))
+        when (a.steps_and_value(temps, &var body)) {
+            Some(value) => {
+                val span = value.span
+                val assigned = if value.ty.is_never() {
+                    StmtKind.Expression(value)
                 } else {
-                    body.push(Stmt.new(span, StmtKind.Assign(temp, vp)))
+                    StmtKind.Assign(temp, value)
                 }
+                body.push(Stmt.new(span, assigned))
             }
             None => body = when_expr_stmt_list(&a.body, temps)
         }
@@ -266,9 +267,14 @@ fun arms_assigning(arms: &List<Arm>, temp: Sym, temps: &var WhenTemps): List<Arm
     return out
 }
 
-/// A value typed `Never`: the arm runs it and stores nothing.
-fun is_never_produced(vp: Ptr<Expr>): bool {
-    return unsafe { vp.ty }.is_never()
+/// The arm's steps into `body`, a `when` inside its value hoisted there too,
+/// then its own copy of the value: the arm stays its statement's. Null when
+/// the arm ends in no value.
+fun Arm.steps_and_value(temps: &var WhenTemps, body: &var List<Stmt>): Box<Expr>? {
+    val vp = arm_value_expr(&self) ?: return null
+    self.arm_steps_into(temps, body)
+    hoist_when_values(vp, temps, body)
+    return Option.Some(Box.new(unsafe { &*vp }.clone()))
 }
 
 mutating fun WhenTemps.fresh_when_temp(): Sym {
