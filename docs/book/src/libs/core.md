@@ -374,6 +374,26 @@ answer for an empty iterable without a seed from the caller:
 (3..3).sum()        // 0 — the additive identity
 ```
 
+### Asking an iterable
+
+Anything that implements `Iterable<T>` answers the same questions about what it
+yields. Each walks the elements in order and stops as soon as it knows the
+answer:
+
+```kflat
+(1..10).any(|x| x % 7 == 0)        // true
+(1..10).all(|x| x > 0)             // true
+(1..10).count(|x| x % 3 == 0)      // 3
+(10..20).position(|x| x % 4 == 0)  // 2, the index of 12
+(1..10).find(|x| *x > 6)           // 7
+(1..4).fold(10, |acc, x| acc - x)  // 4
+(1..5).contains(&4)                // true
+```
+
+`find` hands its test a borrow and returns a copy of the element; the others
+hand each element over by value. A `List` keeps its own versions, which read
+the same.
+
 `core.math_hosted` is the half that calls libm, so it needs a C library:
 
 ```kflat
