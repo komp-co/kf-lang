@@ -283,8 +283,7 @@ pub mutating fun Stmt.rc_insert_stmt(ctx: &var RcCtx): void {
         If(cond_ptr, then_body, else_body) => {
             // The condition can consume (`if !consume(a)`).
             mark_consumed_moves(unsafe { *cond_ptr }, ctx)
-            rc_insert_scope(&var then_body, ctx)
-            rc_insert_scope(&var else_body, ctx)
+            ctx.rc_insert_branches(&var then_body, &var else_body)
             // CONSTRAINT: a binder is a copy of the payload, so a list that
             // grew is moved back into place.
             self.kind = StmtKind.If(take<Box<Expr>>(cond_ptr), take<List<Stmt>>(then_body),
@@ -358,7 +357,12 @@ fun rc_insert_switch(subject: &Expr, arms: &var List<SwitchArm>, ctx: &var RcCtx
     name_declined_payloads(arms, subj_enum.as_str(), ctx)
     val consumes = subject.when_consumes_subject(arms, ctx)
     if consumes { ctx.rc_mark_moved(subj_name.clone()) }
+    val owners = ctx.frame_stack.clone()
+    val before = ctx.owned_heap_locals()
+    var arm_moves = List.new<List<String>>()
+    var moved = List.new<String>()
     while ai in 0..arms.size() {
+        ctx.frame_stack = owners.clone()
         val arm = arms.at_mut(ai)
         val _i = ctx.push_frame(false)
         var owned = List.new<String>()
@@ -378,5 +382,13 @@ fun rc_insert_switch(subject: &Expr, arms: &var List<SwitchArm>, ctx: &var RcCtx
         arm.guard_prelude = guard_temporaries(arm.guard.view(), ctx)
         rc_insert_stmts(&var arm.body, ctx)
         append_releases(&var arm.body, ctx.pop_frame())
+        val arm_moved = ctx.moved_past(&arm.body, &before)
+        add_moved(&var moved, &arm_moved)
+        arm_moves.push(arm_moved)
     }
+    while ai in 0..arms.size() {
+        release_kept(&var arms.at_mut(ai).body, arm_moves.at(ai), &moved)
+    }
+    ctx.frame_stack = owners
+    ctx.forget_moved(&moved)
 }

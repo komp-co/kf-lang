@@ -4,20 +4,19 @@ import alloc.list.*
 import kf_core.ast.Intrinsic
 import kf_core.ast.types.type_identity_display
 import kf_core.ast.expression.*
+import kf_lower.ownership.names_contains
 import kf_lower.ownership.param_lookup
 
-// After a move the source owns nothing, so no frame drops it.
+// After a move the source owns nothing, so no frame drops it; the frame that
+// owned it remembers, for a value assigned to it later.
 pub mutating fun RcCtx.rc_mark_moved(name: String): void {
-    var fresh_frames = List.new<RcFrame>()
-    while f in &self.frame_stack {
-        var kept = List.new<String>()
-        while hl in &f.heap_locals {
-            if !hl.equals(name) { kept.push(hl) }
+    while i in 0..self.frame_stack.size() {
+        val f = self.frame_stack.at_mut(i)
+        if names_contains(&f.heap_locals, name.as_str()) {
+            f.heap_locals = without_name(&f.heap_locals, name.as_str())
+            if !names_contains(&f.moved_locals, name.as_str()) { f.moved_locals.push(name.clone()) }
         }
-        fresh_frames.push(RcFrame { block_idx: f.block_idx, heap_locals: kept, is_loop: f.is_loop,
-            view_locals: f.view_locals.clone() })
     }
-    self.frame_stack = fresh_frames
 }
 
 // `x = y` with `y` a bare move-only variable moves it, so `y` is not dropped

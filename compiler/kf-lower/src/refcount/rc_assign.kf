@@ -20,6 +20,8 @@ import kf_lower.ownership.names_contains
 /// Everything an assignment needs to know before its RHS is marked.
 pub struct AssignOwnership {
     pub val owning_frame: int64
+    /// Where the binding was declared when its value had been moved out.
+    pub val moved_frame: int64
     pub val heap: bool
     pub val rhs_reads_target: bool
     /// The rhs owns itself, so it cannot alias the buffer about to be freed.
@@ -30,7 +32,9 @@ pub struct AssignOwnership {
 pub fun assign_ownership_before(name: Sym, rhs_ptr: Ptr<Expr>, ctx: &var RcCtx): AssignOwnership {
     val rhs = unsafe { *rhs_ptr }
     if !is_heap_ty_rc(rhs.ty) {
-        return AssignOwnership { owning_frame: 0 - 1, heap: false, rhs_reads_target: false, rhs_owned_fresh: false }
+        return AssignOwnership {
+            owning_frame: 0 - 1, moved_frame: 0 - 1, heap: false, rhs_reads_target: false, rhs_owned_fresh: false
+        }
     }
     // A rhs that merely mentions the binding (`p = joined(p.as_str(), x)`)
     // still reads it, so it cannot be dropped first.
@@ -45,7 +49,10 @@ pub fun assign_ownership_before(name: Sym, rhs_ptr: Ptr<Expr>, ctx: &var RcCtx):
         OwnedFresh => owned_fresh = true
         _ => { }
     }
-    return AssignOwnership { owning_frame: ctx.rc_owning_frame(name.as_str()), heap: true, rhs_reads_target: reads_target, rhs_owned_fresh: owned_fresh }
+    return AssignOwnership {
+        owning_frame: ctx.rc_owning_frame(name.as_str()), moved_frame: ctx.rc_moved_frame(name.as_str()), heap: true,
+        rhs_reads_target: reads_target, rhs_owned_fresh: owned_fresh
+    }
 }
 
 /// Returns the drop that must run before the assignment, if any.
@@ -53,8 +60,9 @@ pub fun assign_ownership_after(name: Sym, span: Span, before: &AssignOwnership, 
     var out = List.new<Stmt>()
     if !before.heap { return out }
     if before.owning_frame < 0 {
-        // Owned nothing (no initializer, or moved out): nothing to drop or
-        // restore.
+        // Moved out: nothing to drop, and the new value is owned where the
+        // binding was declared. No initializer: nothing either way.
+        if before.moved_frame >= 0 { ctx.restore_heap_local_at(before.moved_frame as uint64, name.as_string()) }
         return out
     }
     val still_owning = ctx.rc_owning_frame(name.as_str()) >= 0
