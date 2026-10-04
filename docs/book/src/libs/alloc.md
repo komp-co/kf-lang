@@ -33,6 +33,20 @@ s.clear()                 // keeps the buffer
 val empty = s.is_empty()
 ```
 
+A string literal kept as a `String` costs nothing: it points at the literal's
+bytes, which live for the whole run, and copies them into a buffer of its own
+only on its first write. So a `String` field filled from a literal allocates
+nothing, and neither does cloning it. `String.from` always copies, because the
+`str` it is given may not outlive it.
+
+```kflat
+struct Config { val name: String }
+
+val c = Config { name: "default" }   // no allocation
+var label: String = "count"          // none yet
+label.append(": 3")                  // copies "count", then appends
+```
+
 `String` implements `Drop` (frees the buffer), `Add` (`s1 + s2` produces a
 new owned `String`), `Equal` (byte-level comparison), `Hash`, and `Display`.
 
