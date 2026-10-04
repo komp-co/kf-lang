@@ -56,6 +56,12 @@ pub fun new_rc_ctx(fn_name: String): RcCtx {
     }
 }
 
+/// The module's parameter table and variant payloads, for every function.
+pub mutating fun RcCtx.use_tables(params: Ptr<List<ParamEntry>>, variants: Ptr<VariantPayloads>): void {
+    self.ptable = params
+    self.variants = variants
+}
+
 pub mutating fun RcCtx.push_frame(is_loop: bool): uint64 {
     val idx = self.block_counter
     self.block_counter = idx + 1
