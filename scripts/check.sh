@@ -341,6 +341,7 @@ fi
 
 if [ "$run_sweep" -eq 0 ]; then
     echo "OK: fixpoint"
+    report_times
     exit 0
 fi
 
