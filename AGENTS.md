@@ -70,8 +70,9 @@ no single-file mode.
   directory changes no import; adding a sub-directory creates a new module and
   touches every importer.
 - **File length ratchets on growth.** `scripts/check_file_sizes.sh` fails when
-  a file grows past its recorded size, or crosses 400 lines without a baseline
-  entry. Split it, or bless it with `--update` and say why in the commit.
+  a file grows past its recorded size, or crosses 350 lines without a baseline
+  entry. Imports and comment-only lines are not counted. Split it, or bless it
+  with `--update` and say why in the commit.
 - **Long lines ratchet too.** `scripts/check_line_lengths.sh` freezes the
   count of lines over 120 columns per file. Wrap instead: a trailing binary
   operator continues a line, and parameter and argument lists may span lines.
