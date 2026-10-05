@@ -75,6 +75,16 @@ $ komp check .
 src/main.kf:3:13: error: lambda parameter `x` needs a type annotation (its type is read from the `Call` bound on the parameter the lambda is passed to, and this position declares none)
 ```
 
+- **What a lambda returns is not checked against the body it is handed to.**
+  A generic body is checked once, against the `Call` bound, so where it uses
+  the lambda's result as a concrete type, nothing compares that type with what
+  the lambda at the call site returns ([#480]). `opt.and_then(|x| x + 1)`
+  fails in cc, naming a `from_residual` nobody wrote, because `and_then` wants
+  an option back. Check the lambda's result type yourself.
+- **A lambda that assigns a captured `var` fails in cc** when passed to a
+  `Call` bound, which shares its captures rather than lending them mutably
+  ([#479]). Return the new value, or use a loop.
+
 
 ## Arrays
 
@@ -216,3 +226,5 @@ not agree with it in every case.
 [#296]: https://github.com/komp-co/komp/issues/296
 [#297]: https://github.com/komp-co/komp/issues/297
 [#299]: https://github.com/komp-co/komp/issues/299
+[#479]: https://github.com/komp-co/komp/issues/479
+[#480]: https://github.com/komp-co/komp/issues/480

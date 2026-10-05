@@ -23,7 +23,7 @@ Every operator trait lives in `core.traits`, one module per group:
 | `core.traits.iter` | `Iterable`, `Iterator` | `while x in xs` |
 | `core.traits.deref` | `Deref`, `DerefMut` | `x.m()` through a view of `x` |
 | `core.traits.index` | `Index`, `IndexMut`, `IndexValue` | `a[i]` |
-| `core.traits.try` | `Try`, `FromResidual` | postfix `?` |
+| `core.traits.try` | `Try`, `FromResidual`, `residual_as`, `output_as` | postfix `?`, and combinators that pick their result type |
 | `core.display` | `Display` | `println`, string interpolation |
 
 You do not import any of them. A trait resolves by name wherever it is
@@ -492,10 +492,9 @@ ambiguous.
 
 ## Option and Result
 
-`Option<T>` and `Result<T, E>` are enum types in `core`. Their interface is
-the enum interface — construct with `Option.Some(x)` or `Option.None`, match
-with `when`. `is_some()` and `is_none()` are provided as convenience
-predicates.
+`Option<T>` and `Result<T, E>` are enum types in `core`. Construct with
+`Option.Some(x)` or `Option.None`, match with `when`, or ask with the methods
+below.
 
 An `Option` typed by its payload alone works — `val found = Option.Some(42)` is
 an `Option<int32>` and matches with `when`. An annotation is still worth writing
@@ -510,6 +509,75 @@ if found.is_some() {
     }
 }
 ```
+
+### Asking without a `when`
+
+| `Option<T>` | Answers |
+|---|---|
+| `is_some()`, `is_none()` | whether there is a payload |
+| `is_some_and(p)` | whether there is one and `p(&v)` holds |
+| `unwrap()`, or `x!!` | the payload, or an abort |
+| `unwrap_or(d)` | the payload, or `d` |
+| `unwrap_or_else(f)` | the payload, or `f()`; `f` runs only for a `None` |
+| `map(f)` | `Some(f(v))`, or `None` |
+| `and_then(f)` | `f(v)`, which is itself an option, or `None` |
+| `or_else(f)` | this option if it has a payload, else the option `f()` |
+| `filter(p)` | this option if `p(&v)` holds, else `None` |
+| `ok_or(e)` | `Ok(v)`, or `Err(e)` |
+
+| `Result<T, E>` | Answers |
+|---|---|
+| `is_ok()`, `is_err()` | which arm it is |
+| `unwrap()`, or `x!!` | the success payload, or an abort |
+| `unwrap_err()` | the error, or an abort |
+| `unwrap_or(d)` | the payload, or `d` |
+| `unwrap_or_else(f)` | the payload, or `f(e)` made from the error |
+| `map(f)` | `Ok(f(v))`; an `Err` passes through |
+| `map_err(f)` | `Err(f(e))`; an `Ok` passes through |
+| `and_then(f)` | `f(v)`, itself a `Result` with the same error; an `Err` passes through |
+| `or_else(f)` | `f(e)`, itself a `Result` with the same payload; an `Ok` passes through |
+| `ok()`, `err()` | the payload or the error as an option, dropping the other |
+
+`map` and `and_then` differ in what the lambda returns: `map` takes a plain
+value and wraps it, `and_then` takes an option (or a `Result`) and does not,
+so a chain of lookups that can each fail stays one level deep:
+
+```kflat
+fun lookup(id: int32): String? {
+    if id == 1 { return Option.Some(String.from("ada")) }
+    return null
+}
+
+fun half(x: int32): int32? {
+    if x % 2 == 0 { return x / 2 }
+    return null
+}
+
+fun main(): int32 {
+    val name = lookup(2).unwrap_or(String.from("anonymous"))
+    val length = lookup(1).map(|n| n.byte_len()) ?: 0
+    val quarter = half(12).and_then(|x| half(x))
+    val port = "80x".parse<uint16>().unwrap_or(8080)
+    val code = "42".parse<int32>().map_err(|e| "bad number: ${e}")
+    println("${name} ${length} ${quarter!!} ${port} ${code!!}")
+    return 0
+}
+```
+
+```console
+anonymous 3 3 8080 42
+```
+
+Each takes the option by borrow and copies the payload out, as `unwrap` does,
+so the original stays usable. A lambda runs at most once, and only on the arm
+that needs it. What a lambda returns is not yet checked against what the
+method wants ([#480]): `and_then` given a lambda that returns a plain value
+fails in cc.
+
+`and_then` and `or_else` rebuild the arm they do not hand the lambda through
+two prelude functions, which a combinator of your own can use too:
+`residual_as<O, R>(r)` is `O.from_residual(r)`, and `output_as<O, V>(v)` is
+`O.from_output(v)`.
 
 ### Succeeding with no value
 
@@ -1040,3 +1108,5 @@ Running out of memory stops the same way, from the runtime's C:
 [Writing tests](../tools/testing.md)). On failure they print the label and
 then stop with `Fault.AssertionFailed`, which ends the current test. Import
 `core.assert.*`.
+
+[#480]: https://github.com/komp-co/komp/issues/480
