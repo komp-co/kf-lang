@@ -10,6 +10,10 @@ extern "C" fun kf_str_byte_at(s: str, i: uint64): uint8
 /// An owning, move-only UTF-8 byte buffer. Named `String` in C as well, where
 /// alloc's native code takes and returns it.
 ///
+/// `cap == 0` means the bytes are not its own: a `String` made from a literal
+/// points at the literal, frees nothing, and copies the bytes into a buffer of
+/// its own on its first write.
+///
 /// `@lang("string")` makes it the language's string: what a literal becomes,
 /// what `${...}` renders into, and what a `str` converts up into.
 @no_mangle
@@ -37,6 +41,15 @@ impl From<str> for String {
 }
 
 impl String {
+    /// Points at `s` and owns nothing; what a string literal in a `String`
+    /// slot becomes.
+    ///
+    /// CONSTRAINT: `s` outlives the `String` and every clone of it, which a
+    /// literal does.
+    pub static fun from_literal(s: str): String {
+        return String { data: unsafe { s as Ptr<uint8> }, len: unsafe { kf_str_byte_len(s) }, cap: 0 }
+    }
+
     /// What `"${v}"` expands to.
     ///
     /// CONSTRAINT: static, so interpolation needs no import. CONSTRAINT:
@@ -69,6 +82,10 @@ impl String {
     mutating fun reserve_total(needed: uint64): void {
         if needed == 0 { panic_with(Fault.CapacityOverflow) }
         if needed <= self.cap { return }
+        if self.cap == 0 {
+            self.own_bytes(needed)
+            return
+        }
         var next_cap: uint64 = self.cap
         if next_cap == 0 { next_cap = 1 }
         while next_cap < needed {
@@ -113,7 +130,23 @@ impl String {
     /// Keeps the buffer.
     pub mutating fun clear(): void {
         self.len = 0
-        if self.cap > 0 { unsafe { *(self.data) = 0 as uint8 } }
+        if self.cap > 0 {
+            unsafe { *(self.data) = 0 as uint8 }
+        } else {
+            self.data = unsafe { "" as Ptr<uint8> }
+        }
+    }
+
+    /// The borrowed bytes copied into a buffer of `cap` bytes, at least the
+    /// text and its terminator.
+    mutating fun own_bytes(cap: uint64): void {
+        val data = unsafe { alloc_array<uint8>(cap) }
+        while i in 0..self.len {
+            unsafe { *(data + i) = *(self.data + i) }
+        }
+        unsafe { *(data + self.len) = 0 as uint8 }
+        self.data = data
+        self.cap = cap
     }
 }
 
@@ -166,7 +199,10 @@ impl Compare for String {
 
 // As a trait impl, so `String` satisfies a `Clone` bound.
 impl Clone for String {
-    fun clone(): String { return String.from(self.as_str()) }
+    fun clone(): String {
+        if self.cap == 0 { return String { data: self.data, len: self.len, cap: 0 } }
+        return String.from(self.as_str())
+    }
 }
 
 /// The empty string, which is what `@derive(Default)` gives a `String` field.
@@ -242,9 +278,5 @@ pub fun String.decode_at(i: uint64): Utf8Scalar { return self.as_str().decode_at
 @prelude
 pub mutating fun String.push(c: char): void {
     val e = c.encode_utf8()
-    if e.width == 0 { return }
-    self.push_byte(e.b0)
-    if e.width > 1 { self.push_byte(e.b1) }
-    if e.width > 2 { self.push_byte(e.b2) }
-    if e.width > 3 { self.push_byte(e.b3) }
+    while i in 0..e.width { self.push_byte(e.bytes[i]) }
 }

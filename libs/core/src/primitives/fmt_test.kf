@@ -27,16 +27,22 @@ impl Write for Counter {
     }
 }
 
-// One write per digit; nothing is built first.
-@test fun a_number_reaches_the_sink_one_digit_at_a_time(): void {
+@test fun a_number_reaches_the_sink_in_one_write(): void {
     var c = Counter { writes: 0, bytes: 0 }
     (405 as int64).display(&var c)
-    assert_eq(c.writes, 3 as uint64, "three digits, three writes")
-    assert_eq(c.bytes, 3 as uint64, "and three bytes")
+    assert_eq(c.writes, 1 as uint64, "the digits are written together")
+}
 
+@test fun a_number_writes_each_digit(): void {
+    var c = Counter { writes: 0, bytes: 0 }
+    (405 as int64).display(&var c)
+    assert_eq(c.bytes, 3 as uint64, "three digits, three bytes")
+}
+
+@test fun a_negative_number_writes_its_sign_first(): void {
     var neg = Counter { writes: 0, bytes: 0 }
     (-405 as int64).display(&var neg)
-    assert_eq(neg.writes, 4 as uint64, "the sign is its own write")
+    assert_eq(neg.writes, 2 as uint64, "the sign, then the digits")
 }
 
 // Short when short reads back as the same value, exact when it does not.
@@ -64,4 +70,40 @@ impl Write for Nested {
     (1.25).display(&var n)
     assert_eq(digest_matches(&n.outer, "1.25"), true, "the outer float survives the inner one")
     assert_eq(n.inner_ok, true, "the inner float renders")
+}
+
+@test fun hex_writes_lowercase_letters(): void {
+    var out = new_render_digest()
+    (255 as uint64).write_radix(&var out, 16, 0)
+    assert_eq(digest_matches(&out, "ff"), true, "255 is ff")
+}
+
+@test fun a_radix_pads_with_zeros_to_its_width(): void {
+    var out = new_render_digest()
+    (5 as uint64).write_radix(&var out, 2, 8)
+    assert_eq(digest_matches(&out, "00000101"), true, "eight binary digits")
+}
+
+@test fun a_negative_radix_number_signs_before_its_zeros(): void {
+    var out = new_render_digest()
+    (-10 as int64).write_radix(&var out, 16, 4)
+    assert_eq(digest_matches(&out, "-000a"), true, "sign, zeros, digits")
+}
+
+@test fun fixed_notation_rounds_to_its_decimals(): void {
+    var out = new_render_digest()
+    (2.0 / 3.0).write_fixed(&var out, 2)
+    assert_eq(digest_matches(&out, "0.67"), true, "two decimals, rounded")
+}
+
+@test fun fixed_notation_pads_its_decimals(): void {
+    var out = new_render_digest()
+    (2.5).write_fixed(&var out, 3)
+    assert_eq(digest_matches(&out, "2.500"), true, "zeros fill the decimals")
+}
+
+@test fun exponential_notation_scales_to_one_digit(): void {
+    var out = new_render_digest()
+    (1234.5).write_exponential(&var out, 2)
+    assert_eq(digest_matches(&out, "1.23e+03"), true, "one digit, two decimals, the power")
 }

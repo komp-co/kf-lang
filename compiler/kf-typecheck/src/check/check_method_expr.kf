@@ -283,9 +283,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
         }
         if !handled {
             val enum_name = try_get_enum_recv_name(recv_raw.kind, ctx)
-            val name_str = enum_name.as_str()
-            val is_empty = name_str.equals("")
-            if !is_empty {
+            if enum_name.as_str() != "" {
                 e.ty = check_variant_construction(enum_name, &var e.type_args, method_name, args, e.span, ctx)
                 e.is_variant_ctor = true
             } else {
@@ -295,6 +293,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                 receiver.narrow_open_text_receiver(method_name.as_str(), ctx)
                 receiver.narrow_open_array_receiver(method_name.as_str(), ctx)
                 receiver.lend_receiver_as_slice(method_name.as_str(), ctx)
+                receiver.lend_receiver_through_deref(method_name.as_str(), args.size(), ctx)
                 val recv = unsafe { *recv_ptr }
                 if dyn_or_extension_call(e, recv_ptr, &recv, method_name_sym, args, ctx) { return }
                 if e.call_through_field(recv_ptr, recv.ty, method_name_sym, args, ctx) { return }

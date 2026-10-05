@@ -250,32 +250,3 @@ uint32_t kf_float32_bits(float v) {
     return x.u;
 }
 
-/* Up to four encoded bytes as a borrowed, NUL-terminated `str`.
- *
- * `Display for char` writes its UTF-8 into a sink, and a sink takes a `str`.
- * Building one would mean an owned String for a character, which is the
- * allocation this tier is trying not to make -- and KFlat has no stack arrays
- * to put five bytes in, so the scratch space lives here.
- *
- * The encoding itself stays in KFlat (core.text.char_encode_utf8); this only
- * packs bytes it is handed, so there is one encoder and not two.
- *
- * CONSTRAINT: a returned pointer stays valid until the KF_UTF8_SLOTS-th call
- * after it, exactly like the float ring in core_hosted.c.
- */
-#define KF_UTF8_SLOTS 4
-
-static char kf_utf8_ring[KF_UTF8_SLOTS][5];
-static unsigned kf_utf8_next = 0;
-
-const char* kf_utf8_bytes_str(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint64_t width) {
-    char* slot = kf_utf8_ring[kf_utf8_next];
-    kf_utf8_next = (kf_utf8_next + 1) % KF_UTF8_SLOTS;
-    if (width > 4) width = 0;
-    if (width > 0) slot[0] = (char)b0;
-    if (width > 1) slot[1] = (char)b1;
-    if (width > 2) slot[2] = (char)b2;
-    if (width > 3) slot[3] = (char)b3;
-    slot[width] = '\0';
-    return slot;
-}

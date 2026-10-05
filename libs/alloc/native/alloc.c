@@ -50,6 +50,14 @@ static void kf_string_append(String* out, const char* suffix) {
     uintptr_t begin = (uintptr_t)out->data;
     bool aliases = source >= begin && source <= begin + out->len;
     if (aliases) offset = (size_t)(source - begin);
+    if (out->cap == 0) {
+        /* Borrowed bytes, a literal's, or none: owned before the first write. */
+        uint8_t* owned = (uint8_t*)kf_alloc(out->len + 1);
+        if (out->len > 0) __builtin_memcpy(owned, out->data, out->len);
+        owned[out->len] = 0;
+        out->data = owned;
+        out->cap = out->len + 1;
+    }
     if (needed > out->cap) {
         size_t cap = out->cap ? out->cap : 1;
         while (cap < needed) {
@@ -79,7 +87,7 @@ String __kf_v2_str_concat(String left, String right) {
 }
 
 void __kf_v2_string_drop(String value) {
-    kf_free(value.data);
+    if (value.cap > 0) kf_free(value.data);
 }
 
 String kf_str_slice_to_string(const char* value, uint64_t start, uint64_t end) {

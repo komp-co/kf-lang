@@ -64,3 +64,16 @@ pub fun char.digit_value(): uint32? {
     if !self.is_digit() { return null }
     return (self as uint32) - 48
 }
+
+/// The value of a digit of `radix`, 2 to 36: `0` to `9`, then `a` to `z` in
+/// either case. None for anything else, or a digit past the radix.
+@prelude
+pub fun char.digit_in(radix: uint32): uint32? {
+    val code = self as uint32
+    var value: uint32 = radix
+    if self.is_digit() { value = code - ('0' as uint32) }
+    if self.is_lower() { value = code - ('a' as uint32) + 10 }
+    if self.is_upper() { value = code - ('A' as uint32) + 10 }
+    if value >= radix { return null }
+    return value
+}

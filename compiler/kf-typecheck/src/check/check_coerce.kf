@@ -145,6 +145,7 @@ pub fun ty_from_mangle_frag(frag: String, span: Span, string_name: Sym): Type {
         "float32" => return Type { kind: TypeKind.Float32, provenance: Provenance.Inferred(span) }
         "float64" => return Type { kind: TypeKind.Float64, provenance: Provenance.Inferred(span) }
         "bool" => return Type.new_bool(span)
+        "char" => return Type { kind: TypeKind.Char, provenance: Provenance.Inferred(span) }
         _ => { }
     }
     // `List__String` elements dispatch through String; `List__str` elements

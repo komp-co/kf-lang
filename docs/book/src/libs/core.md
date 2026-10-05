@@ -235,11 +235,13 @@ normalization are not offered.
 ```kflat
 val e = c.encode_utf8()
 e.width        // 1-4, or 0 if the scalar is not encodable
-e.b0 … e.b3    // read `width` of them, in order
+e.bytes[0]     // read `width` of them, in order
+e.as_str()     // the same bytes as text
 ```
 
-Four fixed bytes rather than a list, because an encoded scalar is never longer
-than four and `core` has no allocator to reach for. `width` is 0 for a
+Five bytes in an array rather than a list, because an encoded scalar is never
+longer than four, the fifth ends the text, and `core` has no allocator to reach
+for. `width` is 0 for a
 surrogate or a value past the last code point — the two things a `char` can
 hold that UTF-8 cannot represent.
 
@@ -374,6 +376,26 @@ answer for an empty iterable without a seed from the caller:
 (3..3).sum()        // 0 — the additive identity
 ```
 
+### Asking an iterable
+
+Anything that implements `Iterable<T>` answers the same questions about what it
+yields. Each walks the elements in order and stops as soon as it knows the
+answer:
+
+```kflat
+(1..10).any(|x| x % 7 == 0)        // true
+(1..10).all(|x| x > 0)             // true
+(1..10).count(|x| x % 3 == 0)      // 3
+(10..20).position(|x| x % 4 == 0)  // 2, the index of 12
+(1..10).find(|x| *x > 6)           // 7
+(1..4).fold(10, |acc, x| acc - x)  // 4
+(1..5).contains(&4)                // true
+```
+
+`find` hands its test a borrow and returns a copy of the element; the others
+hand each element over by value. A `List` keeps its own versions, which read
+the same.
+
 `core.math_hosted` is the half that calls libm, so it needs a C library:
 
 ```kflat
@@ -394,6 +416,52 @@ disambiguates them, so the suffix went with the free function.
 
 The names say which base they use, because silently being the wrong base is
 a bad way to find out.
+
+## Numbers and text
+
+`parse` reads a number out of text. It allocates nothing, and a failure says
+why:
+
+```kflat
+"42".parse<int32>()                 // Ok(42)
+"-17".parse<int64>()                // Ok(-17)
+"300".parse<uint8>()                // Err(Overflow)
+"12x".parse<int32>()                // Err(InvalidDigit(2))
+uint32.from_text_radix("ff", 16)    // Ok(255)
+"6.02e23".parse<float64>()          // Ok(6.02e23)
+```
+
+The text must be the number and nothing else: no surrounding space and no
+`0x` prefix. A whole number takes an optional sign, and only a signed type
+takes `-`. `from_text_radix` reads radixes 2 to 36, with letters for digits
+past 9 in either case. A float reads decimal digits, a fraction and an
+exponent, or `inf`, `infinity` and `nan`. The C library reads its value, so it
+is correctly rounded. `ParseError` is `Empty`, `InvalidDigit(at)` or
+`Overflow`, and renders as a sentence:
+
+```kflat
+when ("12x".parse<int32>()) {
+    Ok(n) => println("${n}")
+    Err(why) => println("${why}")   // invalid digit at byte 2
+}
+```
+
+`parse<T>` asks `T.from_text`, so a type of your own joins by implementing
+`FromText`.
+
+In the other direction, `"${x}"` writes the shortest form that reads back as
+the same value. For a fixed form, write into any sink, or ask alloc for a
+`String`:
+
+```kflat
+(2.0 / 3.0).to_fixed(2)             // "0.67"
+(1234.5).to_exponential(2)          // "1.23e+03"
+(255 as uint64).to_radix(16)        // "ff"
+(5 as uint64).write_radix(&var out, 2, 8)   // writes 00000101
+```
+
+`write_fixed` and `write_exponential` take at most 100 decimals.
+`write_radix`'s last argument is the width to pad to with zeros.
 
 ## Duration, Date, and DateTime
 

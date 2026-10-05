@@ -202,7 +202,9 @@ fun Expr.visit(walk: &var LintWalk): void {
             if walk.numbers_checked() { check_magic_float(self.span, spelling.as_str(), walk) }
         }
         Binary(left, op, right) => {
-            check_bool_comparison(self.span, &op, left.kind_is_bool(), right.kind_is_bool(), walk)
+            if !left.may_be_optional() && !right.may_be_optional() {
+                check_bool_comparison(self.span, &op, left.kind_is_bool(), right.kind_is_bool(), walk)
+            }
             check_identity_op(self.span, &op, left.literal_int(), right.literal_int(), walk)
             check_self_comparison(self.span, &op, left.variable_id(), right.variable_id(), walk)
             check_len_zero(self.span, &op, left.is_length_call(), right.literal_int(), walk)
@@ -263,6 +265,15 @@ fun Expr.kind_is_bool(): int32 {
     return when (self.kind) {
         LitBool(value) => if value { 1 } else { 0 }
         _ => -1
+    }
+}
+
+/// A `when`, which `x?.f()` is: its value may be a `bool?`, and `== true`
+/// then says something the bare condition cannot.
+fun Expr.may_be_optional(): bool {
+    return when (self.kind) {
+        WhenExpr(_, _) => true
+        _ => false
     }
 }
 
