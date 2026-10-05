@@ -181,17 +181,11 @@ pub fun Type.method_is_mutating(method_name: String, arity: uint64, ctx: &var Ty
         Struct(n) => {
             // By its declared name: a field's type carries the canonical identity.
             val sname = self.kind.struct_name()
-            if name_starts_with(sname.clone(), "List__") {
-                // Synthesized container methods are not in the sig table.
-                // `at_mut` hands out `&var`, so it needs a mutable receiver.
-                return when m {
-                    "push" => true
-                    "set" => true
-                    "pop" => true
-                    "at_mut" => true
-                    _ => false
-                }
-            }
+            // Synthesized container methods are not in the sig table; the
+            // library's own (`clear`, `extend`, ...) are, and fall through.
+            // `at_mut` hands out `&var`, so it needs a mutable receiver.
+            val synthesized_mutating = ["push", "set", "pop", "at_mut"]
+            if name_starts_with(sname.clone(), "List__") && synthesized_mutating.contains(&m) { return true }
             if m.equals("call") {
                 val trait_name = call_trait_name(arity, true)
                 if unsafe { (*ctx.sigs).identity_implements_any(n, trait_name.as_str()) } { return true }
