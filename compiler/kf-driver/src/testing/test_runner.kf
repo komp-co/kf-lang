@@ -1,5 +1,6 @@
 // Data transforms for `komp test`: discover @test decls, generate the test
-// main, and parse it back. Orchestration is in multi_crate.kf.
+// main that hands them to core, and parse it back. Orchestration is in
+// multi_crate.kf.
 
 import alloc.list.*
 
@@ -52,136 +53,19 @@ fun import_seen(seen: &List<String>, target: str): bool {
     return false
 }
 
+/// The tests as an array of core's entries, run by core's `run_tests`.
+///
+/// CONSTRAINT: `args` is a placeholder `bool` until the released seed lets
+/// core declare `@test`; then the array is `annotated<test>()`.
 pub fun gen_test_main_src(names: List<String>): String {
-    val n_str = "${names.size()}"
-    var parts = List.new<String>()
-    // Only `runtime_println` is declared; test files import core.assert.
-    parts.push(String.from("extern \"C\" fun runtime_println(s: str): void\n"))
-    parts.push(String.from("extern \"C\" fun kf_test_report(passed: int32, failed: int32): void\n"))
-    parts.push(String.from("extern \"C\" fun kf_test_queue(name: str): void\n"))
-    parts.push(String.from("extern \"C\" fun kf_test_run_queued(): int32\n"))
-    parts.push(String.from("extern \"C\" fun kf_test_queued_count(): int32\n"))
-    parts.push(gen_filter_helpers())
-    parts.push(String.from("fun main(): int32 {\n"))
-    parts.push(String.from("    val __f = __test_filter()\n"))
-    parts.push(String.from("    val __one = __test_run_one()\n"))
-    // Child half: run one test here; the parent reads the exit code.
-    parts.push(gen_child_arms(names))
-    parts.push(String.from("    runtime_println(\"running "))
-    parts.push(n_str.clone())
-    parts.push(String.from(" tests\")\n"))
-    while nm in &names {
-        parts.push("    if __test_matches(__f, \"${nm}\") { kf_test_queue(\"${nm}\") }\n")
+    val entry = "AnnotatedFunction<bool, () -> void>"
+    var src = String.from("import core.testing.run_tests\n\nfun main(): int32 {\n")
+    src.append("    val tests: ${entry}[${names.size()}] = [\n")
+    while name in &names {
+        src.append("        ${entry} { name: \"${name}\", module: \"\", args: false, function: ${name} },\n")
     }
-    // Run in order, several at a time; the runtime prints each result.
-    parts.push(String.from("    val __failed = kf_test_run_queued()\n"))
-    parts.push(String.from("    val __ran = kf_test_queued_count() - __failed\n"))
-    parts.push(String.from("    runtime_println(\"\")\n"))
-    // A filter matching nothing fails; a crate with no tests passes.
-    parts.push(String.from("    if __test_filter_active(__f) && __ran == 0 && __failed == 0 {\n"))
-    parts.push(String.from("        runtime_println(\"test result: FAILED — the filter matched no test\")\n"))
-    parts.push(String.from("        return 1\n"))
-    parts.push(String.from("    }\n"))
-    parts.push(String.from("    kf_test_report(__ran, __failed)\n"))
-    parts.push(String.from("    if __failed > 0 { return 1 }\n"))
-    parts.push(String.from("    return 0\n}\n"))
-    return join_parts(parts)
-}
-
-/// `--run-test <name>` runs one test and returns, emitted before the parent
-/// loop so a child never spawns.
-fun gen_child_arms(names: List<String>): String {
-    var parts = List.new<String>()
-    parts.push(String.from("    if __test_filter_active(__one) {\n"))
-    while nm in &names {
-        parts.push(String.from("        if __test_is(__one, \""))
-        parts.push(nm.clone())
-        parts.push(String.from("\") {\n"))
-        parts.push(String.from("            "))
-        parts.push(nm.clone())
-        parts.push(String.from("()\n"))
-        parts.push(String.from("            return 0\n"))
-        parts.push(String.from("        }\n"))
-    }
-    // A stale name fails.
-    parts.push(String.from("        runtime_println(\"test result: FAILED — no such test\")\n"))
-    parts.push(String.from("        return 1\n"))
-    parts.push(String.from("    }\n"))
-    return join_parts(parts)
-}
-
-/// `--filter <substring>`, at run time so filtering needs no rebuild.
-fun gen_filter_helpers(): String {
-    var parts = List.new<String>()
-    parts.push(String.from("extern \"C\" fun kf_arg_count(): int32\n"))
-    parts.push(String.from("extern \"C\" fun kf_arg_get(i: int32): str\n"))
-    parts.push(String.from("extern \"C\" fun (s: str).byte_len(): uint64\n"))
-    parts.push(String.from("extern \"C\" fun (s: str).byte_at(i: uint64): uint8\n"))
-    parts.push(String.from("fun __test_filter(): str {\n"))
-    parts.push(String.from("    val n = kf_arg_count()\n"))
-    parts.push(String.from("    var i: int32 = 0\n"))
-    parts.push(String.from("    while i < n {\n"))
-    parts.push(String.from("        if kf_arg_get(i) == \"--filter\" {\n"))
-    parts.push(String.from("            if i + 1 < n { return kf_arg_get(i + 1) }\n"))
-    parts.push(String.from("        }\n"))
-    parts.push(String.from("        i = i + 1\n"))
-    parts.push(String.from("    }\n"))
-    parts.push(String.from("    return \"\"\n"))
-    parts.push(String.from("}\n"))
-    parts.push(String.from("fun __test_matches(needle: str, name: str): bool {\n"))
-    parts.push(String.from("    val nn = needle.byte_len()\n"))
-    parts.push(String.from("    if nn == 0 { return true }\n"))
-    parts.push(String.from("    val hn = name.byte_len()\n"))
-    parts.push(String.from("    if hn < nn { return false }\n"))
-    parts.push(String.from("    var i: uint64 = 0\n"))
-    parts.push(String.from("    while i + nn <= hn {\n"))
-    parts.push(String.from("        var hit = true\n"))
-    parts.push(String.from("        var j: uint64 = 0\n"))
-    parts.push(String.from("        while j < nn {\n"))
-    parts.push(String.from("            if name.byte_at(i + j) != needle.byte_at(j) { hit = false }\n"))
-    parts.push(String.from("            j = j + 1\n"))
-    parts.push(String.from("        }\n"))
-    parts.push(String.from("        if hit { return true }\n"))
-    parts.push(String.from("        i = i + 1\n"))
-    parts.push(String.from("    }\n"))
-    parts.push(String.from("    return false\n"))
-    parts.push(String.from("}\n"))
-    parts.push(String.from("fun __test_filter_active(f: str): bool {\n"))
-    parts.push(String.from("    return f.byte_len() > 0\n"))
-    parts.push(String.from("}\n"))
-    parts.push(String.from("fun __test_run_one(): str {\n"))
-    parts.push(String.from("    val n = kf_arg_count()\n"))
-    parts.push(String.from("    var i: int32 = 0\n"))
-    parts.push(String.from("    while i < n {\n"))
-    parts.push(String.from("        if kf_arg_get(i) == \"--run-test\" {\n"))
-    parts.push(String.from("            if i + 1 < n { return kf_arg_get(i + 1) }\n"))
-    parts.push(String.from("        }\n"))
-    parts.push(String.from("        i = i + 1\n"))
-    parts.push(String.from("    }\n"))
-    parts.push(String.from("    return \"\"\n"))
-    parts.push(String.from("}\n"))
-    // Exact, not substring.
-    parts.push(String.from("fun __test_is(want: str, name: str): bool {\n"))
-    parts.push(String.from("    val wn = want.byte_len()\n"))
-    parts.push(String.from("    if wn != name.byte_len() { return false }\n"))
-    parts.push(String.from("    var i: uint64 = 0\n"))
-    parts.push(String.from("    while i < wn {\n"))
-    parts.push(String.from("        if want.byte_at(i) != name.byte_at(i) { return false }\n"))
-    parts.push(String.from("        i = i + 1\n"))
-    parts.push(String.from("    }\n"))
-    parts.push(String.from("    return true\n"))
-    parts.push(String.from("}\n"))
-    return join_parts(parts)
-}
-
-// In place: `__kf_v2_str_concat` copies the accumulator per fragment and
-// frees none.
-fun join_parts(parts: List<String>): String {
-    var acc = ""
-    while part in &parts {
-        acc.append(part.as_str())
-    }
-    return acc
+    src.append("    ]\n    return run_tests(&tests)\n}\n")
+    return src
 }
 
 pub fun parse_test_main(src: str, smap: Ptr<SourceMap>): Module {
