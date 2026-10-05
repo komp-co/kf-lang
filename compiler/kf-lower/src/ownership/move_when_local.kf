@@ -8,7 +8,8 @@ import kf_core.ast.expression.Expr
 import kf_lower.refcount.stmts_move_out
 
 /// True when this subject is a local owned outright and some arm moves one
-/// of its binders out.
+/// of its binders out. A binder an arm writes through is a reference into
+/// the subject, passed on as itself, and never moves.
 /// CONSTRAINT: decided by `stmts_move_out`, the test rc_insert consumes the
 /// subject by, so the move check and the drops agree on who owns a payload.
 fun Expr.local_moved_out_by(arms: &List<Arm>, ctx: &var MoveCtx): bool {
@@ -25,7 +26,9 @@ fun Expr.local_moved_out_by(arms: &List<Arm>, ctx: &var MoveCtx): bool {
             Variant(_name, payloads) => {
                 while payload in &payloads {
                     when (payload.kind) {
-                        Identifier(binder) => if stmts_move_out(&arm.body, binder.as_str()) { return true }
+                        Identifier(binder) => if !arm.ref_binders.contains(&binder) && stmts_move_out(&arm.body, binder.as_str()) {
+                            return true
+                        }
                         _ => { }
                     }
                 }
