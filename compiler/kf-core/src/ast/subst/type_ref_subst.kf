@@ -2,6 +2,7 @@ import alloc.list.*
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
+import kf_core.ast.types.identity_display_of
 
 // Generic substitution and monomorphized-name mangling over TypeRef.
 // CONSTRAINT: in kf-core because kf-typecheck, upstream of kf-mono,
@@ -12,8 +13,10 @@ import kf_core.ast.types.TypeRefKind
 pub fun TypeRef.mangle_tyref(): String {
     when (self.kind) {
         Named(n, args) => {
-            if args.size() == 0 { return String.from(n.as_str()) }
-            var result = String.from(n.as_str())
+            // A ref written back from a checked type names it by identity
+            // (`crate::module::Name`); it is spelled as `Type.mangle_frag`
+            // spells that type, or one instance gets two names.
+            var result = identity_display_of(n.as_str())
             while item in &args {
                 result.append("__")
                 val arg = item.mangle_tyref()
