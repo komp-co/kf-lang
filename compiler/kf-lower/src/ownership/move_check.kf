@@ -206,6 +206,7 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
             // A fresh value is owned by nothing else, so a variant's binders
             // own what they bind rather than view it.
             val subj_fresh = subj.is_fresh_move_only_value(ctx)
+            val subj_consumed = subj.local_moved_out_by(&arms, ctx)
             val moved_before = ctx.snapshot_moved()
             val owned_before = ctx.snapshot_owned()
             val borrowed_before = ctx.snapshot_borrowed()
@@ -218,7 +219,7 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
                 ctx.restore_owned(owned_before)
                 ctx.restore_borrowed(borrowed_before)
                 declare_pattern_binds(arm.pattern, ctx)
-                val owns_payloads = subj_fresh && arm.pattern.is_flat_variant()
+                val owns_payloads = (subj_fresh || subj_consumed) && arm.pattern.is_flat_variant()
                 if subj_mo && !owns_payloads { declare_pattern_binds_borrowed(arm.pattern, ctx) }
                 when (arm.guard) {
                     Some(guard) => move_check_expr_borrow(unsafe { &var *guard }, ctx)
@@ -232,6 +233,7 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
                 }
             }
             ctx.moved = unioned_moved
+            if subj_consumed { subj.mark_subject_moved(subj_ptr, ctx) }
         }
         Switch(_, _) => return
         Drop(_) => return

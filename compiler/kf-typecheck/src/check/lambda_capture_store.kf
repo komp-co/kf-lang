@@ -74,7 +74,7 @@ pub fun List<Stmt>.pin_assigned_captures(captures: &var List<LambdaCapture>): vo
         when (stmt.kind) {
             Assign(target, _value) => {
                 val i = capture_index(captures, target.as_str())
-                if i < captures.size() { unsafe { captures.at_mut(i).mode = CaptureMode.Mutable } }
+                if i < captures.size() { captures.at_mut(i).mode = CaptureMode.Mutable }
             }
             If(_cond, then_body, else_body) => {
                 then_body.pin_assigned_captures(captures)
