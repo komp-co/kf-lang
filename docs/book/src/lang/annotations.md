@@ -1,8 +1,8 @@
 # Annotations
 
 Annotations start with `@` and apply to the declaration that follows. KFlat
-has `@test`, `@test_disabled`, `@allow(...)`, `@derive(...)`, `@no_mangle`,
-`@lang(...)` and `@prelude` built in, and a crate may
+has `@allow(...)`, `@derive(...)`, `@no_mangle`, `@lang(...)` and `@prelude`
+built in, core declares [`@test` and `@test_disabled`](#test), and a crate may
 [declare its own](#declaring-an-annotation). Any other annotation is an error.
 
 A declaration may carry several, one per line.
@@ -378,7 +378,8 @@ The query only reaches the crate it is written in. A `measure` function
 calling `annotated<bench>()` sees `measure`'s functions, not the ones of the
 crate that imported `bench`.
 
-The name of a built-in annotation cannot be declared. `annotation`, `on`
+The name of a built-in annotation cannot be declared, nor can `test` or
+`test_disabled` outside the standard library. `annotation`, `on`
 and `any` are not reserved words; they are read this way only in an
 annotation's declaration.
 
@@ -393,11 +394,14 @@ fun addition_works(): void {
 }
 ```
 
-It may only annotate a function. See [Writing tests](../tools/testing.md) for
-running and filtering tests.
+Core declares it as `annotation test on () -> void`, and every file sees it
+without an import. A test main is `run_tests(&annotated<test>())`, core's
+[runner](../libs/core.md#running-tests) over the crate's tests. See
+[Writing tests](../tools/testing.md) for running and filtering tests.
 
-`@test_disabled` also annotates a function, but leaves it out of `komp test`.
-It is used by the compiler's test suite for disabled integration tests.
+`@test_disabled` also marks a `() -> void` function, but leaves it out of
+`komp test`. It is used by the compiler's test suite for disabled
+integration tests.
 
 ## @derive
 

@@ -142,11 +142,8 @@ fun CompileUnit.compile_crate_mode(artifacts: str, is_bin_root: bool, include_te
         diagnostic_index = diagnostic_index + 1
     }
     if include_tests {
-        val names = collect_test_names(modules)
         rename_main_decls(&var modules)
-        var main_src = gen_test_main_imports(&modules)
-        main_src.append(gen_test_main_src(names).as_str())
-        var main_module = parse_test_main(main_src.as_str(), smap)
+        var main_module = parse_test_main(gen_test_main_src().as_str(), smap)
         stamp_module_owner(&var main_module, new_crate_id(self.name.as_str()))
         modules.push(main_module)
     }
