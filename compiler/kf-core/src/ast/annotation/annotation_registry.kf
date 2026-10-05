@@ -86,6 +86,12 @@ pub fun lookup_annotation(kind: str): AnnotationInfo {
     return AnnotationInfo { name: "", target: AnnotationTarget.Any, takes_args: false }
 }
 
+/// A built-in the standard library may also declare: a use binds to the
+/// declaration when one is visible, and is the built-in otherwise.
+pub fun annotation_is_declarable(kind: str): bool {
+    return kind == "test" || kind == "test_disabled"
+}
+
 pub fun annotation_is_known(kind: str): bool {
     return lookup_annotation(kind).name.as_str().byte_len() > 0
 }
