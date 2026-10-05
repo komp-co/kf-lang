@@ -61,12 +61,20 @@ fun Type.register_returned_instance(span: Span, ctx: &var TypeCtx): void {
 /// names spell themselves; `kf__ref__String` is the structural mangle of
 /// `&String`, decoded with `ref_key_inner`, the inverse of `mangle_type_frag`.
 /// The marker is reserved-prefixed and carries mutability, so `&var T` reads
-/// back as one. `Ptr__X` and `Box__X` resolve as builtins.
+/// back as one, and `Ptr__X` and `Box__X` as the builtin around `X`.
 fun String.tref_from_frag(span: Span, ctx: &var TypeCtx): TypeRef {
     val function = ctx.fn_type_for(self.as_str())
     if function != null { return function!!.type_to_type_ref(span) }
     val value = value_from_frag(self.as_str())
     if value != null { return TypeRef.new(span, TypeRefKind.Value(value ?: 0)) }
+    val builtins = ["Ptr", "Box"]
+    while builtin in &builtins {
+        if self.as_str().starts_with("${builtin}__") {
+            var pointee = List.new<TypeRef>()
+            pointee.push(self.as_str().substring(5, self.byte_len()).tref_from_frag(span, ctx))
+            return TypeRef.new(span, TypeRefKind.Named(intern(builtin), pointee))
+        }
+    }
     val named = TypeRef.new(span, TypeRefKind.Named(intern(self.as_str()), List.new<TypeRef>()))
     if unsafe { (*ctx.sigs).find_struct(self.as_str(), ctx.owner_crate) }.is_some() { return named }
     if unsafe { (*ctx.sigs).find_enum(self.as_str(), ctx.owner_crate) }.is_some() { return named }
