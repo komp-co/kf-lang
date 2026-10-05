@@ -16,6 +16,18 @@ fun range_prec(): int32 {
     return 0
 }
 
+/// `is` binds as tightly as `==`: `a is Circle && b` tests, then joins.
+fun variant_test_prec(): int32 {
+    return 6
+}
+
+/// An arm body yielding `value`.
+fun bool_body(span: Span, value: bool): List<Stmt> {
+    var body = List.new<Stmt>()
+    body.push(Stmt.new(span, StmtKind.Expression(Box.new(Expr.new(span, ExprKind.LitBool(value))))))
+    return body
+}
+
 fun lhs_ptr_span(p: Ptr<Expr>): Span {
     return unsafe { p.span }
 }
@@ -145,6 +157,8 @@ impl Parser {
                 is_op(self.peek(), Operator.DotDotEq)
             if opens_range && range_prec() >= min_prec {
                 lhs = self.parse_range_rest(lhs, is_op(self.peek(), Operator.DotDotEq))
+            } else if self.peek().is_word("is") && variant_test_prec() >= min_prec {
+                lhs = self.parse_variant_test(lhs)
             } else {
                 val op_opt = self.peek_binop()
                 when (op_opt) {
@@ -177,6 +191,19 @@ impl Parser {
             }
         }
         return lhs
+    }
+
+    /// `x is Circle` is `when (x) { Circle => true  _ => false }`: the
+    /// variant's tag, whatever its payloads, with nothing bound. Any arm
+    /// pattern may follow `is`.
+    mutating fun parse_variant_test(subject: Expr): Expr {
+        self.advance() // consume `is`
+        val pattern = self.parse_pattern()
+        val span = subject.span.merge(pattern.span)
+        var arms = List.new<Arm>()
+        arms.push(new_arm(span, Box.new(pattern), null, bool_body(span, true)))
+        arms.push(new_arm(span, Box.new(new_pattern(span, PatternKind.Wildcard)), null, bool_body(span, false)))
+        return Expr.new(span, ExprKind.WhenExpr(Box.new(subject), arms))
     }
 
     /// `a..b` is `range(a, b, 1)`, `a..=b` is `range_inclusive(a, b, 1)`. A

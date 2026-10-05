@@ -226,6 +226,15 @@ pub fun Token.is_keyword(kw: Keyword): bool {
     }
 }
 
+/// An identifier spelled `word`: a contextual keyword, like `is` after an
+/// operand, which stays an ordinary name everywhere else.
+pub fun Token.is_word(word: str): bool {
+    return when (self.kind) {
+        Identifier(n) => n.as_str() == word
+        _ => false
+    }
+}
+
 pub fun Token.is_identifier(): bool {
     return when (self.kind) {
         Identifier(_) => true

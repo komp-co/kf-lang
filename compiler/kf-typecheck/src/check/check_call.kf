@@ -327,7 +327,9 @@ fun enum_is_generic(enum_name: String, ctx: &var TypeCtx): bool {
 fun emit_ctor_arity_err(enum_name: String, variant: String, want: uint64, got: uint64, span: Span, ctx: &var TypeCtx): void {
     val want_s = "${want}"
     val got_s = "${got}"
-    val msg = "variant `${enum_name.as_str()}.${variant.as_str()}` takes ${want_s.as_str()} payload(s), found ${got_s.as_str()}"
+    var msg = "variant `${enum_name.as_str()}.${variant.as_str()}` takes ${want_s.as_str()} payload(s), found ${got_s.as_str()}"
+    // A bare payload variant is most often written to compare against.
+    if got == 0 { msg.append("; to ask whether a value is this variant, write `value is ${variant}`") }
     ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
 }
 

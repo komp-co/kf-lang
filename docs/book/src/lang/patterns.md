@@ -155,6 +155,44 @@ $ komp check .
 src/main.kf:4:9: error: an alternative in `A | B` cannot bind a name; split the arm, or bind the whole subject with a guard
 ```
 
+## Testing one variant: `is`
+
+`value is Pattern` asks whether a `when` arm with that pattern would match,
+and is a `bool`. A bare variant matches whatever its payloads hold, so
+`s is Circle` needs no `Circle(_)`; a written pattern narrows it like an arm
+does. Nothing is bound, so write `_` where an arm would name a payload.
+
+```kflat
+enum Shape {
+    Circle(int32)
+    Rect(int32, int32)
+    Empty
+}
+
+fun describe(s: &Shape): String {
+    if s is Empty { return String.from("nothing") }
+    if s is Rect(_, 0) || s is Rect(0, _) { return String.from("a flat rectangle") }
+    return String.from("a shape")
+}
+
+fun main(): int32 {
+    val shapes = [Shape.Circle(2), Shape.Rect(3, 0), Shape.Empty]
+    val round = shapes.count(|s| s is Circle)
+    println("${round} round, then ${describe(&shapes[1])}")
+    return 0
+}
+```
+
+```console
+1 round, then a flat rectangle
+```
+
+`is` binds as tightly as `==`, so `a is Circle && b` tests before it joins,
+and `!(s is Empty)` needs its parentheses. A name after `is` that is not one
+of the enum's variants is an error, where in an arm it would be a binder
+matching everything. `is` is a keyword only after an operand: a local may
+still be called `is`.
+
 ## Unreachable arms
 
 An arm whose every value an earlier unguarded arm already matches is
