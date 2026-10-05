@@ -63,9 +63,15 @@ seed_build() {
     tar -xzf "$seed_file" -C "$1/seed" --strip-components=1 || return 1
     # Compile, then link: ccache caches a `-c` compile, never one that also links.
     # From inside the directory, so its random name stays out of the hashed command line.
-    for seed_part in komp kflatc; do
-        (cd "$1/seed" && "${CC:-cc}" ${CFLAGS:--O2} -c -o "$seed_part.o" "$seed_part.c") || return 1
-    done
+    # Side by side: each cc is single-threaded.
+    (cd "$1/seed" && "${CC:-cc}" ${CFLAGS:--O2} -c -o komp.o komp.c) &
+    seed_komp_cc=$!
+    (cd "$1/seed" && "${CC:-cc}" ${CFLAGS:--O2} -c -o kflatc.o kflatc.c) &
+    seed_kflatc_cc=$!
+    seed_cc_status=0
+    wait "$seed_komp_cc" || seed_cc_status=1
+    wait "$seed_kflatc_cc" || seed_cc_status=1
+    [ "$seed_cc_status" -eq 0 ] || return 1
     "${CC:-cc}" ${CFLAGS:--O2} -o "$1/komp0" "$1/seed/komp.o" || return 1
     "${CC:-cc}" ${CFLAGS:--O2} -o "$1/kflatc" "$1/seed/kflatc.o" || return 1
 }

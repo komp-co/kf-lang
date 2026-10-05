@@ -56,6 +56,14 @@ KF_TIMES=""
 KF_PHASE=""
 KF_PHASE_T0=0
 KF_RUN_T0="$(date +%s)"
+# Lines repeated in one GitHub notice at the end, which reads back through the
+# API where a job's log may not.
+KF_NOTE=""
+note() {
+    printf '%s\n' "$*"
+    KF_NOTE="$KF_NOTE$*
+"
+}
 
 phase() {
     kf_now="$(date +%s)"
@@ -77,12 +85,17 @@ report_times() {
     fi
     echo ""
     echo "--- where the time went ---"
-    printf '%s' "$KF_TIMES" | sort -rn | while read -r secs name; do
+    kf_table="$(printf '%s' "$KF_TIMES" | sort -rn | while read -r secs name; do
         [ -n "$name" ] || continue
         printf '  %5ss  %s\n' "$secs" "$name"
-    done
-    printf '  %5ss  TOTAL\n' "$((kf_now - KF_RUN_T0))"
+    done)"
+    note "$kf_table"
+    note "$(printf '  %5ss  TOTAL' "$((kf_now - KF_RUN_T0))")"
     report_ccache
+    if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+        printf '::notice title=where the time went::%s\n' \
+            "$(printf '%s' "$KF_NOTE" | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
+    fi
 }
 
 # The cache hit rate beside the timings. A miss storm is a legitimate
@@ -95,7 +108,7 @@ report_ccache() {
     [ -n "$kf_hit" ] || return 0
     set -- $kf_hit
     if [ "${2:-0}" -gt 0 ]; then
-        echo "  ccache  $1/$2 hits ($(( $1 * 100 / $2 ))%)"
+        note "  ccache  $1/$2 hits ($(( $1 * 100 / $2 ))%)"
     fi
 }
 
@@ -141,7 +154,8 @@ CHECK_CLI="${CHECK_CLI:-1}"
 MEM_BUDGET_MB="${MEM_BUDGET_MB:-2560}"
 # How many crates the sweep runs at once; 1 is serial. Past four the crates
 # wait on each other's dependencies more than on the cores.
-cores="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)"
+all_cores="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)"
+cores="$all_cores"
 [ "$cores" -le 4 ] 2>/dev/null || cores=4
 SWEEP_JOBS="${SWEEP_JOBS:-$cores}"
 
@@ -310,6 +324,8 @@ else
         exit 1
     fi
     grep -E '^(OK|NOTE):' "$WORK/fixpoint.log" || true
+    kf_fixpoint_times="$(grep -E '^TIME:' "$WORK/fixpoint.log" || true)"
+    [ -z "$kf_fixpoint_times" ] || note "$kf_fixpoint_times"
     if [ "${KF_GATE_CACHE:-1}" != "0" ]; then
         mkdir -p "$fixpoint_dir"
         if [ -n "${KOMP_PUBLISH:-}" ]; then
@@ -325,6 +341,7 @@ fi
 
 if [ "$run_sweep" -eq 0 ]; then
     echo "OK: fixpoint"
+    report_times
     exit 0
 fi
 
@@ -1289,6 +1306,16 @@ sh "$ROOT/scripts/check_asan.sh" "$WORK/komp" "$WORK" || exit 1
 fi   # CHECK_CLI
 
 phase "sweep"
+# The cores the crates leave idle go to each crate's tests, which run one
+# process per test: a sweep of kf-integration alone runs four at a time on
+# four cores, not the runtime's default two.
+crate_count="$(echo $CRATES | wc -w)"
+crate_slots=$(( crate_count < SWEEP_JOBS ? crate_count : SWEEP_JOBS ))
+[ "$crate_slots" -ge 1 ] || crate_slots=1
+test_jobs=$(( all_cores / crate_slots ))
+[ "$test_jobs" -ge 2 ] || test_jobs=2
+export KOMP_TEST_JOBS="${KOMP_TEST_JOBS:-$test_jobs}"
+
 failed=""
 overbudget=""
 notests=""
@@ -1379,13 +1406,20 @@ c="$1"; log="$2"; scratch="$3"; WORK="$4"
 rm -rf "$scratch"
 mkdir -p "$scratch"
 t0="$(date +%s)"
-rc=0
-KOMP_SCRATCH_ROOT="$scratch" "$WORK/maxrss" "$WORK/komp" -q test "$c" > "$log" 2>&1 || rc=$?
-echo "$rc" > "$log.rc"
+rm -f "$log.rc" "$log.run"
+# The binary's "running N tests" line splits the build from the run.
+{ KOMP_SCRATCH_ROOT="$scratch" "$WORK/maxrss" "$WORK/komp" -q test "$c" 2>&1 || echo "$?" > "$log.rc"; } |
+    while IFS= read -r line; do
+        case "$line" in "running "*" tests") date +%s > "$log.run" ;; esac
+        printf '%s\n' "$line"
+    done > "$log"
+[ -f "$log.rc" ] || echo 0 > "$log.rc"
 lrc=0
 KOMP_SCRATCH_ROOT="$scratch" "$WORK/komp" lint --deny-warnings "$c" > "$log.lint" 2>&1 || lrc=$?
 echo "$lrc" > "$log.lint.rc"
-echo "$(( $(date +%s) - t0 ))" > "$log.secs"
+t1="$(date +%s)"
+echo "$(( t1 - t0 ))" > "$log.secs"
+[ ! -f "$log.run" ] || echo "$(( $(cat "$log.run") - t0 ))s to build" > "$log.split"
 SWEEP_ONE
 
 # The slowest crates start first, so the pool does not end on one of them
@@ -1419,7 +1453,8 @@ for c in $CRATES; do
         passed="$(grep -oE '[0-9]+ passed' "$log" | tail -1)"
         secs="$(cat "$log.secs" 2>/dev/null || echo '?')"
         kflat="$(cat "$(kflat_state "$(kflat_home "$c")")" 2>/dev/null || echo cold)"
-        echo "  PASS  $c  $passed  peak ${rss_mb}MB  ${secs}s  kflat=$kflat"
+        split="$(cat "$log.split" 2>/dev/null || true)"
+        note "  PASS  $c  $passed  peak ${rss_mb}MB  ${secs}s${split:+ ($split)}  kflat=$kflat"
         # Zero tests is a failure: it hides "cannot run anything".
         case "$passed" in
             "0 passed"|"") notests="$notests $c" ;;

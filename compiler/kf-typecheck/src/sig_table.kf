@@ -224,7 +224,7 @@ pub struct DeclaredAnnotation {
 
 /// A declaration of the crate being compiled carrying a declared
 /// annotation, which indexes `SigTable.annotations`.
-pub struct AnnotatedItem {
+pub struct AnnotationUse {
     pub val annotation: uint64
     /// The symbol a value names: `length`, or `Counter_get` for a method.
     pub val item: Sym
@@ -308,7 +308,7 @@ pub struct SigTable {
     pub var fn_types: List<Type>
     pub var annotations: List<DeclaredAnnotation>
     /// In declaration order, which is the order `annotated` lists.
-    pub var annotated: List<AnnotatedItem>
+    pub var annotated: List<AnnotationUse>
     pub var constants: List<ConstantValue>
     /// `internal` functions and values, by `module name`.
     pub var internal_names: HashMap<String, bool>
@@ -359,7 +359,7 @@ pub fun new_sig_table(): SigTable {
         untyped_recv_methods: List.new<Sym>(),
         fn_types: List.new<Type>(),
         annotations: List.new<DeclaredAnnotation>(),
-        annotated: List.new<AnnotatedItem>(),
+        annotated: List.new<AnnotationUse>(),
         constants: List.new<ConstantValue>(),
         internal_names: HashMap.new<String, bool>()
     }
