@@ -150,6 +150,12 @@ impl String {
     }
 }
 
+/// A `String` reads as its text: every `str` method is a `String` method.
+impl Deref for String {
+    type Target = str
+    fun deref(): str { return self.as_str() }
+}
+
 impl Drop for String {
     fun drop(): void {
         if self.cap > 0 {
@@ -262,16 +268,6 @@ pub fun String.count_of(needle: str): uint64 {
 /// yet moved across.
 @prelude
 pub fun String.byte(i: uint64): uint8 { return self.as_str().byte_at_in(self.byte_len(), i) }
-
-// The character half, likewise.
-@prelude
-pub fun String.chars(): CharIter { return self.as_str().chars() }
-@prelude
-pub fun String.char_count(): uint64 { return self.as_str().char_count() }
-@prelude
-pub fun String.char_at(i: uint64): char { return self.as_str().char_at(i) }
-@prelude
-pub fun String.decode_at(i: uint64): Utf8Scalar { return self.as_str().decode_at(i) }
 
 /// Appends one character as UTF-8. A scalar UTF-8 cannot represent appends
 /// nothing, not U+FFFD.

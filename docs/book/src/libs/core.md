@@ -21,6 +21,7 @@ Every operator trait lives in `core.traits`, one module per group:
 | `core.traits.convert` | `From` | `T.from(x)` |
 | `core.traits.call` | `Call0`-`Call3`, `CallMut0`-`CallMut3` | Lambda invocation |
 | `core.traits.iter` | `Iterable`, `Iterator` | `while x in xs` |
+| `core.traits.deref` | `Deref`, `DerefMut` | `x.m()` through a view of `x` |
 | `core.traits.index` | `Index`, `IndexMut`, `IndexValue` | `a[i]` |
 | `core.traits.try` | `Try`, `FromResidual` | postfix `?` |
 | `core.display` | `Display` | `println`, string interpolation |
@@ -393,8 +394,8 @@ answer:
 ```
 
 `find` hands its test a borrow and returns a copy of the element; the others
-hand each element over by value. A `List` keeps its own versions, which read
-the same.
+hand each element over by value. A `List` and an array are `Iterable`, so the
+same calls work on them.
 
 `core.math_hosted` is the half that calls libm, so it needs a C library:
 
