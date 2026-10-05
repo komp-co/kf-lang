@@ -53,6 +53,7 @@ mutating fun Expr.lambda_type(ctx: &var TypeCtx): Type {
             val ret = lambda_body_type(&params, &captures, &body, span, ctx)
             if ret.is_poison() { return Type.new_poison() }
             classify_captures(&body, &var captures, ctx)
+            body.pin_assigned_captures(&var captures)
             if stored_local && !own_stored_captures(&var captures, span, ctx) { return Type.new_poison() }
             val ret_ref = ret.type_to_type_ref(span)
             if ret_ref.type_ref_is_poison() {
@@ -64,6 +65,8 @@ mutating fun Expr.lambda_type(ctx: &var TypeCtx): Type {
             // Captured names become field reads.
             var rewrite_locals = List.new<String>()
             rewrite_captures_in_stmts(&body, &captures, span, &var rewrite_locals)
+            var store_locals = List.new<String>()
+            body.store_assigned_captures(&captures, span, &var store_locals)
             val name = ctx.fresh_lambda_name()
             if stored_local { unsafe { ctx.sigs.stored_lambda_types.push(intern(name.as_str())) } }
             val mutating_call = capture_needs_mutating_call(&captures)
