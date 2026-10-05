@@ -54,6 +54,18 @@ impl DerefMut for Holder {
     mutating fun deref_mut(): &var Counter { return &var self.inner }
 }
 
+trait Ranked {
+    fun rank(): int32
+}
+
+impl Ranked for Counter {
+    fun rank(): int32 { return 1 }
+}
+
+impl Ranked for Holder {
+    fun rank(): int32 { return 2 }
+}
+
 struct Outer {
     val holder: Holder
 }
@@ -150,4 +162,16 @@ fun deref_mut_lends_a_mutable_argument(): void {
     bump(&var h)
     return h.total()""")
     assert_eq(code, 4, "`&var Holder` fills a `&var Counter` slot")
+}
+
+@test
+fun deref_leaves_a_trait_method_of_the_receiver_first(): void {
+    val code = run_through_deref("    val h = Holder { inner: Counter { hits: 5 } }\n    return h.rank()")
+    assert_eq(code, 2, "Holder's `Ranked` impl, not Counter's")
+}
+
+@test
+fun deref_leaves_clone_to_the_receiver(): void {
+    val code = run_through_deref("    val h = Holder { inner: Counter { hits: 5 } }\n    return h.clone().inner.hits")
+    assert_eq(code, 5, "a Holder clones as a Holder")
 }

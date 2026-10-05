@@ -213,7 +213,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
     }
     expect_lambda_args(receiver_ty.clone(), method_name.clone(), args, &var arg_tys, _span, ctx)
     if receiver_ty.is_poison() {
-        record_untyped_receiver(_span, method_name.as_str(), ctx.sigs)
+        if !ctx.quiet { record_untyped_receiver(_span, method_name.as_str(), ctx.sigs) }
         return Type.new_poison()
     }
     // Through a pointer or reference to the pointee.
