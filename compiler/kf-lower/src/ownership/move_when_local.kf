@@ -26,8 +26,9 @@ fun Expr.local_moved_out_by(arms: &List<Arm>, ctx: &var MoveCtx): bool {
             Variant(_name, payloads) => {
                 while payload in &payloads {
                     when (payload.kind) {
-                        Identifier(binder) => if !arm.ref_binders.contains(&binder) && stmts_move_out(&arm.body, binder.as_str()) {
-                            return true
+                        Identifier(binder) => {
+                            val lent = arm.ref_binders.contains(&binder)
+                            if !lent && stmts_move_out(&arm.body, binder.as_str()) { return true }
                         }
                         _ => { }
                     }
