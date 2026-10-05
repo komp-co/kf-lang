@@ -357,10 +357,12 @@ mutating fun Module.collect_generic_param_names(): List<String> {
 }
 
 /// An `Array<T, N>` instance holds its elements in one field, `T items[N]`,
-/// which no struct can declare.
+/// which no struct can declare. `Array<T, 0>` has none, since C has no
+/// zero-length array.
 mutating fun TopDecl.add_array_storage(args: &List<TypeRef>): void {
     if args.size() != 2 { return }
     val length = args.at(1).written_value() ?: return
+    if length == 0 { return }
     val storage = TypeRef.new(self.span, TypeRefKind.Array(Box.new(args.at(0).clone()), length as uint64))
     when (self.kind) {
         Struct(fields, _is_pub) => {
