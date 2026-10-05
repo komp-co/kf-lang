@@ -35,3 +35,16 @@ pub trait Try {
 pub trait FromResidual<R> {
     static fun from_residual(r: R): Self
 }
+
+/// `r` as the try type `O`: how a combinator whose lambda picks the result
+/// type, like `and_then`, rebuilds the case it never hands the lambda.
+@prelude
+pub fun residual_as<O: FromResidual<R>, R>(r: R): O {
+    return O.from_residual(r)
+}
+
+/// `v` as the try type `O`: the carried-on counterpart of `residual_as`.
+@prelude
+pub fun output_as<O: Try, V>(v: V): O {
+    return O.from_output(v)
+}

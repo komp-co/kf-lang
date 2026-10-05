@@ -32,6 +32,81 @@ impl Option<T> {
         }
         panic_with(Fault.UnwrapNone)
     }
+
+    /// The payload, or `default` when there is none.
+    pub fun unwrap_or(default: T): T {
+        when (self) {
+            Some(v) => { return v }
+            None => {}
+        }
+        return default
+    }
+
+    /// The payload, or what `f` makes; `f` runs only for a `None`.
+    pub fun unwrap_or_else<F: Call0>(f: F): T {
+        when (self) {
+            Some(v) => { return v }
+            None => {}
+        }
+        return f.call()
+    }
+
+    /// `f` applied to the payload: `Some(2).map(|x| x + 1)` is `Some(3)`.
+    pub fun map<F: Call1<T>>(f: F): Option<F.Out> {
+        when (self) {
+            Some(v) => { return Option.Some<F.Out>(f.call(v)) }
+            None => {}
+        }
+        return Option.None<F.Out>()
+    }
+
+    /// `f`, itself returning an option, applied to the payload; where `map`
+    /// would nest one option in another, this does not.
+    pub fun and_then<F: Call1<T>>(f: F): F.Out {
+        when (self) {
+            Some(v) => { return f.call(v) }
+            None => {}
+        }
+        return residual_as<F.Out, Option<Never>>(Option.None<Never>())
+    }
+
+    /// This option when it holds a payload, else the option `f` makes.
+    pub fun or_else<F: Call0>(f: F): F.Out {
+        when (self) {
+            Some(v) => { return output_as<F.Out, T>(v) }
+            None => {}
+        }
+        return f.call()
+    }
+
+    /// This option when `keep` holds for its payload, else `None`.
+    pub fun filter<F: Call1<&T>>(keep: F): Option<T> {
+        when (self) {
+            Some(v) => {
+                if keep.call(&v) { return Option.Some<T>(v) }
+            }
+            None => {}
+        }
+        return Option.None<T>()
+    }
+
+    /// True when there is a payload and `p` holds for it.
+    pub fun is_some_and<F: Call1<&T>>(p: F): bool {
+        when (self) {
+            Some(v) => { return p.call(&v) }
+            None => {}
+        }
+        return false
+    }
+
+    /// The payload as an `Ok`, or `err` as the `Err`.
+    pub fun ok_or<E>(err: E): Result<T, E> {
+        when (self) {
+            Some(v) => { return Result.Ok<T, E>(v) }
+            None => {}
+        }
+        return Result.Err<T, E>(err)
+    }
 }
 
 // An `Option<T>` is comparable exactly when its payload is.
