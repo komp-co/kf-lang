@@ -1,0 +1,18 @@
+//! run: exit 0
+//! deps: core
+// core's test entry point runs every entry in its own child process and
+// reports; a crate whose tests all pass exits 0.
+
+import core.testing.run_tests
+
+annotation check
+
+@check
+fun adds(): void { assert_eq(1 + 1, 2, "one and one") }
+
+@check
+fun compares(): void { assert(3 > 2, "three is more") }
+
+fun main(): int32 {
+    return run_tests(&annotated<check>())
+}

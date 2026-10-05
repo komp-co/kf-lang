@@ -943,6 +943,31 @@ Both are [views](../lang/memory.md#view-types), so a struct cannot hold one.
 `AnnotatedKind` is `Copy` and `Equal`, so an entry's kind can be compared:
 `entry.kind == AnnotatedKind.Trait`.
 
+## Running tests
+
+`core.testing.run_tests` is the entry point of a test program: `komp test`
+builds a main that hands it every `@test` function of the crate. It takes
+the entries of any annotation on `() -> void`, so a crate can run its own
+kind of check the same way:
+
+```kflat
+import core.testing.run_tests
+
+annotation check
+
+@check
+fun adds(): void { assert_eq(1 + 1, 2, "one and one") }
+
+fun main(): int32 {
+    return run_tests(&annotated<check>())
+}
+```
+
+Each test runs in its own child process, so a panic fails that test and the
+run goes on. `--filter <substring>` runs only the tests whose names contain
+it, and fails when none does; `--run-test <name>` runs one test in this
+process. The exit code is 1 when a test failed.
+
 ## Path
 
 `Path` represents a filesystem path. It wraps a `String`, so it lives in
