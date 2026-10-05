@@ -7,6 +7,8 @@ import kf_core.ast.lang_deref_mut_key
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_typecheck.types.type_eq
+import kf_typecheck.types.nominal_name
+import kf_typecheck.traits.receiver_declares_trait_method
 
 /// How many lends one receiver may chain through.
 val DEREF_CHAIN_LIMIT: uint64 = 8
@@ -15,7 +17,11 @@ val DEREF_CHAIN_LIMIT: uint64 = 8
 /// chain is followed on a quiet copy first, so a receiver whose chain ends
 /// without `m` is left as written and reported as itself.
 mutating fun Expr.lend_receiver_through_deref(method: str, arity: uint64, ctx: &var TypeCtx): void {
-    if self.ty.is_poison() || self.ty.has_method_named(method, ctx) { return }
+    if self.ty.is_poison() || self.ty.answers(method, ctx) { return }
+    if !self.ty.deref_one().implements_lang_trait(lang_deref_key(), ctx) &&
+        !self.ty.deref_one().implements_lang_trait(lang_deref_mut_key(), ctx) {
+        return
+    }
     var trial = self.clone()
     val was_quiet = ctx.quiet
     ctx.quiet = true
@@ -31,12 +37,12 @@ mutating fun Expr.lend_receiver_through_deref(method: str, arity: uint64, ctx: &
 mutating fun Expr.deref_toward(method: str, arity: uint64, checked: bool, ctx: &var TypeCtx): bool {
     while _ in 0..DEREF_CHAIN_LIMIT {
         if self.ty.is_poison() { return false }
-        if self.ty.has_method_named(method, ctx) { return true }
+        if self.ty.answers(method, ctx) { return true }
         val shared = self.lends_as(lang_deref_key(), "deref", ctx)
         val exclusive = self.lends_as(lang_deref_mut_key(), "deref_mut", ctx)
         if shared?.reads_through(method, arity, ctx) ?: false {
             self.become_lend_call("deref", ctx)
-        } else if exclusive?.has_method_named(method, ctx) ?: false {
+        } else if exclusive?.answers(method, ctx) ?: false {
             self.lend_mutably_through_deref(checked, ctx)
         } else if shared != null {
             self.become_lend_call("deref", ctx)
@@ -51,13 +57,25 @@ mutating fun Expr.deref_toward(method: str, arity: uint64, checked: bool, ctx: &
 
 /// The target has `method`, and calling it leaves the target unchanged.
 fun Type.reads_through(method: str, arity: uint64, ctx: &var TypeCtx): bool {
-    return self.has_method_named(method, ctx) && !self.method_is_mutating(String.from(method), arity, ctx)
+    return self.answers(method, ctx) && !self.method_is_mutating(String.from(method), arity, ctx)
 }
 
-/// An argument whose slot is its deref target. True when the node was
-/// rewritten.
+/// `method` resolves on this type, through a borrow: its own, a trait's, or
+/// an extension's. Every value answers `clone`.
+fun Type.answers(method: str, ctx: &var TypeCtx): bool {
+    if method == "clone" { return true }
+    val base = autoderef_ty(self.clone())
+    if base.has_method_named(method, ctx) { return true }
+    if receiver_declares_trait_method(base.clone(), String.from(method), ctx) { return true }
+    val name = base.kind.nominal_name()
+    return name.byte_len() > 0 && type_has_method_named(name.as_str(), method, ctx)
+}
+
+/// An argument whose slot is its deref target, and which no plain coercion
+/// already fits: a `String` reaches a `str` slot without a call. True when the
+/// node was rewritten.
 mutating fun Expr.lend_through_deref(expected: &Type, ctx: &var TypeCtx): bool {
-    if self.ty.is_poison() || self.ty.type_eq(*expected) { return false }
+    if self.ty.is_poison() || self.ty.type_eq(*expected) || ctx.fits(&self.ty, expected) { return false }
     if self.lends_as(lang_deref_key(), "deref", ctx)?.type_eq(*expected) ?: false {
         self.become_lend_call("deref", ctx)
         return true
