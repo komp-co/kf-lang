@@ -189,8 +189,9 @@ fun emit_free(args: List<Expr>): String {
 }
 
 /// `((W){ { a, b, c } })`: a compound literal of the array's C struct, whose
-/// one member is the elements.
+/// one member is the elements. An empty array's struct has no member.
 fun Expr.emit_array_literal(elements: &List<Expr>): String {
+    if elements.size() == 0 { return "((${self.ty.c_type_of_type()}){ })" }
     var parts = List.new<String>()
     parts.push("((${self.ty.c_type_of_type()}){ { ")
     while i in 0..elements.size() {

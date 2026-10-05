@@ -915,6 +915,34 @@ moves. `Slice.from_raw(ptr, len)` and `SliceMut.from_raw` build one from a
 pointer inside `unsafe`, where the caller vouches that the elements outlive
 it.
 
+## AnnotatedFunction and AnnotatedItem
+
+The entries of `annotated<A>()`: declarations carrying a
+[declared annotation](../lang/annotations.md#declaring-an-annotation), and the
+arguments each was given. A function-type target lists `AnnotatedFunction`,
+a kind target `AnnotatedItem`. The query is an array of them, built from
+literals, so it needs no allocator.
+
+```kflat
+pub view struct AnnotatedFunction<A, F> {
+    pub val name: str           // the function's name as declared
+    pub val module: str         // its module's path, `app.routes`
+    pub val args: A             // the struct the annotation's parameters declare
+    pub val function: F         // the target's function type
+}
+
+pub view struct AnnotatedItem<A> {
+    pub val name: str
+    pub val module: str
+    pub val kind: AnnotatedKind // Function, Struct, Enum or Trait
+    pub val args: A
+}
+```
+
+Both are [views](../lang/memory.md#view-types), so a struct cannot hold one.
+`AnnotatedKind` is `Copy` and `Equal`, so an entry's kind can be compared:
+`entry.kind == AnnotatedKind.Trait`.
+
 ## Path
 
 `Path` represents a filesystem path. It wraps a `String`, so it lives in
