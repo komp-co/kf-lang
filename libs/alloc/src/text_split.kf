@@ -74,14 +74,6 @@ pub fun str.split_whitespace(): List<String> {
     return out
 }
 
-/// The same surface on the owning type.
-@prelude
-pub fun String.split(sep: str): List<String> { return self.as_str().split(sep) }
-@prelude
-pub fun String.lines(): List<String> { return self.as_str().lines() }
-@prelude
-pub fun String.split_whitespace(): List<String> { return self.as_str().split_whitespace() }
-
 /// The inverse of `split`, read in order: `s.split(",").join(";")`. The list
 /// is taken by pointer.
 @prelude

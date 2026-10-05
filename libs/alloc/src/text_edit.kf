@@ -129,7 +129,8 @@ pub fun str.replace(from: str, to: str): String {
     return out
 }
 
-/// The same surface on the owning type, delegating through `as_str()`.
+/// On the owning type with its stored length, so the bytes are not counted
+/// again; the rest of the `str` surface is reached through `Deref`.
 @prelude
 pub fun String.substring(start: uint64, end: uint64): String {
     return self.as_str().substring_in(self.byte_len(), start, end)
@@ -138,19 +139,3 @@ pub fun String.substring(start: uint64, end: uint64): String {
 pub fun String.slice_from(start: uint64): String {
     return self.as_str().substring_in(self.byte_len(), start, self.byte_len())
 }
-@prelude
-pub fun String.take_bytes(n: uint64): String { return self.as_str().take_bytes(n) }
-
-@prelude
-pub fun String.trim(): String { return self.as_str().trim() }
-@prelude
-pub fun String.trim_start(): String { return self.as_str().trim_start() }
-@prelude
-pub fun String.trim_end(): String { return self.as_str().trim_end() }
-
-@prelude
-pub fun String.to_upper(): String { return self.as_str().to_upper() }
-@prelude
-pub fun String.to_lower(): String { return self.as_str().to_lower() }
-pub fun String.repeat(n: uint64): String { return self.as_str().repeat(n) }
-pub fun String.replace(from: str, to: str): String { return self.as_str().replace(from, to) }

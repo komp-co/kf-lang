@@ -50,8 +50,14 @@ fun Intrinsic.emit_intrinsic(type_args: &List<TypeRef>, args: List<Expr>): Strin
         Sizeof => "sizeof(${cty})"
         // An identity.
         Take => args.at(0).emit_expr()
-        DropInPlace => emit_drop_in_place(cty.as_str(), args)
-        ClonePlace => emit_clone_place(cty.as_str(), args)
+        DropInPlace => {
+            val pointee = type_args.boxed_pointee() ?: return emit_drop_in_place(cty.as_str(), args)
+            emit_box_drop_in_place(pointee.c_type(), args)
+        }
+        ClonePlace => {
+            val pointee = type_args.boxed_pointee() ?: return emit_clone_place(cty.as_str(), args)
+            emit_box_clone_place(pointee.c_type(), args)
+        }
         PtrRead => emit_ptr_read(args)
         Annotated => String.from("/* poison */ 0")
     }
@@ -71,6 +77,37 @@ fun emit_drop_in_place(cty: str, args: List<Expr>): String {
     parts.push(arg0.emit_expr())
     parts.push(String.from(")"))
     return concat_all(parts)
+}
+
+/// `Inner` when the one type argument is `Box<Inner>`.
+fun List<TypeRef>.boxed_pointee(): TypeRef? {
+    if self.size() != 1 { return null }
+    when (self.at(0).kind) {
+        Named(n, args) => if n.as_str() == "Box" && args.size() == 1 { return args.at(0).clone() }
+        _ => { }
+    }
+    return null
+}
+
+// A `Box` in place owns its pointee: drop that, then free it.
+fun emit_box_drop_in_place(inner_cty: String, args: List<Expr>): String {
+    val place = args.at(0).emit_expr()
+    val inner_drop = release_fn_for_ctype(inner_cty.as_str())
+    val drop_pointee = if inner_drop.as_str().byte_len() > 0 {
+        "${inner_drop}(*__bx); "
+    } else {
+        String.from("")
+    }
+    return "({ ${inner_cty}* __bx = *(${place}); ${drop_pointee}kf_free(__bx); })"
+}
+
+// A `Box` in place clones into a fresh allocation, never sharing its pointee.
+fun emit_box_clone_place(inner_cty: String, args: List<Expr>): String {
+    val place = args.at(0).emit_expr()
+    val inner_clone = clone_fn_for_ctype(inner_cty.as_str())
+    val copy = if inner_clone.as_str().byte_len() > 0 { "${inner_clone}(*__src)" } else { String.from("*__src") }
+    val fresh = "(${inner_cty}*)kf_alloc(sizeof(${inner_cty}))"
+    return "({ ${inner_cty}* __src = *(${place}); ${inner_cty}* __bx = ${fresh}; *__bx = ${copy}; __bx; })"
 }
 
 // `ptr_read<T>(p)` is `(*(p))`: the bits move, and nothing is dropped.

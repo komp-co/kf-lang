@@ -297,13 +297,26 @@ fun build_param_env(td: TopDecl, payloads: &ArmPayloads): LocalEnv {
                 val pp = p.ty
                 val pty = unsafe { *pp }
                 val ct = pty.c_type()
-                val rel = release_fn_for_ctype(ct.as_str())
-                env.env_bind(p.name.as_string(), rel)
+                env.env_bind(p.name.as_string(), pty.param_release(ct))
             }
         }
         _ => return env
     }
     return env
+}
+
+/// A by-value `Box<Inner>` param releases as a `Box` local does.
+fun TypeRef.param_release(ct: String): String {
+    when (self.kind) {
+        Named(n, args) => {
+            if n.as_str() == "Box" && args.size() == 1 {
+                val inner = args.at(0).c_type()
+                return "__BOX__${release_fn_for_ctype(inner.as_str())}"
+            }
+        }
+        _ => { }
+    }
+    return release_fn_for_ctype(ct.as_str())
 }
 
 fun TopDecl.extract_body(): List<Stmt> {

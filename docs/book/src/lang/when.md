@@ -215,6 +215,34 @@ A binder the arm only reads is still a copy. So is one of a `val` subject,
 or of a temporary such as a call's result, where there is no place to
 change.
 
+An arm that moves a binder out, passing it on by value or returning it,
+takes the payload itself when the subject is a call's result or a local or
+parameter the function owns. The `when` consumes such a local, as passing it
+to a function would:
+
+```kflat
+struct Item {
+    var name: String
+}
+
+enum Slot {
+    Full(Item)
+    Empty
+}
+
+fun collect(slot: Slot): List<Item> {
+    var out = List.new<Item>()
+    when (slot) {
+        Full(item) => out.push(item)   // moved, not copied
+        Empty => { }
+    }
+    return out
+}
+```
+
+A later use of the local keeps it alive by handing the `when` a copy, with
+the same warning any use after a move gets.
+
 ## when as a value
 
 A `when` produces a value in a binding or a `return`. Each arm's value is the

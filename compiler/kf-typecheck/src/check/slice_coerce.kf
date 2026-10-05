@@ -1,6 +1,6 @@
-// An array, a list, or a borrow of one, where a slice is expected: it lends
-// itself through its `as_slice()` or `as_slice_mut()`, so `sum(xs)` reads
-// as `sum(xs.as_slice())`.
+// A literal where a slice is expected builds an array and lends it, and an
+// array or list argument binds a slice parameter's element; a value lends
+// itself through `Deref`.
 
 import alloc.list.*
 
@@ -22,20 +22,6 @@ import kf_typecheck.types.display_type
 struct SliceLend {
     val method: String
     val element: Type
-}
-
-/// True when the node was rewritten into the lending call.
-mutating fun Expr.lend_as_slice(expected: &Type, ctx: &var TypeCtx): bool {
-    if self.ty.is_poison() || self.ty.type_eq(*expected) { return false }
-    val lend = expected.slice_lend(ctx) ?: return false
-    val source = self.ty.deref_one().sliceable_element(lend.method.as_str(), ctx) ?: return false
-    if !source.type_eq(lend.element) { return false }
-    if lend.method.as_str() == "as_slice_mut" && !self.lends_mutably(expected, ctx) {
-        self.ty = Type.new_poison()
-        return true
-    }
-    self.become_lend_call(lend.method.as_str(), ctx)
-    return true
 }
 
 /// `self.method()`, checked. The receiver is a copy, so the node shares
