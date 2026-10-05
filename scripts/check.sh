@@ -141,7 +141,8 @@ CHECK_CLI="${CHECK_CLI:-1}"
 MEM_BUDGET_MB="${MEM_BUDGET_MB:-2560}"
 # How many crates the sweep runs at once; 1 is serial. Past four the crates
 # wait on each other's dependencies more than on the cores.
-cores="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)"
+all_cores="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)"
+cores="$all_cores"
 [ "$cores" -le 4 ] 2>/dev/null || cores=4
 SWEEP_JOBS="${SWEEP_JOBS:-$cores}"
 
@@ -1289,6 +1290,16 @@ sh "$ROOT/scripts/check_asan.sh" "$WORK/komp" "$WORK" || exit 1
 fi   # CHECK_CLI
 
 phase "sweep"
+# The cores the crates leave idle go to each crate's tests, which run one
+# process per test: a sweep of kf-integration alone runs four at a time on
+# four cores, not the runtime's default two.
+crate_count="$(echo $CRATES | wc -w)"
+crate_slots=$(( crate_count < SWEEP_JOBS ? crate_count : SWEEP_JOBS ))
+[ "$crate_slots" -ge 1 ] || crate_slots=1
+test_jobs=$(( all_cores / crate_slots ))
+[ "$test_jobs" -ge 2 ] || test_jobs=2
+export KOMP_TEST_JOBS="${KOMP_TEST_JOBS:-$test_jobs}"
+
 failed=""
 overbudget=""
 notests=""
