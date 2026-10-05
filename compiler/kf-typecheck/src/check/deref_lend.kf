@@ -123,3 +123,9 @@ fun Type.implements_lang_trait(key: str, ctx: &var TypeCtx): bool {
     }
     return false
 }
+
+/// Its own method by that name, or an extension that fits it.
+fun Type.has_method_named(method: str, ctx: &var TypeCtx): bool {
+    if receiver_has_own_method(self.clone(), String.from(method), ctx) { return true }
+    return has_extension_named(method, ctx) && fitting_extensions(method, self, ctx).size() > 0
+}
