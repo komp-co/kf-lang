@@ -56,6 +56,14 @@ KF_TIMES=""
 KF_PHASE=""
 KF_PHASE_T0=0
 KF_RUN_T0="$(date +%s)"
+# Lines repeated in one GitHub notice at the end, which reads back through the
+# API where a job's log may not.
+KF_NOTE=""
+note() {
+    printf '%s\n' "$*"
+    KF_NOTE="$KF_NOTE$*
+"
+}
 
 phase() {
     kf_now="$(date +%s)"
@@ -77,12 +85,17 @@ report_times() {
     fi
     echo ""
     echo "--- where the time went ---"
-    printf '%s' "$KF_TIMES" | sort -rn | while read -r secs name; do
+    kf_table="$(printf '%s' "$KF_TIMES" | sort -rn | while read -r secs name; do
         [ -n "$name" ] || continue
         printf '  %5ss  %s\n' "$secs" "$name"
-    done
-    printf '  %5ss  TOTAL\n' "$((kf_now - KF_RUN_T0))"
+    done)"
+    note "$kf_table"
+    note "$(printf '  %5ss  TOTAL' "$((kf_now - KF_RUN_T0))")"
     report_ccache
+    if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+        printf '::notice title=where the time went::%s\n' \
+            "$(printf '%s' "$KF_NOTE" | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
+    fi
 }
 
 # The cache hit rate beside the timings. A miss storm is a legitimate
@@ -95,7 +108,7 @@ report_ccache() {
     [ -n "$kf_hit" ] || return 0
     set -- $kf_hit
     if [ "${2:-0}" -gt 0 ]; then
-        echo "  ccache  $1/$2 hits ($(( $1 * 100 / $2 ))%)"
+        note "  ccache  $1/$2 hits ($(( $1 * 100 / $2 ))%)"
     fi
 }
 
@@ -311,6 +324,8 @@ else
         exit 1
     fi
     grep -E '^(OK|NOTE):' "$WORK/fixpoint.log" || true
+    kf_fixpoint_times="$(grep -E '^TIME:' "$WORK/fixpoint.log" || true)"
+    [ -z "$kf_fixpoint_times" ] || note "$kf_fixpoint_times"
     if [ "${KF_GATE_CACHE:-1}" != "0" ]; then
         mkdir -p "$fixpoint_dir"
         if [ -n "${KOMP_PUBLISH:-}" ]; then
@@ -1390,13 +1405,20 @@ c="$1"; log="$2"; scratch="$3"; WORK="$4"
 rm -rf "$scratch"
 mkdir -p "$scratch"
 t0="$(date +%s)"
-rc=0
-KOMP_SCRATCH_ROOT="$scratch" "$WORK/maxrss" "$WORK/komp" -q test "$c" > "$log" 2>&1 || rc=$?
-echo "$rc" > "$log.rc"
+rm -f "$log.rc" "$log.run"
+# The binary's "running N tests" line splits the build from the run.
+{ KOMP_SCRATCH_ROOT="$scratch" "$WORK/maxrss" "$WORK/komp" -q test "$c" 2>&1 || echo "$?" > "$log.rc"; } |
+    while IFS= read -r line; do
+        case "$line" in "running "*" tests") date +%s > "$log.run" ;; esac
+        printf '%s\n' "$line"
+    done > "$log"
+[ -f "$log.rc" ] || echo 0 > "$log.rc"
 lrc=0
 KOMP_SCRATCH_ROOT="$scratch" "$WORK/komp" lint --deny-warnings "$c" > "$log.lint" 2>&1 || lrc=$?
 echo "$lrc" > "$log.lint.rc"
-echo "$(( $(date +%s) - t0 ))" > "$log.secs"
+t1="$(date +%s)"
+echo "$(( t1 - t0 ))" > "$log.secs"
+[ ! -f "$log.run" ] || echo "$(( $(cat "$log.run") - t0 ))s to build" > "$log.split"
 SWEEP_ONE
 
 # The slowest crates start first, so the pool does not end on one of them
@@ -1430,7 +1452,8 @@ for c in $CRATES; do
         passed="$(grep -oE '[0-9]+ passed' "$log" | tail -1)"
         secs="$(cat "$log.secs" 2>/dev/null || echo '?')"
         kflat="$(cat "$(kflat_state "$(kflat_home "$c")")" 2>/dev/null || echo cold)"
-        echo "  PASS  $c  $passed  peak ${rss_mb}MB  ${secs}s  kflat=$kflat"
+        split="$(cat "$log.split" 2>/dev/null || true)"
+        note "  PASS  $c  $passed  peak ${rss_mb}MB  ${secs}s${split:+ ($split)}  kflat=$kflat"
         # Zero tests is a failure: it hides "cannot run anything".
         case "$passed" in
             "0 passed"|"") notests="$notests $c" ;;

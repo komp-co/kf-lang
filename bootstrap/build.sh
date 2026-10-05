@@ -87,6 +87,14 @@ report_if_killed() {
     exit 1
 }
 
+# One TIME: line per step, which scripts/check.sh reports.
+step_t0="$(date +%s)"
+step_time() {
+    step_now="$(date +%s)"
+    echo "TIME: $(( step_now - step_t0 ))s $1"
+    step_t0="$step_now"
+}
+
 echo "[1/4] $CC the seed, kflat $(seed_field version) -> komp0, kflatc"
 if ! seed_build "$WORK/s0"; then
     fail "the seed did not build." \
@@ -98,6 +106,7 @@ fi
 # The positional build below does not fetch: `metadata` fetches what
 # compiler/kf.lock pins into the cache first.
 "$WORK/s0/komp0" metadata "$ROOT/compiler" > /dev/null
+step_time "the seed"
 
 # run_pair A B — runs the functions A and B at once, each into its own log,
 # then prints the logs in that order and exits if either failed. komp and
@@ -159,6 +168,7 @@ stage1_kflatc() {
 }
 
 run_pair stage1_komp stage1_kflatc
+step_time "stage 1, built by the seed"
 
 echo "[3/4] komp1 compiler/komp -> stage2.c ; compiler/kflatc -> kflatc2.c"
 stage2_komp() {
@@ -183,6 +193,7 @@ stage2_kflatc() {
 }
 
 run_pair stage2_komp stage2_kflatc
+step_time "stage 2, emitted by stage 1"
 
 echo "[4/4] fixpoint check"
 # The compiler that proved the fixpoint and the C it reproduced.
@@ -221,6 +232,7 @@ if ! diff -q "$WORK/stage1.c" "$WORK/stage2.c" >/dev/null || ! diff -q "$WORK/kf
         fi
     }
     run_pair stage3_komp stage3_kflatc
+    step_time "stage 3, built and emitted by stage 2"
     if ! diff -q "$WORK/stage2.c" "$WORK/stage3.c" >/dev/null; then
         echo "FAIL: fixpoint broken (stage2.c != stage3.c)"
         echo "  the compiler does not reproduce itself; see diff:"
@@ -310,6 +322,7 @@ if ! (cd "$WORK/install-check" && "$WORK/install-check/home/bin/komp" run app > 
     fail "the installed komp could not build and run a program that uses std."
 fi
 echo "OK: $install_name.tar.gz installs, and the installed komp builds a program"
+step_time "the install check"
 
 if [ -n "$SEED_OUT" ]; then
     mkdir -p "$SEED_OUT"
