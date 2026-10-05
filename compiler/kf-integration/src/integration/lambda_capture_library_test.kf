@@ -1,0 +1,63 @@
+// A lambda's struct holds its captures by borrow. The crate that writes the
+// lambda allows that; a crate that depends on it must not judge the struct
+// again. Needs two crates, so not a tests/cases file.
+
+import core.assert.assert_eq
+import kf_tool.build.build_project_separate
+import std.fs.scratch_root
+
+extern "C" fun system(cmd: str): int32
+
+fun prepare_capturing_library(root: str): int32 {
+    val cmd = "rm -rf ${root} && mkdir -p ${root}/reglib/src ${root}/app/src && cp -r libs ${root}/libs"
+    val prepared = unsafe { system(cmd.as_str()) }
+    if prepared != 0 { return prepared }
+    val libs = """core = { path = "../libs/core" }
+alloc = { path = "../libs/alloc" }
+"""
+    write_file(
+        "${root}/reglib/kf.toml".as_str(),
+        "[project]\nname = \"reglib\"\nkind = \"lib\"\n\n[dependencies]\n${libs}".as_str()
+    )
+    write_file("${root}/reglib/src/lib.kf".as_str(), """import alloc.list.*
+
+pub struct Info {
+    pub val name: String
+    pub val rank: int32
+}
+
+pub fun all(): List<Info> {
+    return [Info { name: "a", rank: 3 }, Info { name: "b", rank: 39 }]
+}
+
+pub fun named(name: str): Info? {
+    return all().find(|info: &Info| info.name.as_str() == name)
+}
+
+pub fun ranked_above(floor: int32): uint64 {
+    return all().count(|info: Info| info.rank > floor)
+}
+""")
+    val reglib = "reglib = { path = \"../reglib\" }\n"
+    val app_toml = "[project]\nname = \"app\"\nkind = \"bin\"\n\n[dependencies]\n${libs}${reglib}"
+    write_file("${root}/app/kf.toml".as_str(), app_toml.as_str())
+    write_file("${root}/app/src/main.kf".as_str(), """import reglib.named
+import reglib.ranked_above
+
+fun main(): int32 {
+    val found = named("b") ?: return 1
+    return found.rank + ranked_above(0) as int32 + ranked_above(10) as int32
+}
+""")
+    return 0
+}
+
+@test
+fun a_dependent_builds_against_a_library_whose_lambdas_capture(): void {
+    val root = "${scratch_root()}/kf_lambda_capture_library"
+    assert_eq(prepare_capturing_library(root.as_str()), 0, "the fixture is prepared")
+    val built = build_project_separate("${root}/app".as_str(), "")
+    assert_eq(built, 0, "the library's lambda structs are not judged a second time")
+    val ran = unsafe { system("${root}/app/target/kflat/app; test \"$?\" -eq 42") }
+    assert_eq(ran, 0, "a captured `str` and a captured `int32` are both read")
+}

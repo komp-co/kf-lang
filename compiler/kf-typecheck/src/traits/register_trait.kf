@@ -18,6 +18,10 @@ pub fun register_struct(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: &var Di
     // not judged unknown.
     var eff_table: Ptr<DeclTable>? = table
     if td.linkage.is_imported() { eff_table = Option.None }
+    // What may be stored is judged where the declaration is written. One
+    // read from an interface was judged there, and a lambda's struct, which
+    // holds its captures by borrow, is exempt there.
+    val judges_storage = !td.is_view_type() && !td.linkage.is_imported() && !td.linkage.is_template()
     when (td.kind) {
         EnumDecl(variants, _is_pub) => {
             var ctx0 = new_type_ctx(Type.new_void(no_span()), diags, eff_table, sig_ptr)
@@ -35,7 +39,7 @@ pub fun register_struct(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: &var Di
             while v in &variants {
                 var ptys = List.new<Type>()
                 while ptr in &v.payloads {
-                    if !td.is_view_type() { ptr.validate_borrow_storage("an enum payload", &var ctx0) }
+                    if judges_storage { ptr.validate_borrow_storage("an enum payload", &var ctx0) }
                     val payload_ty = ptr.resolve_type_ref(&var ctx0)
                     payload_ty.validate_dyn_placement(ptr.span, &var ctx0)
                     ptys.push(payload_ty)
@@ -60,7 +64,7 @@ pub fun register_struct(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: &var Di
             while f in &fields {
                 val ty_ptr: Ptr<TypeRef> = f.ty
                 val f_tr: TypeRef = unsafe { *ty_ptr }
-                if !td.is_view_type() { f_tr.validate_borrow_storage("a struct field", &var ctx0) }
+                if judges_storage { f_tr.validate_borrow_storage("a struct field", &var ctx0) }
                 val fty = f_tr.resolve_type_ref(&var ctx0)
                 fty.validate_dyn_placement(f_tr.span, &var ctx0)
                 fs.push(StructFieldInfo { name: f.name.as_string(), ty: fty, is_var: f.is_var })
