@@ -90,9 +90,10 @@
 20 compiler/kf-lower/src/refcount/rc_mark_moved.kf
 5 compiler/kf-lower/src/refcount/rc_place.kf
 2 compiler/kf-lower/src/refcount/rc_return.kf
-24 compiler/kf-lower/src/refcount/rc_stmt.kf
+20 compiler/kf-lower/src/refcount/rc_stmt.kf
 1 compiler/kf-lower/src/refcount/rc_value_params.kf
 19 compiler/kf-lower/src/refcount/rc_when.kf
+4 compiler/kf-lower/src/refcount/rc_when_subject.kf
 5 compiler/kf-lower/src/trim_binders.kf
 5 compiler/kf-lower/src/when_expr.kf
 12 compiler/kf-lower/src/when_hoist.kf

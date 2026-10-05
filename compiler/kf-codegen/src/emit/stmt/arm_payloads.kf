@@ -46,8 +46,8 @@ pub mutating fun ArmPayloads.add_arm_payloads(m: &Module): void {
                     var pj = 0
                     while pj < v.payloads.size() {
                         val pt = *v.payloads.at(pj)
-                        var rel = ""
-                        if !is_box_tref(pt) { rel = release_fn_for_ctype(pt.c_type().as_str()) }
+                        // A binder rc owns releases as its `Box` would: pointee, then box.
+                        val rel = pt.boxed_release() ?: release_fn_for_ctype(pt.c_type().as_str())
                         self.keys.push(arm_payload_key(ename.as_str(), v.name.as_string().as_str(), pj))
                         self.rels.push(rel)
                         pj = pj + 1
@@ -80,4 +80,16 @@ pub fun ArmPayloads.arm_payload_release(ename: str, vname: str, idx: uint64): St
         i = i + 1
     }
     return ""
+}
+
+/// A `Box<Inner>`'s release sentinel, or null for any other type.
+fun TypeRef.boxed_release(): String? {
+    if !is_box_tref(*self) { return null }
+    when (self.kind) {
+        Named(_n, args) => if args.size() == 1 {
+            return "__BOX__${release_fn_for_ctype(args.at(0).c_type().as_str())}"
+        }
+        _ => { }
+    }
+    return null
 }

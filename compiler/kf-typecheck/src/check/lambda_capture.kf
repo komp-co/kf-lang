@@ -54,7 +54,7 @@ fun Stmt.gather_free_names_stmt(params: &List<Param>, ctx: &var TypeCtx, found: 
             gather_free_names(init_ptr.view(), params, ctx, found, locals)
             locals.push(name.as_string())
         }
-        Assign(_n, expr_ptr) => gather_free_names(expr_ptr, params, ctx, found, locals)
+        Assign(n, expr_ptr) => gather_assignment(n, expr_ptr, params, ctx, found, locals)
         AssignTo(place_ptr, expr_ptr) => {
             gather_free_names(place_ptr, params, ctx, found, locals)
             gather_free_names(expr_ptr, params, ctx, found, locals)
@@ -124,7 +124,7 @@ fun Stmt.classify_capture_stmt(captures: &var List<LambdaCapture>, ctx: &var Typ
     when (self.kind) {
         LetVal(_n, _ty, init_ptr) => classify_capture_expr(init_ptr.view(), true, captures, ctx)
         LetVar(_n, _ty, init_ptr) => classify_capture_expr(init_ptr.view(), true, captures, ctx)
-        Assign(_n, expr_ptr) => classify_capture_expr(expr_ptr, true, captures, ctx)
+        Assign(n, expr_ptr) => classify_assignment(n, expr_ptr, captures, ctx)
         AssignTo(place_ptr, expr_ptr) => {
             classify_capture_expr(place_ptr, false, captures, ctx)
             classify_capture_expr(expr_ptr, true, captures, ctx)

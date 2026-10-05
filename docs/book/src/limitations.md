@@ -81,9 +81,6 @@ src/main.kf:3:13: error: lambda parameter `x` needs a type annotation (its type 
   the lambda at the call site returns ([#480]). `opt.and_then(|x| x + 1)`
   fails in cc, naming a `from_residual` nobody wrote, because `and_then` wants
   an option back. Check the lambda's result type yourself.
-- **A lambda that assigns a captured `var` fails in cc** when passed to a
-  `Call` bound, which shares its captures rather than lending them mutably
-  ([#479]). Return the new value, or use a loop.
 
 
 ## Arrays
@@ -226,5 +223,4 @@ not agree with it in every case.
 [#296]: https://github.com/komp-co/komp/issues/296
 [#297]: https://github.com/komp-co/komp/issues/297
 [#299]: https://github.com/komp-co/komp/issues/299
-[#479]: https://github.com/komp-co/komp/issues/479
 [#480]: https://github.com/komp-co/komp/issues/480

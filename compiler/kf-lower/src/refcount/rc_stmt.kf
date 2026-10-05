@@ -1,6 +1,5 @@
 import alloc.list.*
 
-import kf_core.span.*
 import kf_core.ast.Intrinsic
 import kf_core.ast.intern
 import kf_core.ast.view
@@ -8,45 +7,6 @@ import kf_core.ast.expression.*
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import kf_core.ast.statement.SwitchArm
-
-// `when (make())`: an owning rvalue subject is hoisted into a local so its
-// scope-exit drop fires. Borrowed subjects are left alone. Returns the
-// binding to emit before the switch, if any.
-fun hoist_owned_when_subject(subj_ptr: Ptr<Expr>, span: Span, ctx: &var RcCtx): List<Stmt> {
-    var out = List.new<Stmt>()
-    val subj = unsafe { *subj_ptr }
-    if !is_heap_ty_rc(subj.ty) { return out }
-    when (subj.kind) {
-        Call(_, _) => { }
-        Intrinsic(_, _) => { }
-        CallValue(_callee, _) => { }
-        MethodCall(_, _, _) => { }
-        _ => return out
-    }
-    val mode = classify_binding(subj, ctx)
-    when (mode) {
-        OwnedFresh => { }
-        _ => return out
-    }
-    val tmp_id = ctx.block_counter
-    ctx.block_counter = tmp_id + 1
-    val tmp_name = "${hoisted_subject_prefix()}${u64_to_str(tmp_id)}"
-    val init: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *init = subj }
-    out.push(Stmt.new(span, StmtKind.LetVal(intern(tmp_name.as_str()), null, init)))
-    var v = Expr.new(span, ExprKind.Variable(intern(tmp_name.as_str())))
-    v.ty = subj.ty
-    unsafe { *subj_ptr = v }
-    return out
-}
-
-fun hoisted_subject_prefix(): str { return "__when_own_" }
-
-/// A local `hoist_owned_when_subject` made: it holds a fresh value no one
-/// else owns.
-fun is_hoisted_subject(name: str): bool {
-    return name.starts_with(hoisted_subject_prefix())
-}
 
 // `make().as_str()`: a fresh temporary that is only borrowed is owned by
 // nobody. A method receiver is hoisted to a local so it is dropped; receivers
