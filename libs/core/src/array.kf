@@ -76,6 +76,17 @@ impl<T, N: uint64> Iterable<T> for Array<T, N> {
     }
 }
 
+/// Methods the array lacks are its slice's: `xs.sort()` sorts in place.
+impl<T, N: uint64> Deref for Array<T, N> {
+    type Target = Slice<T>
+    fun deref(): Slice<T> { return self.as_slice() }
+}
+
+impl<T, N: uint64> DerefMut for Array<T, N> {
+    type TargetMut = SliceMut<T>
+    mutating fun deref_mut(): SliceMut<T> { return self.as_slice_mut() }
+}
+
 /// A forward cursor over an array's elements. Not owning: valid only while
 /// the array is alive and unmoved.
 pub struct ArrayIter<T> {

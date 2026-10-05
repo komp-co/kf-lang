@@ -48,7 +48,10 @@ label.append(": 3")                  // copies "count", then appends
 ```
 
 `String` implements `Drop` (frees the buffer), `Add` (`s1 + s2` produces a
-new owned `String`), `Equal` (byte-level comparison), `Hash`, and `Display`.
+new owned `String`), `Equal` (byte-level comparison), `Hash`, `Display`, and
+[`Deref`](../lang/traits.md#lending-a-view-deref) to `str`: every `str`
+method, core's, alloc's or your own extension, is a `String` method too, and
+a `String` fills a `str` parameter.
 
 ```kflat
 val greeting = String.from("hello") + String.from("! ")

@@ -93,3 +93,9 @@ impl<T> Iterable<T> for SliceMut<T> {
         return ArrayIter<T> { data: self.data, len: self.len, index: 0 }
     }
 }
+
+/// A mutable view reads as a shared one.
+impl<T> Deref for SliceMut<T> {
+    type Target = Slice<T>
+    fun deref(): Slice<T> { return self.as_slice() }
+}

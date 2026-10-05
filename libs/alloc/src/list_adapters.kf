@@ -1,10 +1,8 @@
-// Eager adapters over a List: each walks the list now and answers a finished
-// value, allocating once per stage.
+// Eager adapters over a List: each walks the list now and builds a new one.
+// The questions (`any`, `count`, `fold`, ...) are core's, on any `Iterable`.
 //
 // COST: each element handed to a callable is an owned copy, since `Call1<T>`
 // takes its argument by value; a kept element is copied again.
-
-import core.option.*
 
 impl List<T> {
     /// `xs.map(|x| x % 2 == 1)` is a `List<bool>`.
@@ -29,57 +27,5 @@ impl List<T> {
             i = i + 1
         }
         return out
-    }
-
-    /// Left to right; `xs.fold(0, |a, x| a + x)` sums.
-    pub fun fold<A, F: Call2<A, T>>(init: A, f: F): A {
-        var acc = init
-        var i = 0
-        while i < self.size() {
-            acc = f.call(acc, unsafe { clone_place<T>(self.data + i) })
-            i = i + 1
-        }
-        return acc
-    }
-
-    /// Stops at the first match.
-    pub fun any<F: Call1<T>>(pred: F): bool {
-        var i = 0
-        while i < self.size() {
-            if pred.call(unsafe { clone_place<T>(self.data + i) }) { return true }
-            i = i + 1
-        }
-        return false
-    }
-
-    /// True for an empty list.
-    pub fun all<F: Call1<T>>(pred: F): bool {
-        var i = 0
-        while i < self.size() {
-            if !pred.call(unsafe { clone_place<T>(self.data + i) }) { return false }
-            i = i + 1
-        }
-        return true
-    }
-
-    pub fun count<F: Call1<T>>(pred: F): uint64 {
-        var n = 0
-        var i = 0
-        while i < self.size() {
-            if pred.call(unsafe { clone_place<T>(self.data + i) }) { n = n + 1 }
-            i = i + 1
-        }
-        return n
-    }
-
-    /// An index, not the element: a generic `T?` return loses its payload
-    /// type at the `when` binder. `xs.at(i)` reaches the element.
-    pub fun position<F: Call1<T>>(pred: F): uint64? {
-        var i = 0
-        while i < self.size() {
-            if pred.call(unsafe { clone_place<T>(self.data + i) }) { return Option.Some<uint64>(i) }
-            i = i + 1
-        }
-        return Option.None<uint64>()
     }
 }

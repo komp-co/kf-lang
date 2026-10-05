@@ -80,7 +80,6 @@ pub mutating fun Expr.apply_expected(expected: Type, ctx: &var TypeCtx): bool {
     }
 
     if try_dyn_coerce(self, expected.clone(), ctx) { return true }
-    if self.lend_as_slice(&expected, ctx) { return true }
     if self.lend_through_deref(&expected, ctx) { return true }
 
     // An integer literal takes a numeric slot's type when the value fits.

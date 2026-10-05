@@ -1,6 +1,5 @@
 // `Deref` and `DerefMut`: a receiver without the method, and an argument in
-// its target's slot, lend themselves through the impl. Built against a core
-// that declares the two traits.
+// its target's slot, lend themselves through the impl.
 
 import core.assert.assert_eq
 
@@ -8,19 +7,6 @@ import kf_tool.build.build_project_separate
 import std.fs.scratch_path
 
 extern "C" fun system(cmd: str): int32
-
-val DEREF_TRAITS: str = """@lang("deref")
-pub trait Deref {
-    type Target
-    fun deref(): Self.Target
-}
-
-@lang("deref_mut")
-pub trait DerefMut {
-    type TargetMut
-    mutating fun deref_mut(): Self.TargetMut
-}
-"""
 
 /// A `Counter`, a `Holder` lending it shared and mutably, and an `Outer`
 /// lending the `Holder`; `body` is `main`'s.
@@ -90,7 +76,6 @@ fun run_through_deref(main: str): int32 {
     val dirs = "${core}/src ${core}/native ${app}/src"
     val prep = unsafe { system("rm -rf ${core} ${app} && mkdir -p ${dirs} && ${sources}") }
     if prep != 0 { return 0 - 1 }
-    write_file("${core}/src/deref.kf".as_str(), DEREF_TRAITS)
     write_file("${core}/kf.toml".as_str(), """[project]
 name = "core"
 kind = "lib"

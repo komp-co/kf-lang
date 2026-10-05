@@ -254,6 +254,60 @@ boundary is the crate, not the module, so the impls may live anywhere in it.
 `sealed` is a word only there; a function or variable may still be named
 `sealed`.
 
+## Lending a view: `Deref`
+
+A type that holds or stands for another can lend that other's methods.
+Implementing core's `Deref` names a view of the value; `DerefMut` names a view
+that can change it:
+
+```kflat
+struct Counter {
+    var hits: int32
+}
+
+impl Counter {
+    fun total(): int32 { return self.hits }
+    mutating fun bump(): void { self.hits = self.hits + 1 }
+}
+
+struct Tracked {
+    var counter: Counter
+    val label: String
+}
+
+impl Deref for Tracked {
+    type Target = &Counter
+    fun deref(): &Counter { return &self.counter }
+}
+
+impl DerefMut for Tracked {
+    type TargetMut = &var Counter
+    mutating fun deref_mut(): &var Counter { return &var self.counter }
+}
+
+fun report(c: &Counter): int32 { return c.total() }
+
+fun main(): int32 {
+    var t = Tracked { counter: Counter { hits: 0 }, label: "clicks" }
+    t.bump()                      // Counter's, through deref_mut
+    val n = t.total()             // Counter's, through deref
+    return n + report(&t)         // a &Tracked fills a &Counter slot
+}
+```
+
+When `x` has no method `m`, by its own impls, its traits or an extension,
+`x.m()` is called on `x.deref()` if the target's `m` leaves it unchanged, and
+on `x.deref_mut()` if `m` is `mutating`; that one needs `x` to be a `var` or a
+`&var` borrow. The receiver's own methods always win, and the lookup follows
+a chain of targets. An argument whose slot is the target type is lent the
+same way, so a `&Tracked` fills a `&Counter` parameter.
+
+The target is a view or a borrow of the value, checked like any borrow a
+method returns. A type's targets are fixed by its impls: `String` lends `str`,
+so every `str` method is a `String` method; a `List` and an array lend
+`Slice` and `SliceMut`. The other direction is never implicit: a `str` becomes
+a `String` only through `String.from`, which copies.
+
 ## Trait-qualified calls
 
 When two traits provide methods with the same name, qualify the call with the
@@ -285,6 +339,7 @@ library:
 | `Compare` | `compare(other: Self): int32` | Ordering (`<`, `>`, `<=`, `>=`) |
 | `Display` | `display(out: &var dyn Write): void` | Rendering (`println`, interpolation, `v.display(): String`) |
 | `From<T>` | `static from(value: T): Self` | Explicit value conversion |
+| `Deref` / `DerefMut` | `deref()`, `mutating deref_mut()` | Lend a view's methods, and fill its slot; see [above](#lending-a-view-deref) |
 | `Default` | `default(): Self` | Default value |
 | `Add` / `Sub` / `Mul` / `Div` / `Mod` | `add(...)`, etc. | Arithmetic operators |
 | `Call0` through `Call3` | `call(...)` | Callable values with shared captures; a local `f(...)` desugars to `f.call(...)` |
