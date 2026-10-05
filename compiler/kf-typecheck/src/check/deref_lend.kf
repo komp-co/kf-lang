@@ -6,6 +6,7 @@ import kf_core.ast.lang_deref_key
 import kf_core.ast.lang_deref_mut_key
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
+import kf_core.ast.expression.coerce_none
 import kf_typecheck.types.type_eq
 import kf_typecheck.types.nominal_name
 import kf_typecheck.traits.receiver_declares_trait_method
@@ -75,7 +76,8 @@ fun Type.answers(method: str, ctx: &var TypeCtx): bool {
 /// already fits: a `String` reaches a `str` slot without a call. True when the
 /// node was rewritten.
 mutating fun Expr.lend_through_deref(expected: &Type, ctx: &var TypeCtx): bool {
-    if self.ty.is_poison() || self.ty.type_eq(*expected) || ctx.fits(&self.ty, expected) { return false }
+    if self.ty.is_poison() || self.ty.type_eq(*expected) { return false }
+    if coerce_code_for(self.ty.clone(), false, expected.clone(), ctx.string_name()) != coerce_none() { return false }
     if self.lends_as(lang_deref_key(), "deref", ctx)?.type_eq(*expected) ?: false {
         self.become_lend_call("deref", ctx)
         return true
