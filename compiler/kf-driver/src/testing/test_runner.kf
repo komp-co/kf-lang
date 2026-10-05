@@ -1,6 +1,5 @@
-// Data transforms for `komp test`: discover @test decls, generate the test
-// main that hands them to core, and parse it back. Orchestration is in
-// multi_crate.kf.
+// Data transforms for `komp test`: the test main that hands the crate's
+// tests to core, parsed back. Orchestration is in multi_crate.kf.
 
 import alloc.list.*
 
@@ -11,61 +10,14 @@ import kf_core.ast.declaration.TopDecl
 import kf_parse.lexer.tokenize
 import kf_parse.parser.new_parser
 
-/// In discovery order.
-pub fun collect_test_names(modules: List<Module>): List<String> {
-    var out = List.new<String>()
-    while m in &modules {
-        while td in &m.decls {
-            val is_test = (&td).has_annotation("test")
-            if is_test {
-                out.push(td.name.as_string())
-            }
-        }
-    }
-    return out
-}
+/// Hands core's runner every `@test` function of the crate.
+pub fun gen_test_main_src(): String {
+    return String.from("""import core.testing.run_tests
 
-/// The generated main is its own module and must import each module that
-/// declares a test.
-pub fun gen_test_main_imports(modules: &List<Module>): String {
-    var out = ""
-    var seen = List.new<String>()
-    while m in &modules {
-        while td in &m.decls {
-            if (&td).has_annotation("test") {
-                val path = td.module_path.as_string()
-                if !path.as_str().equals("") && !import_seen(&seen, path.as_str()) {
-                    out.append("import ")
-                    out.append(path.as_str())
-                    out.append(".*\n")
-                    seen.push(path)
-                }
-            }
-        }
-    }
-    return out
+fun main(): int32 {
+    return run_tests(&annotated<test>())
 }
-
-fun import_seen(seen: &List<String>, target: str): bool {
-    while item in &seen {
-        if item.as_str().equals(target) { return true }
-    }
-    return false
-}
-
-/// The tests as an array of core's entries, run by core's `run_tests`.
-///
-/// CONSTRAINT: `args` is a placeholder `bool` until the released seed lets
-/// core declare `@test`; then the array is `annotated<test>()`.
-pub fun gen_test_main_src(names: List<String>): String {
-    val entry = "AnnotatedFunction<bool, () -> void>"
-    var src = String.from("import core.testing.run_tests\n\nfun main(): int32 {\n")
-    src.append("    val tests: ${entry}[${names.size()}] = [\n")
-    while name in &names {
-        src.append("        ${entry} { name: \"${name}\", module: \"\", args: false, function: ${name} },\n")
-    }
-    src.append("    ]\n    return run_tests(&tests)\n}\n")
-    return src
+""")
 }
 
 pub fun parse_test_main(src: str, smap: Ptr<SourceMap>): Module {

@@ -62,9 +62,9 @@ ok
 test result: FAILED. 2 passed, 1 failed
 ```
 
-komp collects every `@test` function across the crate's `_test.kf` files,
-builds a test binary with a synthesized `main` that calls each one, and runs
-it. The exit code is 0 when every test passed and 1 otherwise — it is not a
+komp builds a test binary whose `main` hands every `@test` function of the
+crate to core's [`run_tests`](../libs/core.md#running-tests), and runs it.
+The exit code is 0 when every test passed and 1 otherwise — it is not a
 failure count.
 
 Each test runs in a process of its own, so a failed assertion ends that test

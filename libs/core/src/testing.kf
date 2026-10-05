@@ -1,6 +1,13 @@
 // The test program's entry point. The generated main hands it every test of
 // the crate, and the hosted runtime runs each in a child process.
 
+/// A test: `komp test` runs every function it marks, each in its own
+/// process. Reachable without an import.
+pub annotation test on () -> void
+
+/// A test that is kept but not run.
+pub annotation test_disabled on () -> void
+
 extern "C" fun kf_test_report(passed: int32, failed: int32): void
 extern "C" fun kf_test_queue(name: str): void
 extern "C" fun kf_test_run_queued(): int32

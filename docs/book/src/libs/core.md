@@ -945,10 +945,11 @@ Both are [views](../lang/memory.md#view-types), so a struct cannot hold one.
 
 ## Running tests
 
-`core.testing.run_tests` is the entry point of a test program: `komp test`
-builds a main that hands it every `@test` function of the crate. It takes
-the entries of any annotation on `() -> void`, so a crate can run its own
-kind of check the same way:
+`core.testing` declares `@test` and `@test_disabled`, and `run_tests` is the
+entry point of a test program: `komp test` builds the main
+`return run_tests(&annotated<test>())`. It takes the entries of any
+annotation on `() -> void`, so a crate can run its own kind of check the
+same way:
 
 ```kflat
 import core.testing.run_tests

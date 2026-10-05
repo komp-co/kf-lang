@@ -2,9 +2,12 @@
 
 import kf_core.ast.CrateId
 import kf_core.ast.Sym
+import kf_core.ast.annotation.annotation_is_declarable
+import kf_typecheck.check.decl.may_declare_lang_items
 
 /// The annotation `name` as a declaration in `file`, in `crate`'s `module`,
-/// sees it: one declared in its own module, or a `pub` one its imports admit.
+/// sees it: one declared in its own module, a `pub` one its imports admit, or
+/// the standard library's `@test`.
 /// The crate's own declarations shadow a dependency's.
 pub fun SigTable.find_annotation(name: str, file: uint32, crate: CrateId, module: Sym): uint64? {
     var found: uint64? = null
@@ -12,10 +15,16 @@ pub fun SigTable.find_annotation(name: str, file: uint32, crate: CrateId, module
         val declared = self.annotations.at(i)
         if declared.name.as_str() != name { continue }
         val own_module = declared.crate.raw == crate.raw && declared.module.id == module.id
-        val admitted = declared.is_pub && (!self.gate_visibility || self.file_admits(file, declared.module, name))
+        val admitted = declared.is_pub && (!self.gate_visibility || self.file_admits(file, declared.module, name) ||
+                declared.is_standard_builtin())
         if !own_module && !admitted { continue }
         if declared.crate.raw == crate.raw { return i }
         if found == null { found = i }
     }
     return found
+}
+
+/// `@test` as the standard library declares it, which every file sees.
+fun DeclaredAnnotation.is_standard_builtin(): bool {
+    return annotation_is_declarable(self.name.as_str()) && may_declare_lang_items(self.crate)
 }
