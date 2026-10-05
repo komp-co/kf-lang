@@ -240,20 +240,29 @@ fun Expr.emit_method_or_enum_ctor(recv_p: Ptr<Expr>, mname: String, margs: List<
     return emit_method_call(recv_p, mname, self.mangled_callee.as_string(), margs)
 }
 
-// `(recv).field` for a value, `recv.field` for a pointer or reference
-// receiver, so C sees the struct.
+// `(recv).field` for a value, `(*recv).field` for a pointer or reference
+// receiver and `(**recv).field` for a borrowed `Box`, so C sees the struct.
 fun emit_field_access(recv_p: Ptr<Expr>, fname: String): String {
     val recv = unsafe { *recv_p }
     val recv_c = recv.emit_expr()
-    val deref = ty_is_pointer(recv.ty)
     var parts = List.new<String>()
-    if deref { parts.push(String.from("(*")) }
-    else { parts.push(String.from("(")) }
+    parts.push(String.from("("))
+    while _layer in 0..recv.ty.kind.pointer_layers() { parts.push(String.from("*")) }
     parts.push(recv_c)
     parts.push(String.from(")."))
     // A C keyword is escaped; see c_field_name.
     parts.push(c_field_name(fname.as_str()))
     return concat_all(parts)
+}
+
+/// How many pointers stand between a value of this type and the struct.
+fun TypeKind.pointer_layers(): uint64 {
+    return when (self) {
+        PtrTo(p) => 1 + p.kind.pointer_layers()
+        BoxOf(p) => 1 + p.kind.pointer_layers()
+        RefTo(_, p) => 1 + p.kind.pointer_layers()
+        _ => 0
+    }
 }
 
 fun ty_is_pointer(t: Type): bool {

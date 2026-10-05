@@ -376,3 +376,22 @@ fun subst_one_ty(t: Type, name: str, replacement: TypeRef): Type {
     val src = ty_proj(Type.new_generic(String.from("C"), no_span()), "Out")
     assert_eq(src.is_poison(), false, "an unresolved projection is not an error type")
 }
+
+@test fun subst_type_keeps_a_box_argument_a_box(): void {
+    var names = List.new<String>()
+    var repls = List.new<TypeRef>()
+    names.push(String.from("T"))
+    repls.push(dynamic_box_tr("Item"))
+    val gen_t = Type { kind: TypeKind.Generic(intern("T")), provenance: Provenance.Inferred(no_span()) }
+    val out = gen_t.subst_type(&var names, &var repls)
+    when (out.kind) {
+        BoxOf(_inner) => assert(true, "T := Box<Item> is a Box")
+        _ => fail("expected a Box, not a struct named Box__Item")
+    }
+}
+
+fun dynamic_box_tr(arg: str): TypeRef {
+    var args = List.new<TypeRef>()
+    args.push(named_tr(arg))
+    return TypeRef.new(no_span(), TypeRefKind.Named(intern("Box"), args))
+}

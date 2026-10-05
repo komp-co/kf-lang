@@ -33,7 +33,7 @@ pub struct BuildCrate {
 /// `crates` is dependencies-first and deterministic, the root last. `cycle` is
 /// "" for a DAG, else the full cycle as "a -> b -> a".
 pub struct BuildGraph {
-    pub val crates: List<BuildCrate>
+    pub var crates: List<BuildCrate>
     pub val cycle: String
     /// The root's `freestanding = true`: a property of the program, since a
     /// library cannot know whether what links it has an operating system.
