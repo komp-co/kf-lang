@@ -9,7 +9,9 @@ import kf_assemble.stamp_module_owner
 
 import kf_driver.fresh_source_map
 import kf_driver.run_pipeline
-import kf_driver.testing.*
+import kf_driver.testing.gen_test_main_src
+import kf_driver.testing.parse_test_main
+import kf_driver.testing.rename_main_decls
 import kf_shared.publish_text
 import kf_core.diagnostic.new_diagnostics
 

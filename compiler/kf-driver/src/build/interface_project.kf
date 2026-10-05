@@ -12,7 +12,9 @@ import kf_interface.export_closure_diagnostics
 
 import kf_driver.*
 import kf_interface.emit.emit_interface_full
-import kf_driver.testing.*
+import kf_driver.testing.gen_test_main_src
+import kf_driver.testing.parse_test_main
+import kf_driver.testing.rename_main_decls
 import kf_codegen.emit.glue.deep_clone_module
 import kf_shared.crate_interface_path
 import kf_shared.render_json_error

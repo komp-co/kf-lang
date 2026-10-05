@@ -12,7 +12,12 @@ import kf_parse.parser.new_parser
 
 /// Hands core's runner every `@test` function of the crate.
 pub fun gen_test_main_src(): String {
-    return String.from("import core.testing.run_tests\n\nfun main(): int32 {\n    return run_tests(&annotated<test>())\n}\n")
+    return String.from("""import core.testing.run_tests
+
+fun main(): int32 {
+    return run_tests(&annotated<test>())
+}
+""")
 }
 
 pub fun parse_test_main(src: str, smap: Ptr<SourceMap>): Module {
