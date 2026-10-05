@@ -89,7 +89,7 @@ fun TopDecl.register_annotation_use(annotation: &Annotation, owner: &MethodOwner
         if listed.annotation == index && listed.item.id == symbol.id { return }
     }
     val marked = self.mark_kind() ?: return
-    table.annotated.push(AnnotatedItem {
+    table.annotated.push(AnnotationUse {
         annotation: index, item: symbol, name: self.listed_name(owner), bindings: bound, kind: marked,
         module: self.module_path, args: arguments.values
     })

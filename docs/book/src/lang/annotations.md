@@ -32,9 +32,17 @@ fun main(): int32 {
 }
 ```
 
-The list is in declaration order, and private declarations are in it, from
-any module of the crate. Each entry has the declaration's `name`, the path of
+The result is an array with one entry per use, here an
+`AnnotatedFunction<bench, () -> void>[1]`, so a query needs no allocator and
+runs in a crate that depends on `core` alone. It is in declaration order, and
+private declarations are in it, from any module of the crate. A query with no
+uses is an empty array. Each entry has the declaration's `name`, the path of
 the `module` declaring it, and the use's `args`.
+
+An entry is a [view](memory.md#view-types): its `name` and `module` are `str`
+borrowed from string literals. The array can be iterated, indexed and lent
+as a slice, `&AnnotatedFunction<A, () -> int32>[]`, but a struct cannot hold
+an entry; keep `String.from(entry.name)` instead.
 
 ### Parameters
 
@@ -311,7 +319,7 @@ arguments.
 
 Without `on`, an annotation marks functions of type `() -> void`. Entries
 are an `AnnotatedFunction<bench, F>` for a function type, or an
-`AnnotatedItem<bench>` for kinds, from alloc.
+`AnnotatedItem<bench>` for kinds, from [core](../libs/core.md#annotatedfunction-and-annotateditem).
 
 #### Fields and variants
 
