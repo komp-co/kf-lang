@@ -62,3 +62,48 @@ fun a_safe_call_reaching_a_user_type_compiles_in_the_unity_output(): void {
     val ran = unsafe { system("${binary}; test \"$?\" -eq 42") }
     assert_eq(ran, 0, "the present field is read and the absent one falls back")
 }
+
+fun write_array_literal_fixture(root: str): void {
+    write_file(
+        "${root}/kf.toml".as_str(),
+        "[project]\nname = \"unity_array\"\nversion = \"0.1.0\"\nkind = \"bin\"\n"
+    )
+    write_file("${root}/src/ranks/ranks.kf".as_str(), """pub struct Rank {
+    pub val value: int32
+}
+
+impl Rank {
+    pub static fun new(value: int32): Rank {
+        return Rank { value: value }
+    }
+}
+""")
+    write_file("${root}/src/main.kf".as_str(), """import unity_array.ranks.*
+
+fun main(): int32 {
+    val ranks = [Rank.new(3), Rank.new(39)]
+    var total: int32 = 0
+    while rank in ranks {
+        total = total + rank.value
+    }
+    return total
+}
+""")
+}
+
+// An array literal typed from its first element records that element's
+// checked type, whose name is an identity; a call's result is one.
+@test
+fun an_array_literal_of_calls_compiles_in_the_unity_output(): void {
+    val root = scratch_path("kf_unity_array_literal")
+    val prepared = unsafe { system("rm -rf ${root} && mkdir -p ${root}/src/ranks") }
+    assert_eq(prepared, 0, "the fixture is prepared")
+    write_array_literal_fixture(root.as_str())
+    assert_eq(komp_build_unity(root), 0, "the whole-program build succeeds")
+    val out = "${FixtureGraph.of(root).target_dir}/komp_out.c"
+    val binary = "${root}/unity_array"
+    val compiled = unsafe { system("cc -std=gnu17 -w -o ${binary} ${out} -lm") }
+    assert_eq(compiled, 0, "the C names the array and its iterator with C identifiers")
+    val ran = unsafe { system("${binary}; test \"$?\" -eq 42") }
+    assert_eq(ran, 0, "both elements are read")
+}
