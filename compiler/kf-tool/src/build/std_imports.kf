@@ -3,13 +3,11 @@
 // for the programs that use it.
 
 import alloc.list.*
-import kf_shared.walk_kf_files_inc
 
 /// Whether a `.kf` file under `crate_root/src`, tests included, has a line
 /// starting `import std`.
 pub fun crate_imports_std(crate_root: str): bool {
-    var files = List.new<String>()
-    walk_kf_files_inc("${crate_root}/src".as_str(), &var files, true)
+    val files = crate_kf_files("${crate_root}/src".as_str(), true)
     while file in &files {
         if imports_std(read_file(file.as_str()).as_str()) { return true }
     }

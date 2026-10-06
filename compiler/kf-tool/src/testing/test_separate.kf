@@ -9,8 +9,7 @@ import kf_tool.build.crate_artifact_manifest_path
 import kf_tool.build.crate_archive_path
 import kf_tool.build.test_crate_dir
 import kf_tool.build.test_artifact_path
-import kf_shared.walk_kf_files
-import kf_shared.walk_kf_files_inc
+import kf_tool.build.crate_kf_files
 
 pub fun test_project_separate(root_dir: str, case_filter: str, test_filter: str): int32 {
     val built = build_project_separate_in(root_dir, "", false, "", true)
@@ -72,10 +71,8 @@ pub fun test_project_separate(root_dir: str, case_filter: str, test_filter: str)
 /// A crate `testing` cannot serve, `core`, which it depends on: it may hold
 /// no tests, and passes with none.
 fun BuildCrate.test_without_testing(): int32 {
-    var all = List.new<String>()
-    var sources = List.new<String>()
-    walk_kf_files_inc("${self.root}/src".as_str(), &var all, true)
-    walk_kf_files("${self.root}/src".as_str(), &var sources)
+    val all = crate_kf_files("${self.root}/src".as_str(), true)
+    val sources = crate_kf_files("${self.root}/src".as_str(), false)
     if all.size() == sources.size() {
         runtime_println("running 0 tests")
         runtime_println("")

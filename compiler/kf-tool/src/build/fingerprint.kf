@@ -6,7 +6,6 @@
 
 import alloc.list.*
 
-import kf_shared.walk_kf_files
 import kf_tool.project.manifest_c_sources
 import kf_tool.project.manifest_hosted_c_sources
 import kf_tool.project.parse_manifest
@@ -39,8 +38,7 @@ pub fun build_profile_key(extra_cflags: str, freestanding: bool): String {
 /// path. "" for a crate shipped as artifacts only.
 pub fun crate_source_fingerprint(crate_root: str, compiler: &CompilerIdentity): String {
     val src_root = String.from(crate_root) + String.from("/src")
-    var paths = List.new<String>()
-    walk_kf_files(src_root.as_str(), &var paths)
+    val paths = crate_kf_files(src_root.as_str(), false)
     if paths.size() == 0 { return "" }
     // Both binaries are part of every fingerprint: a different kflatc emits
     // different C, and a different komp may compile it differently.

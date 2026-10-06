@@ -17,7 +17,6 @@ import kf_tool.install.installed_packages
 import kf_tool.install.uninstall_package
 import kf_tool.install.update_installed
 import kf_tool.project.default_index_url
-import kf_shared.cli_arg_get
 import std.env.env_var
 
 /// `komp tool install|list|update|remove`.

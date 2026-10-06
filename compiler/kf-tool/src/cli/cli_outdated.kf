@@ -7,7 +7,6 @@ import kf_tool.build.OutdatedRow
 import kf_tool.build.outdated
 import kf_tool.fetch.cache_root
 import kf_tool.project.command_dir
-import kf_shared.cli_arg_get
 import std.env.current_dir
 import std.fs.exists
 import alloc.path.Path

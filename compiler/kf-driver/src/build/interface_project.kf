@@ -16,7 +16,7 @@ import kf_driver.testing.gen_test_main_src
 import kf_driver.testing.parse_test_main
 import kf_driver.testing.rename_main_decls
 import kf_codegen.emit.glue.deep_clone_module
-import kf_shared.render_json_error
+import kf_driver.cli.render_json_error
 import kf_lint.lint_module
 import kf_lint.lint_typed_module
 import kf_driver.cli.print_json_diag
