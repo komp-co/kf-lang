@@ -3,7 +3,6 @@
 
 import alloc.list.*
 import json.writer.JsonWriter
-import kf_shared.cli_arg_get
 import kf_tool.fetch.IndexPackage
 import kf_tool.fetch.cache_root
 import kf_tool.fetch.index_package
