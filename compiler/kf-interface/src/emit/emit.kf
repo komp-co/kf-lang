@@ -187,14 +187,14 @@ mutating fun JsonWriter.append_decl_entry(td: &TopDecl, m: &Module, crate: Crate
     }
     if decl_is_exported_template(td) {
         if impl_target_is_exported(td, m, crate) {
-            self.write_raw(td.emit_template_entry(false, smap).as_str())
+            self.write_raw(td.emit_template_entry(false, m, crate, smap).as_str())
             return
         }
     }
     if !hidden_name_in(hidden, td.name.as_str()) { return }
     if td.generics.size() > 0 || td.is_constant() {
         if td.decl_end == 0 as uint32 { return }
-        self.write_raw(td.emit_template_entry(true, smap).as_str())
+        self.write_raw(td.emit_template_entry(true, m, crate, smap).as_str())
         return
     }
     self.write_raw(emit_decl(td, true, m.type_is_no_mangle(td.name.as_str()), m).as_str())

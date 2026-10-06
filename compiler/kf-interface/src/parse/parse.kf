@@ -156,11 +156,12 @@ mutating fun JsonReader.load_modules(crate: CrateId, crate_name: str, smap: Ptr<
         if !self.expect_key("files") { return modules }
         if !self.load_module_files(path.as_str(), smap) { return modules }
         if !self.expect_key("decls") { return modules }
-        val decls = self.load_decls(crate, crate_name, path.as_str(), smap)
+        var imports = List.new<Import>()
+        val decls = self.load_decls(crate, crate_name, path.as_str(), smap, &var imports)
         if !self.expect_key("reexports") { return modules }
-        val reexports = self.load_reexports(path.as_str())
+        imports.extend(self.load_reexports(path.as_str()))
         if self.object_has_next() { return modules }
-        modules.push(Module { crate: crate, path: split_dotted_path(path.as_str()), decls: decls, imports: reexports })
+        modules.push(Module { crate: crate, path: split_dotted_path(path.as_str()), decls: decls, imports: imports })
     }
     return modules
 }
@@ -179,18 +180,8 @@ mutating fun JsonReader.load_module_files(path: str, smap: Ptr<SourceMap>): bool
     return true
 }
 
-mutating fun JsonReader.load_decls(crate: CrateId, crate_name: str, path: str, smap: Ptr<SourceMap>): List<TopDecl> {
-    var decls = List.new<TopDecl>()
-    if !self.begin_array() { return decls }
-    while self.array_has_next() {
-        val td = self.load_decl(crate, crate_name, path, smap)
-        if decl_is_poison(td) { return decls }
-        decls.push(td)
-    }
-    return decls
-}
-
-mutating fun JsonReader.load_decl(crate: CrateId, crate_name: str, path: str, smap: Ptr<SourceMap>): TopDecl {
+mutating fun JsonReader.load_decl(crate: CrateId, crate_name: str, path: str, smap: Ptr<SourceMap>,
+    imports: &var List<Import>): TopDecl {
     if !self.begin_object() { return poison_decl() }
     if !self.expect_key("kind") { return poison_decl() }
     val kind = self.read_string()
@@ -204,7 +195,7 @@ mutating fun JsonReader.load_decl(crate: CrateId, crate_name: str, path: str, sm
         "trait" => self.load_trait(crate, path, hidden)
         "trait_impl" => self.load_trait_impl(crate, path, hidden)
         "extern" => self.load_extern_decl(crate, path, hidden)
-        "generic" => self.load_generic(crate, crate_name, path, smap)
+        "generic" => self.load_generic(crate, crate_name, path, smap, imports)
         "annotation" => self.load_annotation(crate, path, hidden)
         _ => poison_decl()
     }
