@@ -53,7 +53,9 @@ pub fun choose_toolchain(pin: str, default_version: str, home: str): ToolchainCh
         return no_toolchain(error, false)
     }
     val beside = parse_version(default_version) ?: Version { major: 0, minor: 0, patch: 0 }
-    if default_version.byte_len() > 0 && wanted.allows(&beside) { return ToolchainChoice { kflatc: "", error: "", installable: false } }
+    if default_version.byte_len() > 0 && wanted.allows(&beside) {
+        return ToolchainChoice { kflatc: "", error: "", installable: false }
+    }
     val installed = installed_toolchains(home)
     // Ascending, so the last one allowed is the highest.
     var chosen = ""
