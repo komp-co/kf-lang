@@ -2,6 +2,7 @@
 //! deps: core, testing
 // A failing test panics in its child, so the run continues and then exits 1.
 
+import testing.disabled
 import testing.run_tests
 import testing.test
 

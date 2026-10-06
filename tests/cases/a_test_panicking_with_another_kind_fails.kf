@@ -2,6 +2,7 @@
 //! deps: core, testing
 // A test expecting one kind of panic fails on another.
 
+import testing.disabled
 import testing.run_tests
 import testing.test
 
