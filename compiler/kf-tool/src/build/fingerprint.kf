@@ -34,11 +34,10 @@ pub fun build_profile_key(extra_cflags: str, freestanding: bool): String {
     return out
 }
 
-/// The manifest plus every production `.kf` file, by sorted crate-relative
-/// path. "" for a crate shipped as artifacts only.
-pub fun crate_source_fingerprint(crate_root: str, compiler: &CompilerIdentity): String {
-    val src_root = String.from(crate_root) + String.from("/src")
-    val paths = crate_kf_files(src_root.as_str(), false)
+/// The manifest plus every production `.kf` file under `src_root`, by sorted
+/// crate-relative path. "" for a crate shipped as artifacts only.
+pub fun crate_source_fingerprint(crate_root: str, src_root: str, compiler: &CompilerIdentity): String {
+    val paths = crate_kf_files(src_root, false)
     if paths.size() == 0 { return "" }
     // Both binaries are part of every fingerprint: a different kflatc emits
     // different C, and a different komp may compile it differently.
@@ -83,7 +82,7 @@ pub fun BuildCrate.expected_artifact_manifest(profile: str, built_names: &List<S
     is_bin_root: bool, compiler: &CompilerIdentity): ArtifactManifest {
     val manifest_path = String.from(self.root.as_str()) + String.from("/kf.toml")
     val mf = parse_manifest(read_file(manifest_path.as_str()).as_str())
-    val source_fp = crate_source_fingerprint(self.root.as_str(), compiler)
+    val source_fp = crate_source_fingerprint(self.root.as_str(), self.src.as_str(), compiler)
     var dep_names = List.new<String>()
     var dep_hashes = List.new<String>()
     while dep in &self.deps {

@@ -252,7 +252,7 @@ pub fun typed_crate_for_overlay(file_path: str, buffer: str): TypedCrate {
 fun crate_sources(crates: &List<BuildCrate>): List<CrateSource> {
     var out = List.new<CrateSource>()
     while item in &crates {
-        out.push(CrateSource { name: item.name.clone(), root: item.root.clone() })
+        out.push(CrateSource { name: item.name.clone(), root: item.root.clone(), src: item.src.clone() })
     }
     return out
 }

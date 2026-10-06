@@ -28,52 +28,52 @@ c_sources = ["native/fp.c"]
 @test
 fun source_fingerprint_is_deterministic(): void {
     val prep = prepare_fingerprint_fixture()
-    val first = crate_source_fingerprint(scratch_path("kf_sc7_fp"), &fixture_compiler("bin"))
-    val second = crate_source_fingerprint(scratch_path("kf_sc7_fp"), &fixture_compiler("bin"))
+    val first = fingerprint_of("kf_sc7_fp", &fixture_compiler("bin"))
+    val second = fingerprint_of("kf_sc7_fp", &fixture_compiler("bin"))
     assert_eq(prep == 0 && first.as_str() == second.as_str(), true, "same tree fingerprints identically")
 }
 
 @test
 fun source_fingerprint_ignores_timestamps(): void {
     val prep = prepare_fingerprint_fixture()
-    val before = crate_source_fingerprint(scratch_path("kf_sc7_fp"), &fixture_compiler("bin"))
+    val before = fingerprint_of("kf_sc7_fp", &fixture_compiler("bin"))
     write_file(scratch_path("kf_sc7_fp/src/lib.kf"), "pub fun one(): int32 {\n    return 1\n}\n")
     val _touch = unsafe { system("touch ${scratch_path("kf_sc7_fp/src/inner/two.kf")}") }
-    val after = crate_source_fingerprint(scratch_path("kf_sc7_fp"), &fixture_compiler("bin"))
+    val after = fingerprint_of("kf_sc7_fp", &fixture_compiler("bin"))
     assert_eq(prep == 0 && before.as_str() == after.as_str(), true, "identical bytes fingerprint identically regardless of mtime")
 }
 
 @test
 fun source_fingerprint_tracks_content(): void {
     val prep = prepare_fingerprint_fixture()
-    val before = crate_source_fingerprint(scratch_path("kf_sc7_fp"), &fixture_compiler("bin"))
+    val before = fingerprint_of("kf_sc7_fp", &fixture_compiler("bin"))
     write_file(scratch_path("kf_sc7_fp/src/lib.kf"), "pub fun one(): int32 {\n    return 3\n}\n")
-    val after = crate_source_fingerprint(scratch_path("kf_sc7_fp"), &fixture_compiler("bin"))
+    val after = fingerprint_of("kf_sc7_fp", &fixture_compiler("bin"))
     assert_eq(prep == 0 && before.as_str() != after.as_str(), true, "a changed body changes the fingerprint")
 }
 
 @test
 fun source_fingerprint_tracks_native_content(): void {
     val prep = prepare_fingerprint_fixture()
-    val before = crate_source_fingerprint(scratch_path("kf_sc7_fp"), &fixture_compiler("bin"))
+    val before = fingerprint_of("kf_sc7_fp", &fixture_compiler("bin"))
     write_file(scratch_path("kf_sc7_fp/native/fp.c"), "int fp_native(void) { return 2; }\n")
-    val after = crate_source_fingerprint(scratch_path("kf_sc7_fp"), &fixture_compiler("bin"))
+    val after = fingerprint_of("kf_sc7_fp", &fixture_compiler("bin"))
     assert_eq(prep == 0 && before.as_str() != after.as_str(), true, "changed native source changes the fingerprint")
 }
 
 @test
 fun source_fingerprint_tracks_the_manifest(): void {
     val prep = prepare_fingerprint_fixture()
-    val before = crate_source_fingerprint(scratch_path("kf_sc7_fp"), &fixture_compiler("bin"))
+    val before = fingerprint_of("kf_sc7_fp", &fixture_compiler("bin"))
     write_file(scratch_path("kf_sc7_fp/kf.toml"), "[project]\nname = \"fp\"\nversion = \"0.2.0\"\nkind = \"lib\"\n")
-    val after = crate_source_fingerprint(scratch_path("kf_sc7_fp"), &fixture_compiler("bin"))
+    val after = fingerprint_of("kf_sc7_fp", &fixture_compiler("bin"))
     assert_eq(prep == 0 && before.as_str() != after.as_str(), true, "a manifest change changes the fingerprint")
 }
 
 @test
 fun source_fingerprint_empty_for_missing_source(): void {
     val prep = unsafe { system("rm -rf ${scratch_path("kf_sc7_fp_none")} && mkdir -p ${scratch_path("kf_sc7_fp_none")}") }
-    val fp = crate_source_fingerprint(scratch_path("kf_sc7_fp_none"), &fixture_compiler("bin"))
+    val fp = fingerprint_of("kf_sc7_fp_none", &fixture_compiler("bin"))
     assert_eq(prep == 0 && fp.as_str() == "", true, "an artifacts-only crate has no source fingerprint")
 }
 
@@ -156,9 +156,9 @@ hosted_c_sources = ["native/b.c"]
     write_file(scratch_path("kf_sc7_fp_hosted/src/lib.kf"), "pub fun one(): int32 {\n    return 1\n}\n")
     write_file(scratch_path("kf_sc7_fp_hosted/native/a.c"), "int a_native(void) { return 1; }\n")
     write_file(scratch_path("kf_sc7_fp_hosted/native/b.c"), "int b_native(void) { return 1; }\n")
-    val before = crate_source_fingerprint(scratch_path("kf_sc7_fp_hosted"), &fixture_compiler("bin"))
+    val before = fingerprint_of("kf_sc7_fp_hosted", &fixture_compiler("bin"))
     write_file(scratch_path("kf_sc7_fp_hosted/native/b.c"), "int b_native(void) { return 2; }\n")
-    val after = crate_source_fingerprint(scratch_path("kf_sc7_fp_hosted"), &fixture_compiler("bin"))
+    val after = fingerprint_of("kf_sc7_fp_hosted", &fixture_compiler("bin"))
     assert_eq(prep == 0 && before.as_str() != after.as_str(), true, "the hosted half is fingerprinted like any other C source")
 }
 
@@ -214,8 +214,8 @@ fun fixture_compiler(binary_hash: str): CompilerIdentity {
 @test
 fun a_different_compiler_binary_changes_the_fingerprint(): void {
     val _prep = prepare_fingerprint_fixture()
-    val before = crate_source_fingerprint(scratch_path("kf_sc7_fp"), &fixture_compiler("one"))
-    val after = crate_source_fingerprint(scratch_path("kf_sc7_fp"), &fixture_compiler("two"))
+    val before = fingerprint_of("kf_sc7_fp", &fixture_compiler("one"))
+    val after = fingerprint_of("kf_sc7_fp", &fixture_compiler("two"))
     assert_eq(before.as_str() != after.as_str(), true, "a rebuilt kflatc rebuilds the crate")
 }
 
@@ -223,4 +223,10 @@ fun a_different_compiler_binary_changes_the_fingerprint(): void {
 fun a_version_field_is_read_by_its_key(): void {
     val lines = "kflatc 0.1.0\nabi komp-1\nruntime kflat-runtime-1\n".lines()
     assert_eq(version_field(&lines, "runtime").as_str(), "kflat-runtime-1", "the value after the key")
+}
+
+/// The fingerprint of the crate in scratch directory `name`, sources in `src/`.
+fun fingerprint_of(name: str, compiler: &CompilerIdentity): String {
+    val root = scratch_path(name)
+    return crate_source_fingerprint(root, "${root}/src".as_str(), compiler)
 }

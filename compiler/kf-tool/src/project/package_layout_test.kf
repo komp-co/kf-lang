@@ -1,0 +1,62 @@
+import core.assert.assert_eq
+
+fun both_parts(): Manifest {
+    return parse_manifest("[project]\nname = \"tool\"\n\n[lib]\n\n[bin]\n")
+}
+
+@test
+fun a_lib_kind_holds_a_library_only(): void {
+    val manifest = parse_manifest("[project]\nname = \"l\"\nkind = \"lib\"\n")
+    assert_eq(manifest.has_library() && !manifest.has_program(), true, "kind decides without sections")
+}
+
+@test
+fun the_default_kind_holds_a_program_only(): void {
+    val manifest = parse_manifest("[project]\nname = \"b\"\n")
+    assert_eq(!manifest.has_library() && manifest.has_program(), true, "kind is bin by default")
+}
+
+@test
+fun both_sections_hold_both(): void {
+    assert_eq(both_parts().holds_both(), true, "[lib] and [bin] together")
+}
+
+@test
+fun a_bin_section_alone_holds_no_library(): void {
+    val manifest = parse_manifest("[project]\nname = \"b\"\n\n[bin]\n")
+    assert_eq(!manifest.has_library() && manifest.has_program(), true, "the sections replace kind")
+}
+
+@test
+fun a_lib_section_overrides_the_default_kind(): void {
+    val manifest = parse_manifest("[project]\nname = \"l\"\n\n[lib]\n")
+    assert_eq(manifest.has_library() && !manifest.has_program(), true, "no program unless [bin] says so")
+}
+
+@test
+fun kind_beside_a_section_is_an_error(): void {
+    val manifest = parse_manifest("[project]\nname = \"t\"\nkind = \"bin\"\n\n[lib]\n")
+    assert_eq(manifest.error.as_str().contains("keep the sections"), true, "the two would disagree")
+}
+
+@test
+fun the_library_of_a_package_holding_both_is_in_src_lib(): void {
+    assert_eq(both_parts().first_source_dir("/p").as_str(), "/p/src/lib", "what a dependent builds against")
+}
+
+@test
+fun a_package_without_sections_keeps_its_sources_in_src(): void {
+    val manifest = parse_manifest("[project]\nname = \"l\"\nkind = \"lib\"\n")
+    assert_eq(manifest.first_source_dir("/p").as_str(), "/p/src", "today's layout")
+}
+
+@test
+fun a_program_alone_is_in_src_bin(): void {
+    val manifest = parse_manifest("[project]\nname = \"b\"\n\n[bin]\n")
+    assert_eq(manifest.first_source_dir("/p").as_str(), "/p/src/bin", "the section names the directory")
+}
+
+@test
+fun the_program_crate_is_named_apart_from_the_library(): void {
+    assert_eq(both_parts().program_crate_name().as_str(), "tool_bin", "the library keeps the package's name")
+}

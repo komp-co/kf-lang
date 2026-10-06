@@ -32,8 +32,8 @@ pub fun run_project_mode(root: str, mode: BuildMode): int32 {
         runtime_println(graph.error.as_str())
         return 1
     }
-    if !project_is_bin(root) {
-        runtime_println("komp run: cannot run a library crate (set kind = \"bin\" in kf.toml)")
+    if !project_has_program(root) {
+        runtime_println("komp run: cannot run a library crate (set kind = \"bin\" in kf.toml, or add a [bin] section)")
         return 1
     }
     when (mode) {
@@ -43,7 +43,7 @@ pub fun run_project_mode(root: str, mode: BuildMode): int32 {
             if built != 0 { return built }
             val graph = build_crate_graph(root, false)
             val root_crate = *graph.crates.at(graph.crates.size() - 1)
-            val binary = binary_path(target_dir(root).as_str(), root_crate.name.as_str())
+            val binary = binary_path(target_dir(root).as_str(), root_crate.package.as_str())
             return Command.new(binary.as_str()).status().exit_code()
         }
     }
@@ -357,8 +357,8 @@ fun build_failed(message: str): int32 {
 
 /// cc's status on a build failure, else the program's (a raw wait status).
 fun run_project(root: str): int32 {
-    if !project_is_bin(root) {
-        runtime_println("komp run: cannot run a library crate (set kind = \"bin\" in kf.toml)")
+    if !project_has_program(root) {
+        runtime_println("komp run: cannot run a library crate (set kind = \"bin\" in kf.toml, or add a [bin] section)")
         return 1
     }
     val c = compile_project(root) ?: return build_failed("komp run: errors found; not building")

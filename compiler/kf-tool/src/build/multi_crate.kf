@@ -20,19 +20,23 @@ pub fun compile_project(root_dir: str): String? {
     }
     val temp = TempDir.new("komp-unity")
     val generated = temp.path().join("generated.c")
-    if graph.invoke_kflatc_unity(root_dir, generated.as_str(), project_is_bin(root_dir), false) != 0 {
+    if graph.invoke_kflatc_unity(root_dir, generated.as_str(), project_has_program(root_dir), false) != 0 {
         return Option.None
     }
     return compose_project_unity(root_dir, read_file(generated.as_str()))
 }
 
-/// `kind = "bin"` (the default) rather than `"lib"`. A lib emits no `main`.
-pub fun project_is_bin(root: str): bool {
+/// The package builds a program: `kind = "bin"` (the default), or a `[bin]`
+/// section. A library emits no `main`.
+pub fun project_has_program(root: str): bool {
     if manifest_missing(root) { return false }
-    val manifest_path = "${root}/kf.toml"
-    val toml_src = read_file(manifest_path.as_str())
-    val mf = parse_manifest(toml_src.as_str())
-    return mf.kind.as_str() == "bin"
+    return manifest_of(root).has_program()
+}
+
+/// The package offers a library: what a dependent builds against.
+pub fun project_has_library(root: str): bool {
+    if manifest_missing(root) { return false }
+    return manifest_of(root).has_library()
 }
 
 /// The root manifest, re-read for its `[lint]` rows.
