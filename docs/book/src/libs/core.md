@@ -949,29 +949,38 @@ Both are [views](../lang/memory.md#view-types), so a struct cannot hold one.
 
 ## Running tests
 
-`core.testing` declares `@test` and `@test_disabled`, and `run_tests` is the
-entry point of a test program: `komp test` builds the main
-`return run_tests(&annotated<test>())`. It takes the entries of any
-annotation on `() -> void`, so a crate can run its own kind of check the
-same way:
+`core.testing` declares [`@test` and `@disabled`](../lang/annotations.md#test),
+and `run_tests` is the entry point of a test program: `komp test` builds the
+main `return run_tests(&annotated<test>(), &annotated<disabled>())`.
 
 ```kflat
 import core.testing.run_tests
 
-annotation check
-
-@check
+@test(name = "one and one make two")
 fun adds(): void { assert_eq(1 + 1, 2, "one and one") }
 
 fun main(): int32 {
-    return run_tests(&annotated<check>())
+    return run_tests(&annotated<test>(), &annotated<disabled>())
 }
 ```
 
 Each test runs in its own child process, so a panic fails that test and the
-run goes on. `--filter <substring>` runs only the tests whose names contain
-it, and fails when none does; `--run-test <name>` runs one test in this
-process. The exit code is 1 when a test failed.
+run goes on; a disabled test is reported as ignored. The exit code is 1 when a
+test failed. The program answers three flags:
+
+| Flag | Does |
+|---|---|
+| `--filter <substring>` | runs the tests whose name, or shown name, contains it; fails when none does |
+| `--run-test <name>` | runs one test in this process |
+| `--list` | prints each test as one JSON line and runs nothing |
+
+A `--list` line names the function, the name shown, its module, its file and
+line, the fault kind it expects (`""` for none, `"any"` for any), and the
+reason it is disabled, or `null`:
+
+```json
+{"name":"adds","shown":"one and one make two","module":"app","file":"src/lib_test.kf","line":4,"panics":"","disabled":null}
+```
 
 ## Path
 

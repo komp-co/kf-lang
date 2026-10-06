@@ -1,0 +1,12 @@
+//! run: exit 1
+//! deps: core
+// A test expecting one kind of panic fails on another.
+
+import core.testing.run_tests
+
+@test(panics = FaultKind.IndexOutOfBounds)
+fun asserts_instead(): void { assert(false, "not an index") }
+
+fun main(): int32 {
+    return run_tests(&annotated<test>(), &annotated<disabled>())
+}

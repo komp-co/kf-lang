@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <time.h>
@@ -73,10 +74,26 @@ void runtime_println(const char* value) {
     fflush(stdout);
 }
 
+/* The panic a `@test(panics = ...)` test expects: its code, or "any". A
+ * matching panic ends the test as a pass. */
+static const char* kf_test_expected_panic = NULL;
+
+void kf_test_expect_panic(const char* code) {
+    kf_test_expected_panic = code;
+}
+
+static bool kf_test_panic_expected(const char* message) {
+    const char* code = kf_test_expected_panic;
+    if (code == NULL) return false;
+    if (strcmp(code, "any") == 0) return true;
+    size_t n = strlen(code);
+    return strncmp(message, "panic[", 6) == 0 && strncmp(message + 6, code, n) == 0 && message[6 + n] == ']';
+}
+
 void panic(const char* message) {
     puts(message);
     fflush(stdout);
-    exit(1);
+    exit(kf_test_panic_expected(message) ? 0 : 1);
 }
 
 /* Floats print with the FEWEST digits that read back as the same value.
@@ -309,10 +326,14 @@ static int32_t kf_test_run_child_timed(const char* name) {
 
 /* Tests queued by the generated main, run by `kf_test_run_queued`. */
 static const char* kf_test_queue_names[KF_TEST_SLOTS];
+static const char* kf_test_queue_shown[KF_TEST_SLOTS];
 static int         kf_test_queued = 0;
 
-void kf_test_queue(const char* name) {
-    if (kf_test_queued < KF_TEST_SLOTS) kf_test_queue_names[kf_test_queued++] = name;
+void kf_test_queue(const char* name, const char* shown) {
+    if (kf_test_queued < KF_TEST_SLOTS) {
+        kf_test_queue_shown[kf_test_queued] = shown;
+        kf_test_queue_names[kf_test_queued++] = name;
+    }
 }
 
 int32_t kf_test_queued_count(void) {
@@ -365,9 +386,9 @@ int32_t kf_test_run_queued(void) {
     int failed = 0;
     if (jobs == 1) {
         for (int i = 0; i < kf_test_queued; i++) {
-            printf("test %s ...\n", kf_test_queue_names[i]);
+            printf("test %s ...\n", kf_test_queue_shown[i]);
             int32_t code = kf_test_run_child(kf_test_queue_names[i]);
-            kf_test_print_result(kf_test_queue_names[i], code, &failed);
+            kf_test_print_result(kf_test_queue_shown[i], code, &failed);
         }
         return failed;
     }
@@ -388,16 +409,16 @@ int32_t kf_test_run_queued(void) {
             if (pids[i] < 0) {
                 codes[i] = -1;
                 done[i] = true;
-                kf_test_record(kf_test_queue_names[i], 0);
+                kf_test_record(kf_test_queue_shown[i], 0);
             } else {
                 running++;
             }
         }
         while (next_print < total && done[next_print]) {
             int i = next_print++;
-            printf("test %s ...\n", kf_test_queue_names[i]);
+            printf("test %s ...\n", kf_test_queue_shown[i]);
             if (outs[i] != NULL) kf_test_copy_out(outs[i]);
-            kf_test_print_result(kf_test_queue_names[i], codes[i], &failed);
+            kf_test_print_result(kf_test_queue_shown[i], codes[i], &failed);
         }
         if (next_print >= total || running == 0) continue;
         int status = 0;
@@ -408,7 +429,7 @@ int32_t kf_test_run_queued(void) {
                 codes[i] = kf_test_exit_code(status);
                 done[i] = true;
                 running--;
-                kf_test_record(kf_test_queue_names[i], kf_now_ns() - started[i]);
+                kf_test_record(kf_test_queue_shown[i], kf_now_ns() - started[i]);
                 break;
             }
         }
@@ -442,17 +463,19 @@ static void kf_test_print_slowest(void) {
     }
 }
 
-void kf_test_report(int32_t passed, int32_t failed) {
+void kf_test_report(int32_t passed, int32_t failed, int32_t ignored) {
     if (kf_test_failed_count > 0) {
         printf("failures:\n");
         for (int i = 0; i < kf_test_failed_count; i++) printf("  %s\n", kf_test_failed_names[i]);
         printf("\n");
     }
     if (failed == 0) {
-        printf("test result: ok. %d passed\n", (int)passed);
+        printf("test result: ok. %d passed", (int)passed);
     } else {
-        printf("test result: FAILED. %d passed, %d failed\n", (int)passed, (int)failed);
+        printf("test result: FAILED. %d passed, %d failed", (int)passed, (int)failed);
     }
+    if (ignored > 0) printf(", %d ignored", (int)ignored);
+    printf("\n");
     kf_test_print_slowest();
     fflush(stdout);
 }

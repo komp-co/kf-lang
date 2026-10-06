@@ -2,7 +2,7 @@
 
 Annotations start with `@` and apply to the declaration that follows. KFlat
 has `@allow(...)`, `@derive(...)`, `@no_mangle`, `@lang(...)` and `@prelude`
-built in, core declares [`@test` and `@test_disabled`](#test), and a crate may
+built in, core declares [`@test` and `@disabled`](#test), and a crate may
 [declare its own](#declaring-an-annotation). Any other annotation is an error.
 
 A declaration may carry several, one per line.
@@ -384,7 +384,7 @@ calling `annotated<bench>()` sees `measure`'s functions, not the ones of the
 crate that imported `bench`.
 
 The name of a built-in annotation cannot be declared, nor can `test` or
-`test_disabled` outside the standard library. `annotation`, `on`
+`disabled` outside the standard library. `annotation`, `on`
 and `any` are not reserved words; they are read this way only in an
 annotation's declaration.
 
@@ -399,14 +399,35 @@ fun addition_works(): void {
 }
 ```
 
-Core declares it as `annotation test on () -> void`, and every file sees it
-without an import. A test main is `run_tests(&annotated<test>())`, core's
+Core declares it, and `@disabled`, and every file sees both without an
+import:
+
+```kflat
+annotation test(name: str = "", panics: FaultKind = FaultKind.NoFault) on () -> void
+annotation disabled(reason: str) on () -> void
+```
+
+`name` is shown in the report in place of the function's name. `panics` makes
+the test pass only when it panics with that kind of
+[fault](../libs/core.md#faults), or with any for `FaultKind.AnyFault`:
+
+```kflat
+@test(name = "an index past the end panics", panics = FaultKind.IndexOutOfBounds)
+fun indexes_past_the_end(): void {
+    val xs = [1, 2]
+    val _x = xs[5]
+}
+
+@test
+@disabled("waiting on the parser fix")
+fun parses_nested_generics(): void { }
+```
+
+A `@disabled` test is still checked, so it cannot rot, but it is not run: the
+report lists it as ignored, with its reason. A test main is
+`run_tests(&annotated<test>(), &annotated<disabled>())`, core's
 [runner](../libs/core.md#running-tests) over the crate's tests. See
 [Writing tests](../tools/testing.md) for running and filtering tests.
-
-`@test_disabled` also marks a `() -> void` function, but leaves it out of
-`komp test`. It is used by the compiler's test suite for disabled
-integration tests.
 
 ## @derive
 

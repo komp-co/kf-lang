@@ -1,0 +1,12 @@
+//! run: exit 1
+//! deps: core
+// A test that should panic fails when it returns instead.
+
+import core.testing.run_tests
+
+@test(panics = FaultKind.AnyFault)
+fun returns(): void {}
+
+fun main(): int32 {
+    return run_tests(&annotated<test>(), &annotated<disabled>())
+}

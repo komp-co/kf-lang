@@ -59,7 +59,9 @@ return sum }"""
 
 // `while i in 0..xs.size()`: 10+20+12 = 42. Disabled: compile_source merges
 // no stdlib, so `List` is unresolved.
-@test_disabled fun integration_range_collection_index(): void {
+@test
+@disabled("compile_source merges no stdlib, so `List` is unresolved")
+fun integration_range_collection_index(): void {
     val src = """fun main(): int32 { var xs = List.new<int32>()
 xs.push(10)
 xs.push(20)
