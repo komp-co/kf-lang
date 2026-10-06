@@ -312,6 +312,9 @@ pub struct SigTable {
     pub var constants: List<ConstantValue>
     /// `internal` functions and values, by `module name`.
     pub var internal_names: HashMap<String, bool>
+    /// Each function's declared parameters, by signature name, without a
+    /// receiver: the names named arguments bind and the defaults.
+    pub var param_lists: HashMap<String, List<Param>>
 }
 
 pub fun new_sig_table(): SigTable {
@@ -361,7 +364,8 @@ pub fun new_sig_table(): SigTable {
         annotations: List.new<DeclaredAnnotation>(),
         annotated: List.new<AnnotationUse>(),
         constants: List.new<ConstantValue>(),
-        internal_names: HashMap.new<String, bool>()
+        internal_names: HashMap.new<String, bool>(),
+        param_lists: HashMap.new<String, List<Param>>()
     }
 }
 

@@ -12,6 +12,7 @@ import kf_core.ast.declaration.TopDecl
 import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
 import kf_resolve.*
+import kf_typecheck.check.check_default
 import kf_typecheck.types.*
 import kf_typecheck.*
 import kf_core.span.*
@@ -76,6 +77,7 @@ fun check_fn_body(metadata_owner: Ptr<TopDecl>, owner: String, owner_crate: Crat
             val ty_ptr: Ptr<TypeRef> = p.ty
             val p_tr: TypeRef = unsafe { *ty_ptr }
             val pty = p_tr.resolve_type_ref(&var ctx)
+            p.check_default(pty.clone(), &var ctx)
             ctx.params.push(p.name.as_string())
             ctx.declare_val(p.name.as_string(), pty)
             i = i + 1

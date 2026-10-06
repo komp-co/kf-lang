@@ -442,6 +442,9 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
                 when (unsafe { (*ctx.sigs).find_signature(bmangled.as_str()) }) {
                     Some(bsig) => {
                         if !bsig.is_static {
+                            if !bsig.arrange_call_arguments(args, &var arg_tys, method_name.clone(), 1, _span, ctx) {
+                                return Type.new_poison()
+                            }
                             if args.size() + 1 == bsig.params.size() {
                                 // The method's own parameters (`fun map<F>`) are
                                 // solved from the call.
@@ -481,6 +484,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
         ctx.emit(new_diagnostic(Severity.Error, lab))
         return Type.new_poison()
     }
+    if !sig.arrange_call_arguments(args, &var arg_tys, method_name.clone(), 1, _span, ctx) { return Type.new_poison() }
     // `self` is params[0].
     if args.size() + 1 != sig.params.size() {
         emit_method_arity(method_name, sig.params.size() - 1, args.size(), _span, ctx)

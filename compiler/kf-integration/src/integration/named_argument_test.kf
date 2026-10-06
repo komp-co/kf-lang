@@ -1,0 +1,98 @@
+// What the checker says about named arguments and parameter defaults.
+
+import core.assert.assert_eq
+import alloc.list.*
+import alloc.path.Path
+
+import kf_core.diagnostic.new_diagnostics
+import kf_driver.fresh_source_map
+import kf_driver.new_lint_config
+import kf_driver.checked_diagnostics
+import std.fs.create_dir_all
+import std.fs.remove_dir_all
+import std.fs.scratch_path
+import std.fs.write_text
+import kf_integration.harness.assemble_project
+
+/// Whether checking `source` as a one-file crate reports `needle`, through
+/// every pass `komp check` runs.
+fun reports(name: str, source: str, needle: str): bool {
+    val dir = scratch_path(name)
+    val _cleared = remove_dir_all(dir)
+    val _made = create_dir_all(Path.new("${dir}/src".as_str()))
+    val _manifest = write_text("${dir}/kf.toml".as_str(), "[project]\nname = \"named_probe\"\nkind = \"lib\"\n")
+    val _source = write_text("${dir}/src/lib.kf".as_str(), source)
+    val smap = fresh_source_map()
+    var pdiags = new_diagnostics()
+    var merged = assemble_project(dir, smap, &var pdiags)
+    val checked = merged.checked_diagnostics(smap, &new_lint_config())
+    while d in &checked {
+        if d.primary.message.as_str().contains(needle) { return true }
+    }
+    return false
+}
+
+@test
+fun an_argument_naming_no_parameter_is_reported(): void {
+    val said = reports("kf_named_unknown", """fun connect(host: str, port: int32 = 80): int32 { return port }
+pub fun f(): int32 { return connect("h", colour = 1) }
+""", "`connect` has no parameter `colour`")
+    assert_eq(said, true, "connect has no parameter colour")
+}
+
+@test
+fun a_parameter_named_twice_is_reported(): void {
+    val said = reports("kf_named_twice", """fun connect(host: str, port: int32 = 80): int32 { return port }
+pub fun f(): int32 { return connect("h", port = 1, port = 2) }
+""", "`port` is given twice")
+    assert_eq(said, true, "port is given twice")
+}
+
+@test
+fun a_positional_argument_after_a_named_one_is_reported(): void {
+    val said = reports("kf_named_order", """fun connect(host: str, port: int32 = 80): int32 { return port }
+pub fun f(): int32 { return connect(port = 1, "h") }
+""", "a positional argument cannot follow a named one")
+    assert_eq(said, true, "a positional argument cannot follow a named one")
+}
+
+@test
+fun a_parameter_left_out_without_a_default_is_named(): void {
+    val said = reports("kf_named_missing", """fun connect(host: str, port: int32 = 80): int32 { return port }
+pub fun f(): int32 { return connect(port = 1) }
+""", "`connect` needs `host`")
+    assert_eq(said, true, "connect needs host")
+}
+
+@test
+fun a_function_value_takes_no_named_arguments(): void {
+    val said = reports("kf_named_value", """fun connect(host: str, port: int32 = 80): int32 { return port }
+pub fun f(): int32 {
+    val call = connect
+    return call("h", port = 1)
+}
+""", "`port =` names a parameter, but this call takes its arguments by position")
+    assert_eq(said, true, "port = names a parameter, but this call takes its arguments by position")
+}
+
+@test
+fun a_default_must_be_a_constant(): void {
+    val said = reports("kf_default_constant", """fun now(): int32 { return 1 }
+pub fun f(x: int32 = now()): int32 { return x }
+""", "a default is a constant")
+    assert_eq(said, true, "a default is a constant")
+}
+
+@test
+fun a_default_must_have_the_parameters_type(): void {
+    val said = reports("kf_default_type", """pub fun f(x: int32 = "text"): int32 { return x }
+""", "the default of `x` is `str`, but `x` is `int32`")
+    assert_eq(said, true, "the default of x is str, but x is int32")
+}
+
+@test
+fun a_default_cannot_name_an_earlier_parameter(): void {
+    val said = reports("kf_default_parameter", """pub fun f(x: int32, y: int32 = x): int32 { return y }
+""", "a default is a constant")
+    assert_eq(said, true, "a default is a constant")
+}

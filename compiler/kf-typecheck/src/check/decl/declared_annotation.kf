@@ -43,7 +43,7 @@ pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: &var Di
                         own_target.check_bounds(table, &var found)
                         td.check_type_params(table, &var found)
                     }
-                    val params = if own { own_params.clone() } else { self.argument_struct_params(&td) }
+                    val params = if own { own_params.clone() } else { self.argument_struct_params(&td).with_defaults_of(&own_params) }
                     val function_type = own_target.function_type(&td, if own { decls } else { null }, sigs, diags)
                     val declared = DeclaredAnnotation {
                         name: td.name, crate: td.crate, module: td.module_path, is_pub: is_pub, params: params,
@@ -104,6 +104,20 @@ fun TopDecl.register_annotation_use(annotation: &Annotation, owner: &MethodOwner
         annotation: index, item: symbol, name: self.listed_name(owner), bindings: bound, kind: marked,
         module: self.module_path, args: arguments.values
     })
+}
+
+/// A dependency's annotation parameters, each with the default `written`
+/// records under its name.
+fun List<Param>.with_defaults_of(written: &List<Param>): List<Param> {
+    var out = List.new<Param>()
+    while param in &self {
+        var copied = param.clone()
+        while other in written {
+            if other.name.id == param.name.id { copied.default = other.default.clone() }
+        }
+        out.push(copied)
+    }
+    return out
 }
 
 /// A dependency's annotation has no parameters of its own in the interface;
