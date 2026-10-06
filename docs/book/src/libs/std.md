@@ -65,6 +65,7 @@ missing.txt: No such file or directory
 |---|---|---|
 | `read_to_string(path: str)` | `Result<String, IoError>` | The whole file |
 | `write_text(path: str, contents: str)` | `Result<void, IoError>` | Creates or truncates |
+| `write_text_atomic(path: str, contents: str)` | `Result<void, IoError>` | As `write_text`, but a reader sees the old file or the new one, never part of either |
 | `remove_file(path: str)` | `Result<void, IoError>` | |
 | `remove_dir_all(path: str)` | `Result<void, IoError>` | A directory and everything under it |
 | `rename_path(from: str, to: str)` | `Result<void, IoError>` | Replaces `to` if it exists |
@@ -74,6 +75,7 @@ missing.txt: No such file or directory
 | `read_dir(path: str)` | `Result<List<String>, IoError>` | Entry names, sorted, without `.` and `..` |
 | `create_dir_all(Path)` | `bool` | `true` on success; creates parents |
 | `TempDir.new(str)` | `TempDir` | Drops on scope exit — deletes the directory |
+| `absolute(path: str)` | `Path` | Joined to the working directory unless already absolute; `..` kept as written |
 
 `IoError` has `path`, `code` (the `errno` value) and `message`, and displays
 as `path: message`. `Path` is in `alloc.path`, not `std.fs`; import it
@@ -185,6 +187,10 @@ that cannot be run is an `Err` from `spawn()`, not an exit code later.
 | `.id()` | `int32` — the process id |
 
 Dropping a `Child` that is still running kills it.
+
+`process_id()` answers this process's own id, as `int32`; no other running
+process shares it, which makes it a suffix for a file only this process
+writes.
 
 ## std.stream, std.reader and std.poll
 

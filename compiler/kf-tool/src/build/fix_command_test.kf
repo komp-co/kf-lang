@@ -2,11 +2,11 @@
 // parent, which a textual prefix test mistakes for containment.
 
 import core.assert.assert_eq
-import kf_shared.absolutize
-import kf_shared.canonicalize_path
+import alloc.path.Path
+import std.fs.absolute
 
 fun canon(p: str): String {
-    return canonicalize_path(absolutize(p).as_str())
+    return absolute(p).normalized().raw
 }
 
 @test

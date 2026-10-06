@@ -8,7 +8,7 @@ import kf_tool.build.*
 import kf_tool.project.command_dir
 import kf_tool.project.parent_path
 import std.fs.*
-import kf_shared.binary_path
+import kf_tool.build.binary_path
 import kf_shared.cli_arg_count
 import kf_shared.cli_arg_get
 import kf_shared.kflat_version

@@ -30,7 +30,22 @@ mutating fun JsonReader.load_extern_decl(crate: CrateId, path: str, hidden: bool
     return stamp_imported(new_top_decl(no_span(), name.clone(), kind), crate, path, name, hidden)
 }
 
-mutating fun JsonReader.load_generic(crate: CrateId, crate_name: str, path: str, smap: Ptr<SourceMap>): TopDecl {
+/// A module's declarations; the imports their templates bring join `imports`.
+mutating fun JsonReader.load_decls(crate: CrateId, crate_name: str, path: str, smap: Ptr<SourceMap>,
+    imports: &var List<Import>): List<TopDecl> {
+    var decls = List.new<TopDecl>()
+    if !self.begin_array() { return decls }
+    while self.array_has_next() {
+        val td = self.load_decl(crate, crate_name, path, smap, imports)
+        if decl_is_poison(td) { return decls }
+        decls.push(td)
+    }
+    return decls
+}
+
+/// The fragment's imports, which are its file's, join `imports`.
+mutating fun JsonReader.load_generic(crate: CrateId, crate_name: str, path: str, smap: Ptr<SourceMap>,
+    imports: &var List<Import>): TopDecl {
     if !self.expect_key("name") { return poison_decl() }
     val name = self.read_string()
     if !self.expect_key("src") { return poison_decl() }
@@ -54,6 +69,7 @@ mutating fun JsonReader.load_generic(crate: CrateId, crate_name: str, path: str,
         return poison_decl()
     }
     if td.name.as_str() != name.as_str() { return poison_decl() }
+    while imp in &fragment.imports { imports.push(imp.clone()) }
     stamp_decl_owner(&var td, crate, intern(path))
     td.linkage = Linkage.GenericTemplate
     return td

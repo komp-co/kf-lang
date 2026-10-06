@@ -1,5 +1,6 @@
-// What each artifact in a target directory is called, which komp and kflatc
-// must agree on.
+// What each artifact in a target directory is called. kflatc names the ones
+// it writes itself (`.kfi`, `.h`, `.c`, `kf_runtime.h`, `test/`), as its
+// command line documents; these must spell them the same way.
 
 pub fun crate_header_path(tdir: str, crate_name: str): String {
     return join_artifact(tdir, crate_name, ".h")

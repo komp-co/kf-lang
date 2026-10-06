@@ -3,7 +3,7 @@
 // pointing at it, and `installed.toml` recording it.
 
 import alloc.list.*
-import kf_shared.ensure_dir
+import kf_tool.build.ensure_dir
 import kf_tool.fetch.LockEntry
 import kf_tool.fetch.empty_lock_entry
 import kf_tool.fetch.remove_tree

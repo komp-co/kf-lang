@@ -3,18 +3,17 @@
 import alloc.list.*
 import core.text.last_index_of
 import alloc.text_edit.replace
-import kf_shared.join_path
-import kf_shared.resolve_path
-import kf_shared.normalized_path
 import std.fs.exists
+import alloc.path.Path
+import std.fs.absolute
 
 pub fun manifest_missing(root: str): bool {
-    val path = join_path(root, "kf.toml")
+    val path = "${root}/kf.toml"
     return !exists(path.as_str())
 }
 
 fun manifest_source_at(dir: str): String {
-    val path = join_path(dir, "kf.toml")
+    val path = "${dir}/kf.toml"
     return read_file(path.as_str())
 }
 
@@ -55,7 +54,7 @@ pub fun select_crate_roots(dir: str, package: str, all: bool): List<String> {
                 out.push(String.from(dir))
                 return out
             }
-            val shown = normalized_path(dir)
+            val shown = absolute(dir).normalized().raw
             val why = "is not `${name.as_str()}`, and `${shown.as_str()}` is in no workspace"
             runtime_println("error: package `${package}` ${why}")
             return out
@@ -69,12 +68,12 @@ pub fun select_crate_roots(dir: str, package: str, all: bool): List<String> {
     }
     val member = workspace_default_member(manifest_source_at(ws.as_str()).as_str())
     if member.as_str() == "" {
-        val shown = normalized_path(ws.as_str())
+        val shown = absolute(ws.as_str()).normalized().raw
         val choices = "add one, or pass `--package <name>` or `--workspace`"
         runtime_println("error: workspace `${shown.as_str()}` has no default-member: ${choices}")
         return out
     }
-    out.push(join_path(ws.as_str(), member.as_str()))
+    out.push("${ws}/${member}")
     return out
 }
 
@@ -82,10 +81,10 @@ pub fun select_crate_roots(dir: str, package: str, all: bool): List<String> {
 /// Artifacts are named per crate, so members share without collision.
 pub fun build_output_root(crate_dir: str): String {
     val ws = enclosing_workspace(crate_dir)
-    if ws.as_str() == "" { return join_path(crate_dir, "target") }
+    if ws.as_str() == "" { return "${crate_dir}/target" }
     val custom = workspace_target_dir(manifest_source_at(ws.as_str()).as_str())
-    if custom.as_str() == "" { return join_path(ws.as_str(), "target") }
-    return resolve_path(ws.as_str(), custom.as_str())
+    if custom.as_str() == "" { return "${ws}/target" }
+    return Path.new(ws.as_str()).join(custom.as_str()).raw
 }
 
 /// Joined to its root, in order.
@@ -93,7 +92,7 @@ pub fun workspace_member_roots(ws: str): List<String> {
     var out = List.new<String>()
     val members = workspace_members(manifest_source_at(ws).as_str())
     while member in &members {
-        out.push(join_path(ws, member.as_str()))
+        out.push("${ws}/${member}")
     }
     return out
 }
@@ -106,7 +105,7 @@ fun workspace_package_root(ws: str, package: str): String {
             if manifest.name.as_str() == crate_name_of(package).as_str() { return candidate.clone() }
         }
     }
-    val shown = normalized_path(ws)
+    val shown = absolute(ws).normalized().raw
     runtime_println("error: package `${package}` is not a member of workspace `${shown.as_str()}`")
     return ""
 }
@@ -119,7 +118,7 @@ fun crate_name_of(package: str): String {
 /// "" unless the workspace lists it: a fixture inside a member is its own
 /// project.
 pub fun enclosing_workspace(crate_dir: str): String {
-    val wanted = normalized_path(crate_dir)
+    val wanted = absolute(crate_dir).normalized().raw
     var here = parent_path(wanted.as_str())
     while here.as_str() != "" {
         if is_workspace_dir(here.as_str()) && lists_member(here.as_str(), wanted.as_str()) {
@@ -135,14 +134,14 @@ pub fun enclosing_workspace(crate_dir: str): String {
 fun lists_member(ws: str, wanted: str): bool {
     val roots = workspace_member_roots(ws)
     while root in &roots {
-        if normalized_path(root.as_str()).as_str() == wanted { return true }
+        if absolute(root.as_str()).normalized().raw.as_str() == wanted { return true }
     }
     return false
 }
 
 /// "" when none.
 pub fun discover_manifest_root(start: str): String {
-    var here = normalized_path(start)
+    var here = absolute(start).normalized().raw
     while here.as_str() != "" {
         if !manifest_missing(here.as_str()) { return here }
         val parent = parent_path(here.as_str())

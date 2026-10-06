@@ -309,6 +309,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                 ctx.pretyped_args = pretyped
                 val called = check_method_call(recv.ty, method_name.clone(), args, e.span, ctx, e)
                 e.ty = called.resolved_projection_type("", ctx.sigs)
+                e.ty.register_returned_instance(e.span, ctx)
                 val trait_callee = trait_callee_unless_inherent(recv.ty, method_name, args, ctx)
                 if !trait_callee.as_str().equals("") {
                     e.mangled_callee = intern(trait_callee.as_str())

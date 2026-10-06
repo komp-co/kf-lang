@@ -7,10 +7,9 @@ import alloc.list.*
 import kf_tool.fetch.LockEntry
 import kf_tool.fetch.cache_root
 import kf_tool.project.*
-import kf_shared.absolutize
-import kf_shared.normalized_path
-import kf_shared.canonicalize_path
 import std.fs.exists
+import alloc.path.Path
+import std.fs.absolute
 
 // The compiler binary's directory, to find the bundled stdlib.
 extern "C" fun kf_self_dir(): String
@@ -49,7 +48,7 @@ pub fun build_crate_graph(root_dir: str, with_tests: bool): BuildGraph {
     var error = ""
     var in_progress = List.new<String>()
     var done = List.new<String>()
-    val root = canonicalize_path(absolutize(root_dir).as_str())
+    val root = absolute(root_dir).normalized().raw
     val freestanding = root_is_freestanding(root.as_str())
     val sources = DependencySources { lock: read_lock(root.as_str()), cache: cache_root() }
     visit_crate(root, freestanding, &sources, &var crates, &var cycle, &var error, &var in_progress, &var done)
@@ -196,26 +195,26 @@ fun Manifest.effective_deps(crate_root: str, freestanding: bool): List<Dependenc
 pub fun bundled_libs_root(crate_root: str): String {
     val compiler = kflatc_path()
     val compiler_libs = "${parent_path(compiler.as_str())}/../libs"
-    if exists("${compiler_libs}/core/kf.toml".as_str()) { return canonicalize_path(compiler_libs.as_str()) }
+    if exists("${compiler_libs}/core/kf.toml".as_str()) { return Path.new(compiler_libs.as_str()).normalized().raw }
     val base = kf_self_dir()
     if base.as_str().byte_len() > 0 {
         val beside = base + String.from("/../libs")
         val manifest = beside.clone() + String.from("/core/kf.toml")
         if exists(manifest.as_str()) {
-            return canonicalize_path(beside.as_str())
+            return Path.new(beside.as_str()).normalized().raw
         }
     }
     if exists("libs/core/kf.toml") {
-        return canonicalize_path(absolutize("libs").as_str())
+        return absolute("libs").normalized().raw
     }
     // Normalized, so `komp check .` does not collapse to "".
-    var here = normalized_path(crate_root)
+    var here = absolute(crate_root).normalized().raw
     var depth = 0
     while depth < 16 {
         val candidate = here.clone() + String.from("/libs")
         val manifest = candidate.clone() + String.from("/core/kf.toml")
         if exists(manifest.as_str()) {
-            return canonicalize_path(candidate.as_str())
+            return Path.new(candidate.as_str()).normalized().raw
         }
         val parent = parent_path(here.as_str())
         if parent.as_str() == here.as_str() { return "" }
@@ -265,7 +264,7 @@ fun List<BuildCrate>.testing_beside_core(name: str): String {
     while item in &self {
         if item.name.as_str() == "core" {
             val testing = "${parent_path(item.root.as_str())}/testing"
-            return if exists("${testing}/kf.toml".as_str()) { canonicalize_path(testing.as_str()) } else { "" }
+            return if exists("${testing}/kf.toml".as_str()) { Path.new(testing.as_str()).normalized().raw } else { "" }
         }
     }
     return ""

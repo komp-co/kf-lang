@@ -4,7 +4,7 @@
 import kf_tool.project.manifest_description
 import kf_tool.project.parse_manifest
 import kf_tool.project.parse_version
-import kf_shared.normalized_path
+import std.fs.absolute
 
 /// `error` is "" when the rest is filled in.
 pub struct ReleaseFacts {
@@ -35,7 +35,7 @@ pub fun release_facts(root: str): ReleaseFacts {
     }
     val version = manifest.version.clone()
     val top = git_in(root, "rev-parse --show-toplevel") ?: return refused("${root} is not in a git repository")
-    if normalized_path(top.as_str()).as_str() != normalized_path(root).as_str() {
+    if absolute(top.as_str()).normalized().raw.as_str() != absolute(root).normalized().raw.as_str() {
         return refused("the crate must be at its repository's root, ${top}")
     }
     val changes = git_in(root, "status --porcelain --untracked-files=no") ?: return refused("`git status` failed")

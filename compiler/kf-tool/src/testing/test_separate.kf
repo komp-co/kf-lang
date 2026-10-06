@@ -5,10 +5,10 @@ import std.fs.*
 import std.process.*
 import alloc.list.*
 import kf_tool.build.*
-import kf_shared.crate_artifact_manifest_path
-import kf_shared.crate_archive_path
-import kf_shared.test_crate_dir
-import kf_shared.test_artifact_path
+import kf_tool.build.crate_artifact_manifest_path
+import kf_tool.build.crate_archive_path
+import kf_tool.build.test_crate_dir
+import kf_tool.build.test_artifact_path
 import kf_shared.walk_kf_files
 import kf_shared.walk_kf_files_inc
 

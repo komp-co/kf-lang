@@ -2,6 +2,7 @@ import core.assert.assert_eq
 import std.fs.scratch_root
 import std.fs.system
 import std.fs.scratch_path
+import std.env.current_dir
 
 extern "C" fun system(cmd: str): int32
 extern "C" fun kf_str_byte_len(s: str): uint64
@@ -152,4 +153,36 @@ fun an_empty_directory_lists_nothing(): void {
 fun listing_a_missing_directory_is_an_error(): void {
     val dir = empty_dir("fs_read_dir_missing")
     assert_eq(read_dir("${dir}/absent".as_str()).is_err(), true, "nothing to list")
+}
+
+@test
+fun an_atomic_write_replaces_the_file(): void {
+    val path = "${empty_dir("fs_atomic")}/note.txt"
+    val _first = write_text(path.as_str(), "old")
+    val _second = write_text_atomic(path.as_str(), "new")
+    assert_eq(read_to_string(path.as_str()).unwrap().as_str(), "new", "the new text in place")
+}
+
+@test
+fun an_atomic_write_leaves_no_staged_file(): void {
+    val dir = empty_dir("fs_atomic_clean")
+    val _wrote = write_text_atomic("${dir}/note.txt".as_str(), "text")
+    assert_eq(read_dir(dir).unwrap().size(), 1, "only the file itself")
+}
+
+@test
+fun an_atomic_write_into_a_missing_directory_fails(): void {
+    val dir = empty_dir("fs_atomic_missing")
+    assert_eq(write_text_atomic("${dir}/absent/note.txt".as_str(), "text").is_err(), true, "nowhere to stage it")
+}
+
+@test
+fun an_absolute_path_stays_as_it_is(): void {
+    assert_eq(absolute("/etc/kf.toml").as_str(), "/etc/kf.toml", "already absolute")
+}
+
+@test
+fun a_relative_path_is_taken_from_the_working_directory(): void {
+    val expected = "${current_dir().as_str()}/src/../kf.toml"
+    assert_eq(absolute("src/../kf.toml").as_str(), expected.as_str(), "joined, `..` kept as written")
 }

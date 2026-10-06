@@ -2,9 +2,6 @@
 // shell-quoted for system(3); a failure prints its phase and target.
 
 import alloc.list.*
-import kf_shared.staging_path
-import kf_shared.publish_staged
-import kf_shared.discard_staged
 
 extern "C" fun system(cmd: str): int32
 
