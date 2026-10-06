@@ -8,6 +8,7 @@ import kf_core.ast.types.Provenance
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
 import kf_core.span.no_span
+import testing.test
 
 fun u64_ty(): Type {
     return Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(no_span()) }

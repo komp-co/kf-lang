@@ -6,6 +6,8 @@ import std.fs.*
 import std.process.*
 
 import kf_integration.harness.compile_source
+import testing.disabled
+import testing.test
 
 pub fun run(cmd: str, args: List<str>): int32 {
     var command = Command.new(cmd)

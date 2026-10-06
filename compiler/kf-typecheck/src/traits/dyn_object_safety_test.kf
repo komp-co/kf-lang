@@ -18,6 +18,7 @@ import kf_typecheck.new_sig_table
 import kf_typecheck.new_type_ctx
 import kf_typecheck.typecheck_module
 import kf_typecheck.types.type_eq
+import testing.test
 
 fun safety_method(name: str, ret: Type, generic: bool, static_method: bool, mutating_method: bool, has_default: bool): TraitMethodReq {
     return TraitMethodReq {

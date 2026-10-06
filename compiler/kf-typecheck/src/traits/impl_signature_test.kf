@@ -9,6 +9,7 @@ import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import kf_resolve.new_decl_table
 import kf_typecheck.typecheck_module
+import testing.test
 
 // A trait `Score` declaring `fun value(n: int32): int32` and an impl for
 // `Fixed` with whatever types a test asks for.

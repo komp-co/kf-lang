@@ -8,6 +8,7 @@ import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
+import testing.test
 
 fun param_bounded(name: str, bound: str): TypeParam {
     var tp = new_type_param(no_span(), String.from(name))

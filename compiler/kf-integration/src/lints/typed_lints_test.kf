@@ -13,6 +13,8 @@ import std.fs.remove_dir_all
 import std.fs.scratch_path
 import std.fs.write_text
 import kf_integration.harness.assemble_project
+import kf_integration.harness.testing_dev_dependency
+import testing.test
 
 /// The codes the typed lints report over a bin project whose main.kf is
 /// `src`, space-separated; "errors" when it does not type-check.
@@ -20,8 +22,8 @@ fun typed_codes(name: str, src: str): String {
     val dir = scratch_path(name)
     val _cleared = remove_dir_all(dir)
     val _made = create_dir_all(Path.new("${dir}/src".as_str()))
-    val manifest = "[project]\nname = \"typed\"\nversion = \"0.1.0\"\nkind = \"bin\"\n"
-    val _manifest = write_text("${dir}/kf.toml".as_str(), manifest)
+    val manifest = "[project]\nname = \"typed\"\nversion = \"0.1.0\"\nkind = \"bin\"\n${testing_dev_dependency()}"
+    val _manifest = write_text("${dir}/kf.toml".as_str(), manifest.as_str())
     val _source = write_text("${dir}/src/main.kf".as_str(), src)
     val smap = fresh_source_map()
     var pdiags = new_diagnostics()
@@ -97,7 +99,8 @@ fun comparing_a_float_with_zero_is_not(): void {
 
 @test
 fun a_test_may_compare_floats_exactly(): void {
-    val check = "@test\nfun halves(): void {\n    val a: float64 = 0.5\n    val _same = a == 0.5\n}\n\n"
+    val header = "import testing.test\n\n"
+    val check = "${header}@test\nfun halves(): void {\n    val a: float64 = 0.5\n    val _same = a == 0.5\n}\n\n"
     val src = "${check}fun main(): int32 {\n    return 0\n}\n"
     assert_eq(typed_codes("typed_float_test", src.as_str()).as_str(), "", "the expected value is exact")
 }

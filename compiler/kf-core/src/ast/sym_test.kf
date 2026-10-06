@@ -1,5 +1,6 @@
 import core.assert.assert_eq
 import core.display.assert_eq
+import testing.test
 
 @test fun intern_roundtrips(): void {
     val s = intern("hello")

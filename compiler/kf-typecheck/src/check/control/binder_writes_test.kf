@@ -5,6 +5,7 @@ import kf_core.ast.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.span.no_span
+import testing.test
 
 fun payload_pattern(binders: List<Pattern>): Pattern {
     return new_pattern(no_span(), PatternKind.Variant(intern("Some"), binders))

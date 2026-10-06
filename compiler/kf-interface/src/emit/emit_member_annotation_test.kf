@@ -10,6 +10,7 @@ import kf_core.ast.expression.ExprKind
 import kf_core.ast.declaration.*
 import kf_core.ast.annotation.new_annotation
 import kf_interface.parse.parse_interface
+import testing.test
 
 /// `@rename("id")`.
 fun rename_use(): Annotation {

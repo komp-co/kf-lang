@@ -12,6 +12,7 @@ import kf_core.ast.expression.UnaryOp
 import kf_core.ast.declaration.*
 import kf_core.diagnostic.*
 import kf_typecheck.*
+import testing.test
 
 fun typed_param(name: str, ty: str): Param {
     val tref = TypeRef.new(no_span(), TypeRefKind.Named(intern(ty), List.new<TypeRef>()))

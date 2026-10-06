@@ -1,4 +1,5 @@
 import core.assert.assert_eq
+import testing.test
 
 fun read_text(stream: &Stream): String {
     return when (stream.read_available(64)) {

@@ -30,16 +30,6 @@ pub struct AnnotationInfo {
 pub fun annotation_registry(): List<AnnotationInfo> {
     var out = List.new<AnnotationInfo>()
     out.push(AnnotationInfo {
-        name: String.from("test"),
-        target: AnnotationTarget.Function,
-        takes_args: false
-    })
-    out.push(AnnotationInfo {
-        name: String.from("disabled"),
-        target: AnnotationTarget.Function,
-        takes_args: true
-    })
-    out.push(AnnotationInfo {
         name: String.from("allow"),
         target: AnnotationTarget.Any,
         takes_args: true
@@ -84,12 +74,6 @@ pub fun lookup_annotation(kind: str): AnnotationInfo {
         if a.name.as_str().equals(kind) { return a.clone() }
     }
     return AnnotationInfo { name: "", target: AnnotationTarget.Any, takes_args: false }
-}
-
-/// A built-in the standard library may also declare: a use binds to the
-/// declaration when one is visible, and is the built-in otherwise.
-pub fun annotation_is_declarable(kind: str): bool {
-    return kind == "test" || kind == "disabled"
 }
 
 pub fun annotation_is_known(kind: str): bool {

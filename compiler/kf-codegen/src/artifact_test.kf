@@ -10,6 +10,7 @@ import kf_core.ast.statement.Stmt
 
 import kf_codegen.*
 import kf_codegen.emit.unit.header_type_view
+import testing.test
 
 // Crate "aa" owns a public struct, a public function and a private function;
 // "bb" owns one function. No instance methods: emit_method mutates the AST,

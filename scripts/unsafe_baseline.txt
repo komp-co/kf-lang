@@ -36,6 +36,7 @@
 3 compiler/kf-core/src/ast/types/type_mangle_frag.kf
 3 compiler/kf-core/src/ast/types/type_nodes.kf
 3 compiler/kf-core/src/diagnostic/renderer.kf
+1 compiler/kf-driver/src/build/entry_file.kf
 2 compiler/kf-driver/src/build/module_list.kf
 2 compiler/kf-driver/src/cli/diagnostic_color.kf
 3 compiler/kf-driver/src/cli/diagnostic_json.kf
@@ -51,7 +52,6 @@
 5 compiler/kf-driver/src/editor/symbols.kf
 4 compiler/kf-driver/src/editor/typed.kf
 4 compiler/kf-driver/src/pipeline.kf
-1 compiler/kf-driver/src/testing/test_runner.kf
 1 compiler/kf-integration/src/harness/fixture.kf
 4 compiler/kf-integration/src/harness/in_process.kf
 3 compiler/kf-interface/src/emit/emit.kf

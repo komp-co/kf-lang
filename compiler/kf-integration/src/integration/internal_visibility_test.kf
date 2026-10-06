@@ -13,6 +13,7 @@ import std.fs.remove_dir_all
 import std.fs.scratch_path
 import std.fs.write_text
 import kf_integration.harness.assemble_project
+import testing.test
 
 extern "C" fun system(cmd: str): int32
 

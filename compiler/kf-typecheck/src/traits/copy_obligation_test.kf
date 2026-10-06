@@ -9,6 +9,7 @@ import kf_core.ast.types.*
 import kf_core.ast.declaration.*
 import kf_typecheck.*
 import kf_typecheck.leaked_diagnostics
+import testing.test
 
 fun ctx_for_copy_test(): TypeCtx {
     val sig_ptr: Ptr<SigTable> = unsafe { alloc<SigTable>() }

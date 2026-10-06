@@ -7,6 +7,7 @@ import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
+import testing.test
 
 // bx_-prefixed: the liveness tests in this unit define `var_expr` and friends.
 

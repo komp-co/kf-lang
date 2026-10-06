@@ -7,6 +7,7 @@ import kf_core.ast.expression.ExprKind
 import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
 import kf_core.span.no_span
+import testing.test
 
 fun guarded_arm(kind: PatternKind, guard: ExprKind): Arm {
     val pattern: Box<Pattern> = unsafe { alloc<Pattern>() }

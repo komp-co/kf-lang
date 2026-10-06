@@ -6,6 +6,7 @@ import kf_tool.build.build_project_separate
 import kf_tool.build.check_project_with_kflatc
 import std.fs.scratch_path
 import kf_tool.build.publish_text
+import testing.test
 
 extern "C" fun system(cmd: str): int32
 extern "C" fun access(path: str, mode: int32): int32

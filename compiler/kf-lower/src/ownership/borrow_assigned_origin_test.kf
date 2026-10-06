@@ -7,6 +7,7 @@ import kf_core.ast.expression.ExprKind
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import kf_core.ast.types.*
+import testing.test
 
 /// `var t: str` then, in an `if`, `t = <value>` in each branch.
 fun str_temp_filled_by(value: Expr): List<Stmt> {

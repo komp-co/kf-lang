@@ -9,6 +9,7 @@ import kf_core.ast.types.Provenance
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
 import kf_core.span.no_span
+import testing.test
 
 fun edge_map(pairs: &List<String>): HashMap<String, List<String>> {
     var edges = HashMap.new<String, List<String>>()

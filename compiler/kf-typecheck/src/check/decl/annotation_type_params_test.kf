@@ -7,6 +7,7 @@ import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
 import kf_core.diagnostic.Diagnostics
+import testing.test
 
 fun slot_ref(name: str): TypeRef {
     return TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))

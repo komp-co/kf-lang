@@ -2,6 +2,7 @@ import alloc.list.*
 import core.assert.assert_eq
 import kf_tool.fetch.IndexPackage
 import kf_tool.fetch.parse_index_file
+import testing.test
 
 fun sample_package(description: str): IndexPackage {
     var file = String.from("schema = 1\nname = \"json\"\n")

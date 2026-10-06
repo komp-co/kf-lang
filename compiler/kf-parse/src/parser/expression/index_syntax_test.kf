@@ -5,6 +5,7 @@ import kf_core.ast.expression.Expr
 import kf_core.ast.statement.Stmt
 import kf_core.span.no_span
 import kf_parse.parser.parser_for
+import testing.test
 
 fun index_diags(src: str): uint64 {
     var p = parser_for(src)

@@ -3,6 +3,7 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.ast.types.Type
+import testing.test
 
 // An abstract trait argument: a bound check defers (""), a mangling caller
 // keeps the parameter's name for Mono to substitute.

@@ -75,7 +75,7 @@ of the binary becomes komp's exit code. A library crate cannot be run:
 
 ```console
 $ komp run mylib
-komp run: cannot run a library crate (set kind = "bin" in kf.toml)
+komp run: cannot run a library crate (set kind = "bin" in kf.toml, or add a [bin] section)
 ```
 
 ### komp check
@@ -175,15 +175,19 @@ $ komp metadata
   "members": ["/tmp/work/hello"],
   "crates": [
     {"name": "core", "version": "0.1.0", "kind": "lib", "root": "/home/user/komp/libs/core",
+     "src": "/home/user/komp/libs/core/src",
      "source": "bundled", "member": false, "deps": [], "loads": [], "lints": [],
      "lint_options": []},
     {"name": "alloc", "version": "0.1.0", "kind": "lib", "root": "/home/user/komp/libs/alloc",
+     "src": "/home/user/komp/libs/alloc/src",
      "source": "bundled", "member": false, "deps": ["core"], "loads": ["core"], "lints": [],
      "lint_options": []},
     {"name": "greet", "version": "0.3.0", "kind": "lib", "root": "/tmp/work/greet",
+     "src": "/tmp/work/greet/src",
      "source": "path", "member": false, "deps": ["core", "alloc"], "loads": ["core", "alloc"], "lints": [],
      "lint_options": []},
     {"name": "hello", "version": "0.1.0", "kind": "bin", "root": "/tmp/work/hello",
+     "src": "/tmp/work/hello/src",
      "source": "path", "member": true, "deps": ["greet"], "loads": ["core", "alloc", "greet"],
      "lints": [{"name": "dead_code", "level": "allow"}], "lint_options": []}
   ]
@@ -198,6 +202,7 @@ $ komp metadata
 | `target_dir` | Where compiled crates' `.kfi`, `.h` and `.c` land; kflatc's `--out` |
 | `members` | The crates the command was about, as roots |
 | `crates` | Every crate, each once, dependencies before the crates that use them |
+| `src` | The directory holding the crate's `.kf` files: `<root>/src`, or `src/lib` and `src/bin` for a package holding [a library and a program](../start/projects.md#a-library-and-a-program-in-one-package), which lists two crates with one `root`; kflatc's `--src` |
 | `deps` | The crate's direct dependencies by crate name; kflatc's `--dep` |
 | `loads` | Every crate `deps` reach, in order; kflatc's `--load` |
 | `source` | `bundled` (comes with komp), `fetched` (from the cache) or `path` |
@@ -448,6 +453,7 @@ $ kflatc check --name app --root . --out target/kflat --dep geometry= --load cor
 
 `kflatc compile` compiles one crate against the interfaces (`.kfi`) of its dependencies,
 already in `--out`, and writes the crate's own `.kfi`, `.h` and `.c` there.
+It reads the `.kf` files under `--src DIR`, or under `<root>/src` without it.
 `--bin` marks the crate that has `main`; each `--dep NAME=HASH` names a
 direct dependency and the interface hash it was built against, and each
 `--load NAME` an interface to read, dependencies first, covering everything
@@ -461,9 +467,13 @@ row of its file. `-q`, `--deny-warnings` and `-A/-W/-D <lint>` mean what they
 mean to komp, which passes its own along.
 
 With `--tests` in place of `--bin`, `kflatc compile` instead compiles the crate
-with its `_test.kf` files and a generated test main, and writes
-`test/<name>_tests.h` and `.c` under `--out`, reporting no warnings. This is
-the translation unit `komp test` compiles and links into the test binary.
+with its `_test.kf` files and writes `test/<name>_tests.h` and `.c` under
+`--out`, reporting no warnings. `--entry-file FILE` adds a file to the crate,
+as the module `entry`, whose `main` is the program's; a `main` of the crate's
+own is set aside. kflatc knows nothing of how tests run: `komp test` writes the
+main that hands the crate's `@test` functions to
+[`testing`](../libs/testing.md), passes it as the entry file, and compiles and
+links the translation unit into the test binary.
 
 The names kflatc reads and writes under `--out` are part of its command line;
 a change to them is a change to how komp drives it:
@@ -486,9 +496,10 @@ then runs `kflatc check` on the root.
 
 `kflatc unity --crate NAME=ROOT... --out FILE` compiles a whole project into
 one C file, as `komp build --unity` needs: each `--crate` names a crate and its
-source root, dependencies first and the root last. `--bin` and `--tests` mean
-what they do to `compile`. The crates' own C sources are left out; komp
-appends them.
+root, dependencies first and the root last, and `--crate-src NAME=DIR` gives a
+crate's source directory when it is not `<root>/src`. `--bin` and `--tests` mean
+what they do to `compile`, and `--entry-file` adds the root's `main` as it does
+there. The crates' own C sources are left out; komp appends them.
 
 `kflatc lints` prints every lint at the level the lint flags on its command
 line give it, as `komp lint --list` shows; `--format=json` prints the same as one

@@ -3,6 +3,7 @@ import std.fs.scratch_root
 import std.fs.system
 import std.fs.scratch_path
 import std.env.current_dir
+import testing.test
 
 extern "C" fun system(cmd: str): int32
 extern "C" fun kf_str_byte_len(s: str): uint64

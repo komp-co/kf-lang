@@ -13,6 +13,7 @@ import kf_core.ast.types.TypeRefKind
 import kf_core.diagnostic.*
 import kf_typecheck.new_sig_table
 import kf_typecheck.new_type_ctx
+import testing.test
 
 fun projection_ref(owner_name: str, member: str): TypeRef {
     val owner: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }

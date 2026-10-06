@@ -2,6 +2,7 @@
 
 import core.assert.assert_eq
 import core.text.*
+import testing.test
 
 @test fun characters_are_counted_not_bytes(): void {
     assert_eq("hello".char_count(), 5, "ASCII agrees with the byte count")

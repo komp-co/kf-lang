@@ -10,6 +10,7 @@ import kf_core.ast.statement.Stmt
 
 import kf_codegen.emit_module_body
 import kf_codegen.emit.unit.*
+import testing.test
 
 fun glue_header_output(): String {
     val view = hdr_view()

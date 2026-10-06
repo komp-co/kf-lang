@@ -2,6 +2,7 @@
 // through `reports` beside the call messages.
 
 import core.assert.assert_eq
+import testing.test
 
 @test
 fun an_argument_naming_no_parameter_is_reported(): void {

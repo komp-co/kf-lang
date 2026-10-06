@@ -2,6 +2,7 @@
 // `build_and_run` is in the sibling integration tests.
 import core.assert.assert_eq
 import std.fs.scratch_path
+import testing.test
 
 // 768 >> 8 = 3; 3 & 255 = 3; 1 << 4 = 16; 12 % 5 = 2; 6 ^ 3 = 5; 8 | 1 = 9.
 // 3 + 3*10 + 16 + 2 + 5 + 9 = 65.

@@ -2,6 +2,7 @@
 // trip. Both build their input byte by byte, which takes a `String`.
 
 import core.assert.assert_eq
+import testing.test
 
 fun utf8_scalar_of(s: str, i: uint64): uint32 {
     return s.decode_at(i).scalar as uint32

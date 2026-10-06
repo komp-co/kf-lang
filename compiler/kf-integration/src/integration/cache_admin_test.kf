@@ -10,6 +10,7 @@ import kf_tool.fetch.recorded_digest
 import kf_tool.fetch.remove_cached
 import kf_tool.fetch.verify_cache
 import std.fs.exists
+import testing.test
 
 /// A cache in scratch space holding `greet` 1.0.0, fetched.
 fun cache_with_greet(name: str): String {

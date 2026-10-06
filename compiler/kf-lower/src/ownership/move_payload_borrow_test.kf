@@ -7,6 +7,7 @@ import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
+import testing.test
 
 fun ctor_filling(variant: str, slot: TypeRef): Expr {
     val recv = Box.new(Expr.new(no_span(), ExprKind.Variable(intern("Option"))))

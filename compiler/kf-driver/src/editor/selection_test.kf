@@ -2,6 +2,7 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.*
+import testing.test
 
 /// `fun f(): int32 { return 1 + 2 }`: the `1` at 24, the sum 24..29, the
 /// declaration 31 bytes.

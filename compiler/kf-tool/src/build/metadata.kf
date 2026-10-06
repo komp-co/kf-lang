@@ -74,8 +74,10 @@ pub fun project_metadata(dir: str): MetadataResult {
     writer.begin_array()
     while graph in &graphs {
         while item in &graph.crates {
-            if !seen.contains(&item.root) {
-                seen.push(item.root.clone())
+            // A package holding a library and a program is two crates at one root.
+            val key = "${item.name}=${item.root}"
+            if !seen.contains(&key) {
+                seen.push(key)
                 item.write_metadata(&var writer, &members, &places)
             }
         }
@@ -124,6 +126,7 @@ fun BuildCrate.write_metadata(writer: &var JsonWriter, members: &List<String>, p
     writer.field_string("version", manifest.version.as_str())
     writer.field_string("kind", if self.is_bin { "bin" } else { "lib" })
     writer.field_string("root", self.root.as_str())
+    writer.field_string("src", self.src.as_str())
     writer.field_string("source", places.source_of(self.root.as_str()).as_str())
     writer.field_bool("member", members.contains(&self.root))
     writer.key("deps")

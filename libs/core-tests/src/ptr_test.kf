@@ -1,6 +1,7 @@
 import core.assert.*
 import core.option.*
 import core.ptr.*
+import testing.test
 
 extern "C" fun kf_alloc(size: uint64): Ptr<uint8>
 extern "C" fun kf_free(p: Ptr<void>): void

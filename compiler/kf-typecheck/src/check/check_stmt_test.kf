@@ -19,6 +19,7 @@ import kf_typecheck.ret_op
 import kf_typecheck.types.TAG_STR
 import kf_typecheck.types.kind_tag
 import kf_typecheck.leaked_diagnostics
+import testing.test
 
 @test fun enum_or_struct_name_returns_owned_str(): void {
     val name: String = TypeKind.EnumTy(intern("Choice")).enum_or_struct_name()

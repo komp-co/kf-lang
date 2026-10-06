@@ -1,6 +1,7 @@
 import core.assert.assert_eq
 import kf_tool.fetch.index_file_description
 import kf_tool.fetch.parse_index_file
+import testing.test
 
 @test
 fun a_first_version_starts_the_file(): void {

@@ -11,6 +11,7 @@ import kf_core.ast.statement.StmtKind
 import kf_resolve.new_decl_table
 import kf_resolve.resolve_module
 import kf_typecheck.*
+import testing.test
 
 fun registry_type_ptr(name: str): Ptr<TypeRef> {
     val out: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }

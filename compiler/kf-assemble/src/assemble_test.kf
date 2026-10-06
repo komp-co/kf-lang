@@ -5,6 +5,7 @@ import kf_core.ast.Crate
 import kf_core.span.*
 import kf_core.diagnostic.*
 import std.fs.scratch_path
+import testing.test
 
 @test fun module_path_root_file(): void {
     val mp: List<String> = module_path_for("/Komp/compiler/komp/src/main.kf", "/Komp/compiler/komp/src", String.from("komp"))

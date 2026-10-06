@@ -24,7 +24,13 @@ pub fun build_project_separate_verbose(root_dir: str, extra_cflags: str, verbose
 /// builds what the root's tests also need.
 pub fun build_project_separate_in(root_dir: str, extra_cflags: str, verbose: bool, tdir_override: str,
     with_tests: bool): int32 {
-    val graph = build_crate_graph(root_dir, with_tests)
+    return build_graph_separate(&build_crate_graph(root_dir, with_tests), root_dir, extra_cflags, verbose,
+        tdir_override)
+}
+
+/// As `build_project_separate_in`, for a graph the caller made.
+pub fun build_graph_separate(graph: &BuildGraph, root_dir: str, extra_cflags: str, verbose: bool,
+    tdir_override: str): int32 {
     if graph.error.as_str() != "" {
         runtime_println(graph.error.as_str())
         return 1
@@ -90,7 +96,7 @@ pub fun build_project_separate_in(root_dir: str, extra_cflags: str, verbose: boo
         // A library root has nothing to link.
         return 0
     }
-    val root_name = graph.crates.at(graph.crates.size() - 1).name
+    val root_name = graph.crates.at(graph.crates.size() - 1).package
     val bin = binary_path(tdir.as_str(), root_name.as_str())
     val link_key = content_hash(link_inputs.as_str())
     val linked_from = "${bin}.linked"

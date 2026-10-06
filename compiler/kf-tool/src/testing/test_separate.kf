@@ -11,15 +11,26 @@ import kf_tool.build.test_crate_dir
 import kf_tool.build.test_artifact_path
 import kf_tool.build.crate_kf_files
 
+/// Each crate of the package in turn, the library first; the first failing
+/// status, else 0.
 pub fun test_project_separate(root_dir: str, case_filter: str, test_filter: str): int32 {
-    val built = build_project_separate_in(root_dir, "", false, "", true)
+    var status = 0
+    val graphs = build_package_graphs(root_dir, true)
+    while graph in &graphs {
+        val tested = test_graph_root(graph, root_dir, case_filter, test_filter)
+        if status == 0 { status = tested }
+    }
+    return status
+}
+
+fun test_graph_root(graph: &BuildGraph, root_dir: str, case_filter: str, test_filter: str): int32 {
+    val built = build_graph_separate(graph, root_dir, "", false, "")
     if built != 0 { return built }
-    val graph = build_crate_graph(root_dir, true)
     if graph.crates.size() == 0 { return 1 }
 
     val artifacts = target_dir(root_dir)
     val root = *graph.crates.at(graph.crates.size() - 1)
-    if root.name.as_str() != "testing" && !root.deps.contains_name("testing") { return root.test_without_testing() }
+    if !root.has_test_files() { return report_no_tests() }
     val manifest_path = crate_artifact_manifest_path(artifacts.as_str(), root.name.as_str())
     val parsed = parse_artifact_manifest(read_file(manifest_path.as_str()).as_str())
     if !parsed.ok {
@@ -27,11 +38,13 @@ pub fun test_project_separate(root_dir: str, case_filter: str, test_filter: str)
         return 1
     }
 
-    if root.invoke_kflatc_tests(root_dir, artifacts.as_str(), &parsed.manifest.dep_hashes) != 0 {
+    val test_dir = test_crate_dir(artifacts.as_str())
+    val entry = if ensure_dir(test_dir.as_str()) { write_test_main(test_dir.as_str(), root.name.as_str()) } else { "" }
+    if entry.is_empty() || root.invoke_kflatc_tests(root_dir, artifacts.as_str(), &parsed.manifest.dep_hashes,
+        entry.as_str()) != 0 {
         runtime_println("komp test: errors found; test binary not written")
         return 1
     }
-    val test_dir = test_crate_dir(artifacts.as_str())
     val source = test_artifact_path(test_dir.as_str(), root.name.as_str(), ".c")
     val object = test_artifact_path(test_dir.as_str(), root.name.as_str(), ".o")
     val binary = test_artifact_path(test_dir.as_str(), root.name.as_str(), "")
@@ -68,25 +81,14 @@ pub fun test_project_separate(root_dir: str, case_filter: str, test_filter: str)
     return run.status().exit_code()
 }
 
-/// A crate `testing` cannot serve, `core`, which it depends on: it may hold
-/// no tests, and passes with none.
-fun BuildCrate.test_without_testing(): int32 {
-    val all = crate_kf_files("${self.root}/src".as_str(), true)
-    val sources = crate_kf_files("${self.root}/src".as_str(), false)
-    if all.size() == sources.size() {
-        runtime_println("running 0 tests")
-        runtime_println("")
-        runtime_println("test result: ok. 0 passed")
-        return 0
-    }
-    val why = "`testing`, which declares `@test`, depends on it; put its tests in a crate of their own"
-    runtime_println("komp test: `${self.name}` cannot hold tests: ${why}".as_str())
-    return 1
+fun BuildCrate.has_test_files(): bool {
+    return crate_kf_files(self.src.as_str(), true).size() > crate_kf_files(self.src.as_str(), false).size()
 }
 
-fun List<String>.contains_name(name: str): bool {
-    while item in &self {
-        if item.as_str() == name { return true }
-    }
-    return false
+/// What a test program with no tests prints, without building one.
+fun report_no_tests(): int32 {
+    runtime_println("running 0 tests")
+    runtime_println("")
+    runtime_println("test result: ok. 0 passed")
+    return 0
 }

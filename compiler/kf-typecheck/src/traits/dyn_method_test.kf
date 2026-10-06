@@ -14,6 +14,7 @@ import kf_core.ast.dyn_meta.dyn_trait_type
 import kf_typecheck.new_sig_table
 import kf_typecheck.new_type_ctx
 import kf_typecheck.check.check_expr
+import testing.test
 
 struct DynMethodOutcome {
     val result: Type

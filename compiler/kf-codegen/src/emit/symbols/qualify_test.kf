@@ -11,6 +11,7 @@ import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import kf_codegen.ret_op
+import testing.test
 
 @test
 fun qualified_method_owner_returns_owned_str(): void {

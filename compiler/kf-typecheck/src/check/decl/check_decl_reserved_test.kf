@@ -5,6 +5,7 @@ import kf_core.ast.declaration.*
 import kf_resolve.new_decl_table
 import kf_core.span.no_span
 import kf_typecheck.typecheck_module
+import testing.test
 
 // `Box` and `Ptr` win in every annotation, so declaring either is refused.
 fun diags_for_type_named(name: str, kind: TopDeclKind): uint64 {

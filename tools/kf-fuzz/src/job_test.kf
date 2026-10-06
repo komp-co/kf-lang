@@ -1,4 +1,5 @@
 import alloc.list.*
+import testing.test
 
 fun fixture(name: str, source: str): Fixture {
     return Fixture { name: String.from(name), source: String.from(source), deps: List.new<String>() }

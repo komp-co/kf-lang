@@ -10,6 +10,7 @@ import kf_core.ast.statement.Stmt
 
 import kf_codegen.emit.*
 import kf_codegen.emit.stmt.no_arm_payloads
+import testing.test
 
 fun fn_ty_ptr(s: str): Ptr<TypeRef> {
     val rp: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }

@@ -10,6 +10,7 @@ import kf_parse.lexer.tokenize
 import kf_parse.parser.*
 import kf_assemble.stamp_module_owner
 import kf_lint.lint_module
+import testing.test
 
 fun unread_loop_variable(): str {
     return """fun f(xs: &int32[]): int32 {

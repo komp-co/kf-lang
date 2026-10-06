@@ -1,6 +1,7 @@
 import core.assert.assert_eq
 import core.assert.fail
 import core.assert.assert
+import testing.test
 
 // Bump in the same commit that adds or removes a keyword.
 fun expected_keyword_count(): uint64 { return 28 }

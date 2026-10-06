@@ -7,6 +7,7 @@ import kf_integration.harness.assemble_project
 import kf_tool.cli.new_project
 import std.fs.scratch_root
 import kf_core.diagnostic.new_diagnostics
+import testing.test
 
 @test
 fun a_new_project_checks_without_a_diagnostic(): void {

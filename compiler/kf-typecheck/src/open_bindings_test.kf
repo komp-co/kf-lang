@@ -6,6 +6,7 @@ import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_resolve.*
+import testing.test
 
 fun open_ctx(): TypeCtx {
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }

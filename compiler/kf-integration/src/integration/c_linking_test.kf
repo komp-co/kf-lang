@@ -4,6 +4,7 @@
 import alloc.list.*
 import core.assert.assert_eq
 import kf_tool.build.build_project_separate
+import testing.test
 
 @test
 fun c_linking_project_builds(): void {

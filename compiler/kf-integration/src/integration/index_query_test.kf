@@ -5,6 +5,7 @@
 import core.assert.assert_eq
 import kf_tool.fetch.index_package
 import kf_tool.fetch.search_index
+import testing.test
 
 fun catalog_index(name: str): String {
     val index = dir_of(name)

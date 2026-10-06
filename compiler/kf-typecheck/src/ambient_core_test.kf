@@ -7,6 +7,7 @@ import kf_core.span.no_span
 import kf_core.ast.intern
 import kf_core.ast.new_crate_id
 import kf_core.ast.types.Type
+import testing.test
 
 /// A public or private `clamp` taking `arity` parameters, so a test can tell
 /// which of several same-named functions answered.

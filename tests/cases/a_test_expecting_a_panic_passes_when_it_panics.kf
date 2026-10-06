@@ -3,7 +3,9 @@
 // `@test(panics = ...)` passes when the test panics with that kind, or with
 // any kind for `AnyFault`.
 
+import testing.disabled
 import testing.run_tests
+import testing.test
 
 @test(panics = FaultKind.IndexOutOfBounds)
 fun indexes_past_the_end(): void {

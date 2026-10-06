@@ -1,6 +1,7 @@
 import core.assert.assert_eq
 import alloc.list.*
 import std.fs.scratch_path
+import testing.test
 
 extern "C" fun kf_create_dir_all(p: str): int32
 extern "C" fun write_file(path: str, content: str): void

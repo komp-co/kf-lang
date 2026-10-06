@@ -9,6 +9,7 @@ import kf_core.ast.declaration.*
 import kf_parse.lexer.tokenize
 import kf_parse.parser.new_parser
 import kf_interface.*
+import testing.test
 
 fun stamped_module(src: str, crate_name: str): Module {
     val toks = tokenize(src, 0)

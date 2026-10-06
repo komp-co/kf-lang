@@ -4,6 +4,7 @@ import alloc.list.*
 import kf_core.span.no_span
 import kf_core.ast.intern
 import kf_core.ast.types.*
+import testing.test
 
 /// `Option__int32`, with `Option`'s impl of Clone bounding its parameter by
 /// `bound` ("" for none). No impl of Clone for `int32` is registered here.

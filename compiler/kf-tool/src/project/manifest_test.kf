@@ -1,4 +1,5 @@
 import core.assert.assert_eq
+import testing.test
 
 fun sample_workspace(): str {
     return "[workspace]\nmembers = [\n  \"app\",\n  \"libs/core\"\n]\ndefault-member = \"app\"\n"
@@ -157,4 +158,27 @@ fun a_malformed_requirement_is_an_error(): void {
     val manifest = one_dependency("json = \"^0.2\"")
     assert_eq(manifest.error.as_str(), "dependency `json`: `^0.2` is not a version requirement such as \"1.4\"",
         "the caret is implied, and not written")
+}
+
+@test
+fun dev_dependencies_are_read_apart_from_dependencies(): void {
+    val manifest = parse_manifest("""[project]
+name = "app"
+
+[dev-dependencies]
+helper = { path = "../helper" }
+""")
+    assert_eq(manifest.dev_deps.size() == 1 && manifest.deps.size() == 0, true, "only the tests use them")
+}
+
+@test
+fun a_dev_dependency_by_version_is_looked_up_in_the_default_index(): void {
+    val manifest = parse_manifest("[project]\nname = \"app\"\n\n[dev-dependencies]\ntesting = \"0.1\"\n")
+    assert_eq(manifest.dev_deps.at(0).index_url.as_str(), default_index_url().as_str(), "as a dependency would be")
+}
+
+@test
+fun a_lib_section_may_name_the_library(): void {
+    val manifest = parse_manifest("[project]\nname = \"komp_test\"\n\n[lib]\nname = \"testing\"\n\n[bin]\n")
+    assert_eq(manifest.first_crate_name().as_str(), "testing", "what a dependent imports")
 }

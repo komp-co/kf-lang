@@ -6,6 +6,7 @@ import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TopDeclKind
 import kf_core.ast.declaration.new_top_decl
 import kf_core.span.no_span
+import testing.test
 
 @test
 fun appended_modules_outlive_the_loaded_interface_list(): void {

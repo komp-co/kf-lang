@@ -8,6 +8,7 @@ import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
 import kf_typecheck.check.autoderef_ty
 import kf_typecheck.check.deref_target
+import testing.test
 
 @test fun type_eq_same_int32(): void {
     val a = Type.new_int32(no_span())

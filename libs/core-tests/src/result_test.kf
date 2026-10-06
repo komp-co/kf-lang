@@ -1,5 +1,6 @@
 import core.assert.*
 import core.result.*
+import testing.test
 
 // Succeeding with nothing to hand back: the `try_` mutator signature.
 fun attempt(n: int32): Result<void, int32> {

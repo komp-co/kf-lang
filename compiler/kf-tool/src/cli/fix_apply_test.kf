@@ -1,5 +1,6 @@
 import core.assert.assert_eq
 import alloc.list.*
+import testing.test
 
 fun pf(start: uint32, end: uint32, replacement: str): PendingFix {
     return PendingFix { start: start, end: end, replacement: String.from(replacement), title: String.from("t") }

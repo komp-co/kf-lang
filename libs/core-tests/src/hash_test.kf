@@ -3,6 +3,7 @@
 
 import core.assert.assert_eq
 import core.hash.Hash
+import testing.test
 
 @test
 fun equal_values_hash_equally(): void {

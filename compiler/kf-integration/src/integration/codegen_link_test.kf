@@ -13,6 +13,7 @@ import kf_core.ast.declaration.*
 import kf_core.ast.statement.*
 import kf_codegen.empty_main
 import kf_codegen.emit_module
+import testing.test
 
 fun ty_ptr(s: str): Ptr<TypeRef> {
     val rp: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }

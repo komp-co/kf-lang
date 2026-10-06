@@ -5,6 +5,7 @@ import kf_core.span.no_span
 import kf_core.ast.subst.subst_mangled_name
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
+import testing.test
 
 fun segs_of(s: str): List<String> {
     return mangle_segments(s)

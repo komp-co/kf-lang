@@ -11,6 +11,7 @@ import kf_parse.lexer.tokenize
 import kf_parse.parser.*
 import kf_assemble.stamp_module_owner
 import kf_lint.lint_module
+import testing.test
 
 /// The codes the source lints report over `src`, in order, space-separated.
 fun lint_codes_with(src: str, options: &LintOptions): String {
@@ -278,7 +279,8 @@ fun max_plain_raises_the_largest_plain_number(): void {
 
 @test
 fun a_test_may_hold_numbers(): void {
-    assert_eq(lint_codes("@test\nfun adds(): void {\n    val _sum = 40 + 2\n}\n").as_str(), "", "expected values")
+    val src = "import testing.test\n\n@test\nfun adds(): void {\n    val _sum = 40 + 2\n}\n"
+    assert_eq(lint_codes(src).as_str(), "", "expected values")
 }
 
 @test

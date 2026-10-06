@@ -6,6 +6,7 @@ import kf_core.ast.intern
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.TypeParam
+import testing.test
 
 fun param_bounded_by(trait_name: str): TypeParam {
     var bounds = List.new<TypeRef>()

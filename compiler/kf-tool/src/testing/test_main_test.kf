@@ -1,0 +1,7 @@
+import core.assert.assert_eq
+import testing.test
+
+@test fun the_test_main_hands_every_test_to_testing(): void {
+    val runs = test_main_source().contains("return run_tests(&annotated<test>(), &annotated<disabled>())")
+    assert_eq(runs, true, "the query's entries, the disabled ones held back")
+}

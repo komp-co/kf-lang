@@ -7,6 +7,7 @@ import kf_core.ast.new_crate_id
 import kf_core.ast.types.*
 import kf_typecheck.types.mangle_type
 import kf_typecheck.types.display_type_ref
+import testing.test
 
 fun imported_signature(is_pub: bool): FnSignature {
     return FnSignature {

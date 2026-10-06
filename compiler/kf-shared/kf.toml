@@ -4,4 +4,6 @@ version = "0.1.0"
 kind = "lib"
 
 [dependencies]
-core = { path = "../../libs/core" }
+
+[dev-dependencies]
+testing = { path = "../../libs/testing" }

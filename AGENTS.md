@@ -21,7 +21,8 @@ bootstrap/   — the pinned seed (`stage0.toml`) and the self-hosting script
 compiler/    — compiler workspace (`kf.toml`, `kf-*` passes, `komp/`, `kflatc/`)
 docs/book/   — the user-facing book
 libs/        — KFlat language libraries (core, alloc, std), `testing`, which
-               test builds add, and core-tests, which tests core from outside
+               crates with tests name in `[dev-dependencies]`, and core-tests,
+               which tests core from outside
 scripts/     — check.sh and the ratchets CI runs
 tests/       — black-box executable integration fixtures
 tools/       — kf-fuzz and kf-reduce: the front-end fuzzer, and the reducer
@@ -33,7 +34,7 @@ The passes run in order `kf-parse` → `kf-assemble` → `kf-resolve` →
 `kf-typecheck` → `kf-mono` → `kf-lower` → `kf-codegen`. `kf-core` holds the
 shared AST and diagnostics, `kf-interface` the compiled crate metadata
 (`.kfi`), `kf-driver` the compiler's entry points (one crate, `check`,
-`serve` and the editor answers it gives, test mains). `kf-tool` is the project tool: manifests, fetching, the
+`serve` and the editor answers it gives). `kf-tool` is the project tool: manifests, fetching, the
 build graph, cc. `kf-shared` holds only the release version both report, and
 `kf-integration` the tests that drive whole projects through both. What else
 they must agree on (the files kflatc writes, which files make a crate) is

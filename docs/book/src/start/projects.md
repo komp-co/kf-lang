@@ -50,6 +50,66 @@ description = "JSON reading and writing"
 An executable needs `fun main(): void` (or `int32`). A library crate has no
 entry point and can only be used as a dependency.
 
+### A library and a program in one package
+
+A tool that also offers a library declares both with a `[lib]` and a `[bin]`
+section in place of `kind`:
+
+```toml
+[project]
+name = "greeter"
+version = "0.1.0"
+
+[lib]
+
+[bin]
+```
+
+The library's sources are under `src/lib/` and the program's under `src/bin/`.
+They are two crates. The library takes the package's name; the program is the
+crate `greeter_bin`, depends on the library, and imports it like any
+dependency:
+
+```
+src/
+  lib/
+    greet.kf       # module `greeter`
+  bin/
+    main.kf        # module `greeter_bin`
+```
+
+```kflat
+import greeter.greet.greeting
+
+fun main(): int32 {
+    println(greeting("world"))
+    return 0
+}
+```
+
+- `komp build` and `komp run` build the program, and the binary is named after
+  the package: `target/kflat/greeter`. `komp tool install greeter` installs it.
+- A package that depends on `greeter` gets the library; the program is not
+  built for it.
+- `komp test`, `komp check`, `komp lint` and `komp fix` work on the library,
+  then the program, each with its own `_test.kf` files.
+
+A section alone also works: `[lib]` holds a library in `src/lib/`, `[bin]` a
+program in `src/bin/`. Giving `kind` as well as a section is an error.
+
+`[lib]` may name the library crate, which is otherwise the package's name;
+dependents depend on the package and import the crate:
+
+```toml
+[project]
+name = "komp_test"
+
+[lib]
+name = "testing"
+
+[bin]
+```
+
 ### src/main.kf
 
 The generated template for a binary crate:
@@ -187,6 +247,23 @@ compiled against it. See [std](../libs/std.md).
 
 A `path` dependency whose directory holds no `kf.toml` is an error naming it,
 from every command that reads the dependencies.
+
+### Dev-dependencies
+
+`[dev-dependencies]` takes the same rows as `[dependencies]`, for what the
+crate's `_test.kf` files use and its code does not:
+
+```toml
+[dev-dependencies]
+testing = { path = "../libs/testing" }
+```
+
+They are part of the graph only when the tests are: `komp test`, `komp check`,
+`komp lint`, `komp fix` and the editor, which all compile the `_test.kf` files.
+`komp build` and `komp run` leave them out, and a crate depending on this one
+never sees them. komp fetches and locks them like other dependencies. Tests
+import [`testing`](../libs/testing.md), which declares `@test`, so a crate
+with tests names it here.
 
 ## Workspaces
 

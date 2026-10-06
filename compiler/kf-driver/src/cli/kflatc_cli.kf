@@ -2,12 +2,18 @@
 // with `unity`, a list of them. komp works out every argument; see the kflatc
 // section of the book's CLI chapter for what each means.
 //
-//   kflatc compile --name N --root DIR --out DIR [--project DIR] [--bin | --tests]
+//   kflatc compile --name N --root DIR [--src DIR] --out DIR [--project DIR]
+//                  [--bin | --tests [--entry-file FILE]]
 //                  [--dep NAME=HASH]... [--load NAME]...
-//   kflatc check   --name N --root DIR --out DIR [--project DIR] [--format=json | --summary]
+//   kflatc check   --name N --root DIR [--src DIR] --out DIR [--project DIR] [--format=json | --summary]
 //                  [--dep NAME=HASH]... [--load NAME]...
 //   kflatc lints   [--format=json] [-A/-W/-D LINT ...]
-//   kflatc unity   --crate NAME=ROOT... --out FILE [--project DIR] [--bin | --tests]
+//   kflatc unity   --crate NAME=ROOT... [--crate-src NAME=DIR]... --out FILE [--project DIR]
+//                  [--bin | --tests] [--entry-file FILE]
+//
+// A crate's sources are the `.kf` files under `--src`, `<root>/src` without it.
+// `--entry-file` adds a file whose `main` is the program's, the crate's own
+// set aside: a test program's main comes from whoever builds it.
 //   kflatc serve
 //   kflatc version
 //
@@ -38,6 +44,8 @@ pub fun kflatc_cli(): int32 {
     if command != "compile" && command != "check" && command != "unity" { return kflatc_usage() }
     var name: str = ""
     var root: str = ""
+    var src: str = ""
+    var entry_file: str = ""
     var out: str = ""
     var is_bin = false
     var as_json = false
@@ -47,6 +55,7 @@ pub fun kflatc_cli(): int32 {
     var hashes = List.new<String>()
     var loads = List.new<String>()
     var crates = List.new<CrateSource>()
+    var crate_srcs = List.new<String>()
     var i = 1
     while i < arg_count() {
         val flag = arg_at(i)
@@ -78,14 +87,21 @@ pub fun kflatc_cli(): int32 {
         when flag {
             "--name" => name = value
             "--root" => root = value
+            "--src" => src = value
+            "--entry-file" => entry_file = value
             "--out" => out = value
             "--project" => note_crate_being_built(value)
             "--crate" => {
                 val eq = value.index_of("=") ?: return kflatc_usage()
                 crates.push(CrateSource {
                     name: value.substring(0, eq),
-                    root: value.substring(eq + 1, value.byte_len())
+                    root: value.substring(eq + 1, value.byte_len()),
+                    src: String.from("")
                 })
+            }
+            "--crate-src" => {
+                if value.index_of("=") == null { return kflatc_usage() }
+                crate_srcs.push(String.from(value))
             }
             "--load" => loads.push(String.from(value))
             "--dep" => {
@@ -99,12 +115,14 @@ pub fun kflatc_cli(): int32 {
     }
     if command == "unity" {
         if crates.size() == 0 || out.byte_len() == 0 { return kflatc_usage() }
+        crates = with_source_dirs(&crates, &crate_srcs)
         if with_tests { unsafe { kf_mute_warnings(1) } }
-        return if compile_unity_crates(&crates, is_bin, with_tests, out) == 0 { 0 } else { 1 }
+        return if compile_unity_crates(&crates, is_bin, with_tests, entry_file, out) == 0 { 0 } else { 1 }
     }
     if name.byte_len() == 0 || root.byte_len() == 0 || out.byte_len() == 0 { return kflatc_usage() }
     val crate = CompileUnit {
-        name: String.from(name), root: String.from(root), deps: deps, dep_hashes: hashes, loads: loads
+        name: String.from(name), root: String.from(root), src: String.from(src), deps: deps, dep_hashes: hashes,
+        loads: loads
     }
     if command == "check" {
         return if crate.check_against_interfaces(out, as_json, summary) == 0 { 0 } else { 1 }
@@ -112,7 +130,7 @@ pub fun kflatc_cli(): int32 {
     var errors = new_diagnostics()
     if with_tests {
         unsafe { kf_mute_warnings(1) }
-        if !crate.write_test_sources(out, &var errors) { return 1 }
+        if !crate.write_test_sources(out, entry_file, &var errors) { return 1 }
         return 0
     }
     if !crate.write_crate_sources(out, is_bin, &var errors) {
@@ -120,6 +138,21 @@ pub fun kflatc_cli(): int32 {
         return 1
     }
     return 0
+}
+
+/// `crates`, each named by a `NAME=DIR` row of `--crate-src` reading its
+/// sources from DIR.
+fun with_source_dirs(crates: &List<CrateSource>, rows: &List<String>): List<CrateSource> {
+    var out = List.new<CrateSource>()
+    while item in &crates {
+        var src = String.from("")
+        while row in &rows {
+            val eq = row.index_of("=") ?: 0
+            if row.substring(0, eq).as_str() == item.name.as_str() { src = row.substring(eq + 1, row.byte_len()) }
+        }
+        out.push(CrateSource { name: item.name.clone(), root: item.root.clone(), src: src })
+    }
+    return out
 }
 
 /// One `key value` line each, which komp reads to know what it is running.
@@ -132,12 +165,15 @@ fun kflatc_version(): int32 {
 }
 
 fun kflatc_usage(): int32 {
-    println("usage: kflatc compile --name N --root DIR --out DIR [--project DIR] [--bin | --tests]")
+    println("usage: kflatc compile --name N --root DIR [--src DIR] --out DIR [--project DIR]")
+    println("                      [--bin | --tests [--entry-file FILE]]")
     println("                      [--dep NAME=HASH]... [--load NAME]...")
-    println("       kflatc check   --name N --root DIR --out DIR [--project DIR] [--format=json | --summary]")
+    println("       kflatc check   --name N --root DIR [--src DIR] --out DIR [--project DIR]")
+    println("                      [--format=json | --summary]")
     println("                      [--dep NAME=HASH]... [--load NAME]...")
     println("       kflatc lints   [--format=json]")
-    println("       kflatc unity   --crate NAME=ROOT... --out FILE [--project DIR] [--bin | --tests]")
+    println("       kflatc unity   --crate NAME=ROOT... [--crate-src NAME=DIR]... --out FILE [--project DIR]")
+    println("                      [--bin | --tests] [--entry-file FILE]")
     println("       kflatc version")
     println("       kflatc serve")
     return 2

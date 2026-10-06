@@ -5,6 +5,7 @@ import kf_integration.harness.typed_crate_for
 import core.assert.assert_eq
 import std.fs.scratch_path
 import kf_driver.editor.render_implementations_json
+import testing.test
 
 fun impls_source(): str {
     return """/// Marks a type for display.

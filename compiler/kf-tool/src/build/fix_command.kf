@@ -48,13 +48,18 @@ pub fun run_fix(root_dir: str, dry_run: bool): int32 {
 /// How many repairs were written, or None when the project could not be
 /// checked.
 fun fix_one_pass(root_dir: str, dry_run: bool): uint64? {
-    val root = prepare_check(root_dir, false) ?: return Option.None
-    val tdir = target_dir(root_dir)
-    val report = "${tdir}/fix.jsonl"
-    // Errors are expected here; the repairs are what is read.
-    val _status = root.invoke_kflatc_check_into(root_dir, tdir.as_str(), report.as_str())
-    val located = fixes_from_report(read_file(report.as_str()).as_str(), root_dir)
-    return Option.Some(write_fixes(&located, dry_run))
+    var wrote: uint64 = 0
+    val graphs = build_package_graphs(root_dir, true)
+    while graph in &graphs {
+        val root = prepare_check(graph, root_dir, false) ?: return Option.None
+        val tdir = target_dir(root_dir)
+        val report = "${tdir}/fix.jsonl"
+        // Errors are expected here; the repairs are what is read.
+        val _status = root.invoke_kflatc_check_into(root_dir, tdir.as_str(), report.as_str())
+        val located = fixes_from_report(read_file(report.as_str()).as_str(), root_dir)
+        wrote = wrote + write_fixes(&located, dry_run)
+    }
+    return Option.Some(wrote)
 }
 
 /// The machine-applicable repairs in a report of JSON diagnostics, one per

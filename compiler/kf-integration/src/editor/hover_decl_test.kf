@@ -4,6 +4,7 @@ import core.assert.assert_eq
 
 import std.fs.scratch_path
 import kf_driver.editor.render_hover_json
+import testing.test
 
 extern "C" fun system(cmd: str): int32
 
