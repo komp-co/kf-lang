@@ -8,11 +8,13 @@ import kf_core.ast.Module
 import kf_core.ast.declaration.*
 import kf_core.ast.types.TypeRef
 import kf_core.diagnostic.*
+import kf_resolve.DeclTable
 
 /// For this crate's annotations; a dependency's struct arrives with its
-/// interface. CONSTRAINT: before registration, so the struct is laid out
-/// like any other.
-pub mutating fun Module.expand_annotation_structs(diags: &var List<Diagnostic>): void {
+/// interface. Each struct enters `table` as resolution would have entered
+/// it, so a type may name it. CONSTRAINT: before registration, so the struct
+/// is laid out like any other.
+pub mutating fun Module.expand_annotation_structs(table: &var DeclTable, diags: &var List<Diagnostic>): void {
     var synth = List.new<TopDecl>()
     while td in &self.decls {
         if td.crate.raw != self.crate.raw { continue }
@@ -30,7 +32,9 @@ pub mutating fun Module.expand_annotation_structs(diags: &var List<Diagnostic>):
         }
     }
     while item in &synth {
-        self.decls.push(item)
+        var registered = item
+        registered.decl = table.insert(registered.name.as_string())
+        self.decls.push(registered)
     }
 }
 
