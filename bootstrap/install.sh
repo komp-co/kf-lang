@@ -1,9 +1,9 @@
 #!/usr/bin/env sh
-# Installs the kflat release this script ships in: builds komp and kflatc
-# with cc and puts them, with the libraries they compile against, in
+# Installs the kflat release this script ships in: builds kflatc with cc and
+# puts it, with the libraries it compiles against, in
 # $KFLAT_HOME/toolchains/<version> ($KFLAT_HOME is ~/.kflat unless set).
-# komp and kflatc are linked into $KFLAT_HOME/bin, where `komp tool install`
-# puts programs too, so that one directory goes on PATH.
+# kflatc is linked into $KFLAT_HOME/bin, beside komp, which runs the kflatc
+# next to it when a project pins no other toolchain.
 #
 #   sh install.sh            # CC and CFLAGS pick the C compiler and flags
 #
@@ -27,16 +27,13 @@ fail() {
 command -v "$CC" > /dev/null 2>&1 || fail "no C compiler: install gcc or clang, or name one with CC"
 rm -rf "$staging"
 mkdir -p "$staging/bin"
-for part in komp kflatc; do
-    echo "building $part $version with $CC" >&2
-    "$CC" $CFLAGS -o "$staging/bin/$part" "$here/$part.c" || fail "$CC could not build $part"
-done
+echo "building kflatc $version with $CC" >&2
+"$CC" $CFLAGS -o "$staging/bin/kflatc" "$here/kflatc.c" || fail "$CC could not build kflatc"
 cp -R "$here/libs" "$staging/libs" || fail "could not copy the libraries into $staging"
 
 rm -rf "$toolchain"
 mv "$staging" "$toolchain"
 mkdir -p "$home/bin"
-ln -sf "$toolchain/bin/komp" "$home/bin/komp"
 ln -sf "$toolchain/bin/kflatc" "$home/bin/kflatc"
 
 echo "installed kflat $version in $toolchain"

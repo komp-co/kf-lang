@@ -1,5 +1,6 @@
-# The seed: the released komp and kflatc, as C, that bootstrap this tree.
-# bootstrap/seed.sh fetches it and checks it against sha256.
+# The seed: a released kflatc, as C, that bootstraps this tree, and the komp
+# that drives the build. bootstrap/seed.sh fetches both and checks their
+# sha256. A seed that ships komp.c drives with it, and needs no komp_url.
 version = "0.22.0"
 url = "https://github.com/komp-co/komp/releases/download/v0.22.0/kflat-seed-0.22.0.tar.gz"
 sha256 = "0e8016375064a9ce5359e204d7bd61a7cf9a4f53bdd18feb7e98467228c4b766"

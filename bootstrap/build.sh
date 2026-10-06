@@ -1,34 +1,32 @@
 #!/usr/bin/env sh
-# Bootstrap komp from the released seed and verify the self-hosting fixpoint.
+# Bootstrap kflatc from the released seed and verify the self-hosting fixpoint.
 # Needs a C compiler, and the network once to fetch the seed.
 #
 #   bootstrap/build.sh                   # build + fixpoint check
 #   bootstrap/build.sh --seed-out DIR    # ... and write this tree's seed to DIR
 #   KFLAT_SEED=seed.tar.gz bootstrap/build.sh   # start from a local seed
 #   CC=clang bootstrap/build.sh          # pick a C compiler (default: cc)
-#   CFLAGS=-O0 bootstrap/build.sh        # cheaper cc, a far slower komp
+#   CFLAGS=-O0 bootstrap/build.sh        # cheaper cc, a far slower kflatc
 #
-# The seed is a released komp and kflatc as C, pinned by bootstrap/stage0.toml
-# and verified by its sha256; bootstrap/seed.sh fetches and caches it.
+# The seed is a released kflatc as C, and komp0 the komp that drives every
+# build, both pinned by bootstrap/stage0.toml; bootstrap/seed.sh fetches them.
+# komp0 only drives: the C is emitted by the kflatc it runs, named by KFLATC.
 #
 # Chain:
-#   1. cc the seed                    -> komp0, with its kflatc beside it
-#   2. komp0 builds compiler/komp     -> stage1.c ; cc stage1.c -> komp1
-#      komp0 builds compiler/kflatc   -> kflatc1.c ; cc -> kflatc, beside komp1
-#   3. komp1 builds compiler/komp     -> stage2.c, running that kflatc
-#      komp1 builds compiler/kflatc   -> kflatc2.c
-#   4. assert stage1.c == stage2.c and kflatc1.c == kflatc2.c (the fixpoint)
+#   1. cc the seed                          -> kflatc0, beside komp0
+#   2. kflatc0 compiler/kflatc -> kflatc1.c ; cc -> kflatc1
+#   3. kflatc1 compiler/kflatc -> kflatc2.c
+#   4. assert kflatc1.c == kflatc2.c (the fixpoint)
 #
-# stage1.c is the seed's output, so a tree that changes what the compiler
-# emits for its own source cannot match it. Then komp2 and kflatc2 are built
-# from stage2.c and kflatc2.c, build the tree once more, and the fixpoint is
-# stage2.c == stage3.c and kflatc2.c == kflatc3.c: two compilers from the same
-# source agree.
+# kflatc1.c is the seed's output, so a tree that changes what the compiler
+# emits for itself cannot match it. Then kflatc2 is built from kflatc2.c,
+# builds the tree once more, and the fixpoint is kflatc2.c == kflatc3.c: two
+# compilers from the same source agree.
 #
-# `--seed-out` writes the release archives packed from the pair the fixpoint
+# `--seed-out` writes the release archives packed from the kflatc the fixpoint
 # proved: kflat-seed-<version>.tar.gz, and kflat-<version>.tar.gz, which
-# installs. A release publishes both. The install archive is checked on every
-# run, by installing it and building a program with what it installed.
+# installs it as a toolchain. A release publishes both. The install archive is
+# checked on every run, by installing it and building a program with it.
 #
 # Each step fails for its own reason, named with its remedy.
 #
@@ -65,8 +63,8 @@ fail() {
 }
 
 # A tool killed by a signal did not reject anything. 137 is SIGKILL, on a
-# build machine almost always the OOM killer: this script's peak is two
-# self-compiles, komp's and kflatc's, side by side.
+# build machine almost always the OOM killer: this script's peak is one
+# self-compile of kflatc.
 #
 # Call with the exit status of the tool that just failed; returns 0 when it
 # named a signal, having already explained it.
@@ -80,9 +78,9 @@ report_if_killed() {
     echo "FAIL: $stage was killed by signal $((status - 128))."
     if [ "$status" -eq 137 ]; then
         echo "  SIGKILL, and nothing here sends it — this is the machine, not"
-        echo "  your source. bootstrap/build.sh peaks at roughly two whole"
-        echo "  self-compiles; check free memory, and whether another build or"
-        echo "  CI job was running at the same time."
+        echo "  your source. bootstrap/build.sh peaks at one whole self-compile;"
+        echo "  check free memory, and whether another build or CI job was"
+        echo "  running at the same time."
     fi
     exit 1
 }
@@ -95,7 +93,7 @@ step_time() {
     step_t0="$step_now"
 }
 
-echo "[1/4] $CC the seed, kflat $(seed_field version) -> komp0, kflatc"
+echo "[1/4] $CC the seed, kflat $(seed_field version) -> kflatc0, beside the driver komp0"
 if ! seed_build "$WORK/s0"; then
     fail "the seed did not build." \
          "Either it could not be fetched or verified (the lines above say which)," \
@@ -108,166 +106,79 @@ fi
 "$WORK/s0/komp0" metadata "$ROOT/compiler" > /dev/null
 step_time "the seed"
 
-# run_pair A B — runs the functions A and B at once, each into its own log,
-# then prints the logs in that order and exits if either failed. komp and
-# kflatc are independent builds, and each cc is single-threaded.
-run_pair() {
-    ( "$1" ) > "$WORK/$1.log" 2>&1 &
-    pair_first=$!
-    ( "$2" ) > "$WORK/$2.log" 2>&1 &
-    pair_second=$!
-    pair_status=0
-    wait "$pair_first" || pair_status=1
-    wait "$pair_second" || pair_status=1
-    cat "$WORK/$1.log" "$WORK/$2.log"
-    [ "$pair_status" -eq 0 ] || exit 1
+# kflatc_c NAME KFLATC OUT — the driver compiles compiler/kflatc into the C
+# file OUT, running the kflatc KFLATC; NAME says which compiler that is, for
+# the failure.
+kflatc_c() {
+    kflatc_c_status=0
+    KFLATC="$2" "$WORK/s0/komp0" "$ROOT/compiler/kflatc" "$3" || kflatc_c_status=$?
+    if [ "$kflatc_c_status" -ne 0 ]; then
+        report_if_killed "$kflatc_c_status" "$1 reading compiler/kflatc" || true
+        fail "$1 rejected compiler/kflatc." \
+             "The errors above come from $1 reading this tree. When it is the" \
+             "seed, the source may use a construct the pinned seed predates:" \
+             "see \"The bootstrap seed\" in CONTRIBUTING.md."
+    fi
 }
 
-echo "[2/4] komp0 compiler/komp -> stage1.c ; $CC stage1.c -> komp1"
-echo "      komp0 compiler/kflatc -> kflatc1.c ; $CC kflatc1.c -> kflatc"
-# Absolute project root: a seed older than the walk_project dedup fix
-# (abs_path.kf) assembles shared crates twice when the root is relative.
-stage1_komp() {
-    stage1_status=0
-    "$WORK/s0/komp0" "$ROOT/compiler/komp" "$WORK/stage1.c" || stage1_status=$?
-    if [ "$stage1_status" -ne 0 ]; then
-        report_if_killed "$stage1_status" "the seed reading the current source" || true
-        fail "the seed rejected the current source." \
-             "The errors above come from komp0 — the seed binary — reading" \
-             "compiler/komp. Either the source is genuinely broken, or it uses a" \
-             "construct the pinned seed predates. Build with a current komp to" \
-             "tell the two apart: if that succeeds, the seed is the problem." \
-             "See \"The bootstrap seed\" in CONTRIBUTING.md."
-    fi
+# cc_kflatc C OUT — compiles one kflatc from its C.
+cc_kflatc() {
+    cc_dir="$(dirname "$2")"
+    mkdir -p "$cc_dir"
     # From inside `$WORK`, so its random name stays out of the hashed command line.
-    if ! (cd "$WORK" && "$CC" $CFLAGS -c -o stage1.o stage1.c) || ! "$CC" $CFLAGS -o "$WORK/komp1" "$WORK/stage1.o"; then
-        fail "the seed cannot build this tree." \
-             "The errors above are in stage1.c — the seed's *output*, not your" \
-             "source. The seed miscompiles something this tree now depends on," \
-             "typically a codegen defect fixed after it was released. Land the fix," \
-             "release it, and pin the new seed before the change that needs it." \
-             "See \"The bootstrap seed\" in CONTRIBUTING.md."
+    if ! (cd "$WORK" && "$CC" $CFLAGS -c -o "$2.o" "$1") || ! "$CC" $CFLAGS -o "$2" "$2.o"; then
+        fail "$(basename "$1") does not compile." \
+             "The errors above are in generated C, not your source: the compiler" \
+             "that emitted it miscompiles something this tree now depends on."
     fi
 }
 
-# komp1 compiles through the kflatc beside it, which the seed builds here.
-stage1_kflatc() {
-    kflatc1_status=0
-    "$WORK/s0/komp0" "$ROOT/compiler/kflatc" "$WORK/kflatc1.c" || kflatc1_status=$?
-    if [ "$kflatc1_status" -ne 0 ]; then
-        report_if_killed "$kflatc1_status" "the seed reading compiler/kflatc" || true
-        fail "the seed rejected compiler/kflatc." \
-             "compiler/komp holds the same compiler: if the seed accepted it," \
-             "look at compiler/kflatc itself."
-    fi
-    if ! (cd "$WORK" && "$CC" $CFLAGS -c -o kflatc1.o kflatc1.c) || ! "$CC" $CFLAGS -o "$WORK/kflatc" "$WORK/kflatc1.o"; then
-        fail "the seed cannot build kflatc." \
-             "The errors above are in kflatc1.c — the seed's *output*, not your" \
-             "source; see \"The bootstrap seed\" in CONTRIBUTING.md."
-    fi
-}
-
-run_pair stage1_komp stage1_kflatc
+echo "[2/4] the seed's kflatc compiler/kflatc -> kflatc1.c ; $CC -> kflatc1"
+kflatc_c "the seed" "$WORK/s0/kflatc" "$WORK/kflatc1.c"
+cc_kflatc "$WORK/kflatc1.c" "$WORK/s1/kflatc"
 step_time "stage 1, built by the seed"
 
-echo "[3/4] komp1 compiler/komp -> stage2.c ; compiler/kflatc -> kflatc2.c"
-stage2_komp() {
-    stage2_status=0
-    "$WORK/komp1" "$ROOT/compiler/komp" "$WORK/stage2.c" || stage2_status=$?
-    if [ "$stage2_status" -ne 0 ]; then
-        report_if_killed "$stage2_status" "the freshly built compiler reading this tree" || true
-        fail "the compiler this tree builds cannot compile this tree." \
-             "komp1 came from the current source and step 2 proved the seed can" \
-             "build it, so the seed is not implicated: this is a regression in the" \
-             "tree itself. Releasing a seed from it would only bake it in."
-    fi
-}
-
-stage2_kflatc() {
-    kflatc2_status=0
-    "$WORK/komp1" "$ROOT/compiler/kflatc" "$WORK/kflatc2.c" || kflatc2_status=$?
-    if [ "$kflatc2_status" -ne 0 ]; then
-        report_if_killed "$kflatc2_status" "the freshly built compiler reading compiler/kflatc" || true
-        fail "the compiler this tree builds cannot compile compiler/kflatc."
-    fi
-}
-
-run_pair stage2_komp stage2_kflatc
+echo "[3/4] kflatc1 compiler/kflatc -> kflatc2.c"
+kflatc_c "the compiler this tree builds" "$WORK/s1/kflatc" "$WORK/kflatc2.c"
 step_time "stage 2, emitted by stage 1"
 
 echo "[4/4] fixpoint check"
 # The compiler that proved the fixpoint and the C it reproduced.
-proven_komp="$WORK/komp1"
-proven_kflatc="$WORK/kflatc"
-proven_komp_c="$WORK/stage1.c"
+proven_kflatc="$WORK/s1/kflatc"
 proven_kflatc_c="$WORK/kflatc1.c"
-if ! diff -q "$WORK/stage1.c" "$WORK/stage2.c" >/dev/null || ! diff -q "$WORK/kflatc1.c" "$WORK/kflatc2.c" >/dev/null; then
+if ! diff -q "$WORK/kflatc1.c" "$WORK/kflatc2.c" >/dev/null; then
     echo "NOTE: this tree changes what the compiler emits for itself; checking one stage later"
-    mkdir -p "$WORK/s2"
-    stage2_cc_komp() {
-        if ! (cd "$WORK" && "$CC" $CFLAGS -c -o s2/stage2.o stage2.c) || ! "$CC" $CFLAGS -o "$WORK/s2/komp2" "$WORK/s2/stage2.o"; then
-            fail "stage2.c, the current compiler's own output, does not compile."
-        fi
-    }
-    stage2_cc_kflatc() {
-        if ! (cd "$WORK" && "$CC" $CFLAGS -c -o s2/kflatc2.o kflatc2.c) || ! "$CC" $CFLAGS -o "$WORK/s2/kflatc" "$WORK/s2/kflatc2.o"; then
-            fail "kflatc2.c, the current compiler's own output, does not compile."
-        fi
-    }
-    run_pair stage2_cc_komp stage2_cc_kflatc
-    stage3_komp() {
-        stage3_status=0
-        "$WORK/s2/komp2" "$ROOT/compiler/komp" "$WORK/stage3.c" || stage3_status=$?
-        if [ "$stage3_status" -ne 0 ]; then
-            report_if_killed "$stage3_status" "the self-built compiler reading this tree" || true
-            fail "the compiler built by the current compiler cannot compile this tree."
-        fi
-    }
-    stage3_kflatc() {
-        stage3_status=0
-        "$WORK/s2/komp2" "$ROOT/compiler/kflatc" "$WORK/kflatc3.c" || stage3_status=$?
-        if [ "$stage3_status" -ne 0 ]; then
-            report_if_killed "$stage3_status" "the self-built compiler reading compiler/kflatc" || true
-            fail "the compiler built by the current compiler cannot compile compiler/kflatc."
-        fi
-    }
-    run_pair stage3_komp stage3_kflatc
+    cc_kflatc "$WORK/kflatc2.c" "$WORK/s2/kflatc"
+    kflatc_c "the compiler built by the current compiler" "$WORK/s2/kflatc" "$WORK/kflatc3.c"
     step_time "stage 3, built and emitted by stage 2"
-    if ! diff -q "$WORK/stage2.c" "$WORK/stage3.c" >/dev/null; then
-        echo "FAIL: fixpoint broken (stage2.c != stage3.c)"
-        echo "  the compiler does not reproduce itself; see diff:"
-        diff "$WORK/stage2.c" "$WORK/stage3.c" | head -40
-        exit 1
-    fi
     if ! diff -q "$WORK/kflatc2.c" "$WORK/kflatc3.c" >/dev/null; then
         echo "FAIL: fixpoint broken (kflatc2.c != kflatc3.c)"
+        echo "  the compiler does not reproduce itself; see diff:"
         diff "$WORK/kflatc2.c" "$WORK/kflatc3.c" | head -40
         exit 1
     fi
-    proven_komp="$WORK/s2/komp2"
     proven_kflatc="$WORK/s2/kflatc"
-    proven_komp_c="$WORK/stage2.c"
     proven_kflatc_c="$WORK/kflatc2.c"
-    echo "OK: stage2.c == stage3.c and kflatc2.c == kflatc3.c (fixpoint holds)"
+    echo "OK: kflatc2.c == kflatc3.c (fixpoint holds)"
 else
-    echo "OK: stage1.c == stage2.c and kflatc1.c == kflatc2.c (fixpoint holds)"
+    echo "OK: kflatc1.c == kflatc2.c (fixpoint holds)"
 fi
 
-# KOMP_PUBLISH names a path to copy the verified komp to, with the kflatc
-# beside it, so other jobs can reuse both instead of rebuilding them from the
-# seed. Each is written beside its target and renamed, so a reader sees the
-# whole binary or none.
+# KOMP_PUBLISH names a path to copy the driver komp to, with the verified
+# kflatc beside it, so other jobs can reuse both instead of rebuilding them
+# from the seed. Each is written beside its target and renamed, so a reader
+# sees the whole binary or none.
 if [ -n "${KOMP_PUBLISH:-}" ]; then
     publish_dir="$(dirname "$KOMP_PUBLISH")"
     mkdir -p "$publish_dir"
     cp "$proven_kflatc" "$publish_dir/kflatc.tmp.$$" && mv -f "$publish_dir/kflatc.tmp.$$" "$publish_dir/kflatc"
-    cp "$proven_komp" "$KOMP_PUBLISH.tmp.$$" && mv -f "$KOMP_PUBLISH.tmp.$$" "$KOMP_PUBLISH"
-    echo "OK: published the verified komp and kflatc to $publish_dir"
+    cp "$WORK/s0/komp0" "$KOMP_PUBLISH.tmp.$$" && mv -f "$KOMP_PUBLISH.tmp.$$" "$KOMP_PUBLISH"
+    echo "OK: published the driver komp and the verified kflatc to $publish_dir"
 fi
 
 # Informational: whether the pinned seed matches the current source. A stale
 # seed is harmless until the tree needs something it cannot build.
-if diff -q "$proven_komp_c" "$WORK/s0/seed/komp.c" > /dev/null && diff -q "$proven_kflatc_c" "$WORK/s0/seed/kflatc.c" > /dev/null; then
+if diff -q "$proven_kflatc_c" "$WORK/s0/seed/kflatc.c" > /dev/null; then
     echo "OK: the seed is current (it matches a fresh self-build)"
 else
     echo "NOTE: the seed is behind the current source; a release would catch it up."
@@ -277,7 +188,7 @@ fi
 # bootstraps the next tree, and the install archive, the seed with the
 # libraries and bootstrap/install.sh beside it. Byte-identical from identical
 # input: sorted, a fixed date, no owner, gzip -n.
-version="$("$proven_komp" --version | sed -n 's/^komp //p')"
+version="$("$proven_kflatc" version | sed -n 's/^kflatc //p' | head -1)"
 pack() {
     (cd "$WORK/out" && tar --sort=name --mtime='2000-01-01 00:00Z' --owner=0 --group=0 --numeric-owner -cf - "$1" \
         | gzip -n -9 > "$1.tar.gz")
@@ -286,10 +197,8 @@ seed_name="kflat-seed-$version"
 install_name="kflat-$version"
 rm -rf "$WORK/out"
 mkdir -p "$WORK/out/$seed_name" "$WORK/out/$install_name"
-cp "$proven_komp_c" "$WORK/out/$seed_name/komp.c"
 cp "$proven_kflatc_c" "$WORK/out/$seed_name/kflatc.c"
 pack "$seed_name"
-cp "$proven_komp_c" "$WORK/out/$install_name/komp.c"
 cp "$proven_kflatc_c" "$WORK/out/$install_name/kflatc.c"
 cp "$ROOT/bootstrap/install.sh" "$WORK/out/$install_name/install.sh"
 echo "$version" > "$WORK/out/$install_name/VERSION"
@@ -316,12 +225,17 @@ fi
 printf '[project]\nname = "installed"\nversion = "0.1.0"\nkind = "bin"\n' > "$WORK/install-check/app/kf.toml"
 printf 'import std.io.eprintln\n\nfun main(): int32 {\n    eprintln(&"installed")\n    return 0\n}\n' \
     > "$WORK/install-check/app/src/main.kf"
-if ! (cd "$WORK/install-check" && "$WORK/install-check/home/bin/komp" run app > run.log 2>&1) || \
+# The driver komp builds with the installed kflatc and the libraries beside
+# it in its toolchain.
+installed_kflatc="$WORK/install-check/home/toolchains/$version/bin/kflatc"
+[ -x "$installed_kflatc" ] && [ -L "$WORK/install-check/home/bin/kflatc" ] ||
+    fail "install.sh did not install kflatc into toolchains/$version and link it into bin."
+if ! (cd "$WORK/install-check" && KFLATC="$installed_kflatc" "$WORK/s0/komp0" run app > run.log 2>&1) ||
         ! grep -qx installed "$WORK/install-check/run.log"; then
     cat "$WORK/install-check/run.log"
-    fail "the installed komp could not build and run a program that uses std."
+    fail "komp could not build and run a program that uses std with the installed kflatc."
 fi
-echo "OK: $install_name.tar.gz installs, and the installed komp builds a program"
+echo "OK: $install_name.tar.gz installs, and komp builds a program with what it installed"
 step_time "the install check"
 
 if [ -n "$SEED_OUT" ]; then
