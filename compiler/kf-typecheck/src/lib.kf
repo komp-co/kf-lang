@@ -51,7 +51,7 @@ pub fun typecheck_module_typed(m: &var Module,
     m.reject_duplicate_lang_items(&var diags)
     m.prepare_extensions(&var diags)
     m.prepare_annotation_params(&var diags)
-    m.expand_annotation_structs(&var diags.items)
+    m.expand_annotation_structs(table, &var diags.items)
     // Before registration, so derived impls go through every later pass.
     m.expand_derives()
     m.inline_constant_defaults()
