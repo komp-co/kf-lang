@@ -3,7 +3,7 @@
 # Introduction
 
 KFlat is a systems programming language that compiles to C. It is
-self-hosted: the compiler, komp, is itself written in KFlat. Apart from a
+self-hosted: the compiler, kflatc, is itself written in KFlat. Apart from a
 small C shim for bootstrap and platform calls, the language needs no
 runtime.
 

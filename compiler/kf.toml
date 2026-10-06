@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "komp",
     "kflatc",
     "kf-core",
     "kf-parse",
@@ -13,7 +12,6 @@ members = [
     "kf-interface",
     "kf-lint",
     "kf-driver",
-    "kf-tool",
     "kf-integration",
     "../libs/core",
     "../libs/core-tests",
@@ -21,4 +19,4 @@ members = [
     "../libs/alloc",
     "../libs/std"
 ]
-default-member = "komp"
+default-member = "kflatc"

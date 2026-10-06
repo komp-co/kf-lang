@@ -22,7 +22,7 @@ never does pays nothing for it. The `std` is always the one bundled with the
 compiler; an explicit `std = { path = ... }` entry still works, and is not
 needed.
 
-A [freestanding](../start/projects.md#the-freestanding-tier) program has no
+A [freestanding](https://github.com/komp-co/komp/blob/main/docs/book/src/start/projects.md#the-freestanding-tier) program has no
 `std`: processes, files and streams need an operating system. A crate of one
 that imports `std`, or names it, is an error that says so.
 

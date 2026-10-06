@@ -404,7 +404,7 @@ fun addition_works(): void {
 The [`testing`](../libs/testing.md) crate declares it and `@disabled` as
 ordinary annotations, so a test file imports the ones it uses, and the crate
 names `testing` in its
-[`[dev-dependencies]`](../start/projects.md#dev-dependencies):
+[`[dev-dependencies]`](https://github.com/komp-co/komp/blob/main/docs/book/src/start/projects.md#dev-dependencies):
 
 ```kflat
 annotation test(name: str = "", panics: FaultKind = FaultKind.NoFault) on () -> void
@@ -434,7 +434,7 @@ A `@disabled` test is still checked, so it cannot rot, but it is not run: the
 report lists it as ignored, with its reason. A test main is
 `run_tests(&annotated<test>(), &annotated<disabled>())`, core's
 [runner](../libs/testing.md#running-tests) over the crate's tests. See
-[Writing tests](../tools/testing.md) for running and filtering tests.
+[Writing tests](https://github.com/komp-co/komp/blob/main/docs/book/src/tools/testing.md) for running and filtering tests.
 
 ## @derive
 
@@ -482,7 +482,7 @@ On a method, it covers that method and nothing else in its `impl`.
 The names are the ones a diagnostic reports as its `code`. `lint.toml` sets
 the same levels for a whole crate, and `-A`/`-W`/`-D` set them for one build;
 the innermost setting wins, so an `@allow` beats both. See
-[Linting](../tools/lint.md).
+[Linting](https://github.com/komp-co/komp/blob/main/docs/book/src/tools/lint.md).
 
 `implicit_copy` and `copy_after_move` — the copies the compiler inserts for you
 — are the two worth knowing about, because they are the ones you may

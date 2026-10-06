@@ -2,7 +2,7 @@
 
 `testing` is the crate tests are written against. It depends only on `core`.
 A crate with tests names it in
-[`[dev-dependencies]`](../start/projects.md#dev-dependencies), so it is
+[`[dev-dependencies]`](https://github.com/komp-co/komp/blob/main/docs/book/src/start/projects.md#dev-dependencies), so it is
 compiled with the crate's `_test.kf` files and left out of a normal build:
 
 ```toml
