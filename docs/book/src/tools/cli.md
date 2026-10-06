@@ -426,7 +426,15 @@ A project whose [`kflat` pin](../start/projects.md#pinning-the-toolchain)
 needs a removed toolchain installs it again the next time it builds.
 
 It needs `curl`, `tar` and a C compiler. `KFLAT_RELEASES` names another
-place to take releases from, laid out as GitHub lays them out.
+place to take releases from, laid out as GitHub lays them out: `latest`
+redirecting to the newest tag, and `kflat-<version>.tar.gz` with its
+`.sha256` under `download/v<version>/`.
+
+The toolchain a [`kflat` pin](../start/projects.md#pinning-the-toolchain)
+installs is looked for on [kf-lang](https://github.com/komp-co/kf-lang)'s
+releases first, and then on komp's own, which hold the ones released before
+the compiler moved there. `KFLAT_RELEASES`, when set, is the only place
+looked.
 
 ## kflatc
 

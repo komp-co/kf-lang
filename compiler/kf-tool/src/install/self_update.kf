@@ -70,16 +70,15 @@ pub fun self_update(requested: str, current: str, home: str, cache: str): SelfUp
     if requested.byte_len() == 0 && version.as_str() == current {
         return SelfUpdate { version: version, installed: false, error: "" }
     }
-    val error = install_release(version.as_str(), home, cache)
+    val error = install_release(releases.as_str(), version.as_str(), home, cache)
     if error.byte_len() > 0 { return update_failed(error) }
     return SelfUpdate { version: version, installed: true, error: "" }
 }
 
-/// Downloads release `version`, checks it against its published sha256 and
-/// runs its install.sh with `home` as `KFLAT_HOME`. "" once installed, else
-/// why not.
-pub fun install_release(version: str, home: str, cache: str): String {
-    val releases = releases_url()
+/// Downloads release `version` from the `releases` page, checks it against
+/// its published sha256 and runs its install.sh with `home` as `KFLAT_HOME`.
+/// "" once installed, else why not.
+pub fun install_release(releases: str, version: str, home: str, cache: str): String {
     val staging = fresh_staging(cache, "release")
     if staging.byte_len() == 0 { return "cannot create a directory under ${cache}" }
     val name = "kflat-${version}.tar.gz"

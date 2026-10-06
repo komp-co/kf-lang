@@ -281,7 +281,7 @@ too.
 
 When none installed fits, komp installs one before building: the newest
 release when the requirement allows it, else the version the requirement
-writes. It goes into `~/.kflat/toolchains` beside the others, and the `komp`
+writes, from the compiler's [release pages](../tools/cli.md#komp-toolchain). It goes into `~/.kflat/toolchains` beside the others, and the `komp`
 on `PATH` stays the one it was. With `--offline` komp installs nothing and
 stops instead:
 
