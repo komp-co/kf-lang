@@ -122,7 +122,9 @@ pub fun TypeRef.tyref_mangle(): String {
     val tk = self.kind
     when (tk) {
         Named(n, a) => {
-            if a.size() == 0 { return n.as_string() }
+            // An argument written back from a checked type names it by
+            // identity; it is spelled as the type itself is.
+            if a.size() == 0 { return identity_display_of(n.as_str()) }
             return mangle_named(n.as_string(), a)
         }
         DynTrait(n, a) => {
