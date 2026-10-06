@@ -384,7 +384,7 @@ calling `annotated<bench>()` sees `measure`'s functions, not the ones of the
 crate that imported `bench`.
 
 The name of a built-in annotation cannot be declared, nor can `test` or
-`disabled` outside the standard library. `annotation`, `on`
+`disabled` outside the `testing` crate. `annotation`, `on`
 and `any` are not reserved words; they are read this way only in an
 annotation's declaration.
 
@@ -399,8 +399,8 @@ fun addition_works(): void {
 }
 ```
 
-Core declares it, and `@disabled`, and every file sees both without an
-import:
+The [`testing`](../libs/testing.md) crate declares it, and `@disabled`, and
+every test file sees both without an import:
 
 ```kflat
 annotation test(name: str = "", panics: FaultKind = FaultKind.NoFault) on () -> void
@@ -426,7 +426,7 @@ fun parses_nested_generics(): void { }
 A `@disabled` test is still checked, so it cannot rot, but it is not run: the
 report lists it as ignored, with its reason. A test main is
 `run_tests(&annotated<test>(), &annotated<disabled>())`, core's
-[runner](../libs/core.md#running-tests) over the crate's tests. See
+[runner](../libs/testing.md#running-tests) over the crate's tests. See
 [Writing tests](../tools/testing.md) for running and filtering tests.
 
 ## @derive

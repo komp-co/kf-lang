@@ -1,8 +1,7 @@
 import core.assert.assert_eq
-import core.assert.renders_as
 import core.display.assert_eq
-import core.display.renders_as
 import core.time.*
+import core_tests.renders_as
 
 @test fun constructors_agree_on_a_common_unit(): void {
     assert_eq(Duration.from_seconds(1).as_nanos(), 1000000000, "seconds")

@@ -66,8 +66,8 @@ test result: FAILED. 2 passed, 1 failed
 ```
 
 komp builds a test binary whose `main` hands every `@test` function of the
-crate, and every `@disabled` one, to core's
-[`run_tests`](../libs/core.md#running-tests), and runs it. A disabled test is
+crate, and every `@disabled` one, to `testing`'s
+[`run_tests`](../libs/testing.md#running-tests), and runs it. A disabled test is
 reported as `ignored`, with its reason, and counted in the result line.
 The exit code is 0 when every test passed and 1 otherwise — it is not a
 failure count.

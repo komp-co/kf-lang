@@ -1,8 +1,8 @@
 //! run: exit 1
-//! deps: core
+//! deps: core, testing
 // A test expecting one kind of panic fails on another.
 
-import core.testing.run_tests
+import testing.run_tests
 
 @test(panics = FaultKind.IndexOutOfBounds)
 fun asserts_instead(): void { assert(false, "not an index") }

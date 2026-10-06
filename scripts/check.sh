@@ -145,7 +145,7 @@ CRATES="${CRATES:-compiler/kf-core compiler/kf-parse compiler/kf-assemble
         compiler/kf-resolve compiler/kf-typecheck compiler/kf-mono
         compiler/kf-lower compiler/kf-codegen compiler/kf-interface
         compiler/kf-shared compiler/kf-lint compiler/kf-driver compiler/kf-tool compiler/kf-integration
-        libs/core libs/alloc libs/std tools/kf-fuzz tools/kf-reduce}"
+        libs/core libs/core-tests libs/testing libs/alloc libs/std tools/kf-fuzz tools/kf-reduce}"
 CHECK_CLI="${CHECK_CLI:-1}"
 
 # Peak RSS a single crate's `komp test` may reach, in MB: a ceiling with room

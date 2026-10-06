@@ -1,5 +1,5 @@
 import core.assert.assert_eq
-import core.renders_as
+import core_tests.renders_as
 
 @test fun a_decimal_reads_as_its_value(): void {
     assert_eq("42".parse<int32>(), Result.Ok(42), "plain digits")

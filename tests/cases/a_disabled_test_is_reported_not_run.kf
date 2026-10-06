@@ -1,9 +1,9 @@
 //! run: exit 0
-//! deps: core
+//! deps: core, testing
 // `@disabled` keeps a test checked but out of the run: this one would fail,
 // and the run still passes.
 
-import core.testing.run_tests
+import testing.run_tests
 
 @test
 @disabled("waiting on a fix")

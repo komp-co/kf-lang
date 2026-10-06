@@ -13,7 +13,7 @@ import kf_parse.parser.new_parser
 /// Hands core's runner every `@test` function of the crate, and the ones
 /// `@disabled` holds back.
 pub fun gen_test_main_src(): String {
-    return String.from("""import core.testing.run_tests
+    return String.from("""import testing.run_tests
 
 fun main(): int32 {
     return run_tests(&annotated<test>(), &annotated<disabled>())

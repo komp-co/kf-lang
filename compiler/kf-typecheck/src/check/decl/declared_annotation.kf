@@ -31,7 +31,7 @@ pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: &var Di
             AnnotationDecl(own_params, own_target, is_pub) => {
                 val own = td.crate.raw == self.crate.raw
                 val reserved = annotation_is_known(td.name.as_str()) &&
-                    !(annotation_is_declarable(td.name.as_str()) && may_declare_lang_items(td.crate))
+                    !(annotation_is_declarable(td.name.as_str()) && may_declare_test_annotations(td.crate))
                 if reserved {
                     if own {
                         val message = "`@${td.name.as_str()}` is a built-in annotation and cannot be declared"

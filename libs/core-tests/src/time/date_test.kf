@@ -3,6 +3,9 @@
 import core.assert.*
 import core.display.*
 import core.time.*
+import core_tests.renders_as
+import core_tests.new_render_digest
+import core_tests.digest_matches
 
 fun padded_as(value: int64, width: uint64, expected: str): bool {
     var d = new_render_digest()

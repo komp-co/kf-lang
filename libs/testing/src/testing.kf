@@ -16,7 +16,7 @@ extern "C" fun kf_test_report(passed: int32, failed: int32, ignored: int32): voi
 extern "C" fun kf_test_queue(name: str, shown: str): void
 extern "C" fun kf_test_run_queued(): int32
 extern "C" fun kf_test_queued_count(): int32
-extern "C" fun kf_test_expect_panic(code: str): void
+extern "C" fun kf_expect_panic(code: str): void
 
 /// `--list` prints each test as one JSON line. `--run-test <name>` runs that
 /// one test in this process. Otherwise each test whose name contains
@@ -107,7 +107,7 @@ fun run_one_test(tests: &AnnotatedFunction<test, () -> void>[], name: str): int3
 }
 
 fun expect_panic(code: str): void {
-    unsafe { kf_test_expect_panic(code) }
+    unsafe { kf_expect_panic(code) }
 }
 
 /// The argument after `flag`, or `""`.
