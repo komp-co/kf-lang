@@ -25,16 +25,17 @@ checked today and what is not.
 
 ## Build it
 
-The only prerequisite is a C compiler. komp is built from a seed, the C
-translation of a released komp and kflatc, which the script fetches once and
-checks against the hash in `bootstrap/stage0.toml`:
+The only prerequisite is a C compiler. kflatc is built from a seed, the C
+translation of a released kflatc, and the build is driven by a released komp;
+the script fetches both once and checks them against the hashes in
+`bootstrap/stage0.toml`:
 
 ```sh
-KOMP_PUBLISH=out/komp sh bootstrap/build.sh   # out/komp and out/kflatc
+KOMP_PUBLISH=out/komp sh bootstrap/build.sh   # out/kflatc, and the komp that drove it
 ```
 
-It then checks the fixpoint — that komp compiled by komp reproduces itself byte
-for byte. That single test guards the whole compiler.
+It then checks the fixpoint — that kflatc compiled by kflatc reproduces itself
+byte for byte. That single test guards the whole compiler.
 
 ## Use it
 
