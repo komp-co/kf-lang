@@ -2,9 +2,6 @@
 // then the root checked against them. No C is compiled.
 
 import alloc.list.*
-import kf_shared.crate_interface_path
-import kf_shared.crate_interface_stamp_path
-import kf_shared.crate_artifact_manifest_path
 import kf_shared.render_json_error
 import std.fs.exists
 

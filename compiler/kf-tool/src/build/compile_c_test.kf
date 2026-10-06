@@ -1,7 +1,6 @@
 import alloc.list.*
 import core.assert.assert_eq
 import std.fs.scratch_path
-import kf_shared.crate_archive_path
 
 @test
 fun plain_paths_are_single_quoted(): void {

@@ -5,12 +5,6 @@
 import alloc.list.*
 
 import kf_codegen.runtime.emit_runtime_header
-import kf_shared.crate_header_path
-import kf_shared.crate_source_path
-import kf_shared.crate_interface_path
-import kf_shared.runtime_header_path
-import kf_shared.test_crate_dir
-import kf_shared.test_artifact_path
 import alloc.path.Path
 import std.fs.create_dir_all
 

@@ -10,7 +10,6 @@ import kf_shared.walk_kf_files
 import kf_tool.project.manifest_c_sources
 import kf_tool.project.manifest_hosted_c_sources
 import kf_tool.project.parse_manifest
-import kf_shared.crate_artifact_manifest_path
 import std.fs.exists
 
 // Declared by kf_runtime.h already, so no second prototype is emitted.
