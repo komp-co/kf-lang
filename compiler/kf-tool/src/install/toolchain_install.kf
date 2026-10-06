@@ -2,7 +2,8 @@
 // installed into a staging home so that only `toolchains/<version>` moves
 // into the real one and `bin/` keeps pointing where it did.
 
-import kf_shared.ensure_dir
+import alloc.list.*
+import kf_tool.build.ensure_dir
 import kf_tool.fetch.fresh_staging
 import kf_tool.fetch.remove_tree
 import kf_tool.project.parse_requirement
@@ -19,9 +20,10 @@ pub fun choose_or_install_toolchain(pin: str, own_version: str, home: str, cache
         return ToolchainChoice { kflatc: "", error: "${choice.error}; --offline installs none", installable: false }
     }
     val wanted = parse_requirement(pin) ?: return choice
-    val version = release_for(&wanted, latest_release(releases_url().as_str()).as_str())
+    val pages = toolchain_release_pages()
+    val version = release_for(&wanted, newest_toolchain_release(&pages).as_str())
     eprintln(&"komp: installing kflat ${version}, which kf.toml's `kflat = \"${pin}\"` needs")
-    val failed = install_toolchain(version.as_str(), home, cache)
+    val failed = install_toolchain(&pages, version.as_str(), home, cache)
     if failed.byte_len() > 0 {
         val error = "${choice.error}; installing ${version}: ${failed}"
         return ToolchainChoice { kflatc: "", error: error, installable: false }
@@ -29,12 +31,14 @@ pub fun choose_or_install_toolchain(pin: str, own_version: str, home: str, cache
     return choose_toolchain(pin, own_version, home)
 }
 
-/// Installs release `version` as `<home>/toolchains/<version>`. "" once
-/// installed, else why not.
-pub fun install_toolchain(version: str, home: str, cache: str): String {
+/// Installs release `version`, from the first of `pages` that publishes it,
+/// as `<home>/toolchains/<version>`. "" once installed, else why not.
+pub fun install_toolchain(pages: &List<String>, version: str, home: str, cache: str): String {
+    val page = page_publishing(pages, version)
+    if page.byte_len() == 0 { return "no release page publishes kflat ${version}: ${pages.join(", ")}" }
     val staging_home = fresh_staging(cache, "toolchain")
     if staging_home.byte_len() == 0 { return "cannot create a directory under ${cache}" }
-    val failed = install_release(version, staging_home.as_str(), cache)
+    val failed = install_release(page.as_str(), version, staging_home.as_str(), cache)
     if failed.byte_len() > 0 {
         remove_tree(staging_home.as_str())
         return failed

@@ -10,7 +10,6 @@ import kf_core.ast.declaration.stamp_decl_owner
 import kf_core.diagnostic.*
 import kf_parse.lexer.tokenize
 import kf_parse.parser.*
-import kf_shared.walk_kf_files_inc
 
 // Signatures for runtime functions defined in the prelude, so call arguments
 // coerce correctly. komp emits no prototype for an extern, so these do not

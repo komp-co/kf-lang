@@ -1,6 +1,5 @@
 // `komp add <name>[@<requirement>] [--index <name>]`.
 
-import kf_shared.cli_arg_get
 import kf_tool.fetch.cache_root
 import kf_tool.install.add_package
 

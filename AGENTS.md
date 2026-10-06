@@ -20,7 +20,8 @@ Komp is a self-hosted KFlat compiler. Its source workspace lives under
 bootstrap/   — the pinned seed (`stage0.toml`) and the self-hosting script
 compiler/    — compiler workspace (`kf.toml`, `kf-*` passes, `komp/`, `kflatc/`)
 docs/book/   — the user-facing book
-libs/        — KFlat language libraries (core, alloc, std)
+libs/        — KFlat language libraries (core, alloc, std), `testing`, which
+               test builds add, and core-tests, which tests core from outside
 scripts/     — check.sh and the ratchets CI runs
 tests/       — black-box executable integration fixtures
 tools/       — kf-fuzz and kf-reduce: the front-end fuzzer, and the reducer
@@ -33,9 +34,10 @@ The passes run in order `kf-parse` → `kf-assemble` → `kf-resolve` →
 shared AST and diagnostics, `kf-interface` the compiled crate metadata
 (`.kfi`), `kf-driver` the compiler's entry points (one crate, `check`,
 `serve` and the editor answers it gives, test mains). `kf-tool` is the project tool: manifests, fetching, the
-build graph, cc. `kf-shared` holds what both must agree on (artifact paths, a
-crate's source files, hashes), and `kf-integration` the tests that drive whole
-projects through both. Two binaries sit on top: `kflatc`, the compiler, which
+build graph, cc. `kf-shared` holds only the release version both report, and
+`kf-integration` the tests that drive whole projects through both. What else
+they must agree on (the files kflatc writes, which files make a crate) is
+kflatc's documented command line, and each side keeps its own copy. Two binaries sit on top: `kflatc`, the compiler, which
 links kf-driver and turns one crate into C, and `komp`, the project tool, which
 links only kf-tool and runs `kflatc` per crate and cc after it. A crate may
 only import its declared dependencies; kf-tool must never depend on a compiler

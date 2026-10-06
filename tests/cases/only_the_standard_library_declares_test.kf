@@ -1,6 +1,6 @@
 //! build: fail
 //! deps: core, alloc
-// `test` is declarable only by core, alloc and std; anywhere else, declaring
+// `test` is declarable only by the `testing` crate; anywhere else, declaring
 // it is an error.
 
 annotation test

@@ -2,9 +2,10 @@ import core.assert.assert_eq
 
 import kf_driver.fresh_source_map
 
-@test fun gen_test_main_hands_every_test_to_core(): void {
-    assert_eq(gen_test_main_src().as_str().contains("return run_tests(&annotated<test>())"), true,
-        "core runs the query's entries")
+@test fun gen_test_main_hands_every_test_to_testing(): void {
+    val main = gen_test_main_src()
+    assert_eq(main.as_str().contains("return run_tests(&annotated<test>(), &annotated<disabled>())"), true,
+        "testing runs the query's entries, the disabled ones held back")
 }
 
 @test fun gen_test_main_parses_back_to_a_module(): void {

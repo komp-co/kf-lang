@@ -98,3 +98,16 @@ fun a_program_that_does_not_exist_fails_to_exec(): void {
     val failed = Command.new("/no/such/program").exec()
     assert_eq(failed.code, 2, "ENOENT, and this test process is still here to see it")
 }
+
+@test
+fun this_process_has_an_id(): void {
+    assert_eq(process_id() > 0, true, "a running process has a positive id")
+}
+
+@test
+fun a_child_has_another_id(): void {
+    var echo = Command.new("sh")
+    echo.arg("-c")
+    echo.arg("test $$ != ${process_id()}")
+    assert_eq(echo.status().success(), true, "the shell is not this process")
+}

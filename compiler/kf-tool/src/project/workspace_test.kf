@@ -1,6 +1,6 @@
 import core.assert.assert_eq
 import std.fs.scratch_path
-import kf_shared.normalized_path
+import std.fs.absolute
 
 extern "C" fun system(cmd: str): int32
 
@@ -80,7 +80,7 @@ fun members_share_the_workspace_target(): void {
     val ws = workspace_fixture("kf_ws_target", "")
     val app = build_output_root("${ws.as_str()}/app".as_str())
     val lib = build_output_root("${ws.as_str()}/util-lib".as_str())
-    val shared = "${normalized_path(ws.as_str()).as_str()}/target"
+    val shared = "${absolute(ws.as_str()).normalized().raw.as_str()}/target"
     assert_eq(app.as_str() == shared.as_str() && lib.as_str() == shared.as_str(), true, "one target for every member")
     val stray = build_output_root("${ws.as_str()}/stray".as_str())
     assert_eq(stray.as_str() == "${ws.as_str()}/stray/target".as_str(), true, "an unlisted crate keeps its own")
@@ -90,6 +90,6 @@ fun members_share_the_workspace_target(): void {
 fun the_workspace_can_move_its_target(): void {
     val ws = workspace_fixture("kf_ws_target_dir", "target-dir = \"../out\"\n")
     val app = build_output_root("${ws.as_str()}/app".as_str())
-    val wanted = "${normalized_path(ws.as_str()).as_str()}/../out"
+    val wanted = "${absolute(ws.as_str()).normalized().raw.as_str()}/../out"
     assert_eq(app.as_str() == wanted.as_str(), true, "target-dir is relative to the workspace")
 }

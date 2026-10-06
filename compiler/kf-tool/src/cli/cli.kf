@@ -8,9 +8,7 @@ import kf_tool.build.*
 import kf_tool.project.command_dir
 import kf_tool.project.parent_path
 import std.fs.*
-import kf_shared.binary_path
-import kf_shared.cli_arg_count
-import kf_shared.cli_arg_get
+import kf_tool.build.binary_path
 import kf_shared.kflat_version
 
 // Bodies in the runtime prelude, which captures argv in main().
@@ -29,7 +27,7 @@ pub fun build_project_mode(root: str, mode: BuildMode, unity_out: str): int32 {
 }
 
 pub fun run_project_mode(root: str, mode: BuildMode): int32 {
-    val graph = build_crate_graph(root)
+    val graph = build_crate_graph(root, false)
     if graph.error.as_str() != "" {
         runtime_println(graph.error.as_str())
         return 1
@@ -43,7 +41,7 @@ pub fun run_project_mode(root: str, mode: BuildMode): int32 {
         Separate => {
             val built = build_project_separate(root, "")
             if built != 0 { return built }
-            val graph = build_crate_graph(root)
+            val graph = build_crate_graph(root, false)
             val root_crate = *graph.crates.at(graph.crates.size() - 1)
             val binary = binary_path(target_dir(root).as_str(), root_crate.name.as_str())
             return Command.new(binary.as_str()).status().exit_code()

@@ -1,19 +1,19 @@
 // Where fetched crates live: one directory per pinned source, never changed
 // once written, shared by every project on the machine.
 
-import kf_shared.normalized_path
 import std.fs.exists
 import std.env.env_var
+import std.fs.absolute
 
 /// `$KFLAT_CACHE`, else `$XDG_CACHE_HOME/kflat`, else `~/.cache/kflat`: the
 /// directory `bootstrap/seed.sh` keeps seeds in.
 pub fun cache_root(): String {
     val explicit = env_var("KFLAT_CACHE") ?: String.from("")
-    if explicit.byte_len() > 0 { return normalized_path(explicit.as_str()) }
+    if explicit.byte_len() > 0 { return absolute(explicit.as_str()).normalized().raw }
     val xdg = env_var("XDG_CACHE_HOME") ?: String.from("")
-    if xdg.byte_len() > 0 { return normalized_path("${xdg}/kflat".as_str()) }
+    if xdg.byte_len() > 0 { return absolute("${xdg}/kflat".as_str()).normalized().raw }
     val home = env_var("HOME") ?: String.from("")
-    return normalized_path("${home}/.cache/kflat".as_str())
+    return absolute("${home}/.cache/kflat".as_str()).normalized().raw
 }
 
 /// The crate root a row's source unpacks to, keyed by what pins it.

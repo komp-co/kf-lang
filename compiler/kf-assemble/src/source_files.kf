@@ -1,6 +1,6 @@
 // Which files make up a crate: every `.kf` under its `src/`, and whether the
-// `_test.kf` ones count. The compiler assembles exactly these, and komp
-// fingerprints exactly these.
+// `_test.kf` ones count. The book states the rule; komp keeps its own copy to
+// fingerprint exactly these.
 
 import alloc.list.*
 import std.fs.is_directory
@@ -25,7 +25,7 @@ fun walk_kf_files_raw(dir: str, out: &var List<String>, include_tests: bool): vo
     if listed.is_err() { return }
     val names = listed.unwrap()
     while name in &names {
-        val full = join_path(dir, name.as_str())
+        val full = "${dir}/${name}"
         if is_directory(full.as_str()) {
             walk_kf_files_raw(full.as_str(), out, include_tests)
         } else if is_kf_file_any(name.as_str()) && (include_tests || is_kf_source_file(name.as_str())) {

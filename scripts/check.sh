@@ -145,7 +145,7 @@ CRATES="${CRATES:-compiler/kf-core compiler/kf-parse compiler/kf-assemble
         compiler/kf-resolve compiler/kf-typecheck compiler/kf-mono
         compiler/kf-lower compiler/kf-codegen compiler/kf-interface
         compiler/kf-shared compiler/kf-lint compiler/kf-driver compiler/kf-tool compiler/kf-integration
-        libs/core libs/alloc libs/std tools/kf-fuzz tools/kf-reduce}"
+        libs/core-tests libs/testing libs/alloc libs/std tools/kf-fuzz tools/kf-reduce}"
 CHECK_CLI="${CHECK_CLI:-1}"
 
 # Peak RSS a single crate's `komp test` may reach, in MB: a ceiling with room
@@ -238,11 +238,12 @@ crate_deps() {
 }
 
 # Of CRATES, those holding a changed path and every crate that depends on one
-# of them, in CRATES order. kf-integration is left to CI.
+# of them, in CRATES order. kf-integration is left to CI. libs/core holds no
+# tests, so it is not in CRATES, but a change to it picks its dependents.
 affected_crates() {
     files="$(changed_paths)"
     picked=" "
-    for c in $CRATES; do
+    for c in $CRATES libs/core; do
         if printf '%s\n' "$files" | grep -q "^$c/"; then picked="$picked$c "; fi
     done
     grew=1

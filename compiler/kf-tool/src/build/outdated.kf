@@ -9,7 +9,6 @@ import kf_tool.project.declared_index_url
 import kf_tool.project.enclosing_workspace
 import kf_tool.project.parse_manifest
 import kf_tool.project.tools_rows
-import kf_shared.join_path
 
 pub struct OutdatedRow {
     pub val name: String
@@ -35,7 +34,7 @@ pub struct Outdated {
 /// The project at `root`'s index dependencies and tools. Each index is
 /// brought up to date once, or with `offline` read as the cache has it.
 pub fun outdated(root: str, cache: str, offline: bool): Outdated {
-    val src = read_file(join_path(root, "kf.toml").as_str())
+    val src = read_file("${root}/kf.toml".as_str())
     val lock = read_lock(root)
     var refreshed = List.new<String>()
     var dependencies = List.new<OutdatedRow>()
@@ -47,7 +46,7 @@ pub fun outdated(root: str, cache: str, offline: bool): Outdated {
     }
     var tools_src = src.clone()
     val workspace = enclosing_workspace(root)
-    if !workspace.is_empty() { tools_src = read_file(join_path(workspace.as_str(), "kf.toml").as_str()) }
+    if !workspace.is_empty() { tools_src = read_file("${workspace}/kf.toml".as_str()) }
     var tools = List.new<OutdatedRow>()
     val pins = tools_rows(tools_src.as_str())
     while pin in &pins { tools.push(outdated_row(pin, tools_src.as_str(), "", cache, offline, &var refreshed)) }

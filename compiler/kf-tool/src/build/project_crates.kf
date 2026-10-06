@@ -2,13 +2,12 @@
 // graph, dependencies first and the root last.
 
 import alloc.list.*
-import kf_shared.absolutize
-import kf_shared.join_path
 import std.fs.exists
+import std.fs.absolute
 
 /// None when the graph is broken.
 pub fun project_crates(root_dir: str): List<BuildCrate> {
-    var graph = build_crate_graph(root_dir)
+    var graph = build_crate_graph(root_dir, true)
     if graph.error.byte_len() > 0 || graph.cycle.byte_len() > 0 { return List.new<BuildCrate>() }
     return graph.crates
 }
@@ -16,7 +15,7 @@ pub fun project_crates(root_dir: str): List<BuildCrate> {
 /// The crates of the project around `file_path`; none when no kf.toml sits
 /// above it.
 pub fun project_crates_around(file_path: str): List<BuildCrate> {
-    val root = crate_root_for_file(absolutize(file_path).as_str())
+    val root = crate_root_for_file(absolute(file_path).raw.as_str())
     if root.as_str() == "" { return List.new<BuildCrate>() }
     return project_crates(root.as_str())
 }
@@ -26,7 +25,7 @@ pub fun project_crates_around(file_path: str): List<BuildCrate> {
 pub fun crate_root_for_file(file_path: str): String {
     var dir = parent_dir(file_path)
     while dir.as_str() != "" {
-        val manifest = join_path(dir.as_str(), "kf.toml")
+        val manifest = "${dir}/kf.toml"
         if exists(manifest.as_str()) { return dir }
         val up = parent_dir(dir.as_str())
         if up.as_str() == dir.as_str() { return "" }

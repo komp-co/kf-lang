@@ -6,7 +6,6 @@ import kf_tool.build.*
 import kf_tool.project.command_dir
 import kf_tool.project.select_crate_roots
 import kf_tool.testing.test_project_separate
-import kf_shared.cli_arg_get
 
 /// Before `--`, or "".
 fun own_flag_value(nargs: int32, name: str): str {

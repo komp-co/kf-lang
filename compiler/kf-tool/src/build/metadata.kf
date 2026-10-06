@@ -8,10 +8,10 @@ import kf_tool.fetch.cache_root
 import kf_tool.project.enclosing_workspace
 import kf_tool.project.is_workspace_dir
 import kf_tool.project.workspace_member_roots
-import kf_shared.absolutize
-import kf_shared.canonicalize_path
 import kf_shared.kflat_version
 import kf_tool.project.lint_toml_for
+import alloc.path.Path
+import std.fs.absolute
 
 /// Bumped when a field changes meaning or goes away; a new field is not a
 /// change.
@@ -42,7 +42,7 @@ fun metadata_workspace(dir: str): String {
 }
 
 fun canonical(path: str): String {
-    return canonicalize_path(absolutize(path).as_str())
+    return absolute(path).normalized().raw
 }
 
 /// The JSON `komp metadata` prints for the project at `dir`, and whether the
@@ -51,7 +51,7 @@ pub fun project_metadata(dir: str): MetadataResult {
     val members = metadata_members(dir)
     var graphs = List.new<BuildGraph>()
     while member in &members {
-        val graph = build_crate_graph(member.as_str())
+        val graph = build_crate_graph(member.as_str(), true)
         val error = graph.failure()
         if error.as_str() != "" { return metadata_failure(error.as_str()) }
         graphs.push(graph)

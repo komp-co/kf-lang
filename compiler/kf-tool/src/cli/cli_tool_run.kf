@@ -8,7 +8,6 @@ import kf_tool.install.install_home
 import kf_tool.install.installed_bin_dir
 import kf_tool.install.pinned_tool
 import kf_tool.install.project_tool_pin
-import kf_shared.cli_arg_get
 import std.env.env_var
 import std.fs.exists
 import std.process.Command

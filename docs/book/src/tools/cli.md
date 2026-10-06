@@ -426,7 +426,15 @@ A project whose [`kflat` pin](../start/projects.md#pinning-the-toolchain)
 needs a removed toolchain installs it again the next time it builds.
 
 It needs `curl`, `tar` and a C compiler. `KFLAT_RELEASES` names another
-place to take releases from, laid out as GitHub lays them out.
+place to take releases from, laid out as GitHub lays them out: `latest`
+redirecting to the newest tag, and `kflat-<version>.tar.gz` with its
+`.sha256` under `download/v<version>/`.
+
+The toolchain a [`kflat` pin](../start/projects.md#pinning-the-toolchain)
+installs is looked for on [kf-lang](https://github.com/komp-co/kf-lang)'s
+releases first, and then on komp's own, which hold the ones released before
+the compiler moved there. `KFLAT_RELEASES`, when set, is the only place
+looked.
 
 ## kflatc
 
@@ -456,6 +464,19 @@ With `--tests` in place of `--bin`, `kflatc compile` instead compiles the crate
 with its `_test.kf` files and a generated test main, and writes
 `test/<name>_tests.h` and `.c` under `--out`, reporting no warnings. This is
 the translation unit `komp test` compiles and links into the test binary.
+
+The names kflatc reads and writes under `--out` are part of its command line;
+a change to them is a change to how komp drives it:
+
+| File | Holds |
+|---|---|
+| `<name>.kfi` | A crate's interface: written by `compile`, read by `--load NAME` |
+| `<name>.h`, `<name>.c` | A crate's C, written by `compile` |
+| `kf_runtime.h` | The runtime header every crate's `.h` includes, written by `compile` |
+| `test/<name>_tests.h`, `.c` | The test translation unit, written by `compile --tests` |
+
+Everything else in a target directory is komp's: objects, archives, binaries,
+reuse records and `.kfi.stamp`.
 
 `kflatc check` takes the same arguments, plus `--format=json` for newline-delimited
 JSON diagnostics or `--summary` for the tally `komp lint` prints, and

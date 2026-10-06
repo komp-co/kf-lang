@@ -1,14 +1,14 @@
 // Where installed tools live: `$KFLAT_HOME`, else `~/.kflat`, holding the
 // binaries in `bin/` and what was installed in `installed.toml`.
 
-import kf_shared.normalized_path
 import std.env.env_var
+import std.fs.absolute
 
 pub fun install_home(): String {
     val explicit = env_var("KFLAT_HOME") ?: String.from("")
-    if explicit.byte_len() > 0 { return normalized_path(explicit.as_str()) }
+    if explicit.byte_len() > 0 { return absolute(explicit.as_str()).normalized().raw }
     val home = env_var("HOME") ?: String.from("")
-    return normalized_path("${home}/.kflat".as_str())
+    return absolute("${home}/.kflat".as_str()).normalized().raw
 }
 
 pub fun installed_bin_dir(home: str): String {

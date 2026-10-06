@@ -6,7 +6,6 @@ import alloc.list.*
 import kf_core.span.*
 import kf_core.ast.Module
 import kf_core.diagnostic.*
-import kf_shared.compiler_warnings_quiet
 
 /// Adds the errors among them to `errors`.
 pub fun report_lower_diags(diags: List<Diagnostic>, m: &Module, errors: &var Diagnostics, smap: Ptr<SourceMap>): void {

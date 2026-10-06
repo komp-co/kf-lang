@@ -4,7 +4,7 @@
 import alloc.list.*
 import core.assert.*
 
-import kf_shared.walk_kf_files
+import kf_assemble.walk_kf_files
 import kf_tool.build.build_project_separate_in
 import kf_integration.integration.run
 import kf_integration.harness.*
@@ -118,7 +118,7 @@ fun build_cases_out_of_process(dirs: &List<String>): List<int32> {
 @test fun case_build_worker(): void {
     val dir = case_build_arg()
     if dir.byte_len() == 0 { return }
-    if build_project_separate_in(dir, "", false, case_target_dir().as_str()) != 0 { fail("case build failed") }
+    if build_project_separate_in(dir, "", false, case_target_dir().as_str(), false) != 0 { fail("case build failed") }
 }
 
 /// Writes the case's project, or answers why it cannot be built.

@@ -1,7 +1,5 @@
 import core.args.arg_count
 import core.args.arg_at
-import kf_shared.is_quiet_flag
-import kf_shared.cli_arg_get
 
 pub fun is_help_flag(arg: str): bool {
     return arg == "-h" || arg == "--help"

@@ -33,7 +33,6 @@ import kf_tool.build.content_hash
 import kf_tool.build.manifest_of
 import kf_tool.build.project_crates
 import kf_tool.build.project_crates_around
-import kf_shared.join_path
 
 /// One source string to C, without assembly. Assumes well-typed input.
 pub fun compile_source(src: str): String {
@@ -48,10 +47,10 @@ pub fun compile_source(src: str): String {
     }
     var errors = new_diagnostics()
     val libs = bundled_libs_root(".")
-    val core_root = join_path(libs.as_str(), "core")
+    val core_root = "${libs}/core"
     var core_diags = new_diagnostics()
     val core_crate = assemble_crate(core_root.as_str(), String.from("core"), smap, &var core_diags)
-    val alloc_root = join_path(libs.as_str(), "alloc")
+    val alloc_root = "${libs}/alloc"
     val alloc_crate = assemble_crate(alloc_root.as_str(), String.from("alloc"), smap, &var core_diags)
     var modules = core_crate.modules.clone()
     while module in &alloc_crate.modules {
@@ -62,13 +61,13 @@ pub fun compile_source(src: str): String {
     val generated = merged.compile_module(true, &var errors, smap)
     // Both native tiers of core and alloc, named since there is no manifest;
     // always hosted.
-    var native = read_file(join_path(libs.as_str(), "core/native/core.c").as_str())
+    var native = read_file("${libs}/core/native/core.c".as_str())
     native.append("\n")
-    native.append(read_file(join_path(libs.as_str(), "core/native/core_hosted.c").as_str()).as_str())
+    native.append(read_file("${libs}/core/native/core_hosted.c".as_str()).as_str())
     native.append("\n")
-    native.append(read_file(join_path(libs.as_str(), "alloc/native/alloc.c").as_str()).as_str())
+    native.append(read_file("${libs}/alloc/native/alloc.c".as_str()).as_str())
     native.append("\n")
-    native.append(read_file(join_path(libs.as_str(), "alloc/native/alloc_hosted.c").as_str()).as_str())
+    native.append(read_file("${libs}/alloc/native/alloc_hosted.c".as_str()).as_str())
     return compose_unity_text(generated, native).text
 }
 
@@ -84,7 +83,7 @@ pub fun compile_crate_separate(crate_root: str, crate_name: str, is_bin: bool): 
 }
 
 pub fun check_project(root_dir: str): int32 {
-    val graph = build_crate_graph(root_dir)
+    val graph = build_crate_graph(root_dir, true)
     if graph.error.as_str() != "" {
         runtime_println(graph.error.as_str())
         return 1
@@ -123,7 +122,7 @@ pub fun Manifest.lint_config_from_manifest(diags: &var List<Diagnostic>): LintCo
 /// Per-crate C artifacts, dependencies first, crate-qualified. Empty on a
 /// dependency cycle.
 pub fun compile_project_separate(root_dir: str, errors: &var Diagnostics): List<CrateCodegenOutput> {
-    val graph = build_crate_graph(root_dir)
+    val graph = build_crate_graph(root_dir, false)
     return graph.compile_graph_outputs(errors)
 }
 

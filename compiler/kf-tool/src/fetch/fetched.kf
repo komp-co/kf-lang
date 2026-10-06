@@ -3,8 +3,8 @@
 
 import alloc.list.*
 import kf_tool.project.parse_manifest
-import kf_shared.ensure_dir
-import kf_shared.staging_path
+import kf_tool.build.ensure_dir
+import kf_tool.build.staging_path
 import std.fs.exists
 import std.fs.remove_dir_all
 import std.fs.rename_path

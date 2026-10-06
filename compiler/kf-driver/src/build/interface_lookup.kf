@@ -3,7 +3,6 @@
 // their own.
 
 import alloc.list.*
-import kf_shared.crate_interface_path
 
 pub struct InterfaceLookup {
     val target_dir: String

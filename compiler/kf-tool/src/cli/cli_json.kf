@@ -3,7 +3,6 @@
 
 import alloc.list.*
 import json.writer.JsonWriter
-import kf_shared.cli_arg_get
 
 pub fun wants_json(nargs: int32): bool {
     return has_own_flag(nargs, "--format=json")

@@ -4,7 +4,6 @@ import kf_tool.fetch.cache_root
 import kf_tool.project.default_index_url
 import kf_tool.publish.publish_package
 import kf_tool.publish.publish_status
-import kf_shared.cli_arg_get
 
 pub fun publish_command(nargs: int32): int32 {
     var project = ""

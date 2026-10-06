@@ -1,5 +1,9 @@
 import core.assert.*
 import core.display.*
+import core_tests.renders_as
+import core_tests.new_render_digest
+import core_tests.digest_matches
+import core_tests.rendered_len
 
 @test fun a_char_displays_as_itself(): void {
     assert_eq(renders_as(&('A'), "A"), true, "one byte")

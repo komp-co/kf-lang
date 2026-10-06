@@ -125,11 +125,11 @@ fun disabled_test_annotation_is_accepted(): void {
     val result: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *result = TypeRef.new(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
     var td = new_top_decl(no_span(), String.from("paused"), TopDeclKind.Function(List.new<Param>(), result, List.new<Stmt>(), false, false, false, false))
-    td.annotations.push(new_annotation(no_span(), "test_disabled", List.new<String>()))
+    td.annotations.push(new_annotation(no_span(), "disabled", [String.from("\"waiting\"")]))
     m.decls.push(td)
     var diags = new_diagnostics()
     m.validate_annotations(&var diags)
-    assert_eq(diags.size(), 0, "the internal disabled-test marker is accepted")
+    assert_eq(diags.size(), 0, "the disabled-test marker is accepted")
 }
 
 // A function carrying `annotation`, checked through validate_annotations.

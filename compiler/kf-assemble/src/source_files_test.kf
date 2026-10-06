@@ -38,7 +38,7 @@ fun source_tree(name: str): String {
 }
 
 @test fun the_walk_is_in_byte_order(): void {
-    val root = source_tree("kf_shared_walk_order")
+    val root = source_tree("kf_assemble_walk_order")
     var paths = List.new<String>()
     walk_kf_files("${root}/src".as_str(), &var paths)
     var listed = ""
@@ -48,7 +48,7 @@ fun source_tree(name: str): String {
 }
 
 @test fun the_walk_can_include_tests(): void {
-    val root = source_tree("kf_shared_walk_tests")
+    val root = source_tree("kf_assemble_walk_tests")
     var paths = List.new<String>()
     walk_kf_files_inc("${root}/src".as_str(), &var paths, true)
     assert_eq(paths.size(), 4, "the _test.kf file too")

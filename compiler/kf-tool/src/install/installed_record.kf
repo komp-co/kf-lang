@@ -3,7 +3,7 @@
 // --installed` resolves again.
 
 import alloc.list.*
-import kf_shared.ensure_dir
+import kf_tool.build.ensure_dir
 import kf_tool.fetch.LockEntry
 import kf_tool.fetch.parse_lockfile
 import kf_tool.fetch.render_lockfile
