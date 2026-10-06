@@ -10,17 +10,20 @@ import kf_core.ast.types.TypeRef
 import kf_core.diagnostic.*
 import kf_resolve.DeclTable
 
-/// For this crate's annotations; a dependency's struct arrives with its
-/// interface. Each struct enters `table` as resolution would have entered
-/// it, so a type may name it. CONSTRAINT: before registration, so the struct
-/// is laid out like any other.
+/// For every annotation whose struct is not here yet: a dependency's arrives
+/// with its interface, unless the dependency is merged in as source. Each
+/// struct enters `table` as resolution would have entered it, so a type may
+/// name it. CONSTRAINT: before registration, so the struct is laid out like
+/// any other.
 pub mutating fun Module.expand_annotation_structs(table: &var DeclTable, diags: &var List<Diagnostic>): void {
     var synth = List.new<TopDecl>()
     while td in &self.decls {
-        if td.crate.raw != self.crate.raw { continue }
+        val own = td.crate.raw == self.crate.raw
         when (td.kind) {
             AnnotationDecl(params, _target, is_pub) => {
-                if self.names_another_declaration(&td) {
+                if !own {
+                    if !self.names_another_declaration(&td) { synth.push(td.argument_struct(&params, is_pub)) }
+                } else if self.names_another_declaration(&td) {
                     val why = "an annotation's name is also the type of its arguments"
                     val message = "`${td.name.as_str()}` is already declared in this crate, and ${why}"
                     diags.push(new_diagnostic(Severity.Error, new_label(td.decl_name_span(), message)))
