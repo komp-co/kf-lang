@@ -49,3 +49,36 @@ fun string_answers_the_text_trait_like_its_bytes(): void {
     assert_eq(owned.count_of("/"), 2, "count through the trait")
     assert_eq(owned.is_blank(), false, "is_blank through the trait")
 }
+
+@test fun a_string_from_a_literal_owns_no_buffer(): void {
+    val s = String.from_literal("abc")
+    assert_eq(s.cap, 0 as uint64, "it points at the literal")
+}
+
+@test fun a_literal_string_reads_its_text(): void {
+    val s = String.from_literal("abc")
+    assert_eq(s == "abc", true, "the literal's bytes")
+}
+
+@test fun a_literal_string_copies_before_its_first_write(): void {
+    var s = String.from_literal("abc")
+    s.append("d")
+    assert_eq(s == "abcd", true, "the write lands in its own buffer")
+}
+
+@test fun a_literal_string_appended_to_itself_reads_the_old_text(): void {
+    var s = String.from_literal("ab")
+    s.append(s.as_str())
+    assert_eq(s == "abab", true, "the copy happens before the append reads")
+}
+
+@test fun a_cleared_literal_string_is_empty(): void {
+    var s = String.from_literal("abc")
+    s.clear()
+    assert_eq(s.byte_len() == 0 && s == "", true, "no bytes, and none visible")
+}
+
+@test fun a_clone_of_a_literal_string_shares_the_literal(): void {
+    val s = String.from_literal("abc")
+    assert_eq(s.clone().cap, 0 as uint64, "nothing to copy")
+}

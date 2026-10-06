@@ -19,6 +19,7 @@ import kf_driver.build.merge_module_list
 import kf_driver.build.CrateSource
 import kf_driver.build.assemble_crate_list
 import kf_shared.absolutize
+import kf_core.diagnostic.Diagnostics
 import kf_core.diagnostic.new_diagnostics
 import kf_core.ast.types.TypingNodes
 import kf_core.ast.types.restore_type_nodes
@@ -42,16 +43,18 @@ pub struct TypedCrate {
 
 /// `staged` marks absence: an emptied buffer is still a document. `crates`
 /// run dependencies first, the queried crate last.
-pub fun typed_crate_staged(file_path: str, buffer: str, staged: bool, crates: &List<CrateSource>): TypedCrate {
+pub fun typed_crate_staged(file_path: str, buffer: str, staged: bool, crates: &List<CrateSource>,
+    every_body: bool): TypedCrate {
     // Keyed to the path the assembly will spell.
     val abs_file = absolutize(file_path)
     val overlay = if staged { overlay_for(abs_file.as_str(), buffer) } else { no_overlay() }
-    return typed_crate_with(file_path, &overlay, crates)
+    return typed_crate_with(file_path, &overlay, crates, every_body)
 }
 
 /// `crates` typed, with `overlay` standing in for any file it stages, and
-/// focused on `file_path`.
-pub fun typed_crate_with(file_path: str, overlay: &Overlay, crates: &List<CrateSource>): TypedCrate {
+/// focused on `file_path`. Without `every_body`, only the queried crate's
+/// bodies are checked, which every answer but a search for uses needs.
+pub fun typed_crate_with(file_path: str, overlay: &Overlay, crates: &List<CrateSource>, every_body: bool): TypedCrate {
     if crates.size() == 0 {
         val typing = TypedModule { diags: List.new<Diagnostic>(), sigs: Box.new(new_sig_table()) }
         val empty: Ptr<SigTable> = typing.sigs
@@ -65,7 +68,12 @@ pub fun typed_crate_with(file_path: str, overlay: &Overlay, crates: &List<CrateS
     val smap = fresh_source_map()
     var pdiags = new_diagnostics()
     // With the root's tests, since the buffer is often a `_test.kf`.
-    var merged = merge_module_list(assemble_crate_list(crates, smap, &var pdiags, true, overlay))
+    val modules = if every_body {
+        assemble_crate_list(crates, smap, &var pdiags, true, overlay)
+    } else {
+        assemble_signatures_around(crates, smap, &var pdiags, overlay)
+    }
+    var merged = merge_module_list(modules)
 
     // Diagnostics are dropped: they would interleave with the answer on
     // stdout, and the editor has them from `komp check`.
@@ -129,4 +137,22 @@ fun file_id_for_path(smap: Ptr<SourceMap>, path: str): uint32 {
         i = i + 1
     }
     return 0
+}
+
+/// The queried crate, the last of `crates`, whole; the ones before it as
+/// their signatures.
+fun assemble_signatures_around(crates: &List<CrateSource>, smap: Ptr<SourceMap>, pdiags: &var Diagnostics,
+    overlay: &Overlay): List<Module> {
+    var dependencies = List.new<CrateSource>()
+    while i in 0..crates.size() - 1 {
+        val item = crates.at(i)
+        dependencies.push(CrateSource { name: item.name.clone(), root: item.root.clone() })
+    }
+    val last = crates.at(crates.size() - 1)
+    var queried = List.new<CrateSource>()
+    queried.push(CrateSource { name: last.name.clone(), root: last.root.clone() })
+    var modules = assemble_crate_list(&dependencies, smap, pdiags, false, overlay)
+    drop_bodies(&var modules)
+    modules.extend(assemble_crate_list(&queried, smap, pdiags, true, overlay))
+    return modules
 }

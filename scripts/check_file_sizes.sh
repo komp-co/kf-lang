@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# A growth ratchet on .kf file length. Not a cap.
+# A growth ratchet on .kf file length, counted in lines of code. Not a cap.
 #
 #   scripts/check_file_sizes.sh            # check (what check.sh runs)
 #   scripts/check_file_sizes.sh --update   # rewrite the baseline from the tree
@@ -13,13 +13,18 @@
 # So this fails on two things and nothing else:
 #
 #   * a file in the baseline that has GROWN past its recorded count;
-#   * a file NOT in the baseline that has crossed 400 lines.
+#   * a file NOT in the baseline that has crossed 350 lines.
+#
+# A line counts unless it is an import or holds only a `//` comment. Neither
+# says anything about how many concepts the file holds: a module move rewrites
+# imports everywhere, and counting comments would make deleting one the
+# cheapest way under the limit.
 #
 # Shrinking is always allowed and never needs the baseline updated first;
 # --update rewrites it downward and is run as part of any commit that splits a
 # file.
 #
-# 400 reappears here doing a different job than the cap it replaced. It
+# 350 reappears here doing a different job than the cap it replaced. It
 # forbids nothing: crossing it fails the build until someone either splits the
 # file or adds a baseline line that says "this file is one concept and it is
 # 640 lines". Both are fine — what the gate buys is that the choice gets MADE
@@ -35,17 +40,18 @@ set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 BASELINE="scripts/file_size_baseline.txt"
-TRIGGER=400
+TRIGGER=350
 
 sizes() {
     find compiler libs -name '*.kf' -type f | sort | while read -r f; do
-        printf '%s %s\n' "$(wc -l < "$f" | tr -d ' ')" "$f"
+        printf '%s %s\n' "$(grep -cvE '^[[:space:]]*//|^import ' "$f")" "$f"
     done
 }
 
 if [ "${1:-}" = "--update" ]; then
     {
-        echo "# Files over $TRIGGER lines, and the length each is frozen at."
+        echo "# Files over $TRIGGER lines of code, and the count each is frozen at."
+        echo "# Imports and comment-only lines are not counted."
         echo "# Regenerate with scripts/check_file_sizes.sh --update."
         echo "#"
         echo "# A line here is not an exemption from the one-concept rule — it is a"

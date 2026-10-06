@@ -30,3 +30,30 @@ import kf_typecheck.types.nominal_name
     }
     assert_eq(pointee.as_str(), "app__Square", "the pointee is the struct")
 }
+
+@test fun a_char_fragment_is_the_char_type(): void {
+    val t = ty_from_mangle_frag(String.from("char"), no_span(), intern("String"))
+    val is_char = when (t.kind) {
+        Char => true
+        _ => false
+    }
+    assert_eq(is_char, true, "`Array__char__3`'s element is a char, not a struct")
+}
+
+@test fun a_box_fragment_reads_back_as_a_box(): void {
+    val ty = ty_from_mangle_frag(String.from("Box__app__Item"), no_span(), intern("String"))
+    val pointee = when (ty.kind) {
+        BoxOf(inner) => unsafe { (*inner).kind.nominal_name() }
+        _ => String.from("")
+    }
+    assert_eq(pointee.as_str(), "app__Item", "`List<Box<Item>>`'s element is a Box, not a struct")
+}
+
+@test fun a_ptr_fragment_reads_back_as_a_ptr(): void {
+    val ty = ty_from_mangle_frag(String.from("Ptr__int32"), no_span(), intern("String"))
+    val is_ptr = when (ty.kind) {
+        PtrTo(inner) => unsafe { (*inner).kind == TypeKind.Int32 }
+        _ => false
+    }
+    assert_eq(is_ptr, true, "`List<Ptr<int32>>`'s element is a Ptr, not a struct")
+}

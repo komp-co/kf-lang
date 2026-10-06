@@ -206,6 +206,9 @@ fun TypeRef.tref_to_type_shallow(): Type {
     when (self.kind) {
         Named(n, args) => {
             val s = n.as_str()
+            // A `Box` or `Ptr` stays one, so the instance's code sees a pointer.
+            if args.size() == 1 && s == "Box" { return Type.new_box(args.at(0).tref_to_type_shallow(), no_span()) }
+            if args.size() == 1 && s == "Ptr" { return Type.new_ptr(args.at(0).tref_to_type_shallow(), no_span()) }
             return when s {
                 "int8" => Type { kind: TypeKind.Int8, provenance: Provenance.Inferred(no_span()) }
                 "int16" => Type { kind: TypeKind.Int16, provenance: Provenance.Inferred(no_span()) }

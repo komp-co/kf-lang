@@ -82,14 +82,15 @@ fun emit_method_call(recv_p: Ptr<Expr>, mname: String, mangled: String, margs: L
     }
     // These take self by value, so a pointer receiver is dereferenced.
     if self_is_by_value(callee.as_str()) {
+        val views = margs.read_through_str_borrows()
         if ty_is_pointer(recv.ty) {
             var dp = List.new<String>()
             dp.push(String.from("(*"))
             dp.push(recv_c)
             dp.push(String.from(")"))
-            return build_method_call(callee, concat_all(dp), margs)
+            return build_method_call(callee, concat_all(dp), views)
         }
-        return build_method_call(callee, recv_c, margs)
+        return build_method_call(callee, recv_c, views)
     }
     // `<T>_clone` is already the by-pointer entry.
     val ecallee = callee
@@ -239,15 +240,14 @@ fun Expr.emit_method_or_enum_ctor(recv_p: Ptr<Expr>, mname: String, margs: List<
     return emit_method_call(recv_p, mname, self.mangled_callee.as_string(), margs)
 }
 
-// `(recv).field` for a value, `recv.field` for a pointer or reference
-// receiver, so C sees the struct.
+// `(recv).field` for a value, `(*recv).field` for a pointer or reference
+// receiver and `(**recv).field` for a borrowed `Box`, so C sees the struct.
 fun emit_field_access(recv_p: Ptr<Expr>, fname: String): String {
     val recv = unsafe { *recv_p }
     val recv_c = recv.emit_expr()
-    val deref = ty_is_pointer(recv.ty)
     var parts = List.new<String>()
-    if deref { parts.push(String.from("(*")) }
-    else { parts.push(String.from("(")) }
+    parts.push(String.from("("))
+    while _layer in 0..recv.ty.kind.pointer_layers() { parts.push(String.from("*")) }
     parts.push(recv_c)
     parts.push(String.from(")."))
     // A C keyword is escaped; see c_field_name.
@@ -255,11 +255,43 @@ fun emit_field_access(recv_p: Ptr<Expr>, fname: String): String {
     return concat_all(parts)
 }
 
+/// How many pointers stand between a value of this type and the struct.
+fun TypeKind.pointer_layers(): uint64 {
+    return when (self) {
+        PtrTo(p) => 1 + p.kind.pointer_layers()
+        BoxOf(p) => 1 + p.kind.pointer_layers()
+        RefTo(_, p) => 1 + p.kind.pointer_layers()
+        _ => 0
+    }
+}
+
 fun ty_is_pointer(t: Type): bool {
     return when (t.kind) {
         PtrTo(_) => true
         BoxOf(_) => true
         RefTo(_, _) => true
+        _ => false
+    }
+}
+
+/// A runtime `str` method takes `str` arguments as views. A generic instance
+/// passes the `&T` its body was written against, which is read through.
+fun List<Expr>.read_through_str_borrows(): List<Expr> {
+    var out = List.new<Expr>()
+    while arg in &self {
+        var passed = arg.clone()
+        if passed.ty.is_borrowed_str() { passed.derefs_at_call = true }
+        out.push(passed)
+    }
+    return out
+}
+
+fun Type.is_borrowed_str(): bool {
+    return when (self.kind) {
+        RefTo(_mutable, pointee) => when (pointee.kind) {
+            StrTy => true
+            _ => false
+        }
         _ => false
     }
 }

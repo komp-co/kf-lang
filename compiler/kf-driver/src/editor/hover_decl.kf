@@ -26,7 +26,9 @@ fun no_hover_decl(): HoverDecl {
 }
 
 /// The more specific answer wins: a method `p.shifted` over the local `p`.
+/// Nothing on the name a declaration introduces, where it is written out.
 pub fun TypedCrate.hover_decl_at(offset: uint32): HoverDecl {
+    if self.module.declares_name_at(self.file_id, offset) { return no_hover_decl() }
     val member = self.hover_member_at(offset)
     if member.found { return member }
     return self.hover_toplevel_at(offset)
@@ -50,6 +52,17 @@ fun TypedCrate.hover_member_at(offset: uint32): HoverDecl {
     val owner = hit.ty.type_base_name()
     if owner.as_str() == "" { return no_hover_decl() }
     return self.member_named(owner.as_str(), name.as_str(), &hit.ty)
+}
+
+/// A top-level declaration's name, or a method's in an impl or trait.
+fun Module.declares_name_at(file_id: uint32, offset: uint32): bool {
+    while td in &self.decls {
+        if td.name_span.name_covers(file_id, offset) { return true }
+        while member in &td.impl_members() {
+            if member.name_span.name_covers(file_id, offset) { return true }
+        }
+    }
+    return false
 }
 
 fun Module.names_a_type(name: str): bool {
@@ -123,7 +136,7 @@ fun TypedCrate.impl_member_named(owner: str, name: str): HoverDecl {
 }
 
 fun TypedCrate.hover_toplevel_at(offset: uint32): HoverDecl {
-    val target = self.module.decl_at_offset(self.file_id, offset) ?: return no_hover_decl()
+    val target = self.module.decl_at_offset(self.file_id, offset) ?: return self.hover_type_name_at(offset)
     while td in &self.module.decls {
         when (td.decl) {
             Some(d) => {
@@ -137,6 +150,21 @@ fun TypedCrate.hover_toplevel_at(offset: uint32): HoverDecl {
     return no_hover_decl()
 }
 
+/// A struct, enum or trait named where a type goes, as `Point` in
+/// `p: Point`, or a declared annotation where it is used.
+fun TypedCrate.hover_type_name_at(offset: uint32): HoverDecl {
+    var names = self.module.type_name_spans()
+    while marked in &self.module.annotation_name_spans() { names.push(marked) }
+    val named = names.target_at(self.file_id, offset) ?: return no_hover_decl()
+    val home = self.module.target_declaration(&names, &named)
+    while td in &self.module.decls {
+        if !home.is_none() && td.name_span.file_id == home.file_id && td.name_span.start == home.start {
+            return HoverDecl { found: true, label: td.decl_label(), doc: td.span.doc_for_span(self) }
+        }
+    }
+    return no_hover_decl()
+}
+
 /// A callable's signature, or the keyword introducing a type.
 fun TopDecl.decl_label(): String {
     val rendered = self.signature_of()
@@ -145,6 +173,7 @@ fun TopDecl.decl_label(): String {
         Struct(_f, _p) => "struct ${self.name.as_string()}"
         EnumDecl(_v, _p) => "enum ${self.name.as_string()}"
         TraitDecl(_m, _p2, _s) => "trait ${self.name.as_string()}"
+        AnnotationDecl(_params, _target, _pub) => "annotation ${self.name.as_string()}"
         _ => String.from("")
     }
 }

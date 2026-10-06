@@ -17,6 +17,9 @@ pub struct RcFrame {
     pub val is_loop: bool
     /// Bindings here that own nothing: borrows, or moved from one.
     pub var view_locals: List<String>
+    /// Owning bindings here whose value was moved out; one assigned again
+    /// owns its new value here.
+    pub var moved_locals: List<String>
 }
 
 pub struct RcCtx {
@@ -53,11 +56,17 @@ pub fun new_rc_ctx(fn_name: String): RcCtx {
     }
 }
 
+/// The module's parameter table and variant payloads, for every function.
+pub mutating fun RcCtx.use_tables(params: Ptr<List<ParamEntry>>, variants: Ptr<VariantPayloads>): void {
+    self.ptable = params
+    self.variants = variants
+}
+
 pub mutating fun RcCtx.push_frame(is_loop: bool): uint64 {
     val idx = self.block_counter
     self.block_counter = idx + 1
     val f = RcFrame { block_idx: idx, heap_locals: List.new<String>(), is_loop: is_loop,
-        view_locals: List.new<String>() }
+        view_locals: List.new<String>(), moved_locals: List.new<String>() }
     self.frame_stack.push(f)
     return idx
 }
@@ -72,10 +81,28 @@ pub fun RcCtx.rc_owning_frame(name: str): int64 {
     return found
 }
 
-/// For a binding given a new value after its rhs consumed the old one.
+/// -1 unless a frame's binding of `name` had its value moved out.
+pub fun RcCtx.rc_moved_frame(name: str): int64 {
+    var found: int64 = 0 - 1
+    while i in 0..self.frame_stack.size() {
+        if names_contains(&self.frame_stack.at(i).moved_locals, name) { found = i as int64 }
+    }
+    return found
+}
+
+/// For a binding given a new value after its old one was moved out.
 pub mutating fun RcCtx.restore_heap_local_at(idx: uint64, name: String): void {
     val f = self.frame_stack.at_mut(idx)
+    f.moved_locals = without_name(&f.moved_locals, name.as_str())
     if !names_contains(&f.heap_locals, name.as_str()) { f.heap_locals.push(name) }
+}
+
+fun without_name(names: &List<String>, name: str): List<String> {
+    var kept = List.new<String>()
+    while n in &names {
+        if n.as_str() != name { kept.push(n.clone()) }
+    }
+    return kept
 }
 
 pub mutating fun RcCtx.add_heap_local(name: String): void {
@@ -232,8 +259,7 @@ fun is_fresh_alloc(e: Expr): bool {
         StructLit(_, _) => return true
         MethodCall(_, m, _) => {
             val s = m.as_str()
-            val is_from = s.equals("from")
-            if is_from { return true }
+            if s == "from" || s == "from_literal" { return true }
             // A static `.new(...)` returns a fresh value.
             val is_new = s.equals("new")
             if is_new { return true }

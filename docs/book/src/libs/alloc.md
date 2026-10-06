@@ -33,8 +33,25 @@ s.clear()                 // keeps the buffer
 val empty = s.is_empty()
 ```
 
+A string literal kept as a `String` costs nothing: it points at the literal's
+bytes, which live for the whole run, and copies them into a buffer of its own
+only on its first write. So a `String` field filled from a literal allocates
+nothing, and neither does cloning it. `String.from` always copies, because the
+`str` it is given may not outlive it.
+
+```kflat
+struct Config { val name: String }
+
+val c = Config { name: "default" }   // no allocation
+var label: String = "count"          // none yet
+label.append(": 3")                  // copies "count", then appends
+```
+
 `String` implements `Drop` (frees the buffer), `Add` (`s1 + s2` produces a
-new owned `String`), `Equal` (byte-level comparison), `Hash`, and `Display`.
+new owned `String`), `Equal` (byte-level comparison), `Hash`, `Display`, and
+[`Deref`](../lang/traits.md#lending-a-view-deref) to `str`: every `str`
+method, core's, alloc's or your own extension, is a `String` method too, and
+a `String` fills a `str` parameter.
 
 ```kflat
 val greeting = String.from("hello") + String.from("! ")
@@ -639,29 +656,3 @@ when (m.get(&key)) {
     None    => { }
 }
 ```
-
-## AnnotatedFunction and AnnotatedItem
-
-The entries of `annotated<A>()`: declarations carrying a
-[declared annotation](../lang/annotations.md#declaring-an-annotation), and the
-arguments each was given. A function-type target lists `AnnotatedFunction`,
-a kind target `AnnotatedItem`.
-
-```kflat
-pub struct AnnotatedFunction<A, F> {
-    pub val name: String        // the function's name as declared
-    pub val module: String      // its module's path, `app.routes`
-    pub val args: A             // the struct the annotation's parameters declare
-    pub val function: F         // the target's function type
-}
-
-pub struct AnnotatedItem<A> {
-    pub val name: String
-    pub val module: String
-    pub val kind: AnnotatedKind // Function, Struct, Enum or Trait
-    pub val args: A
-}
-```
-
-`AnnotatedKind` is `Copy` and `Equal`, so an entry's kind can be compared:
-`entry.kind == AnnotatedKind.Trait`.

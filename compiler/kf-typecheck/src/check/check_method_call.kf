@@ -107,30 +107,6 @@ fun nearest_method_of(owner: str, wanted: str, budget: uint64, ctx: &var TypeCtx
     return NearMethod { name: best, tied: tied }
 }
 
-/// `Point_sum` under `Point_` is `sum`; `Widget_make__Producer` is `make`; ""
-/// otherwise.
-fun method_of(sig_name: str, prefix: str): String {
-    val pn = prefix.byte_len()
-    val n = sig_name.byte_len()
-    if n <= pn { return "" }
-    var i = 0
-    while i < pn {
-        if sig_name.byte_at(i) != prefix.byte_at(i) { return "" }
-        i = i + 1
-    }
-    var end = n
-    var j = pn
-    while j + 1 < n {
-        if sig_name.byte_at(j) == 95 && sig_name.byte_at(j + 1) == 95 {
-            end = j
-            break
-        }
-        j = j + 1
-    }
-    if end <= pn { return "" }
-    return sig_name.substring(pn, end)
-}
-
 /// Levenshtein distance, abandoned past `cap`.
 pub fun edit_distance(a: str, b: str, cap: uint64): uint64 {
     val an = a.byte_len()
@@ -237,7 +213,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
     }
     expect_lambda_args(receiver_ty.clone(), method_name.clone(), args, &var arg_tys, _span, ctx)
     if receiver_ty.is_poison() {
-        record_untyped_receiver(_span, method_name.as_str(), ctx.sigs)
+        if !ctx.quiet { record_untyped_receiver(_span, method_name.as_str(), ctx.sigs) }
         return Type.new_poison()
     }
     // Through a pointer or reference to the pointee.
@@ -524,11 +500,13 @@ fun type_has_method_named(type_name: str, wanted: str, ctx: &var TypeCtx): bool 
 }
 
 fun type_has_method_of(owner: str, wanted: str, ctx: &var TypeCtx): bool {
-    var prefix = String.from(owner)
-    prefix.append("_")
+    val prefix = "${owner}_"
+    val pn = prefix.byte_len()
+    val wn = wanted.byte_len()
+    if wn == 0 { return false }
     val sigs = unsafe { (*ctx.sigs).sigs }
     while sig in &sigs {
-        if method_of(sig.name.as_str(), prefix.as_str()).as_str().equals(wanted) { return true }
+        if names_method(sig.name.as_str(), prefix.as_str(), pn, wanted, wn) { return true }
     }
     return false
 }

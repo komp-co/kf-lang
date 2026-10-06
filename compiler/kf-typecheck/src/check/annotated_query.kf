@@ -1,5 +1,5 @@
 // `annotated<bench>()`: every declaration of this crate marked `@bench`,
-// private ones included, as a list literal the checker then types. An exact
+// private ones included, as an array literal of core's entry views. An exact
 // function target, with its type parameters pinned (`annotated<route<Req>>()`)
 // if it has any, lists
 //
@@ -56,22 +56,17 @@ pub mutating fun Expr.expand_annotated(args: &List<Expr>, ctx: &var TypeCtx): vo
     var elements = List.new<Expr>()
     while listed in &sigs.annotated {
         if listed.annotation == query.index && listed.binds_as(&query.pins) {
-            elements.push(annotated_entry(&listed, &declared, &shape, self.span, ctx))
+            var entry = annotated_entry(&listed, &declared, &shape, self.span, ctx)
+            check_expr(&var entry, ctx)
+            elements.push(entry)
         }
     }
-    var built = if elements.size() == 0 {
-        Expr.new_collection_new_call(self.span, ctx.list_name())
-    } else {
-        var array = List.new<Expr>()
-        array.push(Expr.new_list_literal(self.span, &elements))
-        val receiver = Box.new(Expr.new(self.span, ExprKind.Variable(ctx.list_name())))
-        Expr.new(self.span, ExprKind.MethodCall(receiver, intern("from"), array))
-    }
-    built.type_args.push(TypeRef.new(self.span, TypeRefKind.Named(intern(shape.entry_type_name()),
-        entry_type_args(&declared, &shape, self.span))))
-    built.type_args_written = true
-    *self = built
-    check_expr(self, ctx)
+    val entry = TypeRef.new(self.span, TypeRefKind.Named(intern(shape.entry_type_name()),
+        entry_type_args(&declared, &shape, self.span)))
+    val array = array_type_ref(entry, elements.size(), ctx.array_name(), self.span).resolve_type_ref(ctx)
+    self.ty = Type.new_poison()
+    val array_shape = array.array_shape(ctx) ?: return
+    self.become_array_literal(elements, array, &array_shape, ctx)
 }
 
 /// CONSTRAINT: by name until a release's seed knows a lang key for them.
@@ -123,7 +118,7 @@ fun Type.slot_with(params: &List<TypeParam>, pins: &List<Type>): Type {
 
 /// Whether this use's type parameters stand for the pins; any use when there
 /// are none.
-fun AnnotatedItem.binds_as(pins: &List<Type>): bool {
+fun AnnotationUse.binds_as(pins: &List<Type>): bool {
     if pins.size() == 0 { return true }
     if self.bindings.size() != pins.size() { return false }
     while i in 0..pins.size() {
@@ -203,7 +198,7 @@ fun entry_type_args(declared: &DeclaredAnnotation, shape: &EntryShape, span: Spa
 
 /// One entry. A function is named directly, not looked up: a private
 /// function of another module is listed too.
-fun annotated_entry(listed: &AnnotatedItem, declared: &DeclaredAnnotation, shape: &EntryShape, span: Span,
+fun annotated_entry(listed: &AnnotationUse, declared: &DeclaredAnnotation, shape: &EntryShape, span: Span,
     ctx: &var TypeCtx): Expr {
     var fields = List.new<FieldInit>()
     fields.push(string_field("name", listed.name.as_str(), span))
@@ -233,7 +228,7 @@ fun string_field(name: str, value: str, span: Span): FieldInit {
 
 /// `bench { iterations: 1000, label: "sort" }`, each value where the use
 /// wrote it, so a type mismatch points there.
-fun arguments_literal(listed: &AnnotatedItem, declared: &DeclaredAnnotation, span: Span): Expr {
+fun arguments_literal(listed: &AnnotationUse, declared: &DeclaredAnnotation, span: Span): Expr {
     var fields = List.new<FieldInit>()
     while i in 0..declared.params.size() {
         val value = listed.args.at(i).clone()

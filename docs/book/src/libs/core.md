@@ -21,8 +21,9 @@ Every operator trait lives in `core.traits`, one module per group:
 | `core.traits.convert` | `From` | `T.from(x)` |
 | `core.traits.call` | `Call0`-`Call3`, `CallMut0`-`CallMut3` | Lambda invocation |
 | `core.traits.iter` | `Iterable`, `Iterator` | `while x in xs` |
+| `core.traits.deref` | `Deref`, `DerefMut` | `x.m()` through a view of `x` |
 | `core.traits.index` | `Index`, `IndexMut`, `IndexValue` | `a[i]` |
-| `core.traits.try` | `Try`, `FromResidual` | postfix `?` |
+| `core.traits.try` | `Try`, `FromResidual`, `residual_as`, `output_as` | postfix `?`, and combinators that pick their result type |
 | `core.display` | `Display` | `println`, string interpolation |
 
 You do not import any of them. A trait resolves by name wherever it is
@@ -235,11 +236,13 @@ normalization are not offered.
 ```kflat
 val e = c.encode_utf8()
 e.width        // 1-4, or 0 if the scalar is not encodable
-e.b0 … e.b3    // read `width` of them, in order
+e.bytes[0]     // read `width` of them, in order
+e.as_str()     // the same bytes as text
 ```
 
-Four fixed bytes rather than a list, because an encoded scalar is never longer
-than four and `core` has no allocator to reach for. `width` is 0 for a
+Five bytes in an array rather than a list, because an encoded scalar is never
+longer than four, the fifth ends the text, and `core` has no allocator to reach
+for. `width` is 0 for a
 surrogate or a value past the last code point — the two things a `char` can
 hold that UTF-8 cannot represent.
 
@@ -374,6 +377,26 @@ answer for an empty iterable without a seed from the caller:
 (3..3).sum()        // 0 — the additive identity
 ```
 
+### Asking an iterable
+
+Anything that implements `Iterable<T>` answers the same questions about what it
+yields. Each walks the elements in order and stops as soon as it knows the
+answer:
+
+```kflat
+(1..10).any(|x| x % 7 == 0)        // true
+(1..10).all(|x| x > 0)             // true
+(1..10).count(|x| x % 3 == 0)      // 3
+(10..20).position(|x| x % 4 == 0)  // 2, the index of 12
+(1..10).find(|x| *x > 6)           // 7
+(1..4).fold(10, |acc, x| acc - x)  // 4
+(1..5).contains(&4)                // true
+```
+
+`find` hands its test a borrow and returns a copy of the element; the others
+hand each element over by value. A `List` and an array are `Iterable`, so the
+same calls work on them.
+
 `core.math_hosted` is the half that calls libm, so it needs a C library:
 
 ```kflat
@@ -394,6 +417,52 @@ disambiguates them, so the suffix went with the free function.
 
 The names say which base they use, because silently being the wrong base is
 a bad way to find out.
+
+## Numbers and text
+
+`parse` reads a number out of text. It allocates nothing, and a failure says
+why:
+
+```kflat
+"42".parse<int32>()                 // Ok(42)
+"-17".parse<int64>()                // Ok(-17)
+"300".parse<uint8>()                // Err(Overflow)
+"12x".parse<int32>()                // Err(InvalidDigit(2))
+uint32.from_text_radix("ff", 16)    // Ok(255)
+"6.02e23".parse<float64>()          // Ok(6.02e23)
+```
+
+The text must be the number and nothing else: no surrounding space and no
+`0x` prefix. A whole number takes an optional sign, and only a signed type
+takes `-`. `from_text_radix` reads radixes 2 to 36, with letters for digits
+past 9 in either case. A float reads decimal digits, a fraction and an
+exponent, or `inf`, `infinity` and `nan`. The C library reads its value, so it
+is correctly rounded. `ParseError` is `Empty`, `InvalidDigit(at)` or
+`Overflow`, and renders as a sentence:
+
+```kflat
+when ("12x".parse<int32>()) {
+    Ok(n) => println("${n}")
+    Err(why) => println("${why}")   // invalid digit at byte 2
+}
+```
+
+`parse<T>` asks `T.from_text`, so a type of your own joins by implementing
+`FromText`.
+
+In the other direction, `"${x}"` writes the shortest form that reads back as
+the same value. For a fixed form, write into any sink, or ask alloc for a
+`String`:
+
+```kflat
+(2.0 / 3.0).to_fixed(2)             // "0.67"
+(1234.5).to_exponential(2)          // "1.23e+03"
+(255 as uint64).to_radix(16)        // "ff"
+(5 as uint64).write_radix(&var out, 2, 8)   // writes 00000101
+```
+
+`write_fixed` and `write_exponential` take at most 100 decimals.
+`write_radix`'s last argument is the width to pad to with zeros.
 
 ## Duration, Date, and DateTime
 
@@ -423,10 +492,9 @@ ambiguous.
 
 ## Option and Result
 
-`Option<T>` and `Result<T, E>` are enum types in `core`. Their interface is
-the enum interface — construct with `Option.Some(x)` or `Option.None`, match
-with `when`. `is_some()` and `is_none()` are provided as convenience
-predicates.
+`Option<T>` and `Result<T, E>` are enum types in `core`. Construct with
+`Option.Some(x)` or `Option.None`, match with `when`, or ask with the methods
+below.
 
 An `Option` typed by its payload alone works — `val found = Option.Some(42)` is
 an `Option<int32>` and matches with `when`. An annotation is still worth writing
@@ -441,6 +509,75 @@ if found.is_some() {
     }
 }
 ```
+
+### Asking without a `when`
+
+| `Option<T>` | Answers |
+|---|---|
+| `is_some()`, `is_none()` | whether there is a payload |
+| `is_some_and(p)` | whether there is one and `p(&v)` holds |
+| `unwrap()`, or `x!!` | the payload, or an abort |
+| `unwrap_or(d)` | the payload, or `d` |
+| `unwrap_or_else(f)` | the payload, or `f()`; `f` runs only for a `None` |
+| `map(f)` | `Some(f(v))`, or `None` |
+| `and_then(f)` | `f(v)`, which is itself an option, or `None` |
+| `or_else(f)` | this option if it has a payload, else the option `f()` |
+| `filter(p)` | this option if `p(&v)` holds, else `None` |
+| `ok_or(e)` | `Ok(v)`, or `Err(e)` |
+
+| `Result<T, E>` | Answers |
+|---|---|
+| `is_ok()`, `is_err()` | which arm it is |
+| `unwrap()`, or `x!!` | the success payload, or an abort |
+| `unwrap_err()` | the error, or an abort |
+| `unwrap_or(d)` | the payload, or `d` |
+| `unwrap_or_else(f)` | the payload, or `f(e)` made from the error |
+| `map(f)` | `Ok(f(v))`; an `Err` passes through |
+| `map_err(f)` | `Err(f(e))`; an `Ok` passes through |
+| `and_then(f)` | `f(v)`, itself a `Result` with the same error; an `Err` passes through |
+| `or_else(f)` | `f(e)`, itself a `Result` with the same payload; an `Ok` passes through |
+| `ok()`, `err()` | the payload or the error as an option, dropping the other |
+
+`map` and `and_then` differ in what the lambda returns: `map` takes a plain
+value and wraps it, `and_then` takes an option (or a `Result`) and does not,
+so a chain of lookups that can each fail stays one level deep:
+
+```kflat
+fun lookup(id: int32): String? {
+    if id == 1 { return Option.Some(String.from("ada")) }
+    return null
+}
+
+fun half(x: int32): int32? {
+    if x % 2 == 0 { return x / 2 }
+    return null
+}
+
+fun main(): int32 {
+    val name = lookup(2).unwrap_or(String.from("anonymous"))
+    val length = lookup(1).map(|n| n.byte_len()) ?: 0
+    val quarter = half(12).and_then(|x| half(x))
+    val port = "80x".parse<uint16>().unwrap_or(8080)
+    val code = "42".parse<int32>().map_err(|e| "bad number: ${e}")
+    println("${name} ${length} ${quarter!!} ${port} ${code!!}")
+    return 0
+}
+```
+
+```console
+anonymous 3 3 8080 42
+```
+
+Each takes the option by borrow and copies the payload out, as `unwrap` does,
+so the original stays usable. A lambda runs at most once, and only on the arm
+that needs it. What a lambda returns is not yet checked against what the
+method wants ([#480]): `and_then` given a lambda that returns a plain value
+fails in cc.
+
+`and_then` and `or_else` rebuild the arm they do not hand the lambda through
+two prelude functions, which a combinator of your own can use too:
+`residual_as<O, R>(r)` is `O.from_residual(r)`, and `output_as<O, V>(v)` is
+`O.from_output(v)`.
 
 ### Succeeding with no value
 
@@ -778,6 +915,60 @@ moves. `Slice.from_raw(ptr, len)` and `SliceMut.from_raw` build one from a
 pointer inside `unsafe`, where the caller vouches that the elements outlive
 it.
 
+## AnnotatedFunction and AnnotatedItem
+
+The entries of `annotated<A>()`: declarations carrying a
+[declared annotation](../lang/annotations.md#declaring-an-annotation), and the
+arguments each was given. A function-type target lists `AnnotatedFunction`,
+a kind target `AnnotatedItem`. The query is an array of them, built from
+literals, so it needs no allocator.
+
+```kflat
+pub view struct AnnotatedFunction<A, F> {
+    pub val name: str           // the function's name as declared
+    pub val module: str         // its module's path, `app.routes`
+    pub val args: A             // the struct the annotation's parameters declare
+    pub val function: F         // the target's function type
+}
+
+pub view struct AnnotatedItem<A> {
+    pub val name: str
+    pub val module: str
+    pub val kind: AnnotatedKind // Function, Struct, Enum or Trait
+    pub val args: A
+}
+```
+
+Both are [views](../lang/memory.md#view-types), so a struct cannot hold one.
+`AnnotatedKind` is `Copy` and `Equal`, so an entry's kind can be compared:
+`entry.kind == AnnotatedKind.Trait`.
+
+## Running tests
+
+`core.testing` declares `@test` and `@test_disabled`, and `run_tests` is the
+entry point of a test program: `komp test` builds the main
+`return run_tests(&annotated<test>())`. It takes the entries of any
+annotation on `() -> void`, so a crate can run its own kind of check the
+same way:
+
+```kflat
+import core.testing.run_tests
+
+annotation check
+
+@check
+fun adds(): void { assert_eq(1 + 1, 2, "one and one") }
+
+fun main(): int32 {
+    return run_tests(&annotated<check>())
+}
+```
+
+Each test runs in its own child process, so a panic fails that test and the
+run goes on. `--filter <substring>` runs only the tests whose names contain
+it, and fails when none does; `--run-test <name>` runs one test in this
+process. The exit code is 1 when a test failed.
+
 ## Path
 
 `Path` represents a filesystem path. It wraps a `String`, so it lives in
@@ -971,3 +1162,5 @@ Running out of memory stops the same way, from the runtime's C:
 [Writing tests](../tools/testing.md)). On failure they print the label and
 then stop with `Fault.AssertionFailed`, which ends the current test. Import
 `core.assert.*`.
+
+[#480]: https://github.com/komp-co/komp/issues/480

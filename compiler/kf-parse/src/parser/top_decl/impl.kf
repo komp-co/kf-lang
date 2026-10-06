@@ -42,7 +42,7 @@ impl Parser {
             unsafe { self.advance() } // consume `for`
             val written_args = trait_args.clone()
             val trait_ref_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-            unsafe { *trait_ref_ptr = TypeRef.new(span, TypeRefKind.Named(intern(first.as_str()), trait_args)) }
+            unsafe { *trait_ref_ptr = TypeRef.new(first_at, TypeRefKind.Named(intern(first.as_str()), trait_args)) }
             val target = self.expect_name("impl target")
             val target_at = unsafe { self.peek().span }
             unsafe { self.advance() }
@@ -62,7 +62,7 @@ impl Parser {
             // The impl's generics are the target's parameters.
             val trait_args = type_params_to_refs(first_tps)
             val trait_ref_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-            unsafe { *trait_ref_ptr = TypeRef.new(span, TypeRefKind.Named(intern(first.as_str()), trait_args)) }
+            unsafe { *trait_ref_ptr = TypeRef.new(first_at, TypeRefKind.Named(intern(first.as_str()), trait_args)) }
             val target = self.expect_name("impl target")
             val target_at = unsafe { self.peek().span }
             unsafe { self.advance() }
@@ -158,6 +158,7 @@ impl Parser {
             return true
         }
         var is_pub: bool = false
+        var is_internal: bool = false
         var is_static: bool = false
         var is_mutating: bool = false
         var saw_modifier: bool = true
@@ -168,6 +169,10 @@ impl Parser {
                 if first_iter { method_span = self.peek().span }
                 unsafe { self.advance() }
                 is_pub = true
+            } else if is_keyword(self.peek(), Keyword.Internal) {
+                if first_iter { method_span = self.peek().span }
+                self.advance()
+                is_internal = true
             } else if is_keyword(self.peek(), Keyword.Mutating) {
                 if first_iter { method_span = self.peek().span }
                 unsafe { self.advance() }
@@ -189,6 +194,7 @@ impl Parser {
             // Methods record their own extent too, for folding and outlines.
             var method = self.parse_fun(method_span, is_pub, is_mutating, is_static)
             method.decl_end = self.last_consumed_end()
+            method.is_internal = is_internal
             methods.push(method)
             return true
         }

@@ -51,6 +51,7 @@ people.
 | `hover` | `path`, `offset`, `crates` | what is at `offset`: its type, its declaration and that declaration's documentation |
 | `signature` | `path`, `offset`, `crates` | the call around `offset`: its callee's parameters and which one `offset` is in |
 | `references` | `path`, `offset`, `crates` | the declaration of what `offset` names, and every use of it |
+| `implementations` | `path`, `offset`, `crates` | what implements what `offset` names |
 | `completion` | `path`, `offset`, `crates` | what can be written at `offset` |
 | `rename` | `path`, `offset`, `crates`, and `new_name` when there is one | every name to replace, or why the rename is refused |
 | `inlays` | `path`, `crates` | the types of the file's bindings that name none |
@@ -103,7 +104,10 @@ last: a crate's `loads` from `komp metadata`, then the crate itself. They
 are typed from source, staged text included, once; every later typed request
 naming the same crates reuses that until a `stage` or `unstage` changes a
 buffer, so moving around a file that is not being edited costs no more
-checking. A file the last crate does not compile is refused as
+checking. Only the last crate's function bodies are checked; the
+dependencies are typed as their signatures, which is all an answer about the
+file reads of them. `references` and `rename` search for uses, which a
+dependency's bodies may hold, so they check every crate's bodies. A file the last crate does not compile is refused as
 `not_in_crate`. `rename` without a `new_name` asks only whether the name at
 `offset` can be renamed, as an editor does before asking for the new name.
 
@@ -158,6 +162,9 @@ declaration, that declaration's signature and documentation:
 {"schema_version":2,"file":"/w/src/main.kf","offset":195,"type":"int32","signature":null,"documentation":null,"byte_start":195,"byte_end":200}
 ```
 
+On the name a declaration introduces (`twice` in `fun twice(...)`), where its
+signature is written out, `signature` and `documentation` are null.
+
 `type` is null when `offset` covers no expression: whitespace, a keyword, a
 comment, a parameter's name. That is not an error; most of a file is not an
 expression. The name a `val` or `var` binds answers with the type of what
@@ -194,10 +201,29 @@ crate.
 Every span is a name: the declaration is `helper`, not the `fun` before it,
 and a use is the callee, not the whole call. `offset` may be on the
 declaration or on any use; both answer the same. The declaration is not
-repeated among the uses. Only top-level declarations answer: a parameter or
-a local resolves through the typechecker's own scope, which the resolver
-does not build, so one answers with a null `declaration` and no uses rather
-than a guess from spelling.
+repeated among the uses. A top-level declaration answers, and a struct,
+enum or trait is also used wherever its name is written as a type: a
+parameter, a result, a field, an annotation, an `impl` header, a bound or a
+cast. A method or a field answers too: its uses are found by the type the checker gave each
+receiver, so `p.x` on a `Point` is not a use of another type's `x`, and a
+field's uses include `self.x` and `x:` in a struct literal. A parameter or a
+local answers too: each use reaches the binding in scope where it is
+written, so a `val` shadowing another has uses of its own, and `x = ...`
+counts as a use of `x`.
+
+**`implementations`** is what implements the name at `offset`: for a trait,
+each `impl` of it and each extension written on it; for a struct or enum,
+its `impl` blocks, the trait impls for it and the extensions on it; for a
+trait's method, each impl's version of it. Each span is the name the
+implementation is written under: `Point` in `impl Loud for Point`, a method's
+name, an extension's name.
+
+```json
+{"schema_version":1,"file":"/w/src/lib.kf","offset":120,"implementations":[{"file":"/w/src/lib.kf","byte_start":310,"byte_end":315}]}
+```
+
+A declared annotation is a name too: `@shown` refers to its `annotation shown`
+declaration, for references, definition, rename and hover.
 
 **`tokens`** is every name in the file with what it is, sorted by position,
 which is what semantic highlighting paints:
@@ -206,7 +232,9 @@ which is what semantic highlighting paints:
 {"schema_version":1,"file":"/w/src/lib.kf","tokens":[{"byte_start":41,"byte_end":42,"type":"variable"},{"byte_start":84,"byte_end":93,"type":"function"}]}
 ```
 
-Types are `variable`, `function`, `method`, `field` and `type`.
+Types are `variable`, `function`, `method`, `field`, `type` and
+`enum_member`. Each token covers one identifier: `Point` of `Point.new()` is
+a `type`, and `Red` of `Color.Red` an `enum_member`.
 
 **`completion`** after a `.` is the fields and instance methods of the
 receiver's type:
@@ -258,16 +286,18 @@ no `edits`, when:
 | | |
 |---|---|
 | the new name is not one | it must lex as a single identifier |
-| the new name is taken | another top-level declaration in the crate has it |
+| the new name is taken | another top-level declaration in the crate has it, the type has another member of that name, or a local's function already uses it |
 | the new name is the old one | that is not a rename |
 | `offset` is not on a name | a keyword or whitespace names no declaration |
 | the declaration is not the crate's | it is in a dependency; rename it there |
+| a name is written once for two | `y` in `Point { x: 1, y }` is the field and a local; write it out as `y: y` first |
+| a method belongs to a trait | the trait and every impl would have to change together |
+| a use's receiver has no type | that use would be left behind; fix the errors around it first |
+| an extension has the new name | a call of it could start reaching the renamed member |
 
 Without a `new_name`, every check that needs none runs, and `range` is the
-name under the cursor. Collisions are checked crate-wide rather than at each
-use: the resolver stamps only top-level declarations, so a local shadowing
-the new name somewhere would go unseen, which is why rename declines on
-locals entirely.
+name under the cursor. A local's new name is refused if anything in its
+function already has it, so no use can be captured or shadowed.
 
 ## Errors
 

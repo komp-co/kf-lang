@@ -5,7 +5,6 @@ import core.display.mix_uint64
 
 extern "C" fun kf_prim_char_compare(left: char, right: char): int32
 extern "C" fun kf_prim_char_equals(left: char, right: char): bool
-extern "C" fun kf_utf8_bytes_str(b0: uint8, b1: uint8, b2: uint8, b3: uint8, width: uint64): str
 
 impl Clone for char { fun clone(): char { return self as char } }
 
@@ -23,6 +22,6 @@ impl Hash for char { fun hash(): uint64 { return mix_uint64(self as uint64) } }
 impl Display for char {
     fun display(out: &var dyn Write): void {
         val e = (self as char).encode_utf8()
-        out.write_str(kf_utf8_bytes_str(e.b0, e.b1, e.b2, e.b3, e.width))
+        out.write_str(e.as_str())
     }
 }

@@ -41,13 +41,15 @@ pub struct Field {
     pub val ty: Box<TypeRef>
     pub val is_var: bool
     pub val is_pub: bool
+    /// Written `internal`: visible in the crate, not exported.
+    pub var is_internal: bool
     /// The `@...` run above the field.
     pub var annotations: List<Annotation>
 }
 
 pub fun new_field(span: Span, name: String, ty: Ptr<TypeRef>, is_var: bool, is_pub: bool): Field {
     return Field {
-        span: span, name: intern(name.as_str()), ty: ty, is_var: is_var, is_pub: is_pub,
+        span: span, name: intern(name.as_str()), ty: ty, is_var: is_var, is_pub: is_pub, is_internal: false,
         annotations: List.new<Annotation>()
     }
 }
@@ -166,6 +168,9 @@ pub struct TopDecl {
     /// The lang key (`copy`) of the trait an impl block implements, once Mono
     /// has turned the trait impl into a plain impl block; empty otherwise.
     pub var implemented_lang_trait: Sym
+    /// Written `internal`: visible to every module of its crate, and not
+    /// exported. Its kind's `is_pub` is false.
+    pub var is_internal: bool
 }
 
 pub enum TopDeclKind {
@@ -205,6 +210,9 @@ pub enum TopDeclKind {
     /// each declaration of that kind it marks. The outer `name` is the
     /// annotation's. Payload: the kind, `T`, the declarations.
     Template(MarkKind, Sym, List<TopDecl>)
+    /// `val NAME: TYPE = LITERAL` at top level: each use of the name is the
+    /// literal. Payload: type, initializer, is_pub.
+    Constant(Box<TypeRef>, Box<Expr>, bool)
     /// Parse error.
     Poison
 }
@@ -247,7 +255,8 @@ pub fun new_top_decl(span: Span, name: String, kind: TopDeclKind): TopDecl {
         annotations: List.new<Annotation>(), from_trait_impl: false, linkage: linkage_source(),
         link_name: intern(""), dyn_layouts: List.new<DynTraitLayout>(),
         dyn_vtables: List.new<DynVTableInstance>(), decl_end: 0, name_span: no_span(), ext_name: intern(""),
-        resolves_in: intern(""), is_sealed: false, is_view: false, implemented_lang_trait: intern("")
+        resolves_in: intern(""), is_sealed: false, is_view: false, implemented_lang_trait: intern(""),
+        is_internal: false
     }
 }
 

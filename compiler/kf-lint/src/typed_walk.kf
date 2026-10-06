@@ -116,8 +116,10 @@ fun Expr.visit_typed(walk: &var TypedWalk): void {
         }
         Cast(inner, _ty) => {
             // `self as T` in a primitive's own impl reads the value behind
-            // `self`, which the checker has already typed as `T`.
-            if !inner.is_self() { check_redundant_cast(self.span, &inner.ty, &self.ty, walk) }
+            // `self`, which the checker has already typed as `T`; a top-level
+            // `val`'s use is its literal cast to its declared type.
+            val written = !inner.is_self() && self.constant.as_str().is_empty()
+            if written { check_redundant_cast(self.span, &inner.ty, &self.ty, walk) }
             inner.visit_typed(walk)
         }
         Lambda(_params, body) => body.visit_typed(walk)

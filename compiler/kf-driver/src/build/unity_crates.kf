@@ -9,7 +9,9 @@ import kf_assemble.stamp_module_owner
 
 import kf_driver.fresh_source_map
 import kf_driver.run_pipeline
-import kf_driver.testing.*
+import kf_driver.testing.gen_test_main_src
+import kf_driver.testing.parse_test_main
+import kf_driver.testing.rename_main_decls
 import kf_shared.publish_text
 import kf_core.diagnostic.new_diagnostics
 
@@ -26,11 +28,8 @@ pub fun compile_unity_crates(crates: &List<CrateSource>, is_bin: bool, with_test
     if with_tests && parse_errors != 0 { return parse_errors }
     if with_tests {
         val root_name = crates.at(crates.size() - 1).name.as_str()
-        val names = collect_test_names(modules.clone())
         rename_main_decls(&var modules)
-        var main_src = gen_test_main_imports(&modules)
-        main_src.append(gen_test_main_src(names).as_str())
-        var main_module = parse_test_main(main_src.as_str(), smap)
+        var main_module = parse_test_main(gen_test_main_src().as_str(), smap)
         stamp_module_owner(&var main_module, new_crate_id(root_name))
         modules.push(main_module)
     }

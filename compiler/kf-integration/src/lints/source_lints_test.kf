@@ -63,6 +63,12 @@ fun comparing_with_true_is_reported(): void {
 }
 
 @test
+fun bool_comparison_leaves_an_optional_bool_alone(): void {
+    val src = "fun f(a: int32?): bool {\n    return a?.equals(&1) == true\n}\n"
+    assert_eq(lint_codes(src).as_str(), "", "`a?.equals(&1)` is a `bool?`, so `== true` is needed")
+}
+
+@test
 fun assigning_a_variable_to_itself_is_reported(): void {
     assert_eq(lint_codes("fun f(): int32 {\n    var a = 1\n    a = a\n    return a\n}\n").as_str(), "self_assignment",
         "`a = a`")

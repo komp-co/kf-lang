@@ -225,7 +225,12 @@ fun check_assign(name: String, expr_ptr: Ptr<Expr>, span: Span, ctx: &var TypeCt
     val expr = unsafe { *expr_ptr }
     expr.reject_stored_lambda_transfer("an assignment", ctx)
     if !ctx.has_local(name.as_str()) {
-        val message = "cannot assign to `${name}`: it is not declared; declare it with `var ${name} = ...`"
+        val fix = if name.as_str().names_constant(ctx) {
+            String.from("it is a top-level `val`")
+        } else {
+            "it is not declared; declare it with `var ${name} = ...`"
+        }
+        val message = "cannot assign to `${name}`: ${fix}"
         ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
         return
     }

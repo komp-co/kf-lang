@@ -195,7 +195,14 @@ impl Parser {
     /// Consumes `o` when it is next; whether it was.
     pub mutating fun take_op(o: Operator): bool {
         if !self.peek().is_op(o) { return false }
-        unsafe { self.advance() }
+        self.advance()
+        return true
+    }
+
+    /// Consumes `k` when it is next; whether it was.
+    pub mutating fun take_keyword(k: Keyword): bool {
+        if !is_keyword(self.peek(), k) { return false }
+        self.advance()
         return true
     }
 
@@ -216,6 +223,15 @@ pub fun Token.is_keyword(kw: Keyword): bool {
         Newline => false
         Eof => false
         LexError(_) => false
+    }
+}
+
+/// An identifier spelled `word`: a contextual keyword, like `is` after an
+/// operand, which stays an ordinary name everywhere else.
+pub fun Token.is_word(word: str): bool {
+    return when (self.kind) {
+        Identifier(n) => n.as_str() == word
+        _ => false
     }
 }
 

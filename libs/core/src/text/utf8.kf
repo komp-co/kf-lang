@@ -90,14 +90,18 @@ fun decode_in(self: str, i: uint64, n: uint64): Utf8Scalar {
     return Utf8Scalar { scalar: scalar as char, width: consumed, well_formed: ok }
 }
 
-/// A fixed four bytes; the caller reads `width` of them.
+/// Up to four bytes, then a terminator; `width` of them are the encoding.
 pub struct Utf8Bytes {
-    pub val b0: uint8
-    pub val b1: uint8
-    pub val b2: uint8
-    pub val b3: uint8
+    pub val bytes: uint8[5]
     /// 1 to 4, or 0 for a surrogate or a value past the last code point.
     pub val width: uint64
+}
+
+impl Utf8Bytes {
+    /// The encoded bytes as text, borrowing them.
+    pub fun as_str(): str {
+        return unsafe { (&self.bytes) as Ptr<uint8> as str }
+    }
 }
 
 /// Encode `c` as UTF-8, the inverse of `decode_at`. No `String`, which
@@ -106,35 +110,20 @@ pub struct Utf8Bytes {
 pub fun char.encode_utf8(): Utf8Bytes {
     val v: uint32 = self as uint32
     if v < 128 {
-        return Utf8Bytes { b0: v as uint8, b1: 0, b2: 0, b3: 0, width: 1 }
+        return Utf8Bytes { bytes: [v as uint8, 0, 0, 0, 0], width: 1 }
     }
     if v < 2048 {
-        return Utf8Bytes {
-            b0: (192 + (v / 64)) as uint8,
-            b1: (128 + (v % 64)) as uint8,
-            b2: 0, b3: 0, width: 2
-        }
+        return Utf8Bytes { bytes: [(192 + v / 64) as uint8, (128 + v % 64) as uint8, 0, 0, 0], width: 2 }
     }
     // Before the three-byte case, the range surrogates fall in.
-    if v >= 55296 && v <= 57343 {
-        return Utf8Bytes { b0: 0, b1: 0, b2: 0, b3: 0, width: 0 }
-    }
-    if v > 1114111 {
-        return Utf8Bytes { b0: 0, b1: 0, b2: 0, b3: 0, width: 0 }
+    if (v >= 55296 && v <= 57343) || v > 1114111 {
+        return Utf8Bytes { bytes: [0, 0, 0, 0, 0], width: 0 }
     }
     if v < 65536 {
-        return Utf8Bytes {
-            b0: (224 + (v / 4096)) as uint8,
-            b1: (128 + ((v / 64) % 64)) as uint8,
-            b2: (128 + (v % 64)) as uint8,
-            b3: 0, width: 3
-        }
+        val lead = (224 + v / 4096) as uint8
+        return Utf8Bytes { bytes: [lead, (128 + v / 64 % 64) as uint8, (128 + v % 64) as uint8, 0, 0], width: 3 }
     }
-    return Utf8Bytes {
-        b0: (240 + (v / 262144)) as uint8,
-        b1: (128 + ((v / 4096) % 64)) as uint8,
-        b2: (128 + ((v / 64) % 64)) as uint8,
-        b3: (128 + (v % 64)) as uint8,
-        width: 4
-    }
+    val lead = (240 + v / 262144) as uint8
+    val second = (128 + v / 4096 % 64) as uint8
+    return Utf8Bytes { bytes: [lead, second, (128 + v / 64 % 64) as uint8, (128 + v % 64) as uint8, 0], width: 4 }
 }

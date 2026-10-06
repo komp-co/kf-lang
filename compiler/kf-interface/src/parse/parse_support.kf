@@ -9,6 +9,7 @@ import kf_parse.lexer.tokenize
 import kf_parse.parser.new_parser
 import json.reader.*
 import kf_interface.trait_declares_assoc_type
+import kf_interface.is_constant
 
 mutating fun JsonReader.load_extern_decl(crate: CrateId, path: str, hidden: bool): TopDecl {
     if !self.expect_key("name") { return poison_decl() }
@@ -44,12 +45,12 @@ mutating fun JsonReader.load_generic(crate: CrateId, crate_name: str, path: str,
     val fragment = parser.parse_module(List.new<String>())
     if parser.diags.size() > 0 || fragment.decls.size() != 1 { return poison_decl() }
     var td = fragment.decls.at(0).clone()
-    // Source-shipped: a generic template, or a trait declaring an associated
-    // type. An extension whose parameters all come from its receiver names
-    // them with `@receiver_params` or `@receiver_trait`.
+    // Source-shipped: a generic template, a trait declaring an associated
+    // type, or a top-level `val`. An extension whose parameters all come from
+    // its receiver names them with `@receiver_params` or `@receiver_trait`.
     val receiver_generic = (&td).has_annotation("receiver_params") || (&td).has_annotation("receiver_trait")
-    if td.generics.size() == 0 && !receiver_generic {
-        if !td.trait_declares_assoc_type() { return poison_decl() }
+    if td.generics.size() == 0 && !receiver_generic && !td.trait_declares_assoc_type() && !td.is_constant() {
+        return poison_decl()
     }
     if td.name.as_str() != name.as_str() { return poison_decl() }
     stamp_decl_owner(&var td, crate, intern(path))

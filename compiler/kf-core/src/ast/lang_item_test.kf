@@ -66,3 +66,11 @@ fun module_of(decls: List<TopDecl>): Module {
 @test fun the_mutable_slice_key_is_known(): void {
     assert_eq(is_known_lang_key(lang_slice_mut_key()), true, "a mutable slice is a lang item")
 }
+
+@test fun the_deref_key_is_known(): void {
+    assert_eq(is_known_lang_key(lang_deref_key()), true, "deref is a lang item")
+}
+
+@test fun the_mutable_deref_key_is_known(): void {
+    assert_eq(is_known_lang_key(lang_deref_mut_key()), true, "mutable deref is a lang item")
+}

@@ -208,7 +208,8 @@ absence forward, where `?:` is the one for leaving it behind.
 
 ## The !! (unwrap) operator
 
-`!!` takes the payload and aborts if there is none. It is the escape hatch for
+`!!` takes the payload and aborts if there is none; on a `Result` it takes the
+success payload and aborts on an `Err`. It is the escape hatch for
 when you know better than the type does, and it says so at the call site:
 
 ```kflat
@@ -223,6 +224,6 @@ $ echo $?
 1
 ```
 
-The message names the operation, not the file — so prefer `?:` or a `when`
-wherever the `None` is a case you can answer.
+The message names the operation, not the file — so prefer `?:`,
+`unwrap_or` or a `when` wherever the `None` is a case you can answer.
 

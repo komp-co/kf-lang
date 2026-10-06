@@ -7,6 +7,7 @@ import alloc.list.*
 import alloc.hash_map.*
 
 import kf_core.ast.Sym
+import kf_core.ast.lang_equal_key
 import kf_core.ast.types.identity_display_of
 import kf_core.ast.types.type_identity_display
 import kf_typecheck.traits.trait_args_satisfy
@@ -40,6 +41,7 @@ impl SigTable {
     /// Both are base names. `trait_args` has the caller's bindings substituted;
     /// the impl's own parameters act as placeholders.
     pub fun type_implements(type_base: str, trait_name: str, trait_args: str): bool {
+        if self.implements_intrinsically(type_base, trait_name) { return true }
         while ti in &self.trait_impls {
             if ti.type_name.as_str().equals(type_base) {
                 if ti.trait_name.as_str().equals(trait_name) {
@@ -56,6 +58,12 @@ impl SigTable {
             return self.type_implements(bare.as_str(), trait_name, trait_args)
         }
         return false
+    }
+
+    /// `str` equality is a runtime comparison, not a method of an impl, so
+    /// `str` is `Equal` with none written.
+    pub fun implements_intrinsically(type_base: str, trait_name: str): bool {
+        return type_base == "str" && trait_name == self.lang_trait_name(lang_equal_key()).as_str()
     }
 
     /// Any impl of `trait_name`, whatever its arguments: `while x in subject`

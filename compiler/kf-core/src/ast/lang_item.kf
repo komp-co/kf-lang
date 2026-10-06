@@ -51,6 +51,10 @@ pub fun lang_slice_key(): str { return "slice" }
 
 pub fun lang_slice_mut_key(): str { return "slice_mut" }
 
+pub fun lang_deref_key(): str { return "deref" }
+
+pub fun lang_deref_mut_key(): str { return "deref_mut" }
+
 /// Every key the compiler consumes, in "expected"-list order. An unknown key
 /// is an error, so a typo cannot silently leave a type unmarked.
 pub fun known_lang_keys(): List<String> {
@@ -74,6 +78,8 @@ pub fun known_lang_keys(): List<String> {
     out.push(String.from(lang_array_key()))
     out.push(String.from(lang_slice_key()))
     out.push(String.from(lang_slice_mut_key()))
+    out.push(String.from(lang_deref_key()))
+    out.push(String.from(lang_deref_mut_key()))
     return out
 }
 
@@ -121,6 +127,7 @@ impl Module {
     /// dependencies' declarations.
     pub fun lang_type_name(key: str): Sym {
         while td in &self.decls {
+            if td.annotations.is_empty() { continue }
             var is_type = false
             when (td.kind) {
                 Struct(_fields, _is_pub) => { is_type = true }
@@ -135,6 +142,7 @@ impl Module {
     /// The trait marked `@lang(key)`, or the empty name.
     pub fun lang_trait_name(key: str): Sym {
         while td in &self.decls {
+            if td.annotations.is_empty() { continue }
             var is_trait = false
             when (td.kind) {
                 TraitDecl(_members, _is_pub, _supers) => { is_trait = true }

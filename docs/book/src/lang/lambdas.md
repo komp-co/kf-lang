@@ -198,9 +198,10 @@ fun main(): int32 {
 }
 ```
 
-Calling a mutating method on a captured `var` makes it a mutable borrow. Such
-a lambda implements `CallMut0` through `CallMut3`, so the receiving generic
-must use the corresponding mutable bound:
+Calling a mutating method on a captured `var`, or assigning it, makes it a
+mutable borrow, so the write reaches the caller's variable. Such a lambda
+implements `CallMut0` through `CallMut3`, so the receiving generic must use
+the corresponding mutable bound:
 
 ```kflat
 fun apply_mut<F: CallMut0>(f: F): void { f() }
@@ -208,7 +209,9 @@ fun apply_mut<F: CallMut0>(f: F): void { f() }
 fun main(): int32 {
     var text = String.from("a")
     apply_mut(|| text.append("b"))
-    return 0
+    var calls = 0
+    apply_mut(|| { calls = calls + 1 })
+    return calls - 1   // 0
 }
 ```
 

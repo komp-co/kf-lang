@@ -131,6 +131,13 @@ pub fun ty_from_mangle_frag(frag: String, span: Span, string_name: Sym): Type {
     if borrowed.byte_len() > 0 {
         return borrow_of(ty_from_mangle_frag(borrowed, span, string_name), borrow_frag_is_mut(s), span)
     }
+    // `Box<T>` and `Ptr<T>` spell as `Box__T` and `Ptr__T`: never a struct.
+    if s.starts_with("Box__") {
+        return Type.new_box(ty_from_mangle_frag(s.substring(5, s.byte_len()), span, string_name), span)
+    }
+    if s.starts_with("Ptr__") {
+        return Type.new_ptr(ty_from_mangle_frag(s.substring(5, s.byte_len()), span, string_name), span)
+    }
     val value = value_from_frag(s)
     if value != null { return Type { kind: TypeKind.Value(value ?: 0), provenance: Provenance.Inferred(span) } }
     when s {
@@ -145,6 +152,7 @@ pub fun ty_from_mangle_frag(frag: String, span: Span, string_name: Sym): Type {
         "float32" => return Type { kind: TypeKind.Float32, provenance: Provenance.Inferred(span) }
         "float64" => return Type { kind: TypeKind.Float64, provenance: Provenance.Inferred(span) }
         "bool" => return Type.new_bool(span)
+        "char" => return Type { kind: TypeKind.Char, provenance: Provenance.Inferred(span) }
         _ => { }
     }
     // `List__String` elements dispatch through String; `List__str` elements

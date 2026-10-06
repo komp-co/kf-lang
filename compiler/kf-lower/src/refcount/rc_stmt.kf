@@ -1,6 +1,5 @@
 import alloc.list.*
 
-import kf_core.span.*
 import kf_core.ast.Intrinsic
 import kf_core.ast.intern
 import kf_core.ast.view
@@ -8,45 +7,6 @@ import kf_core.ast.expression.*
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import kf_core.ast.statement.SwitchArm
-
-// `when (make())`: an owning rvalue subject is hoisted into a local so its
-// scope-exit drop fires. Borrowed subjects are left alone. Returns the
-// binding to emit before the switch, if any.
-fun hoist_owned_when_subject(subj_ptr: Ptr<Expr>, span: Span, ctx: &var RcCtx): List<Stmt> {
-    var out = List.new<Stmt>()
-    val subj = unsafe { *subj_ptr }
-    if !is_heap_ty_rc(subj.ty) { return out }
-    when (subj.kind) {
-        Call(_, _) => { }
-        Intrinsic(_, _) => { }
-        CallValue(_callee, _) => { }
-        MethodCall(_, _, _) => { }
-        _ => return out
-    }
-    val mode = classify_binding(subj, ctx)
-    when (mode) {
-        OwnedFresh => { }
-        _ => return out
-    }
-    val tmp_id = ctx.block_counter
-    ctx.block_counter = tmp_id + 1
-    val tmp_name = "${hoisted_subject_prefix()}${u64_to_str(tmp_id)}"
-    val init: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *init = subj }
-    out.push(Stmt.new(span, StmtKind.LetVal(intern(tmp_name.as_str()), null, init)))
-    var v = Expr.new(span, ExprKind.Variable(intern(tmp_name.as_str())))
-    v.ty = subj.ty
-    unsafe { *subj_ptr = v }
-    return out
-}
-
-fun hoisted_subject_prefix(): str { return "__when_own_" }
-
-/// A local `hoist_owned_when_subject` made: it holds a fresh value no one
-/// else owns.
-fun is_hoisted_subject(name: str): bool {
-    return name.starts_with(hoisted_subject_prefix())
-}
 
 // `make().as_str()`: a fresh temporary that is only borrowed is owned by
 // nobody. A method receiver is hoisted to a local so it is dropped; receivers
@@ -158,10 +118,11 @@ fun maybe_hoist_receiver(recv_ptr: Ptr<Expr>, ctx: &var RcCtx, out: &var List<St
     maybe_hoist_owned_temp(recv_ptr, ctx, out)
 }
 
-// A fresh rvalue passed by borrow leaks its temporary, so it is hoisted. Only
-// by borrow: a by-value argument is dropped by the callee.
+// A fresh rvalue passed by borrow, `&` or as a `str`, leaks its temporary, so
+// it is hoisted. Only by borrow: a by-value argument is dropped by the callee.
 fun maybe_hoist_borrowed_arg(arg_ptr: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>): void {
-    if unsafe { arg_ptr.coerce } != coerce_addr_of() { return }
+    val coerce = unsafe { arg_ptr.coerce }
+    if coerce != coerce_addr_of() && coerce != coerce_to_cstr() { return }
     maybe_hoist_owned_temp(arg_ptr, ctx, out)
 }
 
@@ -282,8 +243,7 @@ pub mutating fun Stmt.rc_insert_stmt(ctx: &var RcCtx): void {
         If(cond_ptr, then_body, else_body) => {
             // The condition can consume (`if !consume(a)`).
             mark_consumed_moves(unsafe { *cond_ptr }, ctx)
-            rc_insert_scope(&var then_body, ctx)
-            rc_insert_scope(&var else_body, ctx)
+            ctx.rc_insert_branches(&var then_body, &var else_body)
             // CONSTRAINT: a binder is a copy of the payload, so a list that
             // grew is moved back into place.
             self.kind = StmtKind.If(take<Box<Expr>>(cond_ptr), take<List<Stmt>>(then_body),
@@ -357,7 +317,12 @@ fun rc_insert_switch(subject: &Expr, arms: &var List<SwitchArm>, ctx: &var RcCtx
     name_declined_payloads(arms, subj_enum.as_str(), ctx)
     val consumes = subject.when_consumes_subject(arms, ctx)
     if consumes { ctx.rc_mark_moved(subj_name.clone()) }
+    val owners = ctx.frame_stack.clone()
+    val before = ctx.owned_heap_locals()
+    var arm_moves = List.new<List<String>>()
+    var moved = List.new<String>()
     while ai in 0..arms.size() {
+        ctx.frame_stack = owners.clone()
         val arm = arms.at_mut(ai)
         val _i = ctx.push_frame(false)
         var owned = List.new<String>()
@@ -377,5 +342,13 @@ fun rc_insert_switch(subject: &Expr, arms: &var List<SwitchArm>, ctx: &var RcCtx
         arm.guard_prelude = guard_temporaries(arm.guard.view(), ctx)
         rc_insert_stmts(&var arm.body, ctx)
         append_releases(&var arm.body, ctx.pop_frame())
+        val arm_moved = ctx.moved_past(&arm.body, &before)
+        add_moved(&var moved, &arm_moved)
+        arm_moves.push(arm_moved)
     }
+    while ai in 0..arms.size() {
+        release_kept(&var arms.at_mut(ai).body, arm_moves.at(ai), &moved)
+    }
+    ctx.frame_stack = owners
+    ctx.forget_moved(&moved)
 }

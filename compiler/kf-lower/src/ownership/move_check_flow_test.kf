@@ -293,9 +293,14 @@ fun branches_moving_x(): Stmt {
 /// `when (<subject>) { Some(x) => { return x } None => {} }`, checked; whether
 /// the returned `x` became a copy.
 fun return_of_binder_copies(subject: Expr): bool {
+    return return_of_binder_copies_when(subject, true)
+}
+
+/// As above, with `opt` owned here or bound through a borrow.
+fun return_of_binder_copies_when(subject: Expr, owned: bool): bool {
     val dp = fresh_diag_ptr()
     var ctx = fresh_ctx(unsafe { &var *dp })
-    ctx.declare_owned(intern("opt"))
+    if owned { ctx.declare_owned(intern("opt")) } else { ctx.declare_borrowed(intern("opt")) }
     var payloads = List.new<Pattern>()
     payloads.push(new_pattern(no_span(), PatternKind.Identifier(intern("x"))))
     val pp: Ptr<Pattern> = unsafe { alloc<Pattern>() }
@@ -323,8 +328,12 @@ fun return_of_binder_copies(subject: Expr): bool {
     assert_eq(return_of_binder_copies(made), false, "nothing else owns the call's result")
 }
 
-@test fun a_binder_over_a_named_value_is_a_view(): void {
-    assert_eq(return_of_binder_copies(mk_str_var(String.from("opt"))), true, "`opt` still owns its payload")
+@test fun a_binder_over_an_owned_local_moves_out(): void {
+    assert_eq(return_of_binder_copies(mk_str_var(String.from("opt"))), false, "the `when` consumes `opt`")
+}
+
+@test fun a_binder_over_a_borrowed_local_is_a_view(): void {
+    assert_eq(return_of_binder_copies_when(mk_str_var(String.from("opt")), false), true, "`opt` owns nothing to give")
 }
 
 /// `var v = *p` with `p` of the given pointer kind; whether `*p` became a copy.

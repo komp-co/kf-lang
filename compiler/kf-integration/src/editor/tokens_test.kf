@@ -71,3 +71,65 @@ fun tokens_are_scoped_to_the_one_file(): void {
     val json = render_tokens_json("lib.kf", &crate)
     assert_eq(json.as_str().contains("\"byte_start\":35,"), false, "a sibling file's names are not this file's tokens")
 }
+
+fun shapes_source(): str {
+    return """pub struct Point {
+    pub val x: int32
+}
+
+pub enum Color { Red, Green }
+
+impl Point {
+    pub static fun at(x: int32): Point { return Point { x: x } }
+}
+
+pub fun probe(): int32 {
+    val p = Point.at(1)
+    val c = Color.Red
+    val ys = [p.x, 2]
+    return ys[0]
+}
+"""
+}
+
+fun shapes_tokens(): String {
+    val root = scratch_path("kf_query_token_shapes")
+    unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
+    write_file("${root}/kf.toml", "[project]\nname = \"query_token_shapes\"\nkind = \"lib\"\n")
+    write_file("${root}/src/lib.kf", shapes_source())
+    val crate = typed_crate_for("${root}/src/lib.kf")
+    return render_tokens_json("lib.kf", &crate)
+}
+
+@test
+fun the_type_before_a_static_call_is_a_type_token(): void {
+    val start = shapes_source().index_of("Point.at")!!
+    val token = "{\"byte_start\":${start},\"byte_end\":${start + 5},\"type\":\"type\""
+    assert_eq(shapes_tokens().as_str().contains(token.as_str()), true, "`Point` of `Point.at(1)`")
+}
+
+@test
+fun the_enum_before_a_variant_is_a_type_token(): void {
+    val start = shapes_source().index_of("Color.Red")!!
+    val token = "{\"byte_start\":${start},\"byte_end\":${start + 5},\"type\":\"type\""
+    assert_eq(shapes_tokens().as_str().contains(token.as_str()), true, "`Color` of `Color.Red`")
+}
+
+@test
+fun a_variant_is_an_enum_member(): void {
+    val start = shapes_source().index_of("Red\n")!!
+    val token = "{\"byte_start\":${start},\"byte_end\":${start + 3},\"type\":\"enum_member\""
+    assert_eq(shapes_tokens().as_str().contains(token.as_str()), true, "`Red` of `Color.Red`")
+}
+
+@test
+fun a_list_literal_is_no_token(): void {
+    val start = shapes_source().index_of("[p.x")!!
+    assert_eq(shapes_tokens().as_str().contains("\"byte_start\":${start},"), false, "the brackets and what they hold")
+}
+
+@test
+fun an_index_bracket_is_no_token(): void {
+    val start = shapes_source().index_of("[0]")!!
+    assert_eq(shapes_tokens().as_str().contains("\"byte_start\":${start},"), false, "the `[` of `ys[0]`")
+}

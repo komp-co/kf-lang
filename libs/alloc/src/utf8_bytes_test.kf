@@ -71,10 +71,7 @@ fun utf8_round_trip(v: uint32): uint32 {
     val e = (v as char).encode_utf8()
     if e.width == 0 { return 4294967295 as uint32 }
     var s = String.from("")
-    if e.width > 0 { s.push_byte(e.b0) }
-    if e.width > 1 { s.push_byte(e.b1) }
-    if e.width > 2 { s.push_byte(e.b2) }
-    if e.width > 3 { s.push_byte(e.b3) }
+    s.append(e.as_str())
     val d = s.as_str().decode_at(0)
     if !d.well_formed { return 4294967294 as uint32 }
     if d.width != e.width { return 4294967293 as uint32 }
@@ -107,7 +104,7 @@ fun utf8_round_trip(v: uint32): uint32 {
 @test fun nul_encodes_and_decodes_but_does_not_survive_a_str(): void {
     val e = (0 as char).encode_utf8()
     assert_eq(e.width, 1 as uint64, "U+0000 is one byte")
-    assert_eq(e.b0, 0 as uint8, "and that byte is zero")
+    assert_eq(e.bytes[0], 0 as uint8, "and that byte is zero")
 
     var s = String.from("")
     s.push_byte(0)
