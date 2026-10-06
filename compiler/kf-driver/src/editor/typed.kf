@@ -83,7 +83,7 @@ pub fun typed_crate_with(file_path: str, overlay: &Overlay, crates: &List<CrateS
     val _import_diags = validate_imports_per_module(&var merged, callers, targets, names, smap)
     var table = new_decl_table()
     resolve_module(&var merged, &var table)
-    val typed = typecheck_module_typed(&var merged, &var table, callers, targets, names)
+    val typed = typecheck_module_typed(&var merged, &var table, callers, targets, names, smap)
     // The table stays where its box put it when `typed` moves into the crate.
     val sigs: Ptr<SigTable> = typed.sigs
 

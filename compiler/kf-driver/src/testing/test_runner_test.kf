@@ -1,86 +1,14 @@
-import alloc.list.*
 import core.assert.assert_eq
 
-import kf_core.span.no_span
-import kf_core.ast.Import
-import kf_core.ast.Module
-import kf_core.ast.crate_id_poison
-import kf_core.ast.types.TypeRef
-import kf_core.ast.declaration.*
-import kf_core.ast.statement.Stmt
-import kf_core.ast.annotation.new_annotation
 import kf_driver.fresh_source_map
 
-// A null return-type pointer means `: void`.
-fun mk_void_fn(name: str, annotations: List<Annotation>): TopDecl {
-    val body = List.new<Stmt>()
-    val params = List.new<Param>()
-    val null_ret: Ptr<TypeRef> = unsafe { 0 as Ptr<TypeRef> }
-    var td = new_top_decl(no_span(), String.from(name), TopDeclKind.Function(params, null_ret, body, false, false, false, false))
-    td.annotations = annotations
-    return td
-}
-
-fun contains_sub(hay: str, needle: str): bool {
-    val hn = hay.byte_len()
-    val nn = needle.byte_len()
-    if nn == 0 { return true }
-    if hn < nn { return false }
-    var i: uint64 = 0
-    while i + nn <= hn {
-        var matched = true
-        var j: uint64 = 0
-        while j < nn {
-            val hb = hay.byte_at(i + j)
-            val nb = needle.byte_at(j)
-            if hb != nb { matched = false }
-            j = j + 1
-        }
-        if matched { return true }
-        i = i + 1
-    }
-    return false
-}
-
-@test fun collect_test_names_picks_only_test_annotated(): void {
-    var decls = List.new<TopDecl>()
-    decls.push(mk_void_fn("a", [new_annotation(no_span(), "test", List.new<String>())]))
-    decls.push(mk_void_fn("helper", List.new<Annotation>()))
-    decls.push(mk_void_fn("b", [new_annotation(no_span(), "test", List.new<String>())]))
-    var mods = List.new<Module>()
-    mods.push(Module { crate: crate_id_poison(), path: List.new<String>(), decls: decls, imports: List.new<Import>() })
-    val names = collect_test_names(mods)
-    assert_eq(names.size(), 2, "two @test fns collected")
-    assert_eq(names.at(0).as_str(), "a", "first test name")
-    assert_eq(names.at(1).as_str(), "b", "second test name")
-}
-
-@test fun gen_test_main_lists_each_test_as_an_entry(): void {
-    var names = List.new<String>()
-    names.push(String.from("alpha"))
-    names.push(String.from("beta"))
-    val src = gen_test_main_src(names)
-    assert_eq(contains_sub(src.as_str(), "name: \"beta\", module: \"\", args: false, function: beta"), true,
-        "each test is an entry naming its function")
-}
-
-@test fun gen_test_main_sizes_the_array_by_the_test_count(): void {
-    var names = List.new<String>()
-    names.push(String.from("alpha"))
-    names.push(String.from("beta"))
-    val src = gen_test_main_src(names)
-    assert_eq(contains_sub(src.as_str(), "() -> void>[2] = ["), true, "the array holds every test")
-}
-
-@test fun gen_test_main_hands_the_tests_to_core(): void {
-    val src = gen_test_main_src(List.new<String>())
-    assert_eq(contains_sub(src.as_str(), "return run_tests(&tests)"), true, "core runs them")
+@test fun gen_test_main_hands_every_test_to_core(): void {
+    assert_eq(gen_test_main_src().as_str().contains("return run_tests(&annotated<test>())"), true,
+        "core runs the query's entries")
 }
 
 @test fun gen_test_main_parses_back_to_a_module(): void {
-    var names = List.new<String>()
-    names.push(String.from("alpha"))
-    val src = gen_test_main_src(names)
+    val src = gen_test_main_src()
     val m = parse_test_main(src.as_str(), fresh_source_map())
     val last = *m.decls.at(m.decls.size() - 1)
     assert_eq(last.name.as_str(), "main", "generated module defines main")

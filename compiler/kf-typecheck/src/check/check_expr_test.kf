@@ -13,13 +13,13 @@ import kf_typecheck.leaked_diagnostics
 
 pub fun mk_ctx(): TypeCtx {
     val table = new_decl_table()
-    val sigs = new_sig_table()
     val tab_ptr: Ptr<DeclTable> = unsafe { alloc<DeclTable>() }
     unsafe { *tab_ptr = table }
     val sig_ptr: Ptr<SigTable> = unsafe { alloc<SigTable>() }
-    unsafe { *sig_ptr = sigs }
-    // A program built on alloc, whose `String` is the lang string.
+    unsafe { *sig_ptr = new_sig_table() }
+    // A program built on alloc, whose `String` and `Option` are the lang ones.
     unsafe { (*sig_ptr).lang_string = intern("String") }
+    unsafe { (*sig_ptr).lang_option = intern("Option") }
     unsafe { (*sig_ptr).note_lang_trait("equal", intern("Equal")) }
     unsafe { (*sig_ptr).note_lang_trait("clone", intern("Clone")) }
     unsafe { (*sig_ptr).note_lang_trait("drop", intern("Drop")) }

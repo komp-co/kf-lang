@@ -216,7 +216,12 @@ impl Parser {
         unsafe { self.advance() }
         if is_op(self.peek(), Operator.Colon) {
             unsafe { self.advance() }
-            return new_param(name_tok_span, name, self.parse_type_ref_ptr())
+            var param = new_param(name_tok_span, name, self.parse_type_ref_ptr())
+            if is_op(self.peek(), Operator.Eq) {
+                unsafe { self.advance() }
+                param.default = Box.new(self.parse_expr())
+            }
+            return param
         }
         self.parse_err(self.peek().span, String.from("expected `:` and a type after the parameter name (every parameter needs a type annotation)"))
         return new_param(name_tok_span, name, poison_type_ref_at(name_tok_span))

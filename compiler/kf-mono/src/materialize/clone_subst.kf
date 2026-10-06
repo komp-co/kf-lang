@@ -199,7 +199,7 @@ fun clone_subst_method(meth: &TopDecl, names: &var List<String>, repls: &var Lis
             while p in &params {
                 val npty: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
                 unsafe { *npty = subst_type_ref(&*p.ty, names, repls) }
-                nparams.push(new_param(p.span, p.name.as_string(), npty))
+                nparams.push(p.retyped(npty))
             }
             val nret: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *nret = subst_type_ref(&*ret_ptr, names, repls) }

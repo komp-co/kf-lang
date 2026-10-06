@@ -7,10 +7,12 @@ import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TypeParam
 import kf_core.diagnostic.*
 import kf_resolve.*
+import kf_typecheck.check.record_params
 import kf_typecheck.types.*
 import kf_typecheck.traits.*
 import kf_typecheck.*
 import kf_core.span.no_span
+import kf_core.span.SourceMap
 import kf_typecheck.check.borrow.infer_borrow_origin
 import kf_typecheck.check.borrow.reject_unsayable_origin
 
@@ -21,8 +23,10 @@ pub fun check_decl_module(m: &var Module,
     diags: &var Diagnostics,
     caller_files: Ptr<List<uint32>>,
     imported_targets: Ptr<List<Sym>>,
-    imported_names: Ptr<List<Sym>>): Box<SigTable> {
+    imported_names: Ptr<List<Sym>>,
+    smap: Ptr<SourceMap>): Box<SigTable> {
     var sigs = new_sig_table()
+    sigs.smap = smap
     // Per-file import lists first; a null pointer leaves them empty.
     val null_files: Ptr<List<uint32>> = unsafe { 0 as Ptr<List<uint32>> }
     val null_ptr: Ptr<List<Sym>> = unsafe { 0 as Ptr<List<Sym>> }
@@ -353,6 +357,7 @@ fun register_fn_sig(metadata_owner: Ptr<TopDecl>, fn_name: String, params: List<
     reject_unsayable_origin(&ptys, &ret_ty, false, ret_tr.span, &var ctx0)
     val borrows = infer_borrow_origin(&ptys, &ret_ty, false, sp)
     val owner = unsafe { &*metadata_owner }
+    unsafe { (*sp).record_params(fn_name.as_str(), &params) }
     insert_fn_sig(sp, metadata_owner, FnSignature { name: fn_name, params: ptys, ret: ret_ty, generics: generics, is_static: false, is_mutating: false, owner_module: owner_module, owner_crate: owner_crate, is_pub: is_pub, borrows: borrows, is_prelude: owner.has_annotation("prelude"),
         is_extern: owner.is_extern_decl() })
 }
@@ -432,6 +437,7 @@ fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &va
             }
             reject_unsayable_origin(&ptys, &ret_ty, !is_static, ret_tr.span, &var ctx0)
             val borrows = infer_borrow_origin(&ptys, &ret_ty, !is_static, sp)
+            unsafe { (*sp).record_params(mangled.as_str(), &params) }
             unsafe { sp.insert(FnSignature { name: mangled, params: ptys, ret: ret_ty, generics: all_generics, is_static: is_static, is_mutating: is_mutating, owner_module: td.module_path, owner_crate: td.crate, is_pub: true, borrows: borrows, is_prelude: (&td).has_annotation("prelude"), is_extern: false }) }
         }
         _ => { }

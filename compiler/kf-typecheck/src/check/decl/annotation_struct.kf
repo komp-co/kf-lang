@@ -6,6 +6,7 @@ import alloc.list.*
 
 import kf_core.ast.Module
 import kf_core.ast.declaration.*
+import kf_core.ast.types.TypeRef
 import kf_core.diagnostic.*
 
 /// For this crate's annotations; a dependency's struct arrives with its
@@ -50,12 +51,22 @@ fun Module.names_another_declaration(annotation: &TopDecl): bool {
 
 fun TopDecl.argument_struct(params: &List<Param>, is_pub: bool): TopDecl {
     var fields = List.new<Field>()
+    var borrows = false
     while param in &params {
+        if (*param.ty).names_str() { borrows = true }
         fields.push(new_field(param.span, param.name.as_string(), Box.new((*param.ty).clone()), false, is_pub))
     }
     var decl = new_top_decl(self.span, self.name.as_string(), TopDeclKind.Struct(fields, is_pub))
+    decl.is_view = borrows
     decl.crate = self.crate
     decl.module_path = self.module_path
     decl.name_span = self.name_span
     return decl
+}
+
+fun TypeRef.names_str(): bool {
+    return when (self.kind) {
+        Named(name, args) => args.size() == 0 && name.as_str() == "str"
+        _ => false
+    }
 }

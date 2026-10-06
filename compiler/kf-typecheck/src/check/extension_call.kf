@@ -29,7 +29,7 @@ pub fun dyn_or_extension_call(e: &var Expr, recv_ptr: Ptr<Expr>, recv: &Expr, na
     if !renders && receiver_has_own_method(recv.ty.clone(), name.as_string(), ctx) { return false }
     val link = chosen_extension(name.as_str(), &recv.ty, e.span, ctx)
     if link.byte_len() == 0 { return e.report_blocked_extension(name.as_str(), &recv.ty, ctx) }
-    if link.as_str().equals(".") || !extension_arity_fits(link.as_str(), name.as_str(), args.size(), e.span, ctx) {
+    if link.as_str().equals(".") || !extension_arity_fits(link.as_str(), name.as_str(), args, e.span, ctx) {
         e.ty = Type.new_poison()
         return true
     }
@@ -75,11 +75,13 @@ pub mutating fun Expr.extension_function_call(name: Sym, args: &var List<Expr>, 
     return true
 }
 
-/// Reported in method-call terms when it does not fit.
-fun extension_arity_fits(link: str, name: str, written: uint64, span: Span, ctx: &var TypeCtx): bool {
+/// Reported in method-call terms when it does not fit. Named arguments and
+/// defaults are left to the call's check, which arranges them.
+fun extension_arity_fits(link: str, name: str, args: &List<Expr>, span: Span, ctx: &var TypeCtx): bool {
     val sig = unsafe { (*ctx.sigs).find_signature(link) } ?: return true
     val wanted = sig.params.size() - 1
-    if written == wanted { return true }
+    val written = args.size()
+    if written == wanted || ctx.names_arguments(span) || ctx.sig_table().defaults_cover(link, written) { return true }
     val message = "wrong number of arguments to `${name}`: expected ${wanted}, found ${written}"
     ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
     return false

@@ -311,8 +311,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
         recv_ty.borrow_intrinsic_method_operand(method_name.as_str(), args, ctx)
         // A trait declares it but no impl accepts these arguments.
         if receiver_declares_trait_method(recv_ty, method_name.clone(), ctx) {
-            val shown = recv_ty.display_type(ctx)
-            val amsg = "no implementation of `${method_name}` for `${shown}` accepts these arguments"
+            val amsg = call.no_fitting_impl_message(recv_ty, method_name.clone(), args, ctx)
             ctx.emit(new_diagnostic(Severity.Error, new_label(_span, amsg)))
             return Type.new_poison()
         }
@@ -442,6 +441,9 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
                 when (unsafe { (*ctx.sigs).find_signature(bmangled.as_str()) }) {
                     Some(bsig) => {
                         if !bsig.is_static {
+                            if !bsig.arrange_call_arguments(args, &var arg_tys, method_name.clone(), 1, _span, ctx) {
+                                return Type.new_poison()
+                            }
                             if args.size() + 1 == bsig.params.size() {
                                 // The method's own parameters (`fun map<F>`) are
                                 // solved from the call.
@@ -467,7 +469,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
         // A trait declares it but no impl accepts these arguments: the call is
         // at fault, not the impl.
         if receiver_declares_trait_method(recv_ty, method_name.clone(), ctx) {
-            val amsg = "no implementation of `${method_name}` for `${sname}` accepts these arguments"
+            val amsg = call.no_fitting_impl_message(recv_ty, method_name.clone(), args, ctx)
             ctx.emit(new_diagnostic(Severity.Error, new_label(_span, amsg)))
             return Type.new_poison()
         }
@@ -481,6 +483,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
         ctx.emit(new_diagnostic(Severity.Error, lab))
         return Type.new_poison()
     }
+    if !sig.arrange_call_arguments(args, &var arg_tys, method_name.clone(), 1, _span, ctx) { return Type.new_poison() }
     // `self` is params[0].
     if args.size() + 1 != sig.params.size() {
         emit_method_arity(method_name, sig.params.size() - 1, args.size(), _span, ctx)

@@ -32,6 +32,50 @@ fun noop(): void {
 }
 ```
 
+## Default values and named arguments
+
+A parameter may have a default, written after its type. A call that leaves
+the argument out gets the default:
+
+```kflat
+fun connect(host: str, port: int32 = 80, retries: int32 = 3): int32 {
+    return port + retries
+}
+
+fun main(): int32 {
+    val a = connect("example.com")            // port 80, retries 3
+    val b = connect("example.com", 8080)      // retries 3
+    val c = connect("example.com", retries = 5)
+    return a + b + c - 8251
+}
+```
+
+An argument written `name = value` binds to the parameter of that name, so a
+call can skip a parameter with a default and give a later one. Positional
+arguments come first; named ones follow in any order. A parameter without a
+default must be given, either way.
+
+```console
+$ komp check .
+src/main.kf:4:13: error: `connect` needs `host`
+        val d = connect(port = 1)
+                ^~~~~~~~~~~~~~~~~
+```
+
+The same message names a parameter given twice, a name the function does not
+have, and a positional argument after a named one.
+
+A default is a constant: a literal, a negated number, `null`, `[]`, an enum
+variant without a payload, or a top-level `val`. It must have the
+parameter's type, and it may not name another parameter. It is filled in at
+each call, so a parameter's name and default are part of a public function's
+API, and a dependent crate's calls see them through the crate's interface.
+
+Methods, `static` functions and extension functions take defaults and named
+arguments too; the receiver is never named. A function used as a value keeps
+its full type, `(str, int32, int32) -> int32` above, so a call through a value
+gives every argument by position.
+
 ## The return-path check
 
 The compiler verifies that every path through a value-returning function

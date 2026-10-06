@@ -6,6 +6,7 @@ import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.Annotation
 import kf_core.ast.declaration.Param
 import kf_core.ast.declaration.TopDecl
+import kf_core.ast.annotation.argument_source
 import json.writer.*
 import kf_core.ast.subst.mangle_tyref
 
@@ -140,7 +141,7 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             o.field_raw("methods", emit_interface_methods(td, methods, true, true, interface_trait_suffix(trait_type, m), unmangled, &views).as_str())
             return o.finish()
         }
-        AnnotationDecl(_params, target, is_pub) => {
+        AnnotationDecl(params, target, is_pub) => {
             var o = JsonWriter.object()
             o.field_string("kind", "annotation")
             o.field_bool("hidden", hidden)
@@ -149,6 +150,7 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             o.field_string("function", target.function_source().as_str())
             o.field_raw("kinds", target.kinds_json().as_str())
             o.field_raw("params", type_params_json(td.generics).as_str())
+            if params.has_default() { o.field_raw("defaults", emit_interface_params(params).as_str()) }
             return o.finish()
         }
         _ => return String.from("{}")
@@ -212,6 +214,13 @@ fun emit_interface_methods(owner: &TopDecl, methods: &List<TopDecl>, callable: b
     return arr.finish()
 }
 
+fun List<Param>.has_default(): bool {
+    while param in &self {
+        if param.default != null { return true }
+    }
+    return false
+}
+
 fun emit_interface_params(params: &List<Param>): String {
     var arr = JsonWriter.array()
     while p in &params {
@@ -219,6 +228,11 @@ fun emit_interface_params(params: &List<Param>): String {
         po.field_string("name", p.name.as_str())
         val pty: TypeRef = unsafe { *p.ty }
         po.field_string("type", pty.tyref_to_source().as_str())
+        val default = p.default
+        if default != null {
+            val value = default ?: continue
+            po.field_string("default", value.argument_source().as_str())
+        }
         arr.write_raw(po.finish().as_str())
     }
     return arr.finish()

@@ -101,7 +101,10 @@ impl Parser {
         }
         while true {
             self.skip_newlines()
-            arg_vec.push(self.parse_expr())
+            val label = self.named_argument_label()
+            var argument = self.parse_expr()
+            if label.as_str().byte_len() > 0 { argument.arg_name = intern(label.as_str()) }
+            arg_vec.push(argument)
             self.skip_newlines()
             if is_op(self.peek(), Operator.Comma) {
                 unsafe { self.advance() }

@@ -29,10 +29,19 @@ pub struct Param {
     pub val span: Span
     pub val name: Sym
     pub val ty: Box<TypeRef>
+    /// `= value` after the type: a constant a call may leave the argument to.
+    pub var default: Box<Expr>?
 }
 
 pub fun new_param(span: Span, name: String, ty: Ptr<TypeRef>): Param {
-    return Param { span: span, name: intern(name.as_str()), ty: ty }
+    return Param { span: span, name: intern(name.as_str()), ty: ty, default: null }
+}
+
+impl Param {
+    /// The same parameter, default included, at another type.
+    pub fun retyped(ty: Ptr<TypeRef>): Param {
+        return Param { span: self.span, name: self.name, ty: ty, default: self.default.clone() }
+    }
 }
 
 pub struct Field {

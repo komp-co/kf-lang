@@ -110,6 +110,11 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
     // written name lets the import be suggested narrower.
     val written_name = callee_surface_name(name.as_str(), ctx.sigs)
     note_import_use_named(ctx.sigs, ctx.owner_file, sig.owner_module, intern(written_name.as_str()))
+    val target = ArgumentTarget {
+        callee: sig.name.clone(), shown: written_name.clone(), arity: sig.params.size(), owner_crate: sig.owner_crate,
+        owner_module: sig.owner_module, types: sig.params.clone()
+    }
+    if !arrange_arguments(args, &var arg_tys, &target, span, ctx) { return Type.new_poison() }
     if args.size() != sig.params.size() {
         ctx.emit(new_diagnostic(Severity.Error, new_label(span, "wrong number of arguments to `${callee_surface_name(name.as_str(), ctx.sigs)}`: expected ${sig.params.size()}, found ${args.size()}")))
         return Type.new_poison()
