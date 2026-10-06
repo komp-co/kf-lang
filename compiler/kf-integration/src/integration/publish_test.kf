@@ -3,6 +3,7 @@
 
 import core.assert.assert_eq
 import kf_tool.publish.publish_package
+import testing.test
 
 /// `greet` 0.1.0 of `kind`, whose `origin` is a bare repository beside it,
 /// tagged `v0.1.0` and pushed unless `tagged` is false. A bin gets a `main`.

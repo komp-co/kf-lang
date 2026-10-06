@@ -3,6 +3,7 @@ import core.assert.assert_eq
 import kf_core.diagnostic.*
 import kf_core.span.*
 import kf_driver.fresh_source_map
+import testing.test
 
 @test
 fun json_diagnostic_includes_location_and_escaped_message(): void {

@@ -5,6 +5,7 @@ import alloc.list.*
 
 import kf_core.ast.declaration.TopDecl
 import kf_parse.parser.parser_for
+import testing.test
 
 fun view_decl_of(src: str): TopDecl {
     var p = parser_for(src)

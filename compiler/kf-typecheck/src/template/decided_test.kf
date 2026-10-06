@@ -5,6 +5,7 @@ import kf_core.span.no_span
 import kf_core.ast.*
 import kf_core.ast.expression.*
 import kf_core.ast.statement.Stmt
+import testing.test
 
 fun literal(kind: ExprKind): Expr {
     return Expr.new(no_span(), kind)

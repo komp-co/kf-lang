@@ -9,6 +9,7 @@ import kf_core.ast.expression.ExprKind
 import kf_core.ast.expression.FieldInit
 import alloc.list.*
 import kf_core.span.no_span
+import testing.test
 
 @test
 fun resolved_struct_name_is_owned_str(): void {

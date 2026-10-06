@@ -1,6 +1,7 @@
 import core.assert.assert_eq
 import kf_tool.project.new_dependency
 import kf_tool.project.parse_dependency
+import testing.test
 
 fun git_row(name: str, tag: str, rev: str): LockEntry {
     return LockEntry {

@@ -5,6 +5,7 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_parse.parser.parser_for
+import testing.test
 
 /// Read through a borrow: a copied Stmt aliases its Expr pointers.
 fun first_stmt_span(src: str): Span {

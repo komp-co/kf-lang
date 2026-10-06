@@ -9,6 +9,7 @@ import kf_core.ast.types.Provenance
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
 import kf_typecheck.new_sig_table
+import testing.test
 
 // `Holder` stands in for alloc's `String`, which declares `byte_len` both
 // inherently and through `impl Text`.

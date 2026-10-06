@@ -11,6 +11,7 @@ import kf_core.ast.declaration.*
 import kf_core.ast.annotation.argument_source
 import kf_core.ast.statement.Stmt
 import kf_interface.emit.emit_interface
+import testing.test
 
 fun named_type(name: str): Ptr<TypeRef> {
     val out: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }

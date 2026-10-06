@@ -22,7 +22,9 @@ public API.
 `return run_tests(&annotated<test>(), &annotated<disabled>())`.
 
 ```kflat
+import testing.disabled
 import testing.run_tests
+import testing.test
 
 @test(name = "one and one make two")
 fun adds(): void { assert_eq(1 + 1, 2, "one and one") }

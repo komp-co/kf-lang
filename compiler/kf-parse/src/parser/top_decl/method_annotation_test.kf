@@ -3,6 +3,7 @@ import alloc.list.*
 
 import kf_core.ast.declaration.Annotation
 import kf_parse.parser.parser_for
+import testing.test
 
 /// The annotations on the first member of the first declaration.
 fun first_member_annotations(src: str): List<Annotation> {

@@ -2,6 +2,7 @@ import core.assert.assert_eq
 
 import kf_core.span.*
 import std.fs.scratch_path
+import testing.test
 
 fun test_source_map(): Ptr<SourceMap> {
     val smap: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }

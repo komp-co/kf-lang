@@ -2,6 +2,7 @@ import core.assert.assert_eq
 import alloc.list.*
 import std.env.env_var
 import std.env.set_env_var
+import testing.test
 
 /// The pages with `KFLAT_RELEASES` set to `value`, restored afterwards.
 fun pages_with_releases(value: str): List<String> {

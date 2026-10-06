@@ -1,4 +1,5 @@
 import core.assert.*
+import testing.test
 
 fun odds(): int32[5] { return [1, 3, 5, 7, 9] }
 

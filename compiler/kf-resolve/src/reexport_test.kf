@@ -4,6 +4,7 @@ import alloc.list.*
 import kf_core.ast.*
 import kf_core.ast.declaration.TopDecl
 import kf_core.span.no_span
+import testing.test
 
 fun whole_module(owner: str, target: str): Reexport {
     return Reexport { owner: intern(owner), target: intern(target), offered: Sym { id: 0 }, exposed: Sym { id: 0 } }

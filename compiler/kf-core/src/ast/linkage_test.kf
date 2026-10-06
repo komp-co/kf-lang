@@ -3,6 +3,7 @@ import core.assert.assert_eq
 import kf_core.span.no_span
 import kf_core.ast.declaration.TopDeclKind
 import kf_core.ast.declaration.new_top_decl
+import testing.test
 
 @test
 fun new_declarations_default_to_source_linkage(): void {

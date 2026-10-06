@@ -1,4 +1,5 @@
 import alloc.text_edit.repeat
+import testing.test
 
 @test
 fun a_clean_compile_is_fine(): void {

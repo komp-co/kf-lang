@@ -13,6 +13,7 @@ import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import testing.test
 
 @test fun classify_binding_modes(): void {
     var ctx = rc_ctx_for_test("m")

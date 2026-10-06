@@ -1,6 +1,7 @@
 import core.assert.assert_eq
 import core.assert.fail
 import core.assert.assert
+import testing.test
 
 @test fun lexes_simple_identifier(): void {
     val toks = tokenize("add", 1)

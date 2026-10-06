@@ -8,6 +8,7 @@ import kf_tool.install.uninstall_package
 import kf_tool.install.update_installed
 import alloc.list.*
 import std.fs.exists
+import testing.test
 
 /// An index listing `name` 0.1.0 of `kind`, from a repository of its own;
 /// the index's `file://` URL.

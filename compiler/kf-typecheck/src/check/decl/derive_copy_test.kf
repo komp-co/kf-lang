@@ -10,6 +10,7 @@ import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
 import kf_core.ast.annotation.new_annotation
+import testing.test
 
 fun lang_trait(name: str, key: str): TopDecl {
     val kind = TopDeclKind.TraitDecl(List.new<TopDecl>(), true, List.new<TypeRef>())

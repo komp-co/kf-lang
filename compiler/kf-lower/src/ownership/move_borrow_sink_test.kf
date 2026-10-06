@@ -9,6 +9,7 @@ import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
 import kf_core.ast.expression.*
 import kf_lower.new_reached
+import testing.test
 
 fun ctx_with_one_sink(name: String, borrow_sink: bool): MoveCtx {
     var sinks = List.new<bool>()

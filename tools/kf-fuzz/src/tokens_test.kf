@@ -1,4 +1,5 @@
 import alloc.list.*
+import testing.test
 
 fun kinds_of(text: str): String {
     var out = String.from("")

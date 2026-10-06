@@ -11,6 +11,7 @@ import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.statement.*
 import kf_codegen.emit.new_local_env
+import testing.test
 
 fun guard_expr(name: str): Ptr<Expr> {
     val g: Ptr<Expr> = unsafe { alloc<Expr>() }

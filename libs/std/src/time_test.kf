@@ -4,6 +4,7 @@
 import core.assert.assert_eq
 import core.time.*
 import std.time.*
+import testing.test
 
 @test fun the_wall_clock_is_plausible(): void {
     val seconds = unix_seconds()

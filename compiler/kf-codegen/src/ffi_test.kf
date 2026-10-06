@@ -1,6 +1,7 @@
 import std.fs.*
 import std.process.*
 import core.assert.assert_eq
+import testing.test
 
 @test fun ffi_run_echo_returns_zero(): void {
     var command = Command.new("/bin/echo")

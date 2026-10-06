@@ -5,6 +5,7 @@ import kf_core.ast.new_crate_id
 import kf_core.ast.types.TypeIdentity
 import kf_core.ast.types.TypeKind
 import kf_core.ast.types.canonical_type_identity
+import testing.test
 
 // A receiver type may carry the declared name (from a literal) or the
 // canonical identity (from an annotation); both answer with the declared

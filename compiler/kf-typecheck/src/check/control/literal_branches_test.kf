@@ -4,6 +4,7 @@ import kf_core.ast.intern
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.span.no_span
+import testing.test
 
 fun if_of(then_kind: ExprKind, else_kind: ExprKind): Expr {
     val condition = Box.new(Expr.new(no_span(), ExprKind.LitBool(true)))

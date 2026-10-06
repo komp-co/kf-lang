@@ -15,6 +15,7 @@ import kf_integration.harness.copy_tree_by_content
 import std.fs.read_to_string
 import std.fs.scratch_path
 import kf_core.diagnostic.new_diagnostics
+import testing.test
 
 extern "C" fun system(cmd: str): int32
 extern "C" fun access(path: str, mode: int32): int32

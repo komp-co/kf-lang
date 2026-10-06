@@ -2,6 +2,7 @@
 
 import core.assert.*
 import alloc.list.*
+import testing.test
 
 fun lambda_diags(src: str): uint64 {
     var p = parser_for(src)

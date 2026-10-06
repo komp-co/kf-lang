@@ -6,6 +6,7 @@ import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.*
 import kf_core.ast.annotation.new_annotation
 import kf_codegen.emit.glue.deep_clone_top_decl
+import testing.test
 
 fun skip_annotation(): Annotation {
     return new_annotation(no_span(), "skip", List.new<String>())

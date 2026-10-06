@@ -9,6 +9,7 @@ import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.Variant
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import testing.test
 
 fun mk_some_x_arm(): Arm {
     val inner = new_pattern(no_span(), PatternKind.Identifier(intern("x")))

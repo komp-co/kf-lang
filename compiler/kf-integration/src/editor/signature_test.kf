@@ -6,6 +6,7 @@ import core.assert.assert_eq
 
 import std.fs.scratch_path
 import kf_driver.editor.render_signature_json
+import testing.test
 
 fun signature_fixture_path(): str {
     return scratch_path("kf_query_sig/src/main.kf")

@@ -1,5 +1,6 @@
 import core.assert.assert
 import alloc.list.*
+import testing.test
 
 struct Ranked {
     val key: int32

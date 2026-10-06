@@ -15,6 +15,7 @@ import kf_codegen.emit.stmt.emit_stmt
 import kf_codegen.emit.expr.emit_expr
 import kf_codegen.emit.emit_method_proto
 import kf_codegen.emit.new_local_env
+import testing.test
 
 // Emitted text only; linking and running C lives in kf-driver's
 // `codegen_link_test`, which has a frontend.

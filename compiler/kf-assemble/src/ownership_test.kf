@@ -6,6 +6,7 @@ import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
 import kf_core.span.no_span
+import testing.test
 
 fun module_with_nested_decl(): Module {
     return module_at_path_with_nested_decl(List.new<String>())

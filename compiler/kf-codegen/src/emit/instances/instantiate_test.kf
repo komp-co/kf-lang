@@ -8,6 +8,7 @@ import kf_core.ast.types.TypeKind
 
 import kf_codegen.emit.expr.struct_ty_name
 import kf_codegen.emit.stmt.enum_name_of_type
+import testing.test
 
 @test fun codegen_type_mangle_returns_owned_str(): void {
     val name: String = type_mangle(Type.new_int32(no_span()))

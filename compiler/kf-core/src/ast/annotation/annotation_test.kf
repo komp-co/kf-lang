@@ -9,6 +9,7 @@ import kf_core.ast.expression.UnaryOp
 import kf_core.ast.declaration.Annotation
 import kf_core.ast.declaration.AnnotationArg
 import kf_core.ast.declaration.MarkKind
+import testing.test
 
 fun argument(name: str, kind: ExprKind): AnnotationArg {
     return AnnotationArg { name: intern(name), value: Box.new(Expr.new(no_span(), kind)) }

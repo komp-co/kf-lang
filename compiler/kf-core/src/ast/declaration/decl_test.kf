@@ -5,6 +5,7 @@ import kf_core.span.*
 import kf_core.ast.intern
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
+import testing.test
 
 @test fun new_param_round_trips_fields(): void {
     val sp = Span { file_id: 1, start: 0, end: 5 }

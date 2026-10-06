@@ -10,6 +10,7 @@ import kf_codegen.runtime.emit_runtime_header
 import kf_integration.harness.compile_project_separate
 import std.fs.scratch_path
 import kf_core.diagnostic.new_diagnostics
+import testing.test
 
 extern "C" fun system(cmd: str): int32
 

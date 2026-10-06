@@ -6,6 +6,7 @@ import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
 import kf_core.ast.declaration.*
 import kf_core.ast.annotation.new_annotation
+import testing.test
 
 fun marked_struct(name: str, lang_key: str): TopDecl {
     var td = new_top_decl(no_span(), String.from(name), TopDeclKind.Struct(List.new<Field>(), true))

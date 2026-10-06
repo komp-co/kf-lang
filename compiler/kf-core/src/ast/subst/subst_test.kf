@@ -10,6 +10,7 @@ import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import testing.test
 
 fun named_tr(n: str): TypeRef {
     return TypeRef.new(no_span(), TypeRefKind.Named(intern(n), List.new<TypeRef>()))

@@ -4,6 +4,7 @@ import alloc.list.*
 import kf_core.ast.Module
 import kf_parse.lexer.tokenize
 import kf_parse.parser.new_parser
+import testing.test
 
 /// As `parse_source` parses a buffer.
 fun module_for(src: str): Module {

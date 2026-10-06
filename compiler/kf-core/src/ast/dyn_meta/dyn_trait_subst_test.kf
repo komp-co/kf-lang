@@ -8,6 +8,7 @@ import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.subst.subst_type
+import testing.test
 
 @test fun dyn_trait_substitution_rewrites_arguments(): void {
     var arguments = List.new<Type>()

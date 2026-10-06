@@ -1,5 +1,6 @@
 import alloc.list.*
 import core.assert.assert_eq
+import testing.test
 
 fun version_lines(first: str): List<String> {
     var lines = List.new<String>()

@@ -10,6 +10,7 @@ import kf_tool.build.build_project_separate
 import kf_tool.build.check_project_with_kflatc
 import kf_tool.build.default_unity_output
 import kf_integration.harness.check_project
+import testing.test
 
 extern "C" fun system(cmd: str): int32
 extern "C" fun access(path: str, mode: int32): int32
@@ -76,7 +77,7 @@ fun test_dispatch_links_a_separate_test_binary(): void {
     val prepared = unsafe { system("rm -rf ${scratch_path("kf_sc8_test_lib")} && mkdir -p ${scratch_path("kf_sc8_test_lib/src")}") }
     write_file(scratch_path("kf_sc8_test_lib/kf.toml"), "[project]\nname = \"test_lib\"\nversion = \"0.1.0\"\nkind = \"lib\"\n")
     write_file(scratch_path("kf_sc8_test_lib/src/lib.kf"), "pub fun answer(): int32 { return 42 }\n")
-    write_file(scratch_path("kf_sc8_test_lib/src/lib_test.kf"), "@test\nfun answer_runs(): void { val value = answer() }\n")
+    write_file(scratch_path("kf_sc8_test_lib/src/lib_test.kf"), "import testing.test\n\n@test\nfun answer_runs(): void { val value = answer() }\n")
     val tested = test_project_separate(scratch_path("kf_sc8_test_lib"), "", "")
     val have_binary = unsafe { access(scratch_path("kf_sc8_test_lib/target/kflat/test/test_lib_tests"), 0) } == 0
     assert_eq(prepared == 0 && tested == 0 && have_binary, true, "test dispatch links a separate test binary against crate artifacts")
@@ -87,14 +88,16 @@ fun write_check_tests_fixture(broken: bool): void {
     write_file(scratch_path("kf_check_tests/kf.toml"), "[project]\nname = \"check_tests\"\nkind = \"lib\"\n")
     write_file(scratch_path("kf_check_tests/src/lib.kf"), "pub fun answer(): int32 { return 42 }\n")
     if broken {
-        write_file(scratch_path("kf_check_tests/src/lib_test.kf"), """@test
+        write_file(scratch_path("kf_check_tests/src/lib_test.kf"), """import testing.test
+
+@test
 fun deliberately_broken(): void {
     val n: int32 = this_function_does_not_exist()
 }
 """)
         return
     }
-    write_file(scratch_path("kf_check_tests/src/lib_test.kf"), "@test\nfun sound(): void {\n    val n: int32 = answer()\n}\n")
+    write_file(scratch_path("kf_check_tests/src/lib_test.kf"), "import testing.test\n\n@test\nfun sound(): void {\n    val n: int32 = answer()\n}\n")
 }
 
 @test

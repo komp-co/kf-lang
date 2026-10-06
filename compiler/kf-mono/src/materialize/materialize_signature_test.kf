@@ -9,6 +9,7 @@ import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
 import kf_mono.mono_module
 import kf_mono.collect.has_decl
+import testing.test
 
 fun signature_test_ty(name: str, arg: str): Ptr<TypeRef> {
     var args = List.new<TypeRef>()

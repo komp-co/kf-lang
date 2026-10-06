@@ -12,6 +12,7 @@ import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import kf_mono.mono_module
 import kf_mono.materialize.*
+import testing.test
 
 fun mtr_p(n: str): Ptr<TypeRef> {
     val p: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }

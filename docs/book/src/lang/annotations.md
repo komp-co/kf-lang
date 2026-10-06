@@ -2,8 +2,9 @@
 
 Annotations start with `@` and apply to the declaration that follows. KFlat
 has `@allow(...)`, `@derive(...)`, `@no_mangle`, `@lang(...)` and `@prelude`
-built in, core declares [`@test` and `@disabled`](#test), and a crate may
-[declare its own](#declaring-an-annotation). Any other annotation is an error.
+built in, a crate may [declare its own](#declaring-an-annotation), and the
+`testing` library declares [`@test` and `@disabled`](#test) this way. Any other
+annotation is an error.
 
 A declaration may carry several, one per line.
 
@@ -383,8 +384,7 @@ The query only reaches the crate it is written in. A `measure` function
 calling `annotated<bench>()` sees `measure`'s functions, not the ones of the
 crate that imported `bench`.
 
-The name of a built-in annotation cannot be declared, nor can `test` or
-`disabled` outside the `testing` crate. `annotation`, `on`
+The name of a built-in annotation cannot be declared. `annotation`, `on`
 and `any` are not reserved words; they are read this way only in an
 annotation's declaration.
 
@@ -393,14 +393,17 @@ annotation's declaration.
 `@test` marks a function for `komp test`:
 
 ```kflat
+import testing.test
+
 @test
 fun addition_works(): void {
     assert_eq(1 + 1, 2, "one plus one")
 }
 ```
 
-The [`testing`](../libs/testing.md) crate declares it, and `@disabled`, and
-every test file sees both without an import:
+The [`testing`](../libs/testing.md) crate declares it and `@disabled` as
+ordinary annotations, so a test file imports the ones it uses; `komp test`
+adds `testing` to the crate's dependencies for its tests:
 
 ```kflat
 annotation test(name: str = "", panics: FaultKind = FaultKind.NoFault) on () -> void
@@ -412,6 +415,9 @@ the test pass only when it panics with that kind of
 [fault](../libs/core.md#faults), or with any for `FaultKind.AnyFault`:
 
 ```kflat
+import testing.disabled
+import testing.test
+
 @test(name = "an index past the end panics", panics = FaultKind.IndexOutOfBounds)
 fun indexes_past_the_end(): void {
     val xs = [1, 2]

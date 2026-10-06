@@ -1,6 +1,7 @@
 // The empty case is the one worth pinning.
 
 import core.assert.assert_eq
+import testing.test
 
 @test fun sum_adds_everything_a_range_yields(): void {
     assert_eq((1..5).sum(), 10, "1 + 2 + 3 + 4")

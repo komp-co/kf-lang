@@ -9,6 +9,7 @@ import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import kf_core.diagnostic.*
+import testing.test
 
 fun boxed_expr(e: Expr): Ptr<Expr> {
     val p: Ptr<Expr> = unsafe { alloc<Expr>() }

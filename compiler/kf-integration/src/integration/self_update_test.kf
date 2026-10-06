@@ -5,6 +5,7 @@
 import core.assert.assert_eq
 import kf_tool.install.self_update
 import std.fs.exists
+import testing.test
 
 /// A release of `version` under `releases`, whose install.sh writes
 /// `$KFLAT_HOME/bin/komp`; `honest` false publishes a wrong sha256.

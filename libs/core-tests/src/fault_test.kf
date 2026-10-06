@@ -1,4 +1,5 @@
 import core.assert.*
+import testing.test
 
 @test
 fun an_index_fault_names_the_index_and_the_length(): void {

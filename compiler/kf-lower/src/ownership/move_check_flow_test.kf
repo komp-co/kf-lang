@@ -13,6 +13,7 @@ import kf_core.ast.expression.*
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import kf_core.diagnostic.*
+import testing.test
 
 fun mk_if_stmt(then_body: List<Stmt>, else_body: List<Stmt>): Stmt {
     val cond = Expr.new(no_span(), ExprKind.LitBool(true))

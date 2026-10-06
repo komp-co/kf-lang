@@ -2,6 +2,7 @@ import core.assert.assert_eq
 
 import kf_core.ast.types.TypeRef
 import kf_core.span.no_span
+import testing.test
 
 fun dyn_type_mutability(src: str): int32 {
     var p = parser_for(src)

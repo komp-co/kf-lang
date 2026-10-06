@@ -11,6 +11,7 @@ import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
 import kf_core.ast.annotation.new_annotation
 import kf_core.diagnostic.*
+import testing.test
 
 fun a_lint(span: Span): List<Diagnostic> {
     var l = List.new<Diagnostic>()

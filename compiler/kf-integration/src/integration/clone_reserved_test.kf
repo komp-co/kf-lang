@@ -8,6 +8,7 @@ import kf_driver.fresh_source_map
 import kf_driver.check_module
 import kf_parse.lexer.tokenize
 import kf_parse.parser.new_parser
+import testing.test
 
 fun error_count_for(src: str): int32 {
     var smap = fresh_source_map()

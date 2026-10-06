@@ -7,6 +7,7 @@ import kf_tool.cli.run_project_mode
 import kf_tool.testing.test_project_separate
 import kf_tool.build.check_project_with_kflatc
 import std.fs.scratch_path
+import testing.test
 
 extern "C" fun system(cmd: str): int32
 extern "C" fun access(path: str, mode: int32): int32
@@ -23,12 +24,16 @@ import pair_bin.offset.offset
 fun main(): int32 { return answer() - offset() }
 """)
     write_file("${root}/src/bin/offset.kf".as_str(), "pub fun offset(): int32 { return 42 }\n")
-    write_file("${root}/src/bin/offset_test.kf".as_str(), "@test\nfun offset_runs(): void { val _n = offset() }\n")
+    write_file("${root}/src/bin/offset_test.kf".as_str(), """import testing.test
+
+@test
+fun offset_runs(): void { val _n = offset() }
+""")
     return root
 }
 
 fun sound_library_test(): str {
-    return "@test\nfun answer_runs(): void { val _n = answer() }\n"
+    return "import testing.test\n\n@test\nfun answer_runs(): void { val _n = answer() }\n"
 }
 
 fun exists_at(path: str): bool {
@@ -77,6 +82,10 @@ fun test_runs_the_library_tests_and_the_program_tests(): void {
 
 @test
 fun check_reports_an_error_in_a_library_test(): void {
-    val root = write_lib_and_bin("kf_pair_check", "@test\nfun broken(): void { val n: int32 = missing() }\n")
+    val root = write_lib_and_bin("kf_pair_check", """import testing.test
+
+@test
+fun broken(): void { val n: int32 = missing() }
+""")
     assert_eq(check_project_with_kflatc(root.as_str(), false) != 0, true, "the library is checked with its tests")
 }

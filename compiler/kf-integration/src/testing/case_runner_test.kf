@@ -8,6 +8,7 @@ import kf_assemble.walk_kf_files
 import kf_tool.build.build_project_separate_in
 import kf_integration.integration.run
 import kf_integration.harness.*
+import testing.test
 
 @test
 fun spec_reads_run_and_deps(): void {

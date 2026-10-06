@@ -3,6 +3,7 @@ import core.assert.assert_eq
 import kf_core.span.no_span
 import kf_core.ast.intern
 import kf_typecheck.types.nominal_name
+import testing.test
 
 @test fun a_borrow_fragment_reads_back_as_a_borrow(): void {
     val ty = ty_from_mangle_frag(String.from("kf__ref__int32"), no_span(), intern("String"))

@@ -3,6 +3,7 @@ import core.assert.fail
 import kf_core.span.no_span
 import kf_core.ast.intern
 import kf_core.ast.new_crate_id
+import testing.test
 
 @test
 fun same_display_name_has_distinct_crate_identities(): void {

@@ -2,6 +2,7 @@ import core.assert.assert_eq
 
 import kf_core.ast.declaration.TopDecl
 import kf_parse.parser.parser_for
+import testing.test
 
 fun internal_decl(src: str): TopDecl {
     var p = parser_for(src)

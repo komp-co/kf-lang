@@ -3,6 +3,7 @@
 // A test expecting one kind of panic fails on another.
 
 import testing.run_tests
+import testing.test
 
 @test(panics = FaultKind.IndexOutOfBounds)
 fun asserts_instead(): void { assert(false, "not an index") }

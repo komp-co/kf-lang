@@ -2,6 +2,7 @@
 
 import core.assert.assert_eq
 import alloc.list.*
+import testing.test
 
 @test
 fun expected_identifier_name_survives_temporary_token_drop(): void {

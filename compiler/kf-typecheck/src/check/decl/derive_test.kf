@@ -12,6 +12,7 @@ import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
 import kf_core.ast.annotation.new_annotation
 import kf_core.diagnostic.*
+import testing.test
 
 fun derive_of(names: List<String>): Annotation {
     return new_annotation(no_span(), "derive", names)

@@ -4,6 +4,7 @@
 import core.assert.*
 import core.option.*
 import core.text.*
+import testing.test
 
 fun found_at(o: uint64?, want: uint64, m: str): void {
     when (o) {

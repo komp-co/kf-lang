@@ -9,6 +9,7 @@ import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
 import kf_lower.ownership.names_contains
+import testing.test
 
 fun named_tref(n: str): Ptr<TypeRef> {
     val p: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }

@@ -1,4 +1,5 @@
 import alloc.list.*
+import testing.test
 
 /// Interesting while every needle is one of the lines; counts its calls.
 struct NeedleOracle {

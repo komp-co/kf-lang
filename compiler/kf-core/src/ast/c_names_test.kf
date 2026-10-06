@@ -2,6 +2,7 @@
 // colliding one is escaped.
 
 import core.assert.assert_eq
+import testing.test
 
 @test fun an_ordinary_local_keeps_the_plain_prefix(): void {
     assert_eq(c_local_name("x").as_str(), "__x", "an ordinary name takes `__`")

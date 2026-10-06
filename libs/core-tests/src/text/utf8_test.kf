@@ -1,5 +1,6 @@
 import core.assert.assert_eq
 import core.text.*
+import testing.test
 
 fun scalar_of(s: str, i: uint64): uint32 {
     return s.decode_at(i).scalar as uint32

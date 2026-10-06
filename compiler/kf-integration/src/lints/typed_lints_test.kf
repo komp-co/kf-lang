@@ -13,6 +13,7 @@ import std.fs.remove_dir_all
 import std.fs.scratch_path
 import std.fs.write_text
 import kf_integration.harness.assemble_project
+import testing.test
 
 /// The codes the typed lints report over a bin project whose main.kf is
 /// `src`, space-separated; "errors" when it does not type-check.
@@ -97,7 +98,8 @@ fun comparing_a_float_with_zero_is_not(): void {
 
 @test
 fun a_test_may_compare_floats_exactly(): void {
-    val check = "@test\nfun halves(): void {\n    val a: float64 = 0.5\n    val _same = a == 0.5\n}\n\n"
+    val check = "import testing.test\n\n@test\nfun halves(): void {" +
+        "\n    val a: float64 = 0.5\n    val _same = a == 0.5\n}\n\n"
     val src = "${check}fun main(): int32 {\n    return 0\n}\n"
     assert_eq(typed_codes("typed_float_test", src.as_str()).as_str(), "", "the expected value is exact")
 }

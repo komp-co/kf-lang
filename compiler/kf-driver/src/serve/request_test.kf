@@ -1,5 +1,6 @@
 import core.assert.assert_eq
 import json.reader.JsonReader
+import testing.test
 
 @test
 fun a_request_keeps_its_integer_id(): void {

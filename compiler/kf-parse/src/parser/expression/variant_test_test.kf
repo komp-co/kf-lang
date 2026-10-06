@@ -1,5 +1,6 @@
 import core.assert.assert_eq
 import kf_parse.parser.parser_for
+import testing.test
 
 fun is_when_expr(src: str): bool {
     var p = parser_for(src)

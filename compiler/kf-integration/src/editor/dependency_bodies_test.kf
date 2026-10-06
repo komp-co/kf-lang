@@ -7,6 +7,7 @@ import std.fs.scratch_path
 import kf_core.ast.Module
 import kf_driver.editor.innermost_expr_at
 import kf_driver.editor.written_type
+import testing.test
 
 extern "C" fun system(cmd: str): int32
 

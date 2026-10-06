@@ -7,6 +7,7 @@ import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
+import testing.test
 
 fun uint8_ty(): Type {
     return Type { kind: TypeKind.UInt8, provenance: Provenance.Inferred(no_span()) }

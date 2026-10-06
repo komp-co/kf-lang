@@ -1,4 +1,5 @@
 import core.assert.assert_eq
+import testing.test
 
 @test fun any_finds_a_match(): void {
     assert_eq((1..5).any(|x| x == 3), true, "3 is in 1..5")

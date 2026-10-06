@@ -9,6 +9,7 @@ import kf_core.ast.intern
 import kf_core.ast.new_crate_id
 import kf_core.ast.types.*
 import kf_typecheck.types.type_ref_is_poison
+import testing.test
 
 // A canonical identity `crate::module::Name` is not a C identifier and must
 // not be written back. Twin of kf-mono's ty_to_mangle_hides_canonical_identity.

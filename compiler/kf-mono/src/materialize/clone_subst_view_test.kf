@@ -7,6 +7,7 @@ import kf_core.ast.view
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
+import testing.test
 
 // `struct Window<T> { val start: Ptr<T> }`, a `view struct` when asked.
 fun window_template(view: bool): TopDecl {

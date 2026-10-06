@@ -4,6 +4,7 @@
 // any kind for `AnyFault`.
 
 import testing.run_tests
+import testing.test
 
 @test(panics = FaultKind.IndexOutOfBounds)
 fun indexes_past_the_end(): void {

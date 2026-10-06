@@ -8,6 +8,7 @@ import kf_core.ast.intern
 import kf_core.diagnostic.*
 import kf_typecheck.import_was_used
 import kf_typecheck.new_sig_table
+import testing.test
 
 fun bounds_table(): Ptr<SigTable> {
     val sp: Ptr<SigTable> = unsafe { alloc<SigTable>() }

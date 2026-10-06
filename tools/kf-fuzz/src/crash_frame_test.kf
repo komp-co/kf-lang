@@ -1,3 +1,5 @@
+import testing.test
+
 fun crash_log(): String {
     val signal = "Program received signal SIGSEGV, Segmentation fault."
     val libc = "#0  0x00007ffff7cadd69 in __GI___libc_free (mem=0x55) at ./malloc/malloc.c:3359"

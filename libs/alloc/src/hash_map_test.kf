@@ -6,6 +6,7 @@ import core.hash.assert_eq
 import core.hash.assert
 import alloc.list.*
 import alloc.hash_map.*
+import testing.test
 
 @test
 fun a_new_map_is_empty(): void {

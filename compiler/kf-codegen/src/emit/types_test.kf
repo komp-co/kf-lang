@@ -9,6 +9,7 @@ import kf_core.ast.statement.Stmt
 
 import kf_codegen.emit.*
 import kf_codegen.emit.glue.deep_clone_top_decl
+import testing.test
 
 fun named(s: str): TypeRef {
     return TypeRef.new(no_span(), TypeRefKind.Named(intern(s), List.new<TypeRef>()))

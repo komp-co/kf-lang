@@ -11,6 +11,7 @@ import kf_core.ast.expression.ExprKind
 import kf_core.ast.expression.FieldInit
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import testing.test
 
 @test fun stored_lambda_takes_ownership_of_heap_capture(): void {
     var ctx = new_rc_ctx(String.from("main"))

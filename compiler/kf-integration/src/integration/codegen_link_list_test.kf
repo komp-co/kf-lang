@@ -15,6 +15,8 @@ import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import kf_codegen.emit_module
+import testing.disabled
+import testing.test
 
 fun pt_var_ptr(name: str): Ptr<Expr> {
     var v = Expr.new(no_span(), ExprKind.Variable(intern(name)))

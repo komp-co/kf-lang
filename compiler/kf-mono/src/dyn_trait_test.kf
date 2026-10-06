@@ -11,6 +11,7 @@ import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import kf_core.ast.dyn_meta.*
 import kf_mono.materialize.clone_subst_decl
+import testing.test
 
 fun mono_dyn_generic(): Type {
     return Type.new_generic(String.from("T"), no_span())

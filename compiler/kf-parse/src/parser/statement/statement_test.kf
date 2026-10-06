@@ -9,6 +9,7 @@ import kf_core.ast.expression.coerce_none
 import kf_core.ast.expression.coerce_written_amp
 import kf_core.ast.expression.coerce_written_amp_var
 import kf_parse.parser.parser_for
+import testing.test
 
 @test fun a_string_pattern_parses_clean(): void {
     var p = parser_for("fun f(s: str): int32 { when (s) { \"a\" => return 1  _ => return 0 } }")

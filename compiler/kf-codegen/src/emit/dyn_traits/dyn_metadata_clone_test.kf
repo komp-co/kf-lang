@@ -8,6 +8,7 @@ import kf_core.ast.types.Type
 import kf_core.ast.declaration.TopDeclKind
 import kf_core.ast.declaration.new_top_decl
 import kf_codegen.emit.glue.deep_clone_top_decl
+import testing.test
 
 @test fun dyn_metadata_top_decl_clone_is_independent(): void {
     var source = new_top_decl(no_span(), String.from("show"), TopDeclKind.Poison)
