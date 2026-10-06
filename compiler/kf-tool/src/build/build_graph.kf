@@ -14,9 +14,16 @@ import std.fs.absolute
 // The compiler binary's directory, to find the bundled stdlib.
 extern "C" fun kf_self_dir(): String
 
+@derive(Clone)
 pub struct BuildCrate {
     pub val name: String
+    /// The package's directory, holding its kf.toml.
     pub val root: String
+    /// The directory holding the crate's `.kf` files.
+    pub val src: String
+    /// The package's name: the crate's own, except for the program of a
+    /// package holding a library too. A linked binary takes it.
+    pub val package: String
     pub val is_bin: bool
     pub val deps: List<String>
     /// Every crate `deps` reach, dependencies first: the interfaces kflatc
@@ -41,8 +48,25 @@ pub struct BuildGraph {
 }
 
 /// `with_tests` builds the root for its tests too: it then also depends on
-/// `testing`, the crate that declares `@test`.
+/// `testing`, the crate that declares `@test`. For a package holding a
+/// library and a program, the program is the root.
 pub fun build_crate_graph(root_dir: str, with_tests: bool): BuildGraph {
+    return build_part_graph(root_dir, true, with_tests)
+}
+
+/// One graph per crate of the root package, each with that crate as its
+/// root: the library's, then the program's for a package holding both.
+pub fun build_package_graphs(root_dir: str, with_tests: bool): List<BuildGraph> {
+    var graphs = List.new<BuildGraph>()
+    val manifest = "${root_dir}/kf.toml"
+    if exists(manifest.as_str()) && parse_manifest(read_file(manifest.as_str()).as_str()).holds_both() {
+        graphs.push(build_part_graph(root_dir, false, with_tests))
+    }
+    graphs.push(build_part_graph(root_dir, true, with_tests))
+    return graphs
+}
+
+fun build_part_graph(root_dir: str, with_program: bool, with_tests: bool): BuildGraph {
     var crates = List.new<BuildCrate>()
     var cycle = ""
     var error = ""
@@ -52,6 +76,7 @@ pub fun build_crate_graph(root_dir: str, with_tests: bool): BuildGraph {
     val freestanding = root_is_freestanding(root.as_str())
     val sources = DependencySources { lock: read_lock(root.as_str()), cache: cache_root() }
     visit_crate(root, freestanding, &sources, &var crates, &var cycle, &var error, &var in_progress, &var done)
+    if with_program && error.as_str() == "" && !cycle.cycle_found() { crates.add_program() }
     if with_tests && error.as_str() == "" && !cycle.cycle_found() {
         crates.add_testing(freestanding, &sources, &var cycle, &var error, &var done)
     }
@@ -122,15 +147,33 @@ fun visit_crate(root: String, freestanding: bool, sources: &DependencySources, c
     }
     in_progress.pop()
     done.push(root.clone())
-    val is_bin = mf.kind.as_str() == "bin"
+    val is_bin = !mf.has_library()
     val c_sources = manifest_c_sources(manifest_src.as_str())
     // A freestanding program takes no crate's hosted half.
     var hosted_c_sources = List.new<String>()
     if !freestanding { hosted_c_sources = manifest_hosted_c_sources(manifest_src.as_str()) }
     val loads = crates.closure_of(&dep_names)
+    val src = mf.first_source_dir(root.as_str())
     crates.push(BuildCrate {
-        name: String.from(mf.name.as_str()), root: root, is_bin: is_bin, deps: dep_names, loads: loads,
-        c_sources: c_sources, hosted_c_sources: hosted_c_sources
+        name: String.from(mf.name.as_str()), root: root, src: src, package: String.from(mf.name.as_str()),
+        is_bin: is_bin, deps: dep_names, loads: loads, c_sources: c_sources, hosted_c_sources: hosted_c_sources
+    })
+}
+
+/// For a root package holding a library and a program, the program after the
+/// library: a crate of its own, depending on the library and on what the
+/// library does. The package's native C stays with the library.
+mutating fun List<BuildCrate>.add_program(): void {
+    val library = self.last() ?: return
+    val mf = parse_manifest(read_file("${library.root}/kf.toml".as_str()).as_str())
+    if !mf.holds_both() { return }
+    var deps = library.deps.clone()
+    deps.push(library.name.clone())
+    val loads = self.closure_of(&deps)
+    self.push(BuildCrate {
+        name: mf.program_crate_name(), root: library.root.clone(), src: program_source_dir(library.root.as_str()),
+        package: library.package.clone(), is_bin: true, deps: deps, loads: loads, c_sources: List.new<String>(),
+        hosted_c_sources: List.new<String>()
     })
 }
 
@@ -285,7 +328,8 @@ mutating fun List<BuildCrate>.add_testing(freestanding: bool, sources: &Dependen
     deps.push(String.from("testing"))
     val loads = self.closure_of(&deps)
     self.push(BuildCrate {
-        name: root.name.clone(), root: root.root.clone(), is_bin: root.is_bin, deps: deps, loads: loads,
-        c_sources: root.c_sources.clone(), hosted_c_sources: root.hosted_c_sources.clone()
+        name: root.name.clone(), root: root.root.clone(), src: root.src.clone(), package: root.package.clone(),
+        is_bin: root.is_bin, deps: deps, loads: loads, c_sources: root.c_sources.clone(),
+        hosted_c_sources: root.hosted_c_sources.clone()
     })
 }

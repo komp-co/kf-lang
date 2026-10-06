@@ -146,11 +146,11 @@ fun assemble_signatures_around(crates: &List<CrateSource>, smap: Ptr<SourceMap>,
     var dependencies = List.new<CrateSource>()
     while i in 0..crates.size() - 1 {
         val item = crates.at(i)
-        dependencies.push(CrateSource { name: item.name.clone(), root: item.root.clone() })
+        dependencies.push(item.clone())
     }
     val last = crates.at(crates.size() - 1)
     var queried = List.new<CrateSource>()
-    queried.push(CrateSource { name: last.name.clone(), root: last.root.clone() })
+    queried.push(last.clone())
     var modules = assemble_crate_list(&dependencies, smap, pdiags, false, overlay)
     drop_bodies(&var modules)
     modules.extend(assemble_crate_list(&queried, smap, pdiags, true, overlay))

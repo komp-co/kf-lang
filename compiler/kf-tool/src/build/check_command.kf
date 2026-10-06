@@ -4,23 +4,32 @@
 import alloc.list.*
 import std.fs.exists
 
-/// Returns 0 when the project checks clean. `as_json` prints diagnostics as
-/// newline-delimited JSON.
+/// Returns 0 when the project checks clean: each crate of the package, the
+/// library first. `as_json` prints diagnostics as newline-delimited JSON.
 pub fun check_project_with_kflatc(root_dir: str, as_json: bool): int32 {
-    val root = prepare_check(root_dir, as_json) ?: return 1
-    return root.invoke_kflatc_check(root_dir, target_dir(root_dir).as_str(), as_json)
+    var status = 0
+    val graphs = build_package_graphs(root_dir, true)
+    while graph in &graphs {
+        val root = prepare_check(graph, root_dir, as_json) ?: return 1
+        if root.invoke_kflatc_check(root_dir, target_dir(root_dir).as_str(), as_json) != 0 { status = 1 }
+    }
+    return status
 }
 
 /// As `check_project_with_kflatc`, kflatc tallying the lints it found.
 pub fun lint_project_with_kflatc(root_dir: str, as_json: bool): int32 {
-    val root = prepare_check(root_dir, as_json) ?: return 1
-    return root.invoke_kflatc_lint(root_dir, target_dir(root_dir).as_str(), as_json)
+    var status = 0
+    val graphs = build_package_graphs(root_dir, true)
+    while graph in &graphs {
+        val root = prepare_check(graph, root_dir, as_json) ?: return 1
+        if root.invoke_kflatc_lint(root_dir, target_dir(root_dir).as_str(), as_json) != 0 { status = 1 }
+    }
+    return status
 }
 
-/// The root crate, once every dependency's interface is current, or None
-/// after reporting why the project cannot be checked.
-pub fun prepare_check(root_dir: str, as_json: bool): BuildCrate? {
-    var graph = build_crate_graph(root_dir, true)
+/// The graph's root crate, once every dependency's interface is current, or
+/// None after reporting why the project cannot be checked.
+pub fun prepare_check(graph: &BuildGraph, root_dir: str, as_json: bool): BuildCrate? {
     val problem = if graph.error.byte_len() > 0 {
         graph.error.clone()
     } else if graph.cycle.byte_len() > 0 {
@@ -43,7 +52,7 @@ pub fun prepare_check(root_dir: str, as_json: bool): BuildCrate? {
             if !dependency.refresh_interface(root_dir, tdir.as_str(), &compiler) { return Option.None }
         }
     }
-    return graph.crates.take_last()
+    return graph.crates.last()
 }
 
 /// Writes the dependency's interface with kflatc and stamps it, so the next
@@ -54,7 +63,7 @@ fun BuildCrate.refresh_interface(root_dir: str, tdir: str, compiler: &CompilerId
         dep_hashes.push(content_hash(read_file(crate_interface_path(tdir, dep.as_str()).as_str()).as_str()))
     }
     if self.invoke_kflatc(root_dir, tdir, &dep_hashes, false) != 0 { return false }
-    val fingerprint = crate_source_fingerprint(self.root.as_str(), compiler)
+    val fingerprint = crate_source_fingerprint(self.root.as_str(), self.src.as_str(), compiler)
     val stamp = crate_interface_stamp_path(tdir, self.name.as_str())
     write_file(stamp.as_str(), interface_stamp(fingerprint.as_str(), compiler).as_str())
     return true
@@ -67,7 +76,7 @@ fun BuildCrate.refresh_interface(root_dir: str, tdir: str, compiler: &CompilerId
 pub fun interface_is_current(artifacts: str, dependency: &BuildCrate, compiler: &CompilerIdentity): bool {
     val name = dependency.name.as_str()
     if !exists(crate_interface_path(artifacts, name).as_str()) { return false }
-    val fingerprint = crate_source_fingerprint(dependency.root.as_str(), compiler)
+    val fingerprint = crate_source_fingerprint(dependency.root.as_str(), dependency.src.as_str(), compiler)
     val stamp = crate_interface_stamp_path(artifacts, name)
     if exists(stamp.as_str()) {
         val expected = interface_stamp(fingerprint.as_str(), compiler)

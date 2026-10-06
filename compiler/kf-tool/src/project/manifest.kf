@@ -4,6 +4,9 @@
 //   name = "komp"
 //   kind = "bin"           # "bin" (default) or "lib"
 //
+//   [lib]                  # in place of `kind`: the package holds a library,
+//   [bin]                  # a program, or both; package_layout.kf has the rule
+//
 //   [dependencies]
 //   kf_core = { path = "../kf-core" }     # dependency.kf reads the row
 
@@ -15,6 +18,10 @@ pub struct Manifest {
     pub val version: String
     /// "bin" (default, gets a C `main`) or "lib".
     pub val kind: String
+    /// `[lib]` and `[bin]` sections, which say what the package holds in
+    /// place of `kind`.
+    pub val lib_section: bool
+    pub val bin_section: bool
     pub val deps: List<Dependency>
     /// `[lint]` rows verbatim, in file order; validated against the registry
     /// elsewhere.
@@ -35,7 +42,10 @@ pub fun new_manifest_with_lints(name: String, version: String, kind: String, dep
     } else {
         dep_error
     }
-    return Manifest { name: name, version: version, kind: kind, deps: deps, lint_names: lint_names, lint_levels: lint_levels, freestanding: freestanding, error: error }
+    return Manifest {
+        name: name, version: version, kind: kind, lib_section: false, bin_section: false, deps: deps,
+        lint_names: lint_names, lint_levels: lint_levels, freestanding: freestanding, error: error
+    }
 }
 
 /// Malformed lines are skipped; a missing name sets `Manifest.error`.
@@ -43,6 +53,9 @@ pub fun parse_manifest(src: str): Manifest {
     var name = ""
     var version = String.from("0")
     var kind = String.from("bin")
+    var kind_given = false
+    var lib_section = false
+    var bin_section = false
     var deps = List.new<Dependency>()
     var lint_names = List.new<String>()
     var lint_levels = List.new<String>()
@@ -63,6 +76,8 @@ pub fun parse_manifest(src: str): Manifest {
                 val is_section = string_starts_with_byte(line, 91) // '['
                 if is_section {
                     section = read_section_name(line)
+                    if section.as_str() == "lib" { lib_section = true }
+                    if section.as_str() == "bin" { bin_section = true }
                 } else {
                     val sect_str = section.as_str()
                     val in_project = sect_str == "project" || sect_str == "package"
@@ -81,6 +96,7 @@ pub fun parse_manifest(src: str): Manifest {
                         val is_kind = k_str == "kind"
                         if is_kind {
                             kind = read_string_value(line)
+                            kind_given = true
                         }
                         val is_freestanding = k_str == "freestanding"
                         if is_freestanding {
@@ -122,7 +138,15 @@ pub fun parse_manifest(src: str): Manifest {
         }
         looked_up.push(dep.in_index(url.as_str()))
     }
-    return new_manifest_with_lints(name, version, kind, looked_up, lint_names, lint_levels, freestanding, dep_error)
+    if kind_given && (lib_section || bin_section) && dep_error.byte_len() == 0 {
+        dep_error = "`kind` and a `[lib]` or `[bin]` section both say what the package holds; keep the sections"
+    }
+    val made = new_manifest_with_lints(name, version, kind, looked_up, lint_names, lint_levels, freestanding, dep_error)
+    return Manifest {
+        name: made.name, version: made.version, kind: made.kind, lib_section: lib_section, bin_section: bin_section,
+        deps: made.deps, lint_names: made.lint_names, lint_levels: made.lint_levels, freestanding: made.freestanding,
+        error: made.error
+    }
 }
 
 /// `[native] c_sources`: C files, relative to the crate root, compiled and

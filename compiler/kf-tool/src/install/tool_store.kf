@@ -7,7 +7,7 @@ import kf_tool.build.binary_path
 import kf_tool.build.ensure_dir
 import kf_tool.build.build_project_separate
 import kf_tool.build.default_fetch_policy
-import kf_tool.build.project_is_bin
+import kf_tool.build.project_has_program
 import kf_tool.build.sync_sources
 import kf_tool.build.target_dir
 import kf_tool.fetch.LockEntry
@@ -83,7 +83,7 @@ pub fun store_tool(package: str, requirement: str, index_url: str, cache: str, h
     val binary = stored_binary(home, package, fetched.entry.version.as_str())
     if is_file(binary.as_str()) { return StoredTool { entry: fetched.entry.clone(), binary: binary, error: "" } }
     val source = fetched.entry.cached_root(cache)
-    if !project_is_bin(source.as_str()) {
+    if !project_has_program(source.as_str()) {
         return store_failed("`${package}` is a library, not a program: add it to [dependencies] to use it")
     }
     val staging = fresh_staging(cache, "install")

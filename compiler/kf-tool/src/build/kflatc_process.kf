@@ -82,6 +82,10 @@ fun BuildCrate.run_kflatc(subcommand: str, project: str, tdir: str, dep_hashes: 
     command.arg(self.name.as_str())
     command.arg("--root")
     command.arg(self.root.as_str())
+    if self.src.as_str() != "${self.root}/src".as_str() {
+        command.arg("--src")
+        command.arg(self.src.as_str())
+    }
     command.arg("--out")
     command.arg(tdir)
     command.arg("--project")
@@ -111,6 +115,10 @@ pub fun BuildGraph.invoke_kflatc_unity(project: str, out: str, is_bin: bool, wit
     while item in &self.crates {
         command.arg("--crate")
         command.arg("${item.name}=${item.root}".as_str())
+        if item.src.as_str() != "${item.root}/src".as_str() {
+            command.arg("--crate-src")
+            command.arg("${item.name}=${item.src}".as_str())
+        }
     }
     command.arg("--out")
     command.arg(out)
