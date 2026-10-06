@@ -10,7 +10,6 @@ import kf_core.ast.expression.ExprKind
 import kf_core.ast.declaration.*
 import kf_core.ast.annotation.argument_source
 import kf_core.ast.statement.Stmt
-import kf_interface.*
 import kf_interface.emit.emit_interface
 
 fun named_type(name: str): Ptr<TypeRef> {

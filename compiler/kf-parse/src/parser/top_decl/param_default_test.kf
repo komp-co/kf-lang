@@ -3,7 +3,7 @@ import alloc.list.*
 
 import kf_core.ast.declaration.Param
 import kf_core.ast.declaration.TopDeclKind
-import kf_parse.parser.*
+import kf_parse.parser.parser_for
 
 fun parsed_params(src: str): List<Param> {
     var p = parser_for(src)
