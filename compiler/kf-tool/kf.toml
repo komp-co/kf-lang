@@ -5,9 +5,6 @@ kind = "lib"
 
 [dependencies]
 kf_shared = { path = "../kf-shared" }
-core = { path = "../../libs/core" }
-alloc = { path = "../../libs/alloc" }
-std = { path = "../../libs/std" }
 json = "0.2"
 
 [native]
