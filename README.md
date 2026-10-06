@@ -69,8 +69,8 @@ compiler's entry points: compiling one crate, `check`, `query` and test mains.
 `kf-tool` is the project tool: manifests, fetching, the build graph and `cc`.
 It links none of the compiler crates; komp runs kflatc as a process.
 komp and kflatc are versioned separately; a project's `kflat = "..."` pin
-names kflatc's. `kf-integration` holds the tests that drive whole projects
-through both.
+names kflatc's. `kf-integration` holds the compiler's whole-project tests, which run komp
+as a program; komp's own are in kf-tool.
 
 ## Contributing
 

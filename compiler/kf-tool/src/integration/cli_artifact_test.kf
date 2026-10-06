@@ -9,8 +9,6 @@ import kf_tool.cli.is_quiet_flag
 import kf_tool.build.build_project_separate
 import kf_tool.build.check_project_with_kflatc
 import kf_tool.build.default_unity_output
-import kf_integration.harness.check_project
-import kf_integration.harness.testing_dev_dependency
 import testing.test
 
 extern "C" fun system(cmd: str): int32
@@ -106,13 +104,13 @@ fun deliberately_broken(): void {
 @test
 fun check_reports_an_error_a_test_file_alone_contains(): void {
     write_check_tests_fixture(true)
-    assert_eq(check_project(scratch_path("kf_check_tests")) > 0, true, "a crate whose tests do not compile does not check clean")
+    assert_eq(check_project_with_kflatc(scratch_path("kf_check_tests"), false) > 0, true, "a crate whose tests do not compile does not check clean")
 }
 
 @test
 fun check_stays_clean_when_the_tests_compile(): void {
     write_check_tests_fixture(false)
-    assert_eq(check_project(scratch_path("kf_check_tests")), 0, "a sound test file does not invent errors")
+    assert_eq(check_project_with_kflatc(scratch_path("kf_check_tests"), false), 0, "a sound test file does not invent errors")
 }
 
 @test

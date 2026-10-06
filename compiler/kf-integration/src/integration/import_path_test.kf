@@ -3,7 +3,7 @@
 
 import core.assert.assert_eq
 import kf_integration.harness.check_project
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_root
 import testing.test
 
@@ -36,7 +36,7 @@ fun check_import_fixture(name: str): int32 {
 fun build_import_fixture(name: str): int32 {
     var dir = "${scratch_root()}/"
     dir.append(name)
-    return build_project_separate(dir.as_str(), "")
+    return komp_build(dir.as_str(), "")
 }
 
 @test

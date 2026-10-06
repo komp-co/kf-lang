@@ -3,7 +3,7 @@
 // (`int32`), not C type (`int32_t`). Only a separate core crate reaches this.
 
 import core.assert.assert_eq
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_path
 import testing.test
 
@@ -63,7 +63,7 @@ core = { path = "../kf_dyn_prim_core" }
 @test
 fun a_primitive_coerces_to_a_dependencys_trait_object(): void {
     val prepared = prepare_dyn_primitive_fixture()
-    val built = build_project_separate(scratch_path("kf_dyn_prim_app"), "")
+    val built = komp_build(scratch_path("kf_dyn_prim_app"), "")
     val ran = unsafe { system(scratch_path("kf_dyn_prim_app/target/kflat/dyn_prim_app")) }
     val ok = prepared == 0 && built == 0 && ran == 0
     assert_eq(ok, true, "a coercion names the same vtable the definition does")

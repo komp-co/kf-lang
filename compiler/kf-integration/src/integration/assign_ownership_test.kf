@@ -3,7 +3,7 @@
 // ASan.
 
 import core.assert.assert_eq
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_root
 import testing.test
 
@@ -37,7 +37,7 @@ fun run_asan(name: str): int32 {
 fun build_asan(name: str): int32 {
     var dir = "${scratch_root()}/"
     dir.append(name)
-    return build_project_separate(dir.as_str(), "-fsanitize=address")
+    return komp_build(dir.as_str(), "-fsanitize=address")
 }
 
 // A loop, so the leak is linear in assignments.

@@ -4,7 +4,7 @@
 
 import core.assert.assert_eq
 import kf_integration.harness.check_project
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_path
 import testing.test
 
@@ -32,7 +32,7 @@ fun prepare_reexport_fixture(name: str, main: str): int32 {
 
 fun run_reexport_fixture(name: str): int32 {
     val app = scratch_path("${name}_app")
-    if build_project_separate(app, "") != 0 { return 100 }
+    if komp_build(app, "") != 0 { return 100 }
     return unsafe { system("${app}/target/kflat/reex_app") }
 }
 
@@ -71,7 +71,7 @@ fun a_name_left_out_of_a_reexport_stays_out(): void {
 fun main(): int32 { return other() - 30 }
 """), 0, "fixture prepared")
     val app = scratch_path("kf_reex_hidden_app")
-    assert_eq(build_project_separate(app, "") != 0, true, "only `read` was re-exported from `reex_lib.parse`")
+    assert_eq(komp_build(app, "") != 0, true, "only `read` was re-exported from `reex_lib.parse`")
 }
 
 @test
@@ -103,7 +103,7 @@ fun a_renamed_exports_old_name_is_not_offered(): void {
 fun main(): int32 { return raw() - 5 }
 """), 0, "fixture prepared")
     val app = scratch_path("kf_reex_oldname_app")
-    assert_eq(build_project_separate(app, "") != 0, true, "only `parse_raw` is `reex_lib`'s")
+    assert_eq(komp_build(app, "") != 0, true, "only `parse_raw` is `reex_lib`'s")
 }
 
 @test

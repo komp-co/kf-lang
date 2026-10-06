@@ -1,5 +1,5 @@
 import core.assert.assert_eq
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_path
 import testing.test
 
@@ -16,7 +16,7 @@ fun run_stored_lambda_under_asan(): int32 {
     return 0
 }
 """)
-    val built = build_project_separate(scratch_path("kf_lambda_storage"), "-fsanitize=address")
+    val built = komp_build(scratch_path("kf_lambda_storage"), "-fsanitize=address")
     if built != 0 { return built }
     return unsafe { system("ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ${scratch_path("kf_lambda_storage/target/kflat/lambda_storage")}") }
 }

@@ -7,7 +7,7 @@ import kf_core.diagnostic.new_diagnostics
 import kf_driver.fresh_source_map
 import kf_driver.new_lint_config
 import kf_driver.checked_diagnostics
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.create_dir_all
 import std.fs.remove_dir_all
 import std.fs.scratch_path
@@ -122,7 +122,7 @@ fun main(): int32 {
     return 0
 }
 """)
-    val built = build_project_separate(scratch_path("kf_internal_app"), "")
+    val built = komp_build(scratch_path("kf_internal_app"), "")
     val ran = unsafe { system(scratch_path("kf_internal_app/target/kflat/iapp")) }
     assert_eq(prepared == 0 && built == 0 && ran == 0, true, "the helper travels hidden, for the generic alone")
 }
@@ -135,6 +135,6 @@ fun main(): int32 {
     return double(1)
 }
 """)
-    val built = build_project_separate(scratch_path("kf_internal_app"), "")
+    val built = komp_build(scratch_path("kf_internal_app"), "")
     assert_eq(prepared == 0 && built != 0, true, "`internal` stops at the crate")
 }

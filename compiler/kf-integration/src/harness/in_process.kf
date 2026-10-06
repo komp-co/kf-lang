@@ -19,20 +19,12 @@ import kf_interface.export_closure_diagnostics
 import kf_interface.emit.emit_interface_full
 
 import kf_driver.*
-import kf_tool.project.*
 import kf_driver.build.assemble_crate_list
 import kf_driver.build.merge_module_list
 import kf_driver.build.report_config_diags
 import kf_driver.build.report_parse_errors
-import kf_tool.build.interface_hash_lookup
 import kf_driver.editor.typed_crate_staged
-import kf_tool.build.build_crate_graph
-import kf_tool.build.bundled_libs_root
-import kf_tool.build.compose_unity_text
-import kf_tool.build.content_hash
-import kf_tool.build.manifest_of
-import kf_tool.build.project_crates
-import kf_tool.build.project_crates_around
+import core.hash.hash_bytes
 
 /// One source string to C, without assembly. Assumes well-typed input.
 pub fun compile_source(src: str): String {
@@ -46,7 +38,7 @@ pub fun compile_source(src: str): String {
         runtime_println(text.as_str())
     }
     var errors = new_diagnostics()
-    val libs = bundled_libs_root(".")
+    val libs = bundled_libs()
     val core_root = "${libs}/core"
     var core_diags = new_diagnostics()
     val core_crate = assemble_crate(core_root.as_str(), String.from("core"), smap, &var core_diags)
@@ -68,7 +60,11 @@ pub fun compile_source(src: str): String {
     native.append(read_file("${libs}/alloc/native/alloc.c".as_str()).as_str())
     native.append("\n")
     native.append(read_file("${libs}/alloc/native/alloc_hosted.c".as_str()).as_str())
-    return compose_unity_text(generated, native).text
+    // As komp composes a unity build: the generated C, then the natives.
+    var text = generated
+    text.append("\n#define KF_NATIVE_UNITY 1\n")
+    text.append(native.as_str())
+    return text
 }
 
 /// One crate to per-crate C, from source, without its dependencies.
@@ -83,17 +79,17 @@ pub fun compile_crate_separate(crate_root: str, crate_name: str, is_bin: bool): 
 }
 
 pub fun check_project(root_dir: str): int32 {
-    val graph = build_crate_graph(root_dir, true)
-    if graph.error.as_str() != "" {
+    val graph = FixtureGraph.of(root_dir)
+    if !graph.error.is_empty() {
         runtime_println(graph.error.as_str())
         return 1
     }
     val smap = fresh_source_map()
     var pdiags = new_diagnostics()
-    var merged = assemble_project(root_dir, smap, &var pdiags)
+    var merged = graph.assemble(smap, &var pdiags)
     val perrs = report_parse_errors(&var pdiags, smap, false)
     var cfg_diags = List.new<Diagnostic>()
-    var cfg = lint_config_from_manifest(&manifest_of(root_dir), &var cfg_diags)
+    var cfg = graph.root_lint_config(&var cfg_diags)
     cfg.apply_cli_lint_flags(&var cfg_diags)
     val cerrs = report_config_diags(&cfg_diags, smap, false)
     return perrs + cerrs + merged.check_module_leveled(smap, &cfg)
@@ -102,49 +98,51 @@ pub fun check_project(root_dir: str): int32 {
 /// The project's crates assembled and merged into one module, the root's
 /// `_test.kf` files included and the root marked as the crate under check.
 pub fun assemble_project(root_dir: str, smap: Ptr<SourceMap>, pdiags: &var Diagnostics): Module {
-    val crates = crate_sources(&project_crates(root_dir))
-    val none = no_overlay()
-    var merged = merge_module_list(assemble_crate_list(&crates, smap, &var pdiags, true, &none))
-    if crates.size() > 0 { merged.crate = new_crate_id(crates.at(crates.size() - 1).name.as_str()) }
-    return merged
-}
-
-/// From the `[lint]` table. A row naming an unknown lint or level is reported
-/// and skipped: a misspelled suppression silently suppresses nothing.
-pub fun Manifest.lint_config_from_manifest(diags: &var List<Diagnostic>): LintConfig {
-    var cfg = new_lint_config()
-    while i in 0..self.lint_names.size() {
-        cfg.apply_table_lint("kf.toml [lint]", self.lint_names.at(i).as_str(), self.lint_levels.at(i).as_str(), diags)
-    }
-    return cfg
+    return FixtureGraph.of(root_dir).assemble(smap, pdiags)
 }
 
 /// Per-crate C artifacts, dependencies first, crate-qualified. Empty on a
 /// dependency cycle.
 pub fun compile_project_separate(root_dir: str, errors: &var Diagnostics): List<CrateCodegenOutput> {
-    val graph = build_crate_graph(root_dir, false)
-    return graph.compile_graph_outputs(errors)
+    return FixtureGraph.of(root_dir).without_tests().compile_graph_outputs(errors)
+}
+
+impl FixtureGraph {
+    fun assemble(smap: Ptr<SourceMap>, pdiags: &var Diagnostics): Module {
+        val crates = self.sources()
+        val none = no_overlay()
+        var merged = merge_module_list(assemble_crate_list(&crates, smap, pdiags, true, &none))
+        if crates.size() > 0 { merged.crate = new_crate_id(crates.at(crates.size() - 1).name.as_str()) }
+        return merged
+    }
+
+    /// The root crate's lint levels and options, as komp hands them to
+    /// kflatc. A row naming an unknown lint or level is reported and skipped.
+    fun root_lint_config(diags: &var List<Diagnostic>): LintConfig {
+        var cfg = new_lint_config()
+        val root = self.root() ?: return cfg
+        while row in &root.lints {
+            val eq = row.index_of("=") ?: 0
+            cfg.apply_table_lint("lint configuration", row.substring(0, eq).as_str(),
+                row.substring(eq + 1, row.byte_len()).as_str(), diags)
+        }
+        while row in &root.lint_options { cfg.apply_option_row(row.as_str(), diags) }
+        return cfg
+    }
 }
 
 /// Only the root crate (last) may carry `main`.
-pub fun BuildGraph.compile_graph_outputs(errors: &var Diagnostics): List<CrateCodegenOutput> {
+pub fun FixtureGraph.compile_graph_outputs(errors: &var Diagnostics): List<CrateCodegenOutput> {
     val interfaces: Ptr<List<String>> = unsafe { alloc<List<String>>() }
     unsafe { *interfaces = List.new<String>() }
     return self.compile_graph_outputs_with_interfaces(errors, interfaces)
 }
 
-fun BuildGraph.compile_graph_outputs_with_interfaces(errors: &var Diagnostics,
+fun FixtureGraph.compile_graph_outputs_with_interfaces(errors: &var Diagnostics,
     interfaces: Ptr<List<String>>): List<CrateCodegenOutput> {
     var out = List.new<CrateCodegenOutput>()
-    if self.error.as_str() != "" {
+    if !self.error.is_empty() {
         runtime_println(self.error.as_str())
-        errors.count_errors(1)
-        return out
-    }
-    if self.cycle.as_str().byte_len() > 0 {
-        var msg = String.from("error: dependency cycle: ")
-        msg.append(self.cycle.as_str())
-        runtime_println(msg.as_str())
         errors.count_errors(1)
         return out
     }
@@ -186,14 +184,16 @@ fun BuildGraph.compile_graph_outputs_with_interfaces(errors: &var Diagnostics,
         val encoded = emit_interface_full(&merged, String.from(interface_crate.name.as_str()), &interface_crate.deps,
             &dependency_hashes, smap)
         emitted_names.push(String.from(interface_crate.name.as_str()))
-        emitted_hashes.push(content_hash(encoded.as_str()))
+        // As komp names an interface: the text's bytes, hashed.
+        emitted_hashes.push("${hash_bytes(encoded.as_str())}")
         unsafe { interfaces.push(encoded) }
     }
     if !merged.run_middle_passes(separate_passes(), errors, smap) { return out }
     while k in 0..self.crates.size() {
         val bc = self.crates.at(k)
         val is_root = k + 1 == self.crates.size()
-        out.push(emit_crate(&merged, String.from(bc.name.as_str()), clone_string_list(&bc.deps), is_root && bc.is_bin))
+        out.push(emit_crate(&merged, String.from(bc.name.as_str()), clone_string_list(&bc.deps),
+            is_root && bc.is_bin()))
     }
     return out
 }
@@ -202,7 +202,8 @@ fun dependency_interface_hashes(dependencies: &List<String>, names: &List<String
     hashes: &List<String>): List<String> {
     var out = List.new<String>()
     while dependency in &dependencies {
-        out.push(interface_hash_lookup(dependency.as_str(), names, hashes))
+        val at = names.index_of(dependency)
+        out.push(if at == null { String.from("") } else { hashes.at(at ?: 0).clone() })
     }
     return out
 }
@@ -240,19 +241,11 @@ fun merge_modules(modules: &List<Module>): Module {
 /// As the file sits on disk, in the project around it. For tests, which
 /// have no komp to name the crates.
 pub fun typed_crate_for(file_path: str): TypedCrate {
-    return typed_crate_staged(file_path, "", false, &crate_sources(&project_crates_around(file_path)), false)
+    return typed_crate_staged(file_path, "", false, &FixtureGraph.around(file_path).sources(), false)
 }
 
 /// With `buffer` standing in for the file's text, so offsets match the
 /// document the editor shows.
 pub fun typed_crate_for_overlay(file_path: str, buffer: str): TypedCrate {
-    return typed_crate_staged(file_path, buffer, true, &crate_sources(&project_crates_around(file_path)), false)
-}
-
-fun crate_sources(crates: &List<BuildCrate>): List<CrateSource> {
-    var out = List.new<CrateSource>()
-    while item in &crates {
-        out.push(CrateSource { name: item.name.clone(), root: item.root.clone(), src: item.src.clone() })
-    }
-    return out
+    return typed_crate_staged(file_path, buffer, true, &FixtureGraph.around(file_path).sources(), false)
 }

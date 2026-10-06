@@ -5,11 +5,9 @@
 import core.assert.assert_eq
 
 import kf_codegen.*
-import kf_tool.build.build_project_separate
-import kf_tool.build.check_project_with_kflatc
-import kf_tool.fetch.cache_root
-import kf_tool.fetch.cached_root
-import kf_tool.fetch.parse_lockfile
+import kf_integration.harness.komp_build
+import kf_integration.harness.FixtureGraph
+import kf_integration.harness.komp_check
 import kf_integration.harness.compile_project_separate
 import kf_integration.harness.copy_tree_by_content
 import std.fs.read_to_string
@@ -20,17 +18,11 @@ import testing.test
 extern "C" fun system(cmd: str): int32
 extern "C" fun access(path: str, mode: int32): int32
 
-/// Where the compiler's own json dependency was fetched to.
+/// Where the compiler's own json dependency was fetched to, as komp
+/// resolves this crate's.
 fun locked_json_root(): String {
-    var lock = String.from("")
-    when (read_to_string("compiler/kf.lock")) {
-        Ok(text) => lock = text
-        Err(_error) => return lock
-    }
-    while entry in &parse_lockfile(lock.as_str()) {
-        if entry.name.as_str() == "json" { return entry.cached_root(cache_root().as_str()) }
-    }
-    return String.from("")
+    val json = FixtureGraph.of("compiler/kf-integration").crate_named("json") ?: return ""
+    return json.root
 }
 
 fun prepare_real_json_app(): int32 {
@@ -75,7 +67,7 @@ fun main(): int32 {
 fun build_real_json_app(): int32 {
     val prep = prepare_real_json_app()
     if prep != 0 { return prep }
-    return build_project_separate(scratch_path("kf_sc4_json_app"), "-fsanitize=address")
+    return komp_build(scratch_path("kf_sc4_json_app"), "-fsanitize=address")
 }
 
 @test
@@ -100,7 +92,7 @@ fun real_json_consumer_checks_without_dependency_source(): void {
     val first = build_real_json_app()
     // Safe only on the disposable copy, rebuilt by the next prepare.
     val hidden = unsafe { system("mv ${scratch_path("kf_sc4_json_dep/src")} ${scratch_path("kf_sc4_json_dep/src.hidden")}") }
-    val checked = check_project_with_kflatc(scratch_path("kf_sc4_json_app"), false)
+    val checked = komp_check(scratch_path("kf_sc4_json_app"))
     val restored = unsafe { system("mv ${scratch_path("kf_sc4_json_dep/src.hidden")} ${scratch_path("kf_sc4_json_dep/src")}") }
     assert_eq(first == 0 && hidden == 0 && checked == 0 && restored == 0, true, "consumer checks from json.kfi with dependency source unavailable")
 }
@@ -111,7 +103,7 @@ fun real_json_consumer_builds_without_dependency_source(): void {
     val hidden = unsafe { system("mv ${scratch_path("kf_sc4_json_dep/src")} ${scratch_path("kf_sc4_json_dep/src.hidden")}") }
     // Recompile the consumer against artifacts alone.
     val _fresh = unsafe { system("rm -f ${scratch_path("kf_sc4_json_app/target/kflat/json_app.artifact.toml")}") }
-    val rebuilt = build_project_separate(scratch_path("kf_sc4_json_app"), "-fsanitize=address")
+    val rebuilt = komp_build(scratch_path("kf_sc4_json_app"), "-fsanitize=address")
     val ran = unsafe { system(scratch_path("kf_sc4_json_app/target/kflat/json_app")) }
     val restored = unsafe { system("mv ${scratch_path("kf_sc4_json_dep/src.hidden")} ${scratch_path("kf_sc4_json_dep/src")}") }
     assert_eq(first == 0 && hidden == 0 && rebuilt == 0 && ran == 0 && restored == 0, true, "consumer rebuilds and runs from compiled json artifacts")

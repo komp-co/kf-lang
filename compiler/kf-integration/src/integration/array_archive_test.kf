@@ -4,7 +4,7 @@
 
 import core.assert.assert_eq
 
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_path
 import testing.test
 
@@ -61,7 +61,7 @@ fun main(): int32 {
 }
 """
     val prep = prepare_array_fixture(main)
-    val built = build_project_separate(scratch_path("kf_array_app"), "")
+    val built = komp_build(scratch_path("kf_array_app"), "")
     val ran = unsafe { system(scratch_path("kf_array_app/target/kflat/array_app").as_str()) }
     assert_eq(prep == 0 && built == 0 && ran == 0, true, "a field, a length-generic function and a returned array")
 }
@@ -76,6 +76,6 @@ fun main(): int32 {
 }
 """
     val prep = prepare_array_fixture(main)
-    val built = build_project_separate(scratch_path("kf_array_app"), "")
+    val built = komp_build(scratch_path("kf_array_app"), "")
     assert_eq(prep == 0 && built != 0, true, "two elements cannot fill the dependency's `uint8[3]`")
 }

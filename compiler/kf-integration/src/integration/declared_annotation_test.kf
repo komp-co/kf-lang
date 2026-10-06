@@ -4,7 +4,7 @@
 // tests/cases file.
 
 import core.assert.assert_eq
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_root
 import testing.test
 
@@ -73,13 +73,13 @@ pub annotation <T: Plugin> started on (&T) -> int32
 
 fun build_and_run_annotated(name: str): int32 {
     val root = "${scratch_root()}/${name}"
-    val built = build_project_separate("${root}/app".as_str(), "")
+    val built = komp_build("${root}/app".as_str(), "")
     if built != 0 { return 100 + built }
     return unsafe { system("${root}/app/target/kflat/app".as_str()) }
 }
 
 fun build_annotated_app(name: str): int32 {
-    return build_project_separate("${scratch_root()}/${name}/app".as_str(), "")
+    return komp_build("${scratch_root()}/${name}/app".as_str(), "")
 }
 
 fun annotation_counting_main(): str {

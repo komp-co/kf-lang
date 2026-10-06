@@ -7,7 +7,7 @@ import std.fs.*
 import std.process.*
 
 import kf_integration.harness.compile_source
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import testing.test
 
 fun build_and_run(src: str, exe: str): int32 {
@@ -77,7 +77,7 @@ alloc = { path = "../kf_core_generic_libs/alloc" }
     write_file(scratch_path("kf_core_generic_app/src/main.kf"), src)
     var flags = ""
     if asan { flags = String.from("-fsanitize=address") }
-    val built = build_project_separate(scratch_path("kf_core_generic_app"), flags.as_str())
+    val built = komp_build(scratch_path("kf_core_generic_app"), flags.as_str())
     if built != 0 { return built }
     var program = Command.new(scratch_path("kf_core_generic_app/target/kflat/core_generic_app"))
     if asan { program.env("ASAN_OPTIONS", "detect_leaks=0") }

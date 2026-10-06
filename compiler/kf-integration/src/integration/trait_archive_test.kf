@@ -1,5 +1,5 @@
 import core.assert.assert_eq
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_path
 import testing.test
 
@@ -76,11 +76,11 @@ fun trait_archive_contains(s: str, needle: str): bool {
 @test
 fun imported_trait_method_runs_from_dependency_archive(): void {
     val prepared = prepare_trait_archive_fixture()
-    val first = build_project_separate(scratch_path("kf_sc5_trait_app"), "-fsanitize=address")
+    val first = komp_build(scratch_path("kf_sc5_trait_app"), "-fsanitize=address")
     val archive = unsafe { access(scratch_path("kf_sc5_trait_app/target/kflat/libtrait_lib.a"), 0) }
     val interface_file = unsafe { access(scratch_path("kf_sc5_trait_app/target/kflat/trait_lib.kfi"), 0) }
     val hidden = unsafe { system("mv ${scratch_path("kf_sc5_trait_lib/src")} ${scratch_path("kf_sc5_trait_lib/src.hidden")}") }
-    val rebuilt = build_project_separate(scratch_path("kf_sc5_trait_app"), "-fsanitize=address")
+    val rebuilt = komp_build(scratch_path("kf_sc5_trait_app"), "-fsanitize=address")
     val ran = unsafe { system(scratch_path("kf_sc5_trait_app/target/kflat/trait_app")) }
     val consumer = read_file(scratch_path("kf_sc5_trait_app/target/kflat/trait_app.c"))
     val restored = unsafe { system("mv ${scratch_path("kf_sc5_trait_lib/src.hidden")} ${scratch_path("kf_sc5_trait_lib/src")}") }

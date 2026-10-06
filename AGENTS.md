@@ -37,7 +37,10 @@ shared AST and diagnostics, `kf-interface` the compiled crate metadata
 `serve` and the editor answers it gives). `kf-tool` is the project tool: manifests, fetching, the
 build graph, cc. Each side has its own version: kflatc's `kflat_version()` in
 kf-driver, which a project's `kflat = "..."` pin names, and komp's
-`komp_version()` in kf-tool. `kf-integration` holds the tests that drive whole projects through both. What else
+`komp_version()` in kf-tool. `kf-integration` holds the compiler's whole-project tests: it links no part of
+kf-tool, and reads a fixture's crates through `komp metadata` and builds it by
+running komp (`KOMP`, which `komp test` sets). komp's own whole-project tests
+are in kf-tool's `integration` module. What else
 they must agree on (the files kflatc writes, which files make a crate) is
 kflatc's documented command line, and each side keeps its own copy. Two binaries sit on top: `kflatc`, the compiler, which
 links kf-driver and turns one crate into C, and `komp`, the project tool, which
