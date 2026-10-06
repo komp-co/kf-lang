@@ -149,7 +149,8 @@ pub mutating fun Module.checked_diagnostics(smap: Ptr<SourceMap>, cfg: &LintConf
     var out = validate_imports_per_module(self, callers, targets, names, smap)
     var table = new_decl_table()
     resolve_module(self, &var table)
-    val diags = apply_lint_levels(typecheck_module_with_imports(self, &var table, callers, targets, names, smap), self, cfg)
+    val checked = typecheck_module_with_imports(self, &var table, callers, targets, names, smap)
+    val diags = apply_lint_levels(checked, self, cfg)
     while d in &diags { out.push(d.clone()) }
     if count_errors(&out) > 0 { return out }
     alpha_rename_module(self)
