@@ -7,8 +7,8 @@ import kf_core.diagnostic.*
 import kf_resolve.new_decl_table
 import kf_resolve.resolve_module
 import kf_typecheck.typecheck_module
-import kf_tool.build.build_project_separate
-import kf_tool.build.target_dir
+import kf_integration.harness.komp_build
+import kf_integration.harness.FixtureGraph
 import kf_integration.harness.typed_crate_for
 import std.fs.scratch_path
 import std.process.Command
@@ -136,7 +136,7 @@ fun main(): int32 {
 """
     val root = "kf_ext_cross_crate"
     assert_eq(build_extension_crates(root, app), 0, "the app builds against the library's extensions")
-    val binary = "${target_dir(scratch_path("${root}/app"))}/app"
+    val binary = "${FixtureGraph.of(scratch_path("${root}/app")).target_dir}/app"
     assert_eq(Command.new(binary.as_str()).status().exit_code(), 30, "6 + 5 + 6 + 9 + 2 + 2")
 }
 
@@ -199,5 +199,5 @@ fun int32.hidden(): int32 { return self }
     val app_manifest = "[project]\nname = \"app\"\nkind = \"bin\"\n\n[dependencies]\n${app_deps}"
     write_file("${root}/app/kf.toml".as_str(), app_manifest.as_str())
     write_file("${root}/app/src/main.kf".as_str(), main_source)
-    return build_project_separate("${root}/app".as_str(), "")
+    return komp_build("${root}/app".as_str(), "")
 }

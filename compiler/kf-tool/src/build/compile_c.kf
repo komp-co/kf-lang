@@ -2,6 +2,7 @@
 // shell-quoted for system(3); a failure prints its phase and target.
 
 import alloc.list.*
+import std.env.env_var
 
 extern "C" fun system(cmd: str): int32
 
@@ -52,6 +53,12 @@ fun optimization_flags(): str {
 /// the method; `dyn_archive_integration_test` covers it across crates.
 fun dead_strip_flags(): str {
     return "-Wl,--gc-sections"
+}
+
+/// `KOMP_CFLAGS`, which `build`, `run` and `test` add to every C compile and
+/// link, as `-fsanitize=address` for an ASan build; "" when unset.
+pub fun user_cflags(): String {
+    return env_var("KOMP_CFLAGS") ?: ""
 }
 
 /// `extra_cflags` is caller-trusted ("" or e.g. "-fsanitize=address").

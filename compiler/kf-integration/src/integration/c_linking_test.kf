@@ -3,18 +3,18 @@
 
 import alloc.list.*
 import core.assert.assert_eq
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import testing.test
 
 @test
 fun c_linking_project_builds(): void {
-    val code = build_project_separate("tests/c_linking", "")
+    val code = komp_build("tests/c_linking", "")
     assert_eq(code, 0, "a crate with [native] c_sources builds cleanly")
 }
 
 @test
 fun c_linking_binary_calls_the_shim(): void {
-    val _built = build_project_separate("tests/c_linking", "")
+    val _built = komp_build("tests/c_linking", "")
     val rargs = List.new<str>()
     val code = run("tests/c_linking/target/kflat/c_linking", rargs)
     assert_eq(code, 42, "the linked C shim returns 42 through main")

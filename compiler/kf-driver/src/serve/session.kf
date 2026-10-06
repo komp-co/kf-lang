@@ -14,8 +14,8 @@ import kf_driver.editor.TypedCrate
 import kf_driver.editor.typed_crate_with
 import kf_driver.cli.render_json_diag
 import kf_driver.count_errors
+import kf_driver.kflat_version
 import kf_driver.new_lint_config
-import kf_shared.kflat_version
 import kf_driver.apply_option_row
 import kf_driver.apply_table_lint
 import kf_driver.build.InterfaceLookup

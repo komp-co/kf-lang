@@ -1,10 +1,10 @@
 // Crate qualification reaches every part of an assembled callee: a mono
 // type-argument suffix, a trait tail's argument, an underscored owner, and a
 // primitive receiver. A part left behind is a link failure after a clean
-// `check`. Qualification runs only on build_project_separate.
+// `check`. Qualification runs only in a build.
 
 import core.assert.assert_eq
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_path
 import testing.test
 
@@ -102,7 +102,7 @@ alloc = { path = "../kf_qual_alloc" }
 @test
 fun every_part_of_an_assembled_callee_is_crate_qualified(): void {
     val prepared = prepare_qualification_fixture()
-    val built = build_project_separate(scratch_path("kf_qual_app"), "")
+    val built = komp_build(scratch_path("kf_qual_app"), "")
     val binary = unsafe { access(scratch_path("kf_qual_app/target/kflat/qual_app"), 0) }
     val ran = unsafe { system(scratch_path("kf_qual_app/target/kflat/qual_app")) }
     val ok = prepared == 0 && built == 0 && binary == 0 && ran == 0

@@ -62,7 +62,7 @@ fun adding_a_program_is_refused(): void {
 }
 
 @test
-fun an_undeclared_index_is_an_error(): void {
+fun adding_from_an_undeclared_index_is_an_error(): void {
     val index = tool_index("komp_libe", "lib")
     val root = adding_project("kf_add_e", index.as_str(), false)
     val added = add_package(root.as_str(), "komp_libe", "", "elsewhere", test_cache().as_str())

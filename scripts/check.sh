@@ -144,7 +144,7 @@ crates_given="${CRATES+given}"
 CRATES="${CRATES:-compiler/kf-core compiler/kf-parse compiler/kf-assemble
         compiler/kf-resolve compiler/kf-typecheck compiler/kf-mono
         compiler/kf-lower compiler/kf-codegen compiler/kf-interface
-        compiler/kf-shared compiler/kf-lint compiler/kf-driver compiler/kf-tool compiler/kf-integration
+        compiler/kf-lint compiler/kf-driver compiler/kf-tool compiler/kf-integration
         libs/core-tests libs/testing libs/alloc libs/std tools/kf-fuzz tools/kf-reduce}"
 CHECK_CLI="${CHECK_CLI:-1}"
 
@@ -483,6 +483,12 @@ printf 'fun main(): int32 {\n    return 7\n}\n' > "$WORK/cwd-project/src/main.kf
     echo "FAIL: bare \`komp run\` did not build and run the current directory" >&2
     exit 1
 }
+
+# A command's directory may follow its flags.
+case "$("$WORK/komp" metadata --offline "$WORK/cwd-project" 2>&1)" in
+    *'"crates"'*) ;;
+    *) echo "FAIL: \`komp metadata --offline <dir>\` did not read <dir>" >&2; exit 1 ;;
+esac
 
 for flag in --version -V; do
     out=$("$WORK/komp" "$flag" 2>&1) || true

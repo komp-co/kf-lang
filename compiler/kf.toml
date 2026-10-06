@@ -11,7 +11,6 @@ members = [
     "kf-lower",
     "kf-codegen",
     "kf-interface",
-    "kf-shared",
     "kf-lint",
     "kf-driver",
     "kf-tool",

@@ -4,7 +4,7 @@
 
 import core.assert.assert_eq
 
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_path
 import testing.test
 
@@ -55,7 +55,7 @@ fun main(): int32 {
 @test
 fun a_sealed_trait_bounds_another_crate(): void {
     val prep = prepare_sealed_fixture(bound_only_main())
-    val built = build_project_separate(scratch_path("kf_sealed_app"), "")
+    val built = komp_build(scratch_path("kf_sealed_app"), "")
     val ran = unsafe { system(scratch_path("kf_sealed_app/target/kflat/sealed_app").as_str()) }
     assert_eq(prep == 0 && built == 0 && ran == 0, true, "a bound and its methods cross; only impls are closed")
 }
@@ -71,7 +71,7 @@ impl Endian for Middle { fun swaps(): bool { return true } }
 fun main(): int32 { return 0 }
 """
     val prep = prepare_sealed_fixture(main)
-    val built = build_project_separate(scratch_path("kf_sealed_app"), "")
+    val built = komp_build(scratch_path("kf_sealed_app"), "")
     assert_eq(prep == 0 && built != 0, true, "the impl is rejected in the consumer")
 }
 
@@ -86,11 +86,11 @@ impl Endian for Middle { fun swaps(): bool { return true } }
 fun main(): int32 { return 0 }
 """
     val prep = prepare_sealed_fixture(bound_only_main())
-    val first = build_project_separate(scratch_path("kf_sealed_app"), "")
+    val first = komp_build(scratch_path("kf_sealed_app"), "")
     write_file(scratch_path("kf_sealed_app/src/main.kf"), main)
     val source = scratch_path("kf_sealed_dep/src")
     val hidden = unsafe { system("mv ${source} ${source}.hidden") }
-    val rebuilt = build_project_separate(scratch_path("kf_sealed_app"), "")
+    val rebuilt = komp_build(scratch_path("kf_sealed_app"), "")
     val restored = unsafe { system("mv ${source}.hidden ${source}") }
     assert_eq(prep == 0 && first == 0 && hidden == 0 && rebuilt != 0 && restored == 0, true,
         "sealed_dep.kfi says the trait is sealed")

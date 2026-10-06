@@ -3,7 +3,7 @@
 // and ld, so it is tested on a real build.
 
 import core.assert.assert_eq
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_path
 import testing.test
 
@@ -51,7 +51,7 @@ core = { path = "../kf_dyn_strip_core" }
 @test
 fun a_vtable_only_method_survives_dead_stripping(): void {
     val prepared = prepare_dyn_strip_fixture()
-    val built = build_project_separate(scratch_path("kf_dyn_strip_app"), "")
+    val built = komp_build(scratch_path("kf_dyn_strip_app"), "")
     val binary = unsafe { access(scratch_path("kf_dyn_strip_app/target/kflat/dyn_strip_app"), 0) }
     // Exit 0 means `score` ran through the vtable slot.
     val ran = unsafe { system(scratch_path("kf_dyn_strip_app/target/kflat/dyn_strip_app")) }

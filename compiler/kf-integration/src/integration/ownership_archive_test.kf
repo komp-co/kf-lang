@@ -1,5 +1,5 @@
 import core.assert.assert_eq
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_path
 import testing.test
 
@@ -53,11 +53,11 @@ fun main(): int32 {
 fun build_ownership_from_interface(early_return: bool): int32 {
     val prepared = prepare_ownership_archive_fixture(early_return)
     if prepared != 0 { return prepared }
-    val first = build_project_separate(scratch_path("kf_sc5_parcel_app"), "-fsanitize=address")
+    val first = komp_build(scratch_path("kf_sc5_parcel_app"), "-fsanitize=address")
     if first != 0 { return first }
     val hidden = unsafe { system("mv ${scratch_path("kf_sc5_parcel_lib/src")} ${scratch_path("kf_sc5_parcel_lib/src.hidden")}") }
     if hidden != 0 { return hidden }
-    val rebuilt = build_project_separate(scratch_path("kf_sc5_parcel_app"), "-fsanitize=address")
+    val rebuilt = komp_build(scratch_path("kf_sc5_parcel_app"), "-fsanitize=address")
     val ran = unsafe { system("ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ${scratch_path("kf_sc5_parcel_app/target/kflat/parcel_app")}") }
     val restored = unsafe { system("mv ${scratch_path("kf_sc5_parcel_lib/src.hidden")} ${scratch_path("kf_sc5_parcel_lib/src")}") }
     if rebuilt != 0 { return rebuilt }

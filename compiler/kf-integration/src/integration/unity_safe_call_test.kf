@@ -2,8 +2,8 @@
 // compilation does, so the C it writes compiles.
 
 import core.assert.assert_eq
-import kf_tool.cli.build_project_mode
-import kf_tool.build.default_unity_output
+import kf_integration.harness.FixtureGraph
+import kf_integration.harness.komp_build_unity
 import std.fs.scratch_path
 import testing.test
 
@@ -54,8 +54,8 @@ fun a_safe_call_reaching_a_user_type_compiles_in_the_unity_output(): void {
     val prepared = unsafe { system("rm -rf ${root} && mkdir -p ${root}/src/levels") }
     assert_eq(prepared, 0, "the fixture is prepared")
     write_safe_call_fixture(root.as_str())
-    val out = default_unity_output(root)
-    assert_eq(build_project_mode(root, BuildMode.Unity, out.as_str()), 0, "the whole-program build succeeds")
+    assert_eq(komp_build_unity(root), 0, "the whole-program build succeeds")
+    val out = "${FixtureGraph.of(root).target_dir}/komp_out.c"
     val binary = "${root}/unity_safe_call"
     val compiled = unsafe { system("cc -std=gnu17 -w -o ${binary} ${out} -lm") }
     assert_eq(compiled, 0, "the C names the `Option` of an enum and of a struct with C identifiers")

@@ -4,7 +4,7 @@
 import core.assert.assert_eq
 import kf_tool.build.FetchPolicy
 import kf_tool.build.build_crate_graph
-import kf_integration.harness.check_project
+import kf_tool.build.check_project_with_kflatc
 import kf_tool.build.default_fetch_policy
 import kf_tool.build.sync_sources
 import std.fs.scratch_root
@@ -93,7 +93,7 @@ fun a_git_dependency_checks_once_fetched(): void {
     val repo = make_greet_repo("kf_fetch_repo_a", "42")
     val app = git_app("kf_fetch_app_a", &repo, "tag = \"v1\"")
     assert_eq(sync_sources(app.as_str(), &default_fetch_policy(), cache.as_str()).as_str(), "", "the fetch succeeds")
-    assert_eq(check_project(app.as_str()), 0, "its `core` is the bundled one, not the path it names")
+    assert_eq(check_project_with_kflatc(app.as_str(), false), 0, "its `core` is the bundled one, not the path it names")
 }
 
 @test
@@ -200,7 +200,7 @@ fun a_wrapped_tarball_checks_once_fetched(): void {
     val archive = make_greet_tarball("kf_fetch_tar_a")
     val app = make_app("kf_fetch_app_ta", "greet = { tarball = \"file://${archive}\" }".as_str())
     sync_sources(app.as_str(), &default_fetch_policy(), cache.as_str())
-    assert_eq(check_project(app.as_str()), 0, "the crate one level down is found")
+    assert_eq(check_project_with_kflatc(app.as_str(), false), 0, "the crate one level down is found")
 }
 
 @test

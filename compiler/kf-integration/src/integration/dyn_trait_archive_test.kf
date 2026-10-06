@@ -1,5 +1,5 @@
 import core.assert.assert_eq
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_path
 import testing.test
 
@@ -76,9 +76,9 @@ fun dyn_archive_contains(text: str, needle: str): bool {
 
 @test fun dyn_trait_archive_dispatches_without_dependency_sources(): void {
     val prepared = prepare_dyn_trait_archive_fixture()
-    val first = build_project_separate(scratch_path("kf_dyn_app"), "")
+    val first = komp_build(scratch_path("kf_dyn_app"), "")
     val hidden = unsafe { system("mv ${scratch_path("kf_dyn_api/src")} ${scratch_path("kf_dyn_api/src.hidden")} && mv ${scratch_path("kf_dyn_impl/src")} ${scratch_path("kf_dyn_impl/src.hidden")} && rm -f ${scratch_path("kf_dyn_app/target/kflat/shape_app.artifact.toml")}") }
-    val rebuilt = build_project_separate(scratch_path("kf_dyn_app"), "")
+    val rebuilt = komp_build(scratch_path("kf_dyn_app"), "")
     val ran = unsafe { system(scratch_path("kf_dyn_app/target/kflat/shape_app")) }
     val consumer = read_file(scratch_path("kf_dyn_app/target/kflat/shape_app.c"))
     val trait_header = read_file(scratch_path("kf_dyn_app/target/kflat/shape_api.h"))
@@ -173,9 +173,9 @@ fun main(): int32 {
 
 @test fun generic_dyn_vtables_are_consumer_local(): void {
     val prepared = prepare_generic_dyn_archive_fixture()
-    val first = build_project_separate(scratch_path("kf_dyn_gen_app"), "")
+    val first = komp_build(scratch_path("kf_dyn_gen_app"), "")
     val hidden = unsafe { system("mv ${scratch_path("kf_dyn_gen_api/src")} ${scratch_path("kf_dyn_gen_api/src.hidden")} && mv ${scratch_path("kf_dyn_gen_dep/src")} ${scratch_path("kf_dyn_gen_dep/src.hidden")} && rm -f ${scratch_path("kf_dyn_gen_left/target/kflat/dyn_gen_left.artifact.toml")} ${scratch_path("kf_dyn_gen_right/target/kflat/dyn_gen_right.artifact.toml")} ${scratch_path("kf_dyn_gen_app/target/kflat/dyn_gen_app.artifact.toml")}") }
-    val rebuilt = build_project_separate(scratch_path("kf_dyn_gen_app"), "")
+    val rebuilt = komp_build(scratch_path("kf_dyn_gen_app"), "")
     val ran = unsafe { system(scratch_path("kf_dyn_gen_app/target/kflat/dyn_gen_app")) }
     val left = read_file(scratch_path("kf_dyn_gen_app/target/kflat/dyn_gen_left.c"))
     val right = read_file(scratch_path("kf_dyn_gen_app/target/kflat/dyn_gen_right.c"))
@@ -220,7 +220,7 @@ fun main(): int32 {
 
 @test fun a_dependency_defines_the_vtable_it_never_coerces(): void {
     val prepared = prepare_unused_dyn_archive_fixture()
-    val built = build_project_separate(scratch_path("kf_dyn_quiet_app"), "")
+    val built = komp_build(scratch_path("kf_dyn_quiet_app"), "")
     val ran = unsafe { system(scratch_path("kf_dyn_quiet_app/target/kflat/quiet_app")) }
     val library = read_file(scratch_path("kf_dyn_quiet_app/target/kflat/quiet_lib.c"))
     val library_header = read_file(scratch_path("kf_dyn_quiet_app/target/kflat/quiet_lib.h"))
@@ -233,7 +233,7 @@ fun main(): int32 {
 // emits.
 @test fun a_dependencys_adapter_calls_the_crate_qualified_method(): void {
     val prepared = prepare_unused_dyn_archive_fixture()
-    val built = build_project_separate(scratch_path("kf_dyn_quiet_app"), "")
+    val built = komp_build(scratch_path("kf_dyn_quiet_app"), "")
     val library = read_file(scratch_path("kf_dyn_quiet_app/target/kflat/quiet_lib.c"))
     val forwards = dyn_archive_contains(library.as_str(), "return quiet_lib__Token_score__Score((quiet_lib__Token *)data);")
     assert_eq(prepared == 0 && built == 0 && forwards, true, "an adapter calls the definition, not the unqualified template name")

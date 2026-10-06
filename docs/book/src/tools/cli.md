@@ -5,7 +5,14 @@ directory (one containing a `kf.toml`); there is no single-file mode.
 
 komp does not compile KFlat itself: for each crate that needs building it runs
 `kflatc`, the compiler, found beside the `komp` binary or wherever `KFLATC`
-points, and then compiles and links the C with cc.
+points, and then compiles and links the C with cc. `KOMP_CFLAGS` adds flags to
+every cc call of `build`, `run` and `test`, as `-fsanitize=address` does for an
+ASan build; a change of flags rebuilds every crate. `KOMP_TARGET_DIR` puts
+every build's output in one directory, as a workspace's `target-dir` does for
+its members.
+
+A command's directory may come before or after its flags:
+`komp metadata --offline app` and `komp metadata app --offline` are the same.
 
 ## Commands
 
@@ -28,7 +35,7 @@ points, and then compiles and links the C with cc.
 | `komp metadata <dir>` | Print the resolved crate graph as JSON, for tools |
 | `komp publish <dir>` | Add a package's version to a package index by pull request |
 | `komp new [<name>]` | Scaffold a new project directory, or with no name the current one |
-| `komp --version` | Print the compiler version |
+| `komp --version` | Print komp's version; `kflatc version` prints the compiler's |
 
 At a workspace, `build`, `check`, `test` and `fix` work on the workspace's
 `default-member`. `-p <crate>` picks one member and `--workspace` picks all of
@@ -168,7 +175,7 @@ With `hello` depending on `greet` by path, and `[lint] dead_code = "allow"`
 $ komp metadata
 {
   "schema": 1,
-  "komp_version": "0.2.0",
+  "komp_version": "1.0.0",
   "kflatc": "/home/user/komp/bin/kflatc",
   "workspace_root": null,
   "target_dir": "/tmp/work/hello/target/kflat",
@@ -176,19 +183,19 @@ $ komp metadata
   "crates": [
     {"name": "core", "version": "0.1.0", "kind": "lib", "root": "/home/user/komp/libs/core",
      "src": "/home/user/komp/libs/core/src",
-     "source": "bundled", "member": false, "deps": [], "loads": [], "lints": [],
+     "source": "bundled", "member": false, "deps": [], "loads": [], "dev_deps": [], "lints": [],
      "lint_options": []},
     {"name": "alloc", "version": "0.1.0", "kind": "lib", "root": "/home/user/komp/libs/alloc",
      "src": "/home/user/komp/libs/alloc/src",
-     "source": "bundled", "member": false, "deps": ["core"], "loads": ["core"], "lints": [],
+     "source": "bundled", "member": false, "deps": ["core"], "loads": ["core"], "dev_deps": [], "lints": [],
      "lint_options": []},
     {"name": "greet", "version": "0.3.0", "kind": "lib", "root": "/tmp/work/greet",
      "src": "/tmp/work/greet/src",
-     "source": "path", "member": false, "deps": ["core", "alloc"], "loads": ["core", "alloc"], "lints": [],
+     "source": "path", "member": false, "deps": ["core", "alloc"], "loads": ["core", "alloc"], "dev_deps": [], "lints": [],
      "lint_options": []},
     {"name": "hello", "version": "0.1.0", "kind": "bin", "root": "/tmp/work/hello",
      "src": "/tmp/work/hello/src",
-     "source": "path", "member": true, "deps": ["greet"], "loads": ["core", "alloc", "greet"],
+     "source": "path", "member": true, "deps": ["greet"], "loads": ["core", "alloc", "greet"], "dev_deps": [],
      "lints": [{"name": "dead_code", "level": "allow"}], "lint_options": []}
   ]
 }
@@ -205,6 +212,7 @@ $ komp metadata
 | `src` | The directory holding the crate's `.kf` files: `<root>/src`, or `src/lib` and `src/bin` for a package holding [a library and a program](../start/projects.md#a-library-and-a-program-in-one-package), which lists two crates with one `root`; kflatc's `--src` |
 | `deps` | The crate's direct dependencies by crate name; kflatc's `--dep` |
 | `loads` | Every crate `deps` reach, in order; kflatc's `--load` |
+| `dev_deps` | Which of `deps` only the crate's tests need: its `[dev-dependencies]` |
 | `source` | `bundled` (comes with komp), `fetched` (from the cache) or `path` |
 | `lints` | The crate's lint levels in the order they apply: its `lint.toml` rows, groups first, then its `[lint]` rows; kflatc's `--lint-toml` and `--lint` |
 | `lint_options` | The crate's `lint.toml` options as `{"name", "key", "value"}`, the value as `lint.toml` writes it; kflatc's `--lint-toml-option` |
@@ -407,13 +415,13 @@ $ komp toolchain install
 building komp 0.5.1 with cc
 building kflatc 0.5.1 with cc
 installed kflat 0.5.1 in /home/me/.kflat/toolchains/0.5.1
-installed komp 0.5.1; /home/me/.kflat/bin/komp now runs it
+installed kflat 0.5.1; /home/me/.kflat/bin/komp now runs it
 $ komp toolchain install
-komp 0.5.1 is the newest release
+kflat 0.5.1 is the newest release
 ```
 
 `komp toolchain list` shows every installed toolchain, marking the default,
-the one `~/.kflat/bin/komp` runs, and the komp running the command;
+the one `~/.kflat/bin/komp` runs, and the kflatc the running komp would use;
 `komp toolchain remove <version>` removes one, but neither of those two:
 
 ```console

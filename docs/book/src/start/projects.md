@@ -364,7 +364,7 @@ stops instead:
 
 ```console
 $ komp build --offline
-error: kf.toml pins kflat 0.7: this komp is 0.6.0 and no installed toolchain fits; --offline installs none
+error: kf.toml pins kflat 0.7: the default kflatc is 0.6.0 and no installed toolchain fits; --offline installs none
 ```
 
 komp drives kflatc 0.6.0 and newer, the releases whose command line matches

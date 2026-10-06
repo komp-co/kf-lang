@@ -3,7 +3,7 @@
 
 import core.assert.assert_eq
 
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_path
 import testing.test
 
@@ -93,7 +93,7 @@ kind = "bin"
 core = { path = "../kf_deref_core" }
 """)
     write_file("${app}/src/main.kf".as_str(), "${DEREF_TYPES}fun main(): int32 {\n${main}\n}\n".as_str())
-    if build_project_separate(app, "") != 0 { return 0 - 1 }
+    if komp_build(app, "") != 0 { return 0 - 1 }
     return unsafe { system(scratch_path("kf_deref_app/target/kflat/deref_app")) } / 256
 }
 

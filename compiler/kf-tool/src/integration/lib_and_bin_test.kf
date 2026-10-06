@@ -7,7 +7,6 @@ import kf_tool.cli.run_project_mode
 import kf_tool.testing.test_project_separate
 import kf_tool.build.check_project_with_kflatc
 import std.fs.scratch_path
-import kf_integration.harness.testing_dev_dependency
 import testing.test
 
 extern "C" fun system(cmd: str): int32
@@ -49,7 +48,7 @@ fun a_package_holding_both_runs_its_program(): void {
 }
 
 @test
-fun the_program_binary_takes_the_package_name(): void {
+fun the_built_program_lands_under_the_package_name(): void {
     val root = write_lib_and_bin("kf_pair_binary", sound_library_test())
     val _ran = run_project_mode(root.as_str(), BuildMode.Separate)
     assert_eq(exists_at("${root}/target/kflat/pair".as_str()), true, "not pair_bin")

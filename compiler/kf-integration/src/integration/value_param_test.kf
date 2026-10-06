@@ -4,7 +4,7 @@
 
 import core.assert.assert_eq
 
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_path
 import testing.test
 
@@ -48,7 +48,7 @@ fun main(): int32 {
 }
 """
     val prep = prepare_value_param_fixture(main)
-    val built = build_project_separate(scratch_path("kf_value_app"), "")
+    val built = komp_build(scratch_path("kf_value_app"), "")
     val ran = unsafe { system(scratch_path("kf_value_app/target/kflat/value_app").as_str()) }
     assert_eq(prep == 0 && built == 0 && ran == 0, true, "instantiated and inferred in the consumer")
 }
@@ -63,6 +63,6 @@ fun main(): int32 {
 }
 """
     val prep = prepare_value_param_fixture(main)
-    val built = build_project_separate(scratch_path("kf_value_app"), "")
+    val built = komp_build(scratch_path("kf_value_app"), "")
     assert_eq(prep == 0 && built != 0, true, "`-1` does not fit the dependency's `N: uint64`")
 }

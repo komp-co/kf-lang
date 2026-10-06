@@ -9,7 +9,7 @@ import kf_tool.project.command_dir
 import kf_tool.project.parent_path
 import std.fs.*
 import kf_tool.build.binary_path
-import kf_shared.kflat_version
+import kf_tool.komp_version
 
 // Bodies in the runtime prelude, which captures argv in main().
 
@@ -21,7 +21,7 @@ extern "C" fun system(cmd: str): int32
 /// Artifact mode writes under target/kflat; unity mode writes one C file.
 pub fun build_project_mode(root: str, mode: BuildMode, unity_out: str): int32 {
     return when (mode) {
-        Separate => build_project_separate(root, "")
+        Separate => build_project_separate(root, user_cflags().as_str())
         Unity => build_project(root, unity_out)
     }
 }
@@ -39,7 +39,7 @@ pub fun run_project_mode(root: str, mode: BuildMode): int32 {
     when (mode) {
         Unity => return run_project(root)
         Separate => {
-            val built = build_project_separate(root, "")
+            val built = build_project_separate(root, user_cflags().as_str())
             if built != 0 { return built }
             val graph = build_crate_graph(root, false)
             val root_crate = *graph.crates.at(graph.crates.size() - 1)
@@ -49,19 +49,28 @@ pub fun run_project_mode(root: str, mode: BuildMode): int32 {
     }
 }
 
-/// The project directory in a slot, or "." for a flag or nothing: every
-/// command's directory is optional.
+/// The first argument from `index` on that is neither a flag nor a flag's
+/// value, or "." when there is none: every command's directory is optional
+/// and may come before or after its flags.
 fun project_at(nargs: int32, index: int32): str {
-    if index >= nargs { return "." }
-    val a: str = cli_arg_get(index)
-    if starts_with_dash(a) { return "." }
-    return a
+    var i: int32 = index
+    while i < nargs {
+        val a: str = cli_arg_get(i)
+        if flag_takes_value(a) {
+            i = i + 1
+        } else if !starts_with_dash(a) {
+            return a
+        }
+        i = i + 1
+    }
+    return "."
 }
 
-/// The first argument past the optional directory.
-fun flags_start(nargs: int32, base: int32): int32 {
-    if base < nargs && !starts_with_dash(cli_arg_get(base)) { return base + 1 }
-    return base
+/// The flags whose value is the next argument.
+val VALUE_FLAGS: str[] = ["--manifest-path", "-o", "--output", "--case", "--filter", "--index", "-A", "-W", "-D"]
+
+fun flag_takes_value(a: str): bool {
+    return VALUE_FLAGS.contains(a) || is_selection_value_flag(a)
 }
 
 /// The project root `--manifest-path` names, or "". A value ending in
@@ -87,9 +96,7 @@ fun positionals_from(nargs: int32, from: int32): int32 {
     var i: int32 = from
     while i < nargs {
         val a: str = cli_arg_get(i)
-        val takes_value = a == "--manifest-path" || a == "-o" || a == "--output" || a == "--case" || a == "--filter" ||
-            a == "--index"
-        if takes_value || a == "-A" || a == "-W" || a == "-D" || is_selection_value_flag(a) {
+        if flag_takes_value(a) {
             i = i + 1
         } else if !starts_with_dash(a) {
             n = n + 1
@@ -125,7 +132,7 @@ pub fun run_cli(): int32 {
     }
     // Before the positional form, which would read `--version` as a directory.
     if wants_version() {
-        println("komp ${kflat_version()}")
+        println("komp ${komp_version()}")
         return 0
     }
     if nargs < 1 {
@@ -301,7 +308,7 @@ pub fun run_cli(): int32 {
                     return run_on_selected("test", project_for(nargs, 2).as_str(), nargs, true)
                 }
                 Separate => {
-                    if !test_flags_well_formed(nargs, flags_start(nargs, 1)) {
+                    if !test_flags_well_formed(nargs, 1) {
                         return usage_error("test")
                     }
                     return run_on_selected("test", project_for(nargs, 1).as_str(), nargs, false)

@@ -2,8 +2,8 @@
 // not a tests/cases file.
 
 import core.assert.assert_eq
-import kf_tool.build.build_project_separate
-import kf_tool.build.target_dir
+import kf_integration.harness.komp_build
+import kf_integration.harness.FixtureGraph
 import std.fs.scratch_path
 import std.process.Command
 import testing.test
@@ -27,7 +27,7 @@ fun main(): int32 {
 """
     val root = "kf_method_value_cross_crate"
     assert_eq(build_method_value_crates(root, app), 0, "the app builds against the library's methods")
-    val binary = "${target_dir(scratch_path("${root}/app"))}/app"
+    val binary = "${FixtureGraph.of(scratch_path("${root}/app")).target_dir}/app"
     assert_eq(Command.new(binary.as_str()).status().exit_code(), 33, "3 from get, 30 from show")
 }
 
@@ -62,5 +62,5 @@ impl Shown for Tally {
     val app_manifest = "[project]\nname = \"app\"\nkind = \"bin\"\n\n[dependencies]\n${app_deps}"
     write_file("${root}/app/kf.toml".as_str(), app_manifest.as_str())
     write_file("${root}/app/src/main.kf".as_str(), main_source)
-    return build_project_separate("${root}/app".as_str(), "")
+    return komp_build("${root}/app".as_str(), "")
 }

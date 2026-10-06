@@ -103,7 +103,7 @@ jobs:
           CRATES="compiler/kf-core compiler/kf-parse compiler/kf-assemble
                   compiler/kf-resolve compiler/kf-typecheck compiler/kf-mono
                   compiler/kf-lower compiler/kf-codegen compiler/kf-interface
-                  compiler/kf-shared compiler/kf-lint compiler/kf-driver compiler/kf-tool
+                  compiler/kf-lint compiler/kf-driver compiler/kf-tool
                   libs/core-tests libs/testing libs/alloc libs/std tools/kf-fuzz tools/kf-reduce" sh scripts/check.sh --sweep
 
   # Its own job, beside the sweep, so it adds no time to the run or to

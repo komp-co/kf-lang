@@ -3,7 +3,7 @@
 
 import core.assert.assert_eq
 import kf_integration.harness.check_project
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_path
 import testing.test
 
@@ -30,7 +30,7 @@ fun prepare_alias_fixture(name: str, main: str): int32 {
 
 fun run_alias_fixture(name: str): int32 {
     val app = scratch_path("${name}_app")
-    if build_project_separate(app, "") != 0 { return 100 }
+    if komp_build(app, "") != 0 { return 100 }
     return unsafe { system("${app}/target/kflat/alias_app") }
 }
 
