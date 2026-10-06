@@ -42,7 +42,9 @@ pub fun read_typed_params(line: str): TypedParams? {
                 while reader.array_has_next() {
                     if !read_crate_source(&var reader, &var crates) { return null }
                     val last = crates.size() - 1
-                    key.append("${crates[last].name}=${crates[last].root}\n")
+                    key.append("${crates[last].name}=${crates[last].root}")
+                    if !crates[last].src.is_empty() { key.append(":${crates[last].src}") }
+                    key.append("\n")
                 }
             }
             _ => reader.skip_value()
@@ -58,15 +60,17 @@ fun read_crate_source(reader: &var JsonReader, into: &var List<CrateSource>): bo
     if !reader.begin_object() { return false }
     var name = String.from("")
     var root = String.from("")
+    var src = String.from("")
     while reader.object_has_next() {
         val field = reader.read_key()
         when field.as_str() {
             "name" => name = reader.read_string()
             "root" => root = reader.read_string()
+            "src" => src = reader.read_string()
             _ => reader.skip_value()
         }
     }
     if name.is_empty() || root.is_empty() { return false }
-    into.push(CrateSource { name: name, root: root })
+    into.push(CrateSource { name: name, root: root, src: src })
     return true
 }

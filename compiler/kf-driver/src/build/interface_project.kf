@@ -71,7 +71,7 @@ pub fun CompileUnit.check_crate(interfaces: &InterfaceLookup, overlay: &Overlay,
         append_modules(&var modules, &loaded.modules)
     }
     val name = String.from(self.name.as_str())
-    val source_crate = assemble_crate_inc(self.root.as_str(), name, smap, &var parse_diags, true, overlay)
+    val source_crate = assemble_crate_sources(self.source_dir().as_str(), name, smap, &var parse_diags, true, overlay)
     append_modules(&var modules, &source_crate.modules)
     val parsed: List<Diagnostic> = parse_diags.items.clone()
     if parsed.size() > 0 { return CrateCheck { failure: "", diagnostics: parsed, smap: smap } }
@@ -129,11 +129,9 @@ fun CompileUnit.compile_crate_mode(artifacts: str, is_bin_root: bool, include_te
         }
         append_modules(&var modules, &loaded.modules)
     }
-    val source_crate = if include_tests {
-        assemble_crate_tests(self.root.as_str(), String.from(self.name.as_str()), smap, &var diagnostics)
-    } else {
-        assemble_crate(self.root.as_str(), String.from(self.name.as_str()), smap, &var diagnostics)
-    }
+    val no_overlay = no_overlay()
+    val source_crate = assemble_crate_sources(self.source_dir().as_str(), String.from(self.name.as_str()), smap,
+        &var diagnostics, include_tests, &no_overlay)
     append_modules(&var modules, &source_crate.modules)
     var diagnostic_index = 0
     while diagnostic_index < diagnostics.size() {

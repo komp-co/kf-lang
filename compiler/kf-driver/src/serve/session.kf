@@ -146,7 +146,7 @@ impl ServeSession {
         }
         while row in &params.lint_options { cfg.apply_option_row(row.as_str(), &var config_diags) }
         val unit = CompileUnit {
-            name: params.name.clone(), root: params.root.clone(), deps: List.new<String>(),
+            name: params.name.clone(), root: params.root.clone(), src: params.src.clone(), deps: List.new<String>(),
             dep_hashes: List.new<String>(), loads: params.loads.clone()
         }
         // The check's types are its own, and go when it returns.
@@ -178,7 +178,7 @@ impl ServeSession {
         val dir = String.from(self.staged_interfaces[0].path().as_str())
         while source in &params.sources {
             val unit = CompileUnit {
-                name: source.name.clone(), root: source.root.clone(), deps: List.new<String>(),
+                name: source.name.clone(), root: source.root.clone(), src: source.src.clone(), deps: List.new<String>(),
                 dep_hashes: List.new<String>(), loads: source.loads.clone()
             }
             val staged = unit.interface_from_source(&lookup, &self.buffers)

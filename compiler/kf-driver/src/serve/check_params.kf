@@ -12,6 +12,8 @@ pub struct CheckParams {
     pub val sources: List<SourceCrate>
     pub val name: String
     pub val root: String
+    /// "" for `<root>/src`.
+    pub val src: String
     /// Every interface to load, dependencies first.
     pub val loads: List<String>
     /// `name=level` rows.
@@ -29,6 +31,7 @@ pub fun read_check_params(line: str): CheckParams? {
     var sources = List.new<SourceCrate>()
     var name = String.from("")
     var root = String.from("")
+    var src = String.from("")
     var loads = List.new<String>()
     var lints = List.new<String>()
     var lint_options = List.new<String>()
@@ -48,6 +51,7 @@ pub fun read_check_params(line: str): CheckParams? {
                     when field.as_str() {
                         "name" => name = reader.read_string()
                         "root" => root = reader.read_string()
+                        "src" => src = reader.read_string()
                         "loads" => loads = read_strings(&var reader)
                         "lints" => lints = read_lint_rows(&var reader)
                         "lint_options" => lint_options = read_option_rows(&var reader)
@@ -60,7 +64,7 @@ pub fun read_check_params(line: str): CheckParams? {
     }
     if reader.has_error() || target_dir.is_empty() || name.is_empty() || root.is_empty() { return null }
     return Option.Some(CheckParams {
-        target_dir: target_dir, sources: sources, name: name, root: root, loads: loads, lints: lints,
+        target_dir: target_dir, sources: sources, name: name, root: root, src: src, loads: loads, lints: lints,
         lint_options: lint_options
     })
 }
@@ -70,6 +74,8 @@ pub fun read_check_params(line: str): CheckParams? {
 pub struct SourceCrate {
     pub val name: String
     pub val root: String
+    /// "" for `<root>/src`.
+    pub val src: String
     pub val loads: List<String>
 }
 
@@ -81,18 +87,20 @@ fun read_source_crates(reader: &var JsonReader): List<SourceCrate>? {
         if !reader.begin_object() { return null }
         var name = String.from("")
         var root = String.from("")
+        var src = String.from("")
         var loads = List.new<String>()
         while reader.object_has_next() {
             val field = reader.read_key()
             when field.as_str() {
                 "name" => name = reader.read_string()
                 "root" => root = reader.read_string()
+                "src" => src = reader.read_string()
                 "loads" => loads = read_strings(reader)
                 _ => reader.skip_value()
             }
         }
         if name.is_empty() || root.is_empty() { return null }
-        out.push(SourceCrate { name: name, root: root, loads: loads })
+        out.push(SourceCrate { name: name, root: root, src: src, loads: loads })
     }
     return Option.Some(out)
 }
