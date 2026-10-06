@@ -42,12 +42,12 @@ pub mutating fun Module.expand_annotation_structs(table: &var DeclTable, diags: 
 }
 
 /// Every name the struct would share C's namespace with: any other
-/// declaration of the crate, in any module.
+/// declaration of the annotation's crate, in any module.
 fun Module.names_another_declaration(annotation: &TopDecl): bool {
     while other in &self.decls {
-        if other.crate.raw != self.crate.raw || other.name.id != annotation.name.id { continue }
-        if other.span.file_id == annotation.span.file_id && other.span.start == annotation.span.start { continue }
+        if other.crate.raw != annotation.crate.raw || other.name.id != annotation.name.id { continue }
         when (other.kind) {
+            AnnotationDecl(_params, _target, _is_pub) => {}
             ImplBlock(_methods) => {}
             TraitImpl(_trait, _methods) => {}
             _ => return true
