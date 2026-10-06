@@ -60,7 +60,7 @@ fun copy_template(td: &TopDecl): TopDecl {
             while param in &params {
                 val ty: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
                 unsafe { *ty = clone_type_ref(&*param.ty) }
-                copied.push(new_param(param.span, param.name.as_string(), ty))
+                copied.push(param.retyped(ty))
             }
             val ret_copy: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *ret_copy = clone_type_ref(&*ret) }

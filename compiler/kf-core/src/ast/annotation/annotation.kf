@@ -4,6 +4,8 @@ import alloc.list.*
 
 import kf_core.span.Span
 import kf_core.ast.intern
+import kf_core.ast.array_literal_callee
+import kf_core.ast.empty_list_literal_receiver
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
@@ -53,9 +55,9 @@ impl Annotation {
     }
 }
 
-/// A name, a literal, a negation or `Enum.Variant`; any other expression
-/// renders as `_`.
-fun Expr.argument_source(): String {
+/// A name, a literal, a negation, `Enum.Variant` or a list literal of those;
+/// any other expression renders as `_`.
+pub fun Expr.argument_source(): String {
     return when (self.kind) {
         Variable(name) => name.as_string()
         LitStr(text) => "\"${escaped(text.as_str(), 34)}\""
@@ -68,8 +70,27 @@ fun Expr.argument_source(): String {
             Neg => "-${inner.argument_source().as_str()}"
             Not => "!${inner.argument_source().as_str()}"
         }
+        Call(name, elements) => if name.as_str() == array_literal_callee() {
+            elements.list_source()
+        } else {
+            String.from("_")
+        }
+        MethodCall(receiver, _method, _args) => when (receiver.kind) {
+            Variable(name) => if name.as_str() == empty_list_literal_receiver() { String.from("[]") } else { String.from("_") }
+            _ => String.from("_")
+        }
         _ => String.from("_")
     }
+}
+
+fun List<Expr>.list_source(): String {
+    var out = String.from("[")
+    while i in 0..self.size() {
+        if i > 0 { out.append(", ") }
+        out.append(self.at(i).argument_source().as_str())
+    }
+    out.append("]")
+    return out
 }
 
 /// `text` with `\`, the `quote` byte and a newline escaped.

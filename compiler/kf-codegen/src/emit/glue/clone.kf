@@ -44,7 +44,7 @@ pub fun TopDecl.deep_clone_top_decl(): TopDecl {
             while param in &params {
                 val ty: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
                 unsafe { *ty = clone_type_ref(&*param.ty) }
-                clone_params.push(new_param(param.span, param.name.as_string(), ty))
+                clone_params.push(param.retyped(ty))
             }
             val clone_ret: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *clone_ret = clone_type_ref(&*ret) }
@@ -76,7 +76,7 @@ pub fun TopDecl.deep_clone_top_decl(): TopDecl {
             while param in &params {
                 val ty: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
                 unsafe { *ty = clone_type_ref(&*param.ty) }
-                clone_params.push(new_param(param.span, param.name.as_string(), ty))
+                clone_params.push(param.retyped(ty))
             }
             val clone_ret: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *clone_ret = clone_type_ref(&*ret) }
