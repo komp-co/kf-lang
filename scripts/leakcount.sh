@@ -17,11 +17,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"; cd "$ROOT"
 INPUT="${1:-compiler/kf-core}"
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 
-# 1. The seed, and the komp it builds; komp drives the compile.
+# 1. The seed, and its driver komp, which drives the compile.
 . "$ROOT/bootstrap/seed.sh"
 seed_build "$WORK/s0" > /dev/null
-"$WORK/s0/komp0" "$ROOT/compiler/komp" "$WORK/komp.c" > /dev/null 2>&1
-cc -O2 -o "$WORK/komp" "$WORK/komp.c" 2>/dev/null
+cp "$WORK/s0/komp0" "$WORK/komp"
 
 # 2. The compiler proper is kflatc, the process komp runs beside it, so that
 #    is the binary built with the allocation counter wrapped in.

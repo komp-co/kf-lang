@@ -2,9 +2,11 @@
 
 # KFlat
 
-A systems programming language that compiles to C, and `komp`, its
+A systems programming language that compiles to C, and `kflatc`, its
 self-hosted compiler — written in KFlat, compiling itself to a byte-identical
-fixpoint since 2026-06-14.
+fixpoint since 2026-06-14. Projects are built with
+[komp](https://github.com/komp-co/komp), the project tool, which runs kflatc
+once per crate.
 
 ```kflat
 fun main(): void {
@@ -46,16 +48,15 @@ komp check hello      # type-check only
 komp test hello       # run its @test functions
 ```
 
-`komp build` writes per-crate artifacts and links them; `--unity` builds
-through a single C file instead. `komp check --fix` applies the repairs the
-checker suggests. Every command takes a project directory — one containing a
-`kf.toml` — or `--manifest-path`.
+komp is documented in [its own book](https://github.com/komp-co/komp/tree/main/docs/book/src).
+A project names the compiler it needs with `kflat = "<version>"` in its
+`kf.toml`; komp installs that toolchain from this repository's releases.
 
 ## Repository layout
 
 | | |
 |---|---|
-| `compiler/` | komp itself, one crate per pass |
+| `compiler/` | kflatc, one crate per pass |
 | `libs/` | `core` (no-std vocabulary), `alloc` (containers), `std` (hosted) |
 | `bootstrap/` | the pinned seed and the bootstrap script |
 | `tests/cases/` | end-to-end fixtures, each declaring the exit code it expects |
@@ -67,11 +68,10 @@ The compiler crates run in pipeline order: `kf-parse` → `kf-assemble` →
 `kf-core` holding the shared AST and diagnostics, `kf-interface` the compiled
 crate metadata that makes separate compilation work, and `kf-driver` the
 compiler's entry points: compiling one crate, `check`, `query` and test mains.
-`kf-tool` is the project tool: manifests, fetching, the build graph and `cc`.
-It links none of the compiler crates; komp runs kflatc as a process.
-komp and kflatc are versioned separately; a project's `kflat = "..."` pin
-names kflatc's. `kf-integration` holds the compiler's whole-project tests, which run komp
-as a program; komp's own are in kf-tool.
+`kf-integration` holds the whole-project tests: they read a fixture's crates
+through `komp metadata` and build it by running komp, as users do. A crate's
+`.kf` files, the files kflatc writes and the `serve` protocol are kflatc's
+documented interface; komp keeps its own copy of those rules.
 
 ## Contributing
 
@@ -91,8 +91,8 @@ The compiler depends on the [`json`](https://github.com/komp-co/json)
 package from the index, at the version `compiler/kf.lock` pins. komp fetches
 it on the first build, so that build needs the network.
 
-Work is tracked in [issues](https://github.com/komp-co/komp/issues) and
-milestones. The editor tooling lives in its own repositories:
+Work is tracked in [issues](https://github.com/komp-co/kf-lang/issues) and
+milestones; komp's own are [komp's](https://github.com/komp-co/komp/issues). The editor tooling lives in its own repositories:
 [kf-extensions](https://github.com/komp-co/kf-extensions) (VS Code) and
 [kf-lsp](https://github.com/komp-co/kf-lsp). [`CONTRIBUTING.md`](CONTRIBUTING.md) covers branches, CI and the
 seed; [`AGENTS.md`](AGENTS.md) has the style, comment, test and commit rules.
