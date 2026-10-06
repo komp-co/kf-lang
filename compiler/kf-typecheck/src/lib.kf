@@ -51,6 +51,7 @@ pub fun typecheck_module_typed(m: &var Module,
     m.expand_annotation_structs(&var diags.items)
     // Before registration, so derived impls go through every later pass.
     m.expand_derives()
+    m.inline_constant_defaults()
     val sigs = check_decl_module(m, table, &var diags, caller_files, imported_targets, imported_names)
     // A private type in a `pub` signature would be defined twice under C17.
     val exposed = m.pub_signature_diags()

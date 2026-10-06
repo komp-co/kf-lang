@@ -126,7 +126,7 @@
 29 compiler/kf-parse/src/parser/top_decl/impl.kf
 1 compiler/kf-parse/src/parser/top_decl/signature_target.kf
 12 compiler/kf-parse/src/parser/top_decl/top_decl.kf
-39 compiler/kf-parse/src/parser/top_decl/types.kf
+40 compiler/kf-parse/src/parser/top_decl/types.kf
 21 compiler/kf-parse/src/parser/type_ref.kf
 6 compiler/kf-resolve/src/import_validation.kf
 1 compiler/kf-resolve/src/resolve_body.kf
@@ -162,7 +162,7 @@
 22 compiler/kf-typecheck/src/check/control/check_when.kf
 7 compiler/kf-typecheck/src/check/control/exhaustive.kf
 17 compiler/kf-typecheck/src/check/control/string_pattern.kf
-51 compiler/kf-typecheck/src/check/decl/check_decl.kf
+53 compiler/kf-typecheck/src/check/decl/check_decl.kf
 8 compiler/kf-typecheck/src/check/decl/check_function_body.kf
 7 compiler/kf-typecheck/src/check/decl/check_impl_header.kf
 3 compiler/kf-typecheck/src/check/decl/check_pub_signature.kf

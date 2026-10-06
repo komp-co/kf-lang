@@ -20,11 +20,11 @@
 397 compiler/kf-parse/src/lexer/lexer_test.kf
 377 compiler/kf-parse/src/parser/top_decl/top_decl_test.kf
 433 compiler/kf-parse/src/parser/top_decl/trait_test.kf
-445 compiler/kf-typecheck/src/check/check_expr.kf
+449 compiler/kf-typecheck/src/check/check_expr.kf
 795 compiler/kf-typecheck/src/check/check_expr_test.kf
-428 compiler/kf-typecheck/src/check/check_method_call.kf
+432 compiler/kf-typecheck/src/check/check_method_call.kf
 495 compiler/kf-typecheck/src/check/check_stmt_test.kf
 380 compiler/kf-typecheck/src/check/control/exhaustive_test.kf
-413 compiler/kf-typecheck/src/check/decl/check_decl.kf
+415 compiler/kf-typecheck/src/check/decl/check_decl.kf
 458 compiler/kf-typecheck/src/check/lambda_capture.kf
 1227 compiler/kf-typecheck/src/lib_test.kf

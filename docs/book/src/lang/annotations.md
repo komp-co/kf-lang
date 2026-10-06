@@ -73,10 +73,12 @@ fun main(): int32 {
 }
 ```
 
-A use gives every argument, positionally, by name in any order, or
-positionally and then by name. Each argument is a literal of its parameter's
-type, so a parameter is a number, `bool`, `char`, `String`, or an enum whose
-variants carry nothing.
+A use gives its arguments positionally, by name in any order, or
+positionally and then by name, as a [call](functions.md#default-values-and-named-arguments)
+does. Each argument is a literal of its parameter's type, so a parameter is a
+number, `bool`, `char`, `String`, or an enum whose variants carry nothing. A
+parameter may have a default, a literal of its type, and a use may leave it
+out: `annotation bench(iterations: int32 = 100)` is used as a bare `@bench`.
 
 `annotation bench(...)` also declares a struct `bench` with one field per
 parameter, and that struct is the type of `entry.args`. An annotation without

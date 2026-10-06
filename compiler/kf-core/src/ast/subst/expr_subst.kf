@@ -59,7 +59,8 @@ fun Expr.rebuild_expr(new_kind: ExprKind, names: &var List<String>, repls: &var 
         is_safe_call_value: self.is_safe_call_value,
         is_variant_ctor: self.is_variant_ctor,
         derefs_at_call: self.derefs_at_call,
-        constant: self.constant
+        constant: self.constant,
+        arg_name: self.arg_name
     }
 }
 

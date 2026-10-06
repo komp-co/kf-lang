@@ -65,13 +65,24 @@ fun SigTable.is_plain_enum(name: str, crate: CrateId): bool {
 pub fun check_annotation_params(params: &List<Param>, table: &SigTable, crate: CrateId,
     diags: &var List<Diagnostic>): void {
     while param in &params {
-        when ((*param.ty).param_kind(table, crate)) {
+        val kind = (*param.ty).param_kind(table, crate)
+        when (kind) {
             Unsupported => {
                 val allowed = "a number, `bool`, `char`, `String` or an enum whose variants carry nothing"
                 val message = "annotation parameter `${param.name.as_str()}` must be ${allowed}"
                 diags.push(new_diagnostic(Severity.Error, new_label(param.span, message)))
             }
-            _ => {}
+            _ => {
+                val written = param.default
+                if written != null {
+                    val value = written ?: continue
+                    if !value.fits_param(kind, &*param.ty, table, crate) {
+                        val wanted = "a literal of type `${(*param.ty).display_type_ref().as_str()}`"
+                        val message = "the default of `${param.name.as_str()}` must be ${wanted}"
+                        diags.push(new_diagnostic(Severity.Error, new_label(value.span, message)))
+                    }
+                }
+            }
         }
     }
 }
@@ -131,6 +142,12 @@ fun Annotation.values_for(slots: &List<uint64>, params: &List<Param>, table: &Si
         val param = params.at(p)
         val found = slots.index_of(&p)
         if found == null {
+            val default = param.default
+            if default != null {
+                val filled = default ?: continue
+                values.push((*filled).clone())
+                continue
+            }
             diags.push(error_at(self.span, "`@${kind}` is missing `${param.name.as_str()}`"))
             ok = false
             continue

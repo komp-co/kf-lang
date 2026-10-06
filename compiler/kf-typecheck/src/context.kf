@@ -99,6 +99,17 @@ pub view struct TypeCtx {
     pub var presets: List<OpenDecision>
     /// Element mismatches in literals no slot has typed yet.
     pub var deferred_literals: List<DeferredLiteral>
+    /// Calls being checked that name arguments, until their callee arranges
+    /// them; typing an argument may rebuild it, so the names live here.
+    pub var named_calls: List<NamedCall>
+}
+
+/// A call's written arguments' names, by position: `retries` for
+/// `retries = 5`, the empty name for a positional argument.
+@derive(Clone)
+pub struct NamedCall {
+    pub val span: Span
+    pub val names: List<Sym>
 }
 
 pub fun new_type_ctx(return_ty: Type, diags: &var Diagnostics, table: Ptr<DeclTable>?, sigs: Ptr<SigTable>): TypeCtx {
@@ -136,7 +147,8 @@ pub fun new_type_ctx(return_ty: Type, diags: &var Diagnostics, table: Ptr<DeclTa
         through_module: Sym { id: 0 },
         decisions: List.new<OpenDecision>(),
         presets: List.new<OpenDecision>(),
-        deferred_literals: List.new<DeferredLiteral>()
+        deferred_literals: List.new<DeferredLiteral>(),
+        named_calls: List.new<NamedCall>()
     }
 }
 

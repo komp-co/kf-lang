@@ -157,6 +157,12 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                     val ssig = sigp ?: return
                     note_import_use(ctx.sigs, ctx.owner_file, ssig.owner_module)
                     if ssig.is_static {
+                        val shown = "${rname}.${method_name}"
+                        var arg_types = args.argument_types()
+                        if !ssig.arrange_call_arguments(args, &var arg_types, shown, 0, e.span, ctx) {
+                            e.ty = Type.new_poison()
+                            return
+                        }
                         // Each argument against its parameter (no `self`), with the
                         // call's explicit type args substituted into the impl's
                         // parameters first. The receiver's and the method's own

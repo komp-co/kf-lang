@@ -284,7 +284,7 @@ fun TopDecl.deep_copy_support_fn(): TopDecl {
             while p in &params {
                 val nty: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
                 unsafe { *nty = subst_type_ref(&*p.ty, &var names, &var repls) }
-                nparams.push(new_param(p.span, p.name.as_string(), nty))
+                nparams.push(p.retyped(nty))
             }
             val nret: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *nret = subst_type_ref(&*ret, &var names, &var repls) }

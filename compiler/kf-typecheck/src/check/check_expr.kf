@@ -16,6 +16,10 @@ import kf_typecheck.check.control.*
 import kf_typecheck.check.borrow.borrow_written_deref
 
 pub fun check_expr(e: &var Expr, ctx: &var TypeCtx): void {
+    if !e.check_named_call(ctx) { check_expr_kind(e, ctx) }
+}
+
+fun check_expr_kind(e: &var Expr, ctx: &var TypeCtx): void {
     e.name_empty_list_literal(ctx)
     if e.is_array_literal() {
         e.type_array_literal(ctx)

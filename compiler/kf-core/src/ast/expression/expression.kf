@@ -51,6 +51,9 @@ pub struct Expr {
     pub var derefs_at_call: bool
     /// The top-level `val` this expression is a use of, or the empty name.
     pub var constant: Sym
+    /// The parameter a named argument binds, `retries` in
+    /// `connect(host, retries = 5)`; the empty name when positional.
+    pub var arg_name: Sym
 }
 
 impl Expr {
@@ -60,7 +63,7 @@ impl Expr {
             mangled_callee: intern(""), coerce: 0, type_args: List.new<TypeRef>(), type_args_written: false,
             is_static_call: false, is_dynamic_call: false, dynamic_slot: 0, dynamic_layout: intern(""),
             is_safe_call_value: false, is_variant_ctor: false, derefs_at_call: false,
-            constant: intern("")
+            constant: intern(""), arg_name: intern("")
         }
     }
 

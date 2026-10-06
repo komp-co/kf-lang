@@ -3,6 +3,7 @@ import alloc.list.*
 import kf_core.span.*
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef
+import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.*
 import kf_core.ast.annotation.new_annotation
 import kf_parse.lexer.tokenize
@@ -66,8 +67,13 @@ mutating fun JsonReader.load_params(): List<Param> {
         val name = self.read_string()
         if !self.expect_key("type") { return params }
         val ty = parse_type_ptr(self.read_string().as_str())
-        if self.object_has_next() { return params }
-        params.push(new_param(no_span(), name, ty))
+        var param = new_param(no_span(), name, ty)
+        if self.object_has_next() {
+            if self.read_key().as_str() != "default" { return params }
+            param.default = Box.new(parse_default_source(self.read_string().as_str()))
+            if self.object_has_next() { return params }
+        }
+        params.push(param)
     }
     return params
 }
@@ -119,6 +125,12 @@ fun parse_type_ptr(source: str): Ptr<TypeRef> {
     var parser = new_parser(tokens)
     val parsed = parser.parse_type_ref_ptr()
     return parsed
+}
+
+fun parse_default_source(source: str): Expr {
+    val tokens = tokenize(source, 0)
+    var parser = new_parser(tokens)
+    return parser.parse_expr()
 }
 
 fun parse_type_value(source: str): TypeRef {
