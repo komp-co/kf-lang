@@ -5,6 +5,7 @@ import alloc.list.*
 import alloc.hash_map.*
 
 import kf_core.ast.*
+import kf_core.span.SourceMap
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeIdentity
 import kf_core.ast.types.TypeRef
@@ -235,6 +236,10 @@ pub struct AnnotationUse {
     pub val bindings: List<Type>
     pub val kind: MarkKind
     pub val module: Sym
+    /// The declaring file, relative to the crate root, and the line of the
+    /// declaration's name; "" and 0 when unknown.
+    pub val file: String
+    pub val line: uint32
     /// The use's argument values, in parameter order.
     pub val args: List<Expr>
 }
@@ -256,6 +261,9 @@ pub struct SigTable {
     pub var value_params: List<ValueParamInfo>
     pub var type_identities: List<TypeIdentity>
     pub var insts: List<GenericInst>
+    /// Where declarations are written, for `annotated<A>()` entries; null
+    /// leaves them without a file and line.
+    pub var smap: Ptr<SourceMap>
     /// Per-file imports as parallel lists: file, target module, and the one
     /// name admitted (poison for a whole module). Empty means no filtering.
     pub var caller_files: List<uint32>
@@ -333,6 +341,7 @@ pub fun new_sig_table(): SigTable {
         value_params: List.new<ValueParamInfo>(),
         type_identities: List.new<TypeIdentity>(),
         insts: List.new<GenericInst>(),
+        smap: ptr_null<SourceMap>(),
         caller_files: List.new<uint32>(),
         imported_targets: List.new<Sym>(),
         imported_names: List.new<Sym>(),

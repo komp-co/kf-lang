@@ -104,9 +104,10 @@ fun TopDecl.register_annotation_use(annotation: &Annotation, owner: &MethodOwner
         if listed.annotation == index && listed.item.id == symbol.id { return }
     }
     val marked = self.mark_kind() ?: return
+    val place = table.place_of(self.decl_name_span(), self.module_path)
     table.annotated.push(AnnotationUse {
         annotation: index, item: symbol, name: self.listed_name(owner), bindings: bound, kind: marked,
-        module: self.module_path, args: arguments.values
+        module: self.module_path, file: place.file_path, line: place.line, args: arguments.values
     })
 }
 

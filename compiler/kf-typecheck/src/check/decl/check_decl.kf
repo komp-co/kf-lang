@@ -12,6 +12,7 @@ import kf_typecheck.types.*
 import kf_typecheck.traits.*
 import kf_typecheck.*
 import kf_core.span.no_span
+import kf_core.span.SourceMap
 import kf_typecheck.check.borrow.infer_borrow_origin
 import kf_typecheck.check.borrow.reject_unsayable_origin
 
@@ -22,8 +23,10 @@ pub fun check_decl_module(m: &var Module,
     diags: &var Diagnostics,
     caller_files: Ptr<List<uint32>>,
     imported_targets: Ptr<List<Sym>>,
-    imported_names: Ptr<List<Sym>>): Box<SigTable> {
+    imported_names: Ptr<List<Sym>>,
+    smap: Ptr<SourceMap>): Box<SigTable> {
     var sigs = new_sig_table()
+    sigs.smap = smap
     // Per-file import lists first; a null pointer leaves them empty.
     val null_files: Ptr<List<uint32>> = unsafe { 0 as Ptr<List<uint32>> }
     val null_ptr: Ptr<List<Sym>> = unsafe { 0 as Ptr<List<Sym>> }

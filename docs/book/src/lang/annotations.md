@@ -37,10 +37,11 @@ The result is an array with one entry per use, here an
 runs in a crate that depends on `core` alone. It is in declaration order, and
 private declarations are in it, from any module of the crate. A query with no
 uses is an empty array. Each entry has the declaration's `name`, the path of
-the `module` declaring it, and the use's `args`.
+the `module` declaring it, the `file` it is written in, relative to the crate
+root (`src/parse/lexer.kf`), the `line` of its name, and the use's `args`.
 
-An entry is a [view](memory.md#view-types): its `name` and `module` are `str`
-borrowed from string literals. The array can be iterated, indexed and lent
+An entry is a [view](memory.md#view-types): its `name`, `module` and `file`
+are `str` borrowed from string literals. The array can be iterated, indexed and lent
 as a slice, `&AnnotatedFunction<A, () -> int32>[]`, but a struct cannot hold
 an entry; keep `String.from(entry.name)` instead.
 

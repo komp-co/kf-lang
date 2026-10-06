@@ -203,6 +203,9 @@ fun annotated_entry(listed: &AnnotationUse, declared: &DeclaredAnnotation, shape
     var fields = List.new<FieldInit>()
     fields.push(string_field("name", listed.name.as_str(), span))
     fields.push(string_field("module", listed.module.as_str(), span))
+    fields.push(string_field("file", listed.file.as_str(), span))
+    val line = Expr.new(span, ExprKind.LitInt(listed.line as int64))
+    fields.push(FieldInit { span: span, name: intern("line"), value: Box.new(line) })
     val arguments = arguments_literal(listed, declared, span)
     fields.push(FieldInit { span: span, name: intern("args"), value: Box.new(arguments) })
     if shape.is_callable {

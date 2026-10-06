@@ -5,6 +5,7 @@ import alloc.list.*
 import kf_core.diagnostic.*
 import kf_core.ast.Module
 import kf_core.ast.Sym
+import kf_core.span.SourceMap
 import kf_resolve.*
 import kf_typecheck.check.unknown_bound_diags
 import kf_typecheck.check.untyped_receiver_diags
@@ -15,15 +16,16 @@ import kf_typecheck.template.with_expansion_notes
 pub mutating fun Module.typecheck_module(table: &var DeclTable): List<Diagnostic> {
     val null_files: Ptr<List<uint32>> = unsafe { 0 as Ptr<List<uint32>> }
     val null_ptr: Ptr<List<Sym>> = unsafe { 0 as Ptr<List<Sym>> }
-    return typecheck_module_with_imports(self, table, null_files, null_ptr, null_ptr)
+    return typecheck_module_with_imports(self, table, null_files, null_ptr, null_ptr, ptr_null<SourceMap>())
 }
 
 pub fun typecheck_module_with_imports(m: &var Module,
     table: &var DeclTable,
     caller_files: Ptr<List<uint32>>,
     imported_targets: Ptr<List<Sym>>,
-    imported_names: Ptr<List<Sym>>): List<Diagnostic> {
-    val typed = typecheck_module_typed(m, table, caller_files, imported_targets, imported_names)
+    imported_names: Ptr<List<Sym>>,
+    smap: Ptr<SourceMap>): List<Diagnostic> {
+    val typed = typecheck_module_typed(m, table, caller_files, imported_targets, imported_names, smap)
     return typed.diags.clone()
 }
 
@@ -39,7 +41,8 @@ pub fun typecheck_module_typed(m: &var Module,
     table: &var DeclTable,
     caller_files: Ptr<List<uint32>>,
     imported_targets: Ptr<List<Sym>>,
-    imported_names: Ptr<List<Sym>>): TypedModule {
+    imported_names: Ptr<List<Sym>>,
+    smap: Ptr<SourceMap>): TypedModule {
     var diags = new_diagnostics()
     // First, so what a template adds passes through every later step.
     val expansions = m.expand_templates(&var diags.items)
@@ -52,7 +55,7 @@ pub fun typecheck_module_typed(m: &var Module,
     // Before registration, so derived impls go through every later pass.
     m.expand_derives()
     m.inline_constant_defaults()
-    val sigs = check_decl_module(m, table, &var diags, caller_files, imported_targets, imported_names)
+    val sigs = check_decl_module(m, table, &var diags, caller_files, imported_targets, imported_names, smap)
     // A private type in a `pub` signature would be defined twice under C17.
     val exposed = m.pub_signature_diags()
     while item in &exposed {
