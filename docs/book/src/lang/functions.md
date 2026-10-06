@@ -185,6 +185,25 @@ impl Counter {
 A non-`mutating` method sees `self` as immutable. Attempting to write
 `self.field` in a plain `fun` method produces a compile error.
 
+Calling a `mutating` method needs a writable receiver: a `var` local or a
+`&var` borrow, not a `val` or a by-value parameter. That holds when the method
+is reached through a bound too, so a by-value `T` is moved into a `var` first:
+
+```kflat
+trait Bump {
+    mutating fun bump(): void
+}
+
+fun bumped<T: Bump>(x: T): T {
+    var y = x
+    y.bump()
+    return y
+}
+```
+
+A lambda's `CallMut` bound is the exception: `f()` runs on a by-value `f`, as
+[Lambdas](lambdas.md) shows.
+
 ## Functions as values
 
 A function's name, written where a value is expected, is a *function value*:
