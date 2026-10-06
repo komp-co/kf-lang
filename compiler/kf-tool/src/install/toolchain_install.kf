@@ -2,7 +2,7 @@
 // installed into a staging home so that only `toolchains/<version>` moves
 // into the real one and `bin/` keeps pointing where it did.
 
-import kf_shared.ensure_dir
+import kf_tool.build.ensure_dir
 import kf_tool.fetch.fresh_staging
 import kf_tool.fetch.remove_tree
 import kf_tool.project.parse_requirement

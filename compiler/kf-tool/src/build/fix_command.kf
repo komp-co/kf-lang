@@ -6,9 +6,8 @@ import alloc.list.*
 import json.reader.*
 
 import kf_tool.cli.*
-import kf_shared.absolutize
-import kf_shared.canonicalize_path
-import kf_shared.starts_with_path
+import alloc.path.Path
+import std.fs.absolute
 
 /// A fix names its own file: an import lands at the top, not where the name
 /// was written.
@@ -66,7 +65,7 @@ fun fix_one_pass(root_dir: str, dry_run: bool): uint64? {
 /// match for `<root>/app`.
 fun fixes_from_report(report: str, root_dir: str): List<LocatedFix> {
     var out = List.new<LocatedFix>()
-    val root = canonicalize_path(absolutize(root_dir).as_str())
+    val root = absolute(root_dir).normalized().raw
     val lines = report.lines()
     while line in &lines {
         if line.byte_len() > 0 {
@@ -111,7 +110,7 @@ fun read_fix(reader: &var JsonReader, root: str, out: &var List<LocatedFix>): vo
     }
     if reader.has_error() || applicability.as_str() != "machine-applicable" || file.byte_len() == 0 { return }
     // Canonical, so one file reached two ways groups once.
-    val here = canonicalize_path(absolutize(file.as_str()).as_str())
+    val here = absolute(file.as_str()).normalized().raw
     if !fix_targets_root(here.as_str(), root) { return }
     out.push(LocatedFix {
         path: here,
@@ -121,7 +120,7 @@ fun read_fix(reader: &var JsonReader, root: str, out: &var List<LocatedFix>): vo
 
 /// Both arguments must already be canonical; see `fixes_from_report`.
 pub fun fix_targets_root(canonical_file: str, canonical_root: str): bool {
-    return starts_with_path(canonical_file, canonical_root)
+    return Path.new(canonical_file).starts_with(&Path.new(canonical_root))
 }
 
 /// Grouped by file, since the engine orders and checks overlaps per file.

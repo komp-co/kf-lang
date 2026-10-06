@@ -2,7 +2,6 @@
 // being the workspace's shared `target` or the crate's own.
 
 import kf_tool.project.build_output_root
-import kf_shared.ensure_dir
 
 pub fun target_dir(project_root: str): String {
     return build_output_root(project_root) + String.from("/kflat")

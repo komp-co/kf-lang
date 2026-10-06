@@ -6,7 +6,6 @@
 //   komp_doc = { version = "0.3", index = "work" }
 
 import alloc.list.*
-import kf_shared.join_path
 import kf_tool.fetch.empty_lock_entry
 import kf_tool.project.discover_manifest_root
 import kf_tool.project.enclosing_workspace
@@ -31,7 +30,7 @@ pub fun project_tool_pin(dir: str, package: str): ToolPin? {
     val root = discover_manifest_root(dir)
     if root.is_empty() { return null }
     val workspace = enclosing_workspace(root.as_str())
-    val manifest = join_path(if workspace.is_empty() { root.as_str() } else { workspace.as_str() }, "kf.toml")
+    val manifest = "${if workspace.is_empty() { root.as_str() } else { workspace.as_str() }}/kf.toml"
     if !exists(manifest.as_str()) { return null }
     val src = read_file(manifest.as_str())
     val rows = tools_rows(src.as_str())

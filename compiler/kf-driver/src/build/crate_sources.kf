@@ -11,8 +11,8 @@ import kf_shared.crate_interface_path
 import kf_shared.runtime_header_path
 import kf_shared.test_crate_dir
 import kf_shared.test_artifact_path
-import kf_shared.publish_text
-import kf_shared.ensure_dir
+import alloc.path.Path
+import std.fs.create_dir_all
 
 /// Compiles the crate against the interfaces in `tdir` and writes its
 /// `.kfi`, `.h` and `.c` there. False on any error, reported as it is found.
@@ -34,7 +34,10 @@ pub fun CompileUnit.write_test_sources(tdir: str, errors: &var Diagnostics): boo
     if errors.error_count() != 0 { return false }
     if !publish_runtime_header(tdir) { return false }
     val test_dir = test_crate_dir(tdir)
-    if !ensure_dir(test_dir.as_str()) { return false }
+    if !create_dir_all(Path.new(test_dir.as_str())) {
+        runtime_println("error: could not create ${test_dir}")
+        return false
+    }
     val name = self.name.as_str()
     if !publish_text(test_artifact_path(test_dir.as_str(), name, ".h").as_str(), res.output.header.as_str()) {
         return false
