@@ -44,12 +44,17 @@ fun flag_value(nargs: int32, name: str): str {
     return ""
 }
 
-/// From `start`: the slot after the directory, or its slot when omitted.
+/// From `start`, the slot after the command: its flags, and at most one
+/// directory, before or after them.
 fun test_flags_well_formed(nargs: int32, start: int32): bool {
     var i: int32 = start
+    var directory_seen = false
     while i < nargs {
         val a = cli_arg_get(i)
         if a == "--workspace" || is_fetch_flag(a) {
+            i = i + 1
+        } else if !starts_with_dash(a) && !directory_seen {
+            directory_seen = true
             i = i + 1
         } else {
             val takes_value = a == "--case" || a == "--filter" || a == "--manifest-path"

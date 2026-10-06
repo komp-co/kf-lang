@@ -75,7 +75,7 @@ fun run_on_crate(command: str, root: str, nargs: int32, flag: bool): int32 {
         "check" => return check_crate(root, flag)
         "lint" => return lint_crate(root, flag)
         "fix" => return run_fix(root, flag)
-        "build" => return build_project_separate_verbose(root, "", flag)
+        "build" => return build_project_separate_verbose(root, user_cflags().as_str(), flag)
         _ => { }
     }
     if flag { return test_project(root) }
