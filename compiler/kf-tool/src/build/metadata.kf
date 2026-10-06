@@ -8,7 +8,7 @@ import kf_tool.fetch.cache_root
 import kf_tool.project.enclosing_workspace
 import kf_tool.project.is_workspace_dir
 import kf_tool.project.workspace_member_roots
-import kf_shared.kflat_version
+import kf_tool.komp_version
 import kf_tool.project.lint_toml_for
 import alloc.path.Path
 import std.fs.absolute
@@ -59,7 +59,7 @@ pub fun project_metadata(dir: str): MetadataResult {
     val first = if members.size() > 0 { members.at(0).clone() } else { String.from(dir) }
     var writer = JsonWriter.object()
     writer.field_int64("schema", metadata_schema())
-    writer.field_string("komp_version", kflat_version())
+    writer.field_string("komp_version", komp_version())
     writer.field_string("kflatc", kflatc_path().as_str())
     val workspace = metadata_workspace(dir)
     if workspace.as_str() == "" { writer.field_null("workspace_root") } else {

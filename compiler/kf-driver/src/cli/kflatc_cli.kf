@@ -28,10 +28,10 @@ import kf_driver.note_crate_being_built
 import kf_driver.print_lint_table
 import kf_driver.build.*
 import kf_driver.serve.kflatc_serve
+import kf_driver.kflat_version
 import kf_interface.interface_compiler_abi
 import kf_interface.interface_runtime_abi
 import kf_interface.interface_target
-import kf_shared.kflat_version
 
 extern "C" fun kf_mute_warnings(on: int32): void
 

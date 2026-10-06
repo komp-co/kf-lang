@@ -8,7 +8,7 @@ import kf_tool.install.install_home
 import kf_tool.install.kflat_pin_for
 import kf_tool.project.command_dir
 import kf_tool.project.select_crate_roots
-import kf_shared.kflat_version
+import kf_tool.build.default_kflatc_version
 import std.env.env_var
 import std.env.set_env_var
 
@@ -55,7 +55,7 @@ pub fun toolchain_error_for(root: str, offline: bool): String {
     if !given.is_empty() { return "" }
     val pin = kflat_pin_for(root)
     if pin.is_empty() { return "" }
-    val choice = choose_or_install_toolchain(pin.as_str(), kflat_version(), install_home().as_str(),
+    val choice = choose_or_install_toolchain(pin.as_str(), default_kflatc_version().as_str(), install_home().as_str(),
         cache_root().as_str(), offline)
     if choice.kflatc.byte_len() > 0 { set_env_var("KFLATC", choice.kflatc.as_str()) }
     return choice.error

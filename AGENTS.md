@@ -35,8 +35,9 @@ The passes run in order `kf-parse` → `kf-assemble` → `kf-resolve` →
 shared AST and diagnostics, `kf-interface` the compiled crate metadata
 (`.kfi`), `kf-driver` the compiler's entry points (one crate, `check`,
 `serve` and the editor answers it gives). `kf-tool` is the project tool: manifests, fetching, the
-build graph, cc. `kf-shared` holds only the release version both report, and
-`kf-integration` the tests that drive whole projects through both. What else
+build graph, cc. Each side has its own version: kflatc's `kflat_version()` in
+kf-driver, which a project's `kflat = "..."` pin names, and komp's
+`komp_version()` in kf-tool. `kf-integration` holds the tests that drive whole projects through both. What else
 they must agree on (the files kflatc writes, which files make a crate) is
 kflatc's documented command line, and each side keeps its own copy. Two binaries sit on top: `kflatc`, the compiler, which
 links kf-driver and turns one crate into C, and `komp`, the project tool, which

@@ -4,7 +4,6 @@ version = "0.1.0"
 kind = "lib"
 
 [dependencies]
-kf_shared = { path = "../kf-shared" }
 json = "0.2"
 
 [native]

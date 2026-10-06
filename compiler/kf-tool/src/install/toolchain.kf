@@ -1,5 +1,5 @@
-// The compiler a project's `kflat` pin picks: komp's own when the pin allows
-// it, else the highest toolchain installed under `<home>/toolchains` that it
+// The compiler a project's `kflat` pin picks: the default kflatc when the pin
+// allows it, else the highest toolchain installed under `<home>/toolchains` that it
 // allows and this komp can drive.
 
 import alloc.list.*
@@ -18,7 +18,7 @@ import alloc.path.Path
 import kf_tool.fetch.remove_tree
 import kf_tool.project.render
 
-/// The kflatc to run, "" for komp's own, or `error` saying why none fits.
+/// The kflatc to run, "" for the default one, or `error` saying why none fits.
 /// `installable` when a release the pin allows could fit.
 pub struct ToolchainChoice {
     pub val kflatc: String
@@ -40,7 +40,9 @@ pub fun kflat_pin_for(crate_root: str): String {
     return manifest_kflat_pin(read_file(manifest.as_str()).as_str())
 }
 
-pub fun choose_toolchain(pin: str, own_version: str, home: str): ToolchainChoice {
+/// `default_version` is the release of the kflatc komp runs when nothing picks
+/// another, "" when there is none.
+pub fun choose_toolchain(pin: str, default_version: str, home: str): ToolchainChoice {
     val wanted = parse_requirement(pin) ?: return no_toolchain(
         "error: kf.toml: `kflat = \"${pin}\"` is not a version requirement", false
     )
@@ -50,15 +52,17 @@ pub fun choose_toolchain(pin: str, own_version: str, home: str): ToolchainChoice
             "(${oldest.render()}); pin a newer release, or build with a komp from that one"
         return no_toolchain(error, false)
     }
-    val own = parse_version(own_version) ?: Version { major: 0, minor: 0, patch: 0 }
-    if wanted.allows(&own) { return ToolchainChoice { kflatc: "", error: "", installable: false } }
+    val beside = parse_version(default_version) ?: Version { major: 0, minor: 0, patch: 0 }
+    if default_version.byte_len() > 0 && wanted.allows(&beside) {
+        return ToolchainChoice { kflatc: "", error: "", installable: false }
+    }
     val installed = installed_toolchains(home)
     // Ascending, so the last one allowed is the highest.
     var chosen = ""
     while version in &installed {
         if wanted.allows(version) && version.compare(&oldest) >= 0 { chosen = version.render() }
     }
-    if chosen.byte_len() == 0 { return no_toolchain(missing_toolchain(pin, own_version, &installed), true) }
+    if chosen.byte_len() == 0 { return no_toolchain(missing_toolchain(pin, default_version, &installed), true) }
     return ToolchainChoice { kflatc: toolchain_kflatc(home, chosen.as_str()), error: "", installable: false }
 }
 
@@ -89,14 +93,17 @@ pub fun installed_toolchains(home: str): List<Version> {
     return out
 }
 
-fun missing_toolchain(pin: str, own_version: str, installed: &List<Version>): String {
+fun missing_toolchain(pin: str, default_version: str, installed: &List<Version>): String {
     var found = ""
     while version in installed {
         found.append(if found.byte_len() == 0 { " (installed: " } else { ", " })
         found.append(version.render().as_str())
     }
     if found.byte_len() > 0 { found.append(")") }
-    return "error: kf.toml pins kflat ${pin}: this komp is ${own_version} and no installed toolchain fits${found}"
+    val beside = if default_version.byte_len() > 0 { "the default kflatc is ${default_version}" } else {
+        String.from("there is no default kflatc")
+    }
+    return "error: kf.toml pins kflat ${pin}: ${beside} and no installed toolchain fits${found}"
 }
 
 /// The toolchain `<home>/bin/komp` runs, by version; "" when it points at
@@ -116,12 +123,13 @@ pub fun default_toolchain(home: str): String {
     return rest.substring(0, slash)
 }
 
-/// Removes toolchain `version`, but not the default nor the one `running`;
+/// Removes toolchain `version`, but not the default nor the one komp runs
+/// now, `running`;
 /// "" once removed, else why not.
 pub fun remove_toolchain(home: str, version: str, running: str): String {
     if parse_version(version) == null { return "`${version}` is not a version" }
     if !is_file(toolchain_kflatc(home, version).as_str()) { return "kflat ${version} is not installed" }
-    if version == running { return "kflat ${version} is the komp running now" }
+    if version == running { return "kflat ${version} is the kflatc komp runs now" }
     if default_toolchain(home).as_str() == version {
         return "kflat ${version} is the default; `komp toolchain install` another one first"
     }
