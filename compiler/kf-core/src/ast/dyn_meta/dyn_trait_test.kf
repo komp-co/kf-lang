@@ -3,6 +3,7 @@ import core.assert.assert_eq
 import kf_core.span.no_span
 import kf_core.ast.intern
 import kf_core.ast.types.Type
+import testing.test
 
 fun test_dynamic_sink(argument: Type): Type {
     var args = List.new<Type>()

@@ -2,6 +2,7 @@ import core.assert.assert_eq
 
 import kf_core.ast.intern
 import kf_core.ast.lang_equal_key
+import testing.test
 
 fun equal_marked_table(): SigTable {
     var sigs = new_sig_table()

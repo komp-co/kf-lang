@@ -1,5 +1,6 @@
 import core.assert.*
 import core.option.*
+import testing.test
 
 @test
 fun option_some_is_some(): void {

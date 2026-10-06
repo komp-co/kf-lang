@@ -1,6 +1,7 @@
 // `Option` and `Result` over a `String` payload.
 
 import core.assert.*
+import testing.test
 
 // The predicates borrow, so the payload stays usable.
 @test

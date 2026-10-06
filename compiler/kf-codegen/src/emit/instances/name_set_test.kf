@@ -1,4 +1,5 @@
 import core.assert.assert_eq
+import testing.test
 
 @test fun a_name_added_twice_is_kept_once(): void {
     var set = NameSet.new()

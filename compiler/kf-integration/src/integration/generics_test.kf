@@ -8,6 +8,7 @@ import std.process.*
 
 import kf_integration.harness.compile_source
 import kf_tool.build.build_project_separate
+import testing.test
 
 fun build_and_run(src: str, exe: str): int32 {
     val c = compile_source(src)

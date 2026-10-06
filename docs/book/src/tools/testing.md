@@ -11,6 +11,8 @@ A test function lives in a file named `<module>_test.kf` next to
 
 ```kflat
 // src/math_test.kf
+import testing.test
+
 @test
 fun test_add(): void {
     val result = add(2, 3)
@@ -22,7 +24,8 @@ The function is annotated with `@test`, returns `void`, and takes no
 arguments. `@test(name = "...")` shows a name of your choosing in the report,
 `@test(panics = FaultKind.UnwrapNone)` passes only when the test panics with
 that kind, and `@disabled("reason")` beside `@test` keeps a test checked but
-out of the run (see [`@test`](../lang/annotations.md#test)). The test file and the source file share the same scope — `add` is
+out of the run (see [`@test`](../lang/annotations.md#test)). `@test` and
+`@disabled` are imported from `testing` like any other name. The test file and the source file share the same scope — `add` is
 callable without any import, because the test file sits in the same
 directory, and so the same module, as the source.
 

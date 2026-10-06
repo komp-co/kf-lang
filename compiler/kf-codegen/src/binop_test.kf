@@ -13,6 +13,7 @@ import kf_core.ast.expression.*
 
 import kf_codegen.*
 import kf_codegen.emit.expr.emit_expr
+import testing.test
 
 fun str_var_ptr(name: str): Ptr<Expr> {
     var e = Expr.new(no_span(), ExprKind.Variable(intern(name)))

@@ -1,6 +1,7 @@
 import core.assert.*
 import core.option.*
 import core.result.*
+import testing.test
 
 @test
 fun try_option_some_branches_to_continue(): void {

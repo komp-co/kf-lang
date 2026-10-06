@@ -2,6 +2,7 @@
 
 import core.assert.assert_eq
 import core.text.*
+import testing.test
 
 @test fun push_appends_a_whole_character(): void {
     var s = String.from("")

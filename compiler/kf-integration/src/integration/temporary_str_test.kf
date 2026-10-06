@@ -7,6 +7,7 @@ import kf_resolve.resolve_module
 import kf_typecheck.typecheck_module
 import kf_integration.harness.typed_crate_for
 import std.fs.scratch_path
+import testing.test
 
 extern "C" fun system(cmd: str): int32
 

@@ -1,4 +1,5 @@
 import core.assert.assert_eq
+import testing.test
 
 fun allows(requirement: str, version: str): bool {
     val wanted = parse_requirement(requirement) ?: return false

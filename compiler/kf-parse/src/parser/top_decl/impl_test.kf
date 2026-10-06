@@ -8,6 +8,7 @@ import kf_core.ast.Intrinsic
 import kf_core.ast.expression.coerce_written_amp_var
 import kf_core.ast.declaration.TopDecl
 import kf_parse.parser.parser_for
+import testing.test
 
 @test fun parse_module_impl_empty_body(): void {
     var p = parser_for("impl Foo {}")

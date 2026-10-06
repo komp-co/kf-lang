@@ -1,4 +1,5 @@
 import core.assert.assert_eq
+import testing.test
 
 @test
 fun a_plain_function_is_no_intrinsic(): void {

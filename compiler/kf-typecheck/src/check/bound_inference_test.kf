@@ -4,6 +4,7 @@ import alloc.list.*
 import kf_core.span.no_span
 import kf_core.ast.intern
 import kf_core.ast.types.*
+import testing.test
 
 // A compound trait argument (`Entry<K, V>`) resolves to a concrete type.
 @test fun a_compound_trait_argument_resolves_to_a_concrete_instance(): void {

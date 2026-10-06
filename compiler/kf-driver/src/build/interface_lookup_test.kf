@@ -1,4 +1,5 @@
 import core.assert.assert_eq
+import testing.test
 
 @test
 fun an_interface_is_read_from_the_target_directory(): void {

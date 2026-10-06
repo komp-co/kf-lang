@@ -7,6 +7,7 @@ import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TopDeclKind
 import kf_core.ast.declaration.new_top_decl
 import kf_parse.parser.*
+import testing.test
 
 @test fun parse_generic_struct_records_type_params(): void {
     var p = parser_for("struct Pair<A, B> { val a: A val b: B }")

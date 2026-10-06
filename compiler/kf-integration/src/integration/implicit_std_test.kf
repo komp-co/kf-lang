@@ -6,6 +6,7 @@ import core.assert.assert_eq
 import kf_tool.build.build_crate_graph
 import kf_tool.build.default_fetch_policy
 import kf_tool.build.sync_sources
+import testing.test
 
 /// A bin project `name` whose main.kf is `source`, with `extra` appended to
 /// its `[project]` table.

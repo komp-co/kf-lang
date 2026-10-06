@@ -14,6 +14,7 @@ import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.statement.*
 import kf_codegen.emit.new_local_env
+import testing.test
 
 fun scalar_arm(tag: SwitchTag): SwitchArm {
     return SwitchArm.new(no_span(), tag, List.new<Sym>(), null, List.new<Stmt>())

@@ -1,6 +1,7 @@
 import core.assert.assert_eq
 import core.assert.fail
 import core.assert.assert
+import testing.test
 
 @test fun span_len_basic(): void {
     val s = Span { file_id: 1, start: 5, end: 12 }

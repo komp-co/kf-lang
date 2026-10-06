@@ -15,6 +15,7 @@ import kf_core.ast.dyn_meta.dyn_trait_type
 import kf_lower.refcount.new_rc_ctx
 import kf_lower.refcount.rc_insert_stmts
 import kf_lower.refcount.push_frame
+import testing.test
 
 fun lower_dyn_ref(): Type {
     val dynamic = dyn_trait_type(intern("Show"), List.new<Type>(), no_span())

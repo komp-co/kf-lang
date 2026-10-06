@@ -1,6 +1,7 @@
 import core.assert.assert_eq
 import std.fs.scratch_path
 import kf_integration.harness.copy_tree_by_content
+import testing.test
 
 extern "C" fun system(cmd: str): int32
 

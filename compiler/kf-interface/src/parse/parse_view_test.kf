@@ -5,6 +5,7 @@ import alloc.list.*
 
 import kf_interface.emit.interface_test_module
 import kf_interface.emit.emit_interface
+import testing.test
 
 @test
 fun interface_round_trip_restores_a_view(): void {

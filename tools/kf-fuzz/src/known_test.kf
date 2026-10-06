@@ -1,3 +1,5 @@
+import testing.test
+
 fun sample(): str {
     return "# filed\n\n216 panic: type vec index out of bounds\n  301   hang  \n"
 }

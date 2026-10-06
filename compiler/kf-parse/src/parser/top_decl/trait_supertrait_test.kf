@@ -2,6 +2,7 @@ import core.assert.assert_eq
 import core.assert.fail
 import alloc.list.*
 import kf_parse.parser.parser_for
+import testing.test
 
 @test fun parse_trait_records_one_supertrait(): void {
     var p = parser_for("trait Compare: Equal { fun compare(other: Self): int32 }")

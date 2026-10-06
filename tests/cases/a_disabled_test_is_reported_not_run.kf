@@ -4,6 +4,8 @@
 // and the run still passes.
 
 import testing.run_tests
+import testing.disabled
+import testing.test
 
 @test
 @disabled("waiting on a fix")

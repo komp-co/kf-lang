@@ -3,6 +3,7 @@
 import core.assert.assert_eq
 import alloc.list.*
 import alloc.text_split.*
+import testing.test
 
 fun piece(parts: &List<String>, i: uint64): str {
     return parts.at(i).as_str()

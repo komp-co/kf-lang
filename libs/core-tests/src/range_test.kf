@@ -1,5 +1,6 @@
 import core.assert.*
 import core.range.*
+import testing.test
 
 fun sum_i32(r: Range<int32>): int32 {
     var total = 0

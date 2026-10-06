@@ -1,5 +1,6 @@
 import core.assert.assert_eq
 import kf_core.span.no_span
+import testing.test
 
 @test
 fun a_type_built_inside_a_typing_lives_in_its_nodes(): void {

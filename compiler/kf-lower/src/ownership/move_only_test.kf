@@ -5,6 +5,7 @@ import kf_core.span.no_span
 import kf_core.ast.intern
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
+import testing.test
 
 fun storage_of(element: str): TypeRef {
     val inner = TypeRef.new(no_span(), TypeRefKind.Named(intern(element), List.new<TypeRef>()))

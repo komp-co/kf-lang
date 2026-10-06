@@ -1,5 +1,6 @@
 import core.assert.*
 import alloc.deque.*
+import testing.test
 
 fun counted(n: int32): Deque<int32> {
     var dq = Deque.new<int32>()

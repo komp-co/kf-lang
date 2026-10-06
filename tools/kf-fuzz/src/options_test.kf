@@ -1,4 +1,5 @@
 import alloc.list.*
+import testing.test
 
 fun line(text: str): List<String> {
     return text.split(" ")

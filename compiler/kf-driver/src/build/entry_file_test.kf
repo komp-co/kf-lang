@@ -3,6 +3,7 @@ import alloc.list.*
 
 import kf_core.ast.Module
 import kf_driver.fresh_source_map
+import testing.test
 
 fun entry_module(): Module {
     return parse_entry_source("main_entry.kf", "fun main(): int32 { return 0 }\n", fresh_source_map())

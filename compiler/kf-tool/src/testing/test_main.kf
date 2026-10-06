@@ -11,7 +11,9 @@ pub fun write_test_main(dir: str, crate_name: str): String {
 }
 
 pub fun test_main_source(): str {
-    return """import testing.run_tests
+    return """import testing.disabled
+import testing.run_tests
+import testing.test
 
 fun main(): int32 {
     return run_tests(&annotated<test>(), &annotated<disabled>())

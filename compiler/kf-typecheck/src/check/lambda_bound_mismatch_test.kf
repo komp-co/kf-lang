@@ -10,6 +10,7 @@ import kf_core.ast.declaration.Param
 import kf_core.ast.declaration.new_param
 import kf_core.ast.statement.Stmt
 import kf_typecheck.tref_p
+import testing.test
 
 fun lambda_with_param(ty: Ptr<TypeRef>): Expr {
     var params = List.new<Param>()

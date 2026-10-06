@@ -6,6 +6,7 @@ import kf_core.ast.intern
 import kf_core.ast.types.Provenance
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
+import testing.test
 
 fun transposed(): Type {
     var names = List.new<String>()

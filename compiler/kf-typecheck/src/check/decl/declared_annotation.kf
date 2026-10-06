@@ -9,7 +9,6 @@ import kf_core.ast.Module
 import kf_core.ast.types.Type
 import kf_core.ast.declaration.*
 import kf_core.ast.annotation.annotation_is_known
-import kf_core.ast.annotation.annotation_is_declarable
 import kf_core.ast.annotation.known_annotations_summary
 import kf_core.diagnostic.*
 import kf_typecheck.*
@@ -30,8 +29,7 @@ pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: &var Di
         when (td.kind) {
             AnnotationDecl(own_params, own_target, is_pub) => {
                 val own = td.crate.raw == self.crate.raw
-                val reserved = annotation_is_known(td.name.as_str()) &&
-                    !(annotation_is_declarable(td.name.as_str()) && may_declare_test_annotations(td.crate))
+                val reserved = annotation_is_known(td.name.as_str())
                 if reserved {
                     if own {
                         val message = "`@${td.name.as_str()}` is a built-in annotation and cannot be declared"
@@ -64,7 +62,7 @@ pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: &var Di
         while annotation in &td.annotations {
             val kind = annotation.name.as_str()
             if kind.equals("") { continue }
-            if annotation_is_known(kind) && !td.binds_declared_builtin(kind, table) { continue }
+            if annotation_is_known(kind) { continue }
             td.register_annotation_use(annotation, &top_level_owner(), sigs, diags, table, &var found)
         }
         td.register_member_annotations(sigs, diags, table, &var found)
@@ -72,13 +70,6 @@ pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: &var Di
     while diag in &found {
         diags.emit(diag)
     }
-}
-
-/// A declarable built-in such as `@test` is also a declared use when its
-/// declaration is visible here.
-fun TopDecl.binds_declared_builtin(kind: str, table: &SigTable): bool {
-    if !annotation_is_declarable(kind) { return false }
-    return table.find_annotation(kind, self.span.file_id, self.crate, self.module_path) != null
 }
 
 /// `sigs` is `table`, for recording the import use; `pass_diags` is where

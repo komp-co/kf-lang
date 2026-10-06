@@ -1,6 +1,7 @@
 import core.assert.assert_eq
 import kf_tool.project.parse_requirement
 import std.fs.scratch_path
+import testing.test
 
 extern "C" fun system(cmd: str): int32
 

@@ -7,6 +7,7 @@ import kf_core.ast.types.Provenance
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
 import kf_typecheck.types.type_eq
+import testing.test
 
 fun server_ty(): Type {
     return Type { kind: TypeKind.Struct(intern("Server")), provenance: Provenance.Inferred(no_span()) }

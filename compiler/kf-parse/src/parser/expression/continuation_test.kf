@@ -4,6 +4,7 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_parse.parser.parser_for
+import testing.test
 
 fun continuation_diags(src: str): uint64 {
     var p = parser_for(src)

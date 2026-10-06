@@ -1,5 +1,6 @@
 import core.assert.assert_eq
 import alloc.list.*
+import testing.test
 
 fun temporary_messages(name: str, body: str): List<String> {
     return extension_messages(name, """struct Node { pub var label: String }

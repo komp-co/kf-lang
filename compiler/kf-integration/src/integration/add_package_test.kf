@@ -6,6 +6,7 @@ import kf_tool.build.build_project_separate
 import kf_tool.build.default_fetch_policy
 import kf_tool.build.sync_sources
 import kf_tool.install.add_package
+import testing.test
 
 /// A bin crate declaring `index_url` as `scratch`, whose main uses `seven()`
 /// when `uses_seven`.

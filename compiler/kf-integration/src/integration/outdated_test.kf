@@ -5,6 +5,7 @@
 import core.assert.assert_eq
 import kf_tool.build.Outdated
 import kf_tool.build.outdated
+import testing.test
 
 /// A project taking komp_alpha "0.1", locked at 0.1.0, and a package from an
 /// index [indexes] does not declare; its [tools] pins komp_beta "1".

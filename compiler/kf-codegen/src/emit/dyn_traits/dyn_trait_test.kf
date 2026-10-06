@@ -13,6 +13,7 @@ import kf_core.ast.declaration.new_top_decl
 import kf_core.ast.dyn_meta.*
 import kf_codegen.emit.c_type_of_type
 import kf_codegen.emit.expr.emit_expr
+import testing.test
 
 fun dyn_text_find(text: str, needle: str): uint64 {
     val text_len = text.byte_len()

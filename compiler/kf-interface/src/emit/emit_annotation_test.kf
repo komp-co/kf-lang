@@ -8,6 +8,7 @@ import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
 import kf_core.ast.annotation.any_kind_target
 import kf_interface.parse.parse_interface
+import testing.test
 
 fun annotation_module(is_pub: bool): Module {
     return targeted_module(is_pub, default_mark_target(no_span()))

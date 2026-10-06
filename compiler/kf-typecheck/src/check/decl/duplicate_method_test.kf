@@ -12,6 +12,7 @@ import kf_core.ast.statement.Stmt
 import kf_resolve.new_decl_table
 import kf_resolve.resolve_module
 import kf_typecheck.typecheck_module
+import testing.test
 
 fun dup_test_decl(td: TopDecl): TopDecl {
     var owned = td

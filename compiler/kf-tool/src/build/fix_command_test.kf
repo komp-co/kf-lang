@@ -4,6 +4,7 @@
 import core.assert.assert_eq
 import alloc.path.Path
 import std.fs.absolute
+import testing.test
 
 fun canon(p: str): String {
     return absolute(p).normalized().raw

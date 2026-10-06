@@ -12,6 +12,7 @@ import kf_resolve.*
 import kf_typecheck.*
 import kf_typecheck.check.check_expr
 import kf_typecheck.leaked_diagnostics
+import testing.test
 
 fun operator_width_ctx(): TypeCtx {
     val declarations: Ptr<DeclTable> = unsafe { alloc<DeclTable>() }

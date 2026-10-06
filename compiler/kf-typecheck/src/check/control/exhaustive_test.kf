@@ -13,6 +13,7 @@ import kf_core.ast.expression.ExprKind
 import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
 import kf_typecheck.check.mk_stmt_ctx
+import testing.test
 
 // `enum Color { Red  Green  Blue }`, registered, and a subject naming it.
 fun mk_color_ctx(): TypeCtx {

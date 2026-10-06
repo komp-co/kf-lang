@@ -3,6 +3,7 @@ import alloc.list.*
 import kf_core.span.no_span
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
+import testing.test
 
 fun plain(name: str): TypeRef {
     return TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))

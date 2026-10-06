@@ -3,6 +3,7 @@
 
 import core.assert.assert_eq
 import core.assert.fail
+import testing.test
 
 fun char_scalar_of(src: str): int64 {
     val toks = tokenize(src, 1)

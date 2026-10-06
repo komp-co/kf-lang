@@ -6,6 +6,7 @@ import core.assert.assert_eq
 import std.fs.scratch_path
 import kf_driver.editor.render_references_json
 import kf_driver.editor.render_rename_json
+import testing.test
 
 fun types_source(): str {
     return """pub struct Point {

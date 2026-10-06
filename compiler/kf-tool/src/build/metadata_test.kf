@@ -6,6 +6,7 @@ import alloc.list.*
 import json.reader.JsonKind
 import json.reader.JsonReader
 import std.fs.scratch_path
+import testing.test
 
 extern "C" fun system(cmd: str): int32
 

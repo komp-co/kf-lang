@@ -3,6 +3,7 @@ import core.assert.fail
 import core.assert.assert_eq
 
 import kf_core.span.no_span
+import testing.test
 
 @test fun int32_ty_is_int32(): void {
     val t = Type.new_int32(no_span())

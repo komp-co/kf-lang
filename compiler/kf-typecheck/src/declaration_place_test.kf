@@ -2,6 +2,7 @@ import core.assert.assert_eq
 
 import kf_core.span.*
 import kf_core.ast.intern
+import testing.test
 
 /// Gives `table` a source map holding one file, and returns its id.
 fun table_over(path: str, content: str, table: &var SigTable): uint32 {

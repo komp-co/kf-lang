@@ -1,4 +1,5 @@
 import alloc.list.*
+import testing.test
 
 @test
 fun std_brings_its_own_dependencies(): void {

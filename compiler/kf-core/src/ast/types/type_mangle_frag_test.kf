@@ -3,6 +3,7 @@ import core.assert.assert_eq
 import kf_core.span.no_span
 import kf_core.ast.dyn_meta.dyn_trait_type
 import kf_core.ast.intern
+import testing.test
 
 fun struct_named(s: str): Type {
     return Type { kind: TypeKind.Struct(intern(s)), provenance: Provenance.Inferred(no_span()) }

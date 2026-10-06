@@ -4,6 +4,7 @@ import core.assert.assert_eq
 import alloc.list.*
 import kf_core.span.no_span
 import kf_core.ast.expression.*
+import testing.test
 
 fun local(name: str, coerce: uint8): Expr {
     var e = Expr.new(no_span(), ExprKind.Variable(intern(name)))

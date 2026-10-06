@@ -4,6 +4,7 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.ast.intern
+import testing.test
 
 @test
 fun a_mangled_callee_yields_its_method(): void {

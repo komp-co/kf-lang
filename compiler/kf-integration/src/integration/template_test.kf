@@ -2,6 +2,7 @@
 // the struct's module, and its names resolve in the template's own.
 
 import core.assert.assert_eq
+import testing.test
 
 fun counted_template(): str {
     return """pub annotation counted on struct

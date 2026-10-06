@@ -9,6 +9,7 @@ import kf_core.ast.types.TypeKind
 import kf_core.ast.expression.BinOp
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
+import testing.test
 
 fun guard_of(kind: ExprKind, ty: Type): Ptr<Expr>? {
     val guard: Ptr<Expr> = unsafe { alloc<Expr>() }

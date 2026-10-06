@@ -4,6 +4,7 @@ import alloc.list.*
 import kf_core.span.*
 import kf_core.diagnostic.error_at
 import kf_resolve.*
+import testing.test
 
 fun deferring_ctx(): TypeCtx {
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }

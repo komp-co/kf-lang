@@ -6,6 +6,7 @@ import kf_integration.harness.typed_crate_for_overlay
 import core.assert.assert_eq
 import std.fs.scratch_path
 import kf_driver.editor.render_completion_json
+import testing.test
 
 extern "C" fun system(cmd: str): int32
 
@@ -56,7 +57,9 @@ pub fun probe(seed: int32): int32 {
 
 /// A typed query assembles the test files too.
 fun scope_test_file_source(): String {
-    return String.from("""@test
+    return String.from("""import testing.test
+
+@test
 fun a_test_nobody_calls(): void {
 }
 

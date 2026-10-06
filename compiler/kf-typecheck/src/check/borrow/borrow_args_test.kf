@@ -12,6 +12,7 @@ import kf_core.ast.expression.coerce_addr_of
 import kf_typecheck.check.mk_ctx
 import kf_typecheck.check.check_expr
 import kf_typecheck.check.check_method_call
+import testing.test
 
 fun borrow_test_ref(inner: Type, mutable: bool): Type {
     val p: Ptr<Type> = unsafe { alloc<Type>() }

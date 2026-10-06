@@ -9,6 +9,7 @@ import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_typecheck.check.check_expr
 import kf_typecheck.check.mk_ctx
+import testing.test
 
 fun value_register_fn(name: str, generics: List<String>, ctx: &var TypeCtx): void {
     var params = List.new<Type>()

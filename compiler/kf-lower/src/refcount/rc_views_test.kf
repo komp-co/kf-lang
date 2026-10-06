@@ -7,6 +7,7 @@ import kf_core.ast.intern
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.coerce_clone
 import kf_core.ast.statement.*
+import testing.test
 
 fun string_var(name: str): Ptr<Expr> {
     val p: Ptr<Expr> = unsafe { alloc<Expr>() }

@@ -1,7 +1,7 @@
 //! build: fail
 //! deps: core
-// `test` is built in; declaring it again would give `@test` two meanings.
+// `derive` is built in; declaring it again would give `@derive` two meanings.
 
-annotation test
+annotation derive
 
 fun main(): int32 { return 0 }

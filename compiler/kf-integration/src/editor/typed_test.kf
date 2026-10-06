@@ -16,6 +16,7 @@ import kf_driver.editor.path_for_file_id
 import kf_driver.editor.render_inlays_json
 import kf_integration.harness.assemble_project
 import std.fs.scratch_path
+import testing.test
 
 extern "C" fun system(cmd: str): int32
 

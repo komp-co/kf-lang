@@ -2,6 +2,7 @@ import alloc.list.*
 import core.assert.assert_eq
 
 import kf_core.span.*
+import testing.test
 
 @test fun severity_error_distinguishable_from_warning(): void {
     val e: Severity = Severity.Error

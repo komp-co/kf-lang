@@ -1,6 +1,7 @@
 // The escape language at its boundaries.
 
 import core.assert.assert_eq
+import testing.test
 
 fun decoded(src: str): Escape {
     return decode_escape(src, 0, src.byte_len())

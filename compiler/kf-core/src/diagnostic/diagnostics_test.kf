@@ -1,6 +1,7 @@
 import core.assert.assert_eq
 
 import kf_core.span.no_span
+import testing.test
 
 @test
 fun a_fresh_sink_has_no_errors(): void {

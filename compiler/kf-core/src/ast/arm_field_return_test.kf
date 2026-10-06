@@ -12,6 +12,7 @@ import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import testing.test
 
 fun probe_decl(): TopDecl {
     var body = List.new<Stmt>()

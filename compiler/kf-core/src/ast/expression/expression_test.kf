@@ -2,6 +2,7 @@ import core.assert.*
 import alloc.list.*
 
 import kf_core.span.*
+import testing.test
 
 @test fun new_expr_initializes_poison_decl(): void {
     val e = Expr.new(no_span(), ExprKind.LitInt(7))

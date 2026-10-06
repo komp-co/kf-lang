@@ -8,6 +8,7 @@ import kf_core.span.no_span
 import kf_core.ast.intern
 import kf_core.diagnostic.*
 import kf_typecheck.new_sig_table
+import testing.test
 
 fun shadow_trait(name: str, supers: List<String>, assocs: List<String>): TraitInfo {
     var reqs = List.new<SuperTraitReq>()

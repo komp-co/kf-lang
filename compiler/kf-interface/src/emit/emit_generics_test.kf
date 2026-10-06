@@ -9,6 +9,7 @@ import kf_core.ast.declaration.new_top_decl
 import kf_parse.lexer.tokenize
 import kf_parse.parser.new_parser
 import kf_interface.parse.*
+import testing.test
 
 fun generics_source_map(): Ptr<SourceMap> {
     val smap: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }

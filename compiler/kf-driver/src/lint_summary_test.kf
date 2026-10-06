@@ -3,6 +3,7 @@ import alloc.list.*
 
 import kf_core.span.no_span
 import kf_core.diagnostic.*
+import testing.test
 
 @test
 fun nothing_found_says_so(): void {

@@ -2,6 +2,7 @@ import core.assert.assert_eq
 
 import kf_core.span.no_span
 import kf_parse.lexer.*
+import testing.test
 
 /// `pub` so the sub-module tests share it.
 pub fun parser_for(src: str): Parser {

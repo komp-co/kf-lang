@@ -5,6 +5,7 @@ import core.assert.assert_eq
 import kf_integration.harness.check_project
 import kf_tool.build.default_fetch_policy
 import kf_tool.build.sync_sources
+import testing.test
 
 /// Commits `greet` at `version`, returning `answer`; the new commit's id.
 fun release(repo: &String, version: str, answer: str): String {

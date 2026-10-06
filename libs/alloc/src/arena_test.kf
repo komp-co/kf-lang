@@ -1,6 +1,7 @@
 import core.assert.assert
 import core.assert.assert_eq
 import alloc.arena.*
+import testing.test
 
 @test
 fun a_new_arena_is_empty(): void {

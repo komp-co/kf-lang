@@ -6,6 +6,7 @@ import kf_driver.editor.render_completion_json
 import kf_driver.editor.render_hover_json
 import kf_driver.editor.render_signature_json
 import kf_driver.editor.render_symbols_json
+import testing.test
 
 extern "C" fun system(cmd: str): int32
 

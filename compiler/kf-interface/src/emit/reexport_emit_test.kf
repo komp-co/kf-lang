@@ -5,6 +5,7 @@ import kf_core.ast.Module
 import kf_core.ast.new_reexport
 import kf_core.ast.new_renaming_reexport
 import kf_core.span.no_span
+import testing.test
 
 fun reexporting_module(): Module {
     var m = interface_test_module()

@@ -5,6 +5,7 @@ import kf_core.span.no_span
 import kf_core.ast.intern
 import kf_core.ast.new_crate_id
 import kf_core.ast.types.*
+import testing.test
 
 @test fun mangle_struct_name_no_args(): void {
     val name: String = mangle_struct_name("Foo", List.new<Type>())

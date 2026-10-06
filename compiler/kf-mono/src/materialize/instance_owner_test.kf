@@ -1,5 +1,6 @@
 import core.assert.assert_eq
 import alloc.list.*
+import testing.test
 
 fun method_inst(owner: str): Inst {
     return Inst { base: String.from("run"), args: List.new<TypeRef>(), owner: String.from(owner) }

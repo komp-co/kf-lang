@@ -3,6 +3,7 @@
 
 import core.assert.assert_eq
 import alloc.list.*
+import testing.test
 
 @test
 fun a_new_list_is_empty(): void {

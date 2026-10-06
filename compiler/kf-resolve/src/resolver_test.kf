@@ -9,6 +9,7 @@ import kf_core.ast.expression.ExprKind
 import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import testing.test
 
 // Fixtures are built by hand: kf-resolve cannot depend on kf-parse.
 

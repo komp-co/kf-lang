@@ -1,6 +1,7 @@
 import core.assert.assert_eq
 
 import kf_core.span.*
+import testing.test
 
 fun one_file_map(content: str): Ptr<SourceMap> {
     val smp: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }

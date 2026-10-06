@@ -1,6 +1,7 @@
 // On a parsed module: spans come from the parser.
 
 import core.assert.assert_eq
+import testing.test
 
 fun hit_in(src: str, offset: uint32): ExprHit {
     val m = module_for(src)

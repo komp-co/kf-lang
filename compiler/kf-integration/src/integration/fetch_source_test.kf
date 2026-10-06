@@ -8,6 +8,7 @@ import kf_integration.harness.check_project
 import kf_tool.build.default_fetch_policy
 import kf_tool.build.sync_sources
 import std.fs.scratch_root
+import testing.test
 
 extern "C" fun system(cmd: str): int32
 extern "C" fun setenv(name: str, value: str, overwrite: int32): int32

@@ -1,4 +1,5 @@
 import core.assert.assert_eq
+import testing.test
 
 @test
 fun the_json_lists_every_group(): void {

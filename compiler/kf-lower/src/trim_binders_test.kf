@@ -9,6 +9,7 @@ import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.declaration.*
 import kf_core.ast.statement.*
+import testing.test
 
 fun tb_null_tyref(): Ptr<TypeRef> {
     return unsafe { 0 as Ptr<TypeRef> }

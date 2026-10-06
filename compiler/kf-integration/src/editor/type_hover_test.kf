@@ -5,6 +5,7 @@ import core.assert.assert_eq
 import std.fs.scratch_path
 import kf_driver.editor.render_hover_json
 import kf_driver.editor.render_references_json
+import testing.test
 
 @test
 fun hover_on_a_type_in_a_signature_names_the_type(): void {

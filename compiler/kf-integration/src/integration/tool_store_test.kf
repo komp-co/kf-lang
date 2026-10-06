@@ -12,6 +12,7 @@ import kf_tool.install.stored_versions
 import kf_tool.install.uninstall_package
 import kf_tool.project.render
 import std.fs.exists
+import testing.test
 
 /// `name` 0.1.0 installed as the default, then 0.2.0 published.
 fun installed_at_0_1(name: str, home_name: str): String {

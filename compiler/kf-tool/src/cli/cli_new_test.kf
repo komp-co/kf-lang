@@ -1,6 +1,7 @@
 import core.assert.assert_eq
 import kf_tool.build.manifest_of
 import std.fs.scratch_root
+import testing.test
 
 /// Scaffolds `name` under the scratch root, replacing any earlier one.
 fun scaffold_in_scratch(name: str): String {

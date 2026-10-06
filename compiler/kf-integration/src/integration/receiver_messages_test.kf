@@ -2,6 +2,7 @@
 // cannot lend.
 
 import core.assert.assert_eq
+import testing.test
 
 @test
 fun elvis_on_a_result_names_the_written_type(): void {

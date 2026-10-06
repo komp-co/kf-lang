@@ -5,6 +5,7 @@ import kf_core.ast.lang_annotation
 import kf_interface.*
 import kf_interface.emit.interface_test_module
 import kf_interface.emit.emit_interface
+import testing.test
 
 fun round_trip_interface(): InterfaceLoad {
     val m = interface_test_module()

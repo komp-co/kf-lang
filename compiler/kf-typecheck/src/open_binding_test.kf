@@ -15,6 +15,7 @@ import kf_core.ast.statement.StmtKind
 import kf_core.diagnostic.*
 import kf_resolve.new_decl_table
 import kf_resolve.resolve_module
+import testing.test
 
 // impl Bag<T> { mutating fun put(v: T): void { } }
 fun mk_bag_put(): TopDecl {

@@ -1,5 +1,6 @@
 import core.assert.assert_eq
 import kf_core.span.*
+import testing.test
 
 /// `f(a, g(b, c), d)`: the commas inside `g` are `g`'s.
 fun nested_call_span(): Span {

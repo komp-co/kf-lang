@@ -1,6 +1,7 @@
 import core.assert.*
 import core.range.*
 import core.option.*
+import testing.test
 
 /// A `Chain` is not a `Range`, and no bound names both.
 fun sum_chain_i32(c: Chain<RangeIter<int32>, RangeIter<int32>, int32>): int32 {

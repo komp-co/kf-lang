@@ -15,6 +15,7 @@ import kf_typecheck.new_type_ctx
 import kf_typecheck.types.display_type
 import kf_typecheck.types.resolve_type_ref
 import kf_typecheck.types.type_eq
+import testing.test
 
 fun resolved_test_sink(argument: Type): Type {
     var args = List.new<Type>()

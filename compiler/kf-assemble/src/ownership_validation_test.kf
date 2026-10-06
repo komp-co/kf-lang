@@ -1,6 +1,7 @@
 import core.assert.assert_eq
 
 import kf_core.ast.new_crate_id
+import testing.test
 
 @test
 fun ownership_validation_rejects_poison_module(): void {

@@ -10,6 +10,7 @@ import kf_core.ast.expression.*
 import kf_core.ast.declaration.Param
 import kf_core.ast.declaration.new_param
 import kf_core.ast.statement.*
+import testing.test
 
 // Normally filled from core's `impl Drop for String`; these tests state it.
 fun rc_ctx_for_test(fn_name: str): RcCtx {
