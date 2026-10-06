@@ -1,5 +1,5 @@
 //! run: exit 0
-//! deps: core
+//! deps: core, alloc
 // A use leaves out any annotation parameter with a default; the query's
 // `args` holds the default there.
 
