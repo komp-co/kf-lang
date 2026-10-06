@@ -7,7 +7,6 @@ import alloc.path.*
 import std.process.*
 
 import kf_tool.project.*
-import kf_shared.join_path
 
 extern "C" fun write_file(path: str, content: str): void
 
@@ -30,7 +29,7 @@ pub fun compile_project(root_dir: str): String? {
 /// `kind = "bin"` (the default) rather than `"lib"`. A lib emits no `main`.
 pub fun project_is_bin(root: str): bool {
     if manifest_missing(root) { return false }
-    val manifest_path = join_path(root, "kf.toml")
+    val manifest_path = "${root}/kf.toml"
     val toml_src = read_file(manifest_path.as_str())
     val mf = parse_manifest(toml_src.as_str())
     return mf.kind.as_str() == "bin"
@@ -38,7 +37,7 @@ pub fun project_is_bin(root: str): bool {
 
 /// The root manifest, re-read for its `[lint]` rows.
 pub fun manifest_of(root_dir: str): Manifest {
-    return parse_manifest(read_file(join_path(root_dir, "kf.toml").as_str()).as_str())
+    return parse_manifest(read_file("${root_dir}/kf.toml".as_str()).as_str())
 }
 
 /// Dependencies compile as production, the root with its `_test.kf` files and

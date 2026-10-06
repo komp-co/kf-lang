@@ -10,8 +10,6 @@ import kf_shared.crate_object_path
 import kf_shared.crate_artifact_manifest_path
 import kf_shared.crate_archive_path
 import kf_shared.binary_path
-import kf_shared.ensure_dir
-import kf_shared.publish_text
 import std.fs.exists
 
 /// Artifacts, and for a bin root a linked binary, under `<root>/target/kflat`.

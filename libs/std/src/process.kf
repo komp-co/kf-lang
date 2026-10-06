@@ -32,6 +32,12 @@ extern "C" fun kf_process_try_wait(pid: int32): int32
 extern "C" fun kf_process_kill(pid: int32): void
 extern "C" fun kf_process_status(program: str, args: &List<String>, working_dir: str, environment: &List<String>, stdout_path: str): int32
 extern "C" fun kf_process_exec(program: str, working_dir: str, stdout_path: str): int32
+extern "C" fun getpid(): int32
+
+/// This process's id, which no other running process shares.
+pub fun process_id(): int32 {
+    return getpid()
+}
 
 impl Command {
     pub static fun new(program: str): Command {

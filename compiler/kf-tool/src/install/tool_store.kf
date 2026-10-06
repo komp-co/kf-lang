@@ -4,7 +4,7 @@
 
 import alloc.list.*
 import kf_shared.binary_path
-import kf_shared.ensure_dir
+import kf_tool.build.ensure_dir
 import kf_tool.build.build_project_separate
 import kf_tool.build.default_fetch_policy
 import kf_tool.build.project_is_bin

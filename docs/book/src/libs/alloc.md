@@ -533,8 +533,23 @@ val name = p.file_name()         // main.kf
 val next = dir.join("lib.kf")    // src/lib.kf
 ```
 
-It preserves the spelling it was given; normalization and anything
-platform-specific belong to `std.fs`.
+It keeps the spelling it was given until asked otherwise, and never reads the
+filesystem:
+
+```kflat
+val tidy = Path.new("/a/./b/../c").normalized()      // /a/c
+val up   = Path.new("../x/../y").normalized()        // ../y
+val abs  = Path.new("/srv").join("/etc/kf.toml")     // /etc/kf.toml
+val under = Path.new("/a/lib/x.kf").starts_with(&Path.new("/a/lib"))   // true
+val not  = Path.new("/a/library").starts_with(&Path.new("/a/lib"))     // false
+```
+
+`normalized` collapses `.`, `name/..` and repeated separators; a relative
+path keeps the `..` it starts with, and nothing climbs above `/`. `join` with
+an absolute part answers that part. `starts_with` compares whole components,
+and `is_absolute` says whether the path begins at `/`. Turning a relative path
+into an absolute one needs the working directory, so it is
+[`std.fs.absolute`](std.md#stdfs).
 
 ## Deque
 

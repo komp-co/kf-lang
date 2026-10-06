@@ -1,6 +1,6 @@
 import alloc.list.*
-import kf_shared.canonicalize_path
 import std.fs.exists
+import alloc.path.Path
 
 pub struct NativeSources {
     pub val text: String
@@ -33,7 +33,7 @@ fun append_crate_sources(crate_name: str, crate_root: str, relatives: &List<Stri
         var joined = String.from(crate_root)
         joined.append("/")
         joined.append(relative.as_str())
-        val path = canonicalize_path(joined.as_str())
+        val path = Path.new(joined.as_str()).normalized().raw
         if !native_path_seen(seen, path.as_str()) {
             if !exists(path.as_str()) {
                 val error = "error: native source for crate `${crate_name}` does not exist: ${relative.as_str()} (${path.as_str()})"

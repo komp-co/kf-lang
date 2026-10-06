@@ -2,7 +2,6 @@
 // `[dependencies]`, at the version the index now resolves it to.
 
 import alloc.list.*
-import kf_shared.join_path
 import kf_tool.build.project_is_bin
 import kf_tool.fetch.cached_root
 import kf_tool.fetch.resolve_from_index
@@ -28,7 +27,7 @@ fun add_failed(error: String): Added {
 /// then allows its compatible successors; `index` names an `[indexes]` entry,
 /// "" the default index.
 pub fun add_package(root: str, name: str, requirement: str, index: str, cache: str): Added {
-    val manifest_path = join_path(root, "kf.toml")
+    val manifest_path = "${root}/kf.toml"
     val src = read_file(manifest_path.as_str())
     val url = declared_index_url(src.as_str(), index)
     if url.is_empty() { return add_failed("kf.toml declares no index `${index}` under [indexes]") }

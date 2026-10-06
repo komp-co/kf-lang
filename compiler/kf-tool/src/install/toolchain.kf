@@ -3,7 +3,6 @@
 // allows and this komp can drive.
 
 import alloc.list.*
-import kf_shared.join_path
 import kf_tool.build.oldest_kflatc_driven
 import kf_tool.project.Requirement
 import kf_tool.project.Version
@@ -36,7 +35,7 @@ fun no_toolchain(error: String, installable: bool): ToolchainChoice {
 pub fun kflat_pin_for(crate_root: str): String {
     val workspace = enclosing_workspace(crate_root)
     val dir = if workspace.byte_len() > 0 { workspace } else { String.from(crate_root) }
-    val manifest = join_path(dir.as_str(), "kf.toml")
+    val manifest = "${dir}/kf.toml"
     if !exists(manifest.as_str()) { return "" }
     return manifest_kflat_pin(read_file(manifest.as_str()).as_str())
 }
