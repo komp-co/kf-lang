@@ -38,11 +38,13 @@ fun test_graph_root(graph: &BuildGraph, root_dir: str, case_filter: str, test_fi
         return 1
     }
 
-    if root.invoke_kflatc_tests(root_dir, artifacts.as_str(), &parsed.manifest.dep_hashes) != 0 {
+    val test_dir = test_crate_dir(artifacts.as_str())
+    val entry = if ensure_dir(test_dir.as_str()) { write_test_main(test_dir.as_str(), root.name.as_str()) } else { "" }
+    if entry.is_empty() || root.invoke_kflatc_tests(root_dir, artifacts.as_str(), &parsed.manifest.dep_hashes,
+        entry.as_str()) != 0 {
         runtime_println("komp test: errors found; test binary not written")
         return 1
     }
-    val test_dir = test_crate_dir(artifacts.as_str())
     val source = test_artifact_path(test_dir.as_str(), root.name.as_str(), ".c")
     val object = test_artifact_path(test_dir.as_str(), root.name.as_str(), ".o")
     val binary = test_artifact_path(test_dir.as_str(), root.name.as_str(), "")
