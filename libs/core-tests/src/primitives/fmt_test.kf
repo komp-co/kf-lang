@@ -1,5 +1,5 @@
-import core.assert.*
-import core.display.*
+import core.assert.assert_eq
+import core.display.Write
 import core_tests.renders_as
 import core_tests.new_render_digest
 import core_tests.digest_matches
