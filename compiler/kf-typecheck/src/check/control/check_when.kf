@@ -315,6 +315,9 @@ fun check_variant_pattern(variant_name: String, payloads: &List<Pattern>, subjec
     }
     val enum_name = subject_ty.kind.enum_or_struct_name()
     if enum_name.as_str().byte_len() == 0 {
+        if subject_ty.kind.has_no_variants() {
+            report_missing_variant(variant_name, subject_ty, span, ctx)
+        }
         declare_payload_binders_untyped(payloads, ctx)
         return
     }
@@ -350,18 +353,28 @@ fun check_variant_pattern(variant_name: String, payloads: &List<Pattern>, subjec
             return
         }
     }
+    report_missing_variant(variant_name, subject_ty, span, ctx)
+    declare_payload_binders_untyped(payloads, ctx)
+}
+
+fun report_missing_variant(variant_name: String, subject_ty: Type, span: Span, ctx: &var TypeCtx): void {
     // `?:` names `Some` and `None` at one place; one error says it.
-    if ctx.reported_a_missing_variant_at(span) {
-        declare_payload_binders_untyped(payloads, ctx)
-        return
-    }
+    if ctx.reported_a_missing_variant_at(span) { return }
     val shown = subject_ty.display_type(ctx)
     var message = "no variant `${variant_name.as_str()}` on `${shown}`"
     if variant_name.as_str() == "Some" || variant_name.as_str() == "None" {
         message.append(" — `Some`, `None` and `?:` take an optional (`T?`)")
     }
     ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
-    declare_payload_binders_untyped(payloads, ctx)
+}
+
+/// A scalar, `str` or `void`: no pattern naming a variant can match it.
+fun TypeKind.has_no_variants(): bool {
+    return when (self) {
+        Int8 | Int16 | Int32 | Int64 | UInt8 | UInt16 | UInt32 | UInt64 => true
+        Float32 | Float64 | Bool | Char | StrTy | Void => true
+        _ => false
+    }
 }
 
 fun TypeCtx.reported_a_missing_variant_at(span: Span): bool {
