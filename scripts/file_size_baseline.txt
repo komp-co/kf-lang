@@ -25,6 +25,6 @@
 432 compiler/kf-typecheck/src/check/check_method_call.kf
 495 compiler/kf-typecheck/src/check/check_stmt_test.kf
 380 compiler/kf-typecheck/src/check/control/exhaustive_test.kf
-415 compiler/kf-typecheck/src/check/decl/check_decl.kf
+417 compiler/kf-typecheck/src/check/decl/check_decl.kf
 458 compiler/kf-typecheck/src/check/lambda_capture.kf
 1227 compiler/kf-typecheck/src/lib_test.kf

@@ -210,6 +210,7 @@
 1 compiler/kf-typecheck/src/check/view_literal.kf
 6 compiler/kf-typecheck/src/check/written_type_ref.kf
 2 compiler/kf-typecheck/src/context.kf
+1 compiler/kf-typecheck/src/declaration_place.kf
 2 compiler/kf-typecheck/src/lib.kf
 2 compiler/kf-typecheck/src/sig_fn_types.kf
 23 compiler/kf-typecheck/src/sig_table_imports.kf
