@@ -5,3 +5,6 @@ kind = "lib"
 
 [dependencies]
 core = { path = "../core" }
+
+[dev-dependencies]
+testing = { path = "../testing" }

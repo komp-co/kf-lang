@@ -21,7 +21,8 @@ bootstrap/   — the pinned seed (`stage0.toml`) and the self-hosting script
 compiler/    — compiler workspace (`kf.toml`, `kf-*` passes, `komp/`, `kflatc/`)
 docs/book/   — the user-facing book
 libs/        — KFlat language libraries (core, alloc, std), `testing`, which
-               test builds add, and core-tests, which tests core from outside
+               crates with tests name in `[dev-dependencies]`, and core-tests,
+               which tests core from outside
 scripts/     — check.sh and the ratchets CI runs
 tests/       — black-box executable integration fixtures
 tools/       — kf-fuzz and kf-reduce: the front-end fuzzer, and the reducer

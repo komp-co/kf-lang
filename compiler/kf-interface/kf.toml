@@ -9,3 +9,6 @@ kf_parse = { path = "../kf-parse" }
 core = { path = "../../libs/core" }
 alloc = { path = "../../libs/alloc" }
 json = "0.2"
+
+[dev-dependencies]
+testing = { path = "../../libs/testing" }

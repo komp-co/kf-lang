@@ -9,3 +9,6 @@ core = { path = "../core" }
 [native]
 c_sources = ["native/alloc.c"]
 hosted_c_sources = ["native/alloc_hosted.c"]
+
+[dev-dependencies]
+testing = { path = "../testing" }

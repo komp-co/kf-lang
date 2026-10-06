@@ -4,3 +4,6 @@ version = "0.1.0"
 kind = "lib"
 
 [dependencies]
+
+[dev-dependencies]
+testing = { path = "../../libs/testing" }

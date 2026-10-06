@@ -73,6 +73,7 @@ pub fun sync_sources(crate_root: str, policy: &FetchPolicy, cache: str): String 
     var rows = List.new<LockEntry>()
     var refreshed = List.new<String>()
     var queue = lock_scope_roots(crate_root, lock_dir.as_str())
+    val scope_roots = queue.size()
     var seen = List.new<String>()
     var complete = true
     var next = 0
@@ -93,7 +94,10 @@ pub fun sync_sources(crate_root: str, policy: &FetchPolicy, cache: str): String 
             complete = false
             continue
         }
-        while dep in &manifest.deps {
+        // The members' tests are built here; a dependency's are not.
+        var needed = manifest.deps.clone()
+        if next <= scope_roots { needed.extend(manifest.dev_deps.clone()) }
+        while dep in &needed {
             if dep.is_remote() {
                 val fetched = resolve_remote(dep, &old, &rows, policy, cache, &var refreshed)
                 if fetched.error.byte_len() > 0 {

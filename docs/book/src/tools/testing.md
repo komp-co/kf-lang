@@ -25,7 +25,8 @@ arguments. `@test(name = "...")` shows a name of your choosing in the report,
 `@test(panics = FaultKind.UnwrapNone)` passes only when the test panics with
 that kind, and `@disabled("reason")` beside `@test` keeps a test checked but
 out of the run (see [`@test`](../lang/annotations.md#test)). `@test` and
-`@disabled` are imported from `testing` like any other name. The test file and the source file share the same scope — `add` is
+`@disabled` are imported from `testing` like any other name, and the crate
+names `testing` in its [`[dev-dependencies]`](../start/projects.md#dev-dependencies). The test file and the source file share the same scope — `add` is
 callable without any import, because the test file sits in the same
 directory, and so the same module, as the source.
 

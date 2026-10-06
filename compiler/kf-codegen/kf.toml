@@ -9,3 +9,6 @@ kf_lower = { path = "../kf-lower" }
 core = { path = "../../libs/core" }
 alloc = { path = "../../libs/alloc" }
 std = { path = "../../libs/std" }
+
+[dev-dependencies]
+testing = { path = "../../libs/testing" }
