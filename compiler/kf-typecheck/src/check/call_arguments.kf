@@ -56,7 +56,9 @@ pub fun arrange_arguments(args: &var List<Expr>, types: &var List<Type>, target:
         val name = names.name_at(i - receivers)
         val at = args.at(i).span
         if name.as_str().byte_len() == 0 {
-            if next != i - receivers { return call_argument_error(at, "a positional argument cannot follow a named one", ctx) }
+            if next != i - receivers {
+                return call_argument_error(at, "a positional argument cannot follow a named one", ctx)
+            }
             if next >= params.size() { return true }
             slots.set(next, i as int64)
             next = next + 1
@@ -138,7 +140,8 @@ pub fun Param.check_default(ty: Type, ctx: &var TypeCtx): void {
     if value.ty.is_poison() && !value.is_bare_null() { return }
     if value.expect_or_reject(ty.clone(), ctx) { return }
     val name = self.name.as_str()
-    val message = "the default of `${name}` is `${value.ty.display_type(ctx)}`, but `${name}` is `${ty.display_type(ctx)}`"
+    val shown = value.ty.display_type(ctx)
+    val message = "the default of `${name}` is `${shown}`, but `${name}` is `${ty.display_type(ctx)}`"
     ctx.emit(new_diagnostic(Severity.Error, new_label(value.span, message)))
 }
 
@@ -193,6 +196,18 @@ pub fun List<Expr>.argument_types(): List<Type> {
     var types = List.new<Type>()
     while argument in &self { types.push(argument.ty.clone()) }
     return types
+}
+
+/// A call naming an argument, checked with its names recorded for the callee
+/// to arrange; false for anything else, which the caller checks.
+pub mutating fun Expr.check_named_call(ctx: &var TypeCtx): bool {
+    val names = self.argument_names()
+    if names.size() == 0 || ctx.names_arguments(self.span) { return false }
+    val span = self.span
+    ctx.named_calls.push(NamedCall { span: span, names: names })
+    check_expr_kind(self, ctx)
+    ctx.reject_unarranged_names(span)
+    return true
 }
 
 /// The names of a call's written arguments, by position, if any is named.

@@ -33,7 +33,8 @@ fun loaded_connect_params(): List<Param> {
     connect.module_path = intern("sample")
     var decls = List.new<TopDecl>()
     decls.push(connect)
-    val m = Module { crate: new_crate_id("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
+    val crate = new_crate_id("sample")
+    val m = Module { crate: crate, path: List.new<String>(), decls: decls, imports: List.new<Import>() }
     val loaded = parse_interface(m.emit_interface(String.from("sample"), &List.new<String>()).as_str())
     val module = *loaded.modules.at(0)
     return when (module.decls.at(0).kind) {

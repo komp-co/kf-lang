@@ -248,7 +248,7 @@ fun expanded_exprs(exprs: &List<Expr>, x: &var Expansion): List<Expr> {
 fun expanded_params(params: &List<Param>, x: &var Expansion): List<Param> {
     var out = List.new<Param>()
     while param in &params {
-        out.push(Param { span: param.span, name: param.name, ty: Box.new(param.ty.expanded_type(x)), default: param.default.clone() })
+        out.push(param.retyped(Box.new(param.ty.expanded_type(x))))
     }
     return out
 }

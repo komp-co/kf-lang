@@ -76,7 +76,7 @@ pub fun Expr.argument_source(): String {
             String.from("_")
         }
         MethodCall(receiver, _method, _args) => when (receiver.kind) {
-            Variable(name) => if name.as_str() == empty_list_literal_receiver() { String.from("[]") } else { String.from("_") }
+            Variable(name) => String.from(if name.as_str() == empty_list_literal_receiver() { "[]" } else { "_" })
             _ => String.from("_")
         }
         _ => String.from("_")

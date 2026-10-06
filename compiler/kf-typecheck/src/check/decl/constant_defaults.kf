@@ -32,7 +32,9 @@ fun Module.own_constants(): List<ConstantLiteral> {
     while td in &self.decls {
         if td.crate.raw != self.crate.raw { continue }
         when (td.kind) {
-            Constant(_ty, value, _pub) => out.push(ConstantLiteral { module: td.module_path, name: td.name, value: *value })
+            Constant(_ty, value, _pub) => {
+                out.push(ConstantLiteral { module: td.module_path, name: td.name, value: *value })
+            }
             _ => {}
         }
     }

@@ -43,7 +43,11 @@ pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: &var Di
                         own_target.check_bounds(table, &var found)
                         td.check_type_params(table, &var found)
                     }
-                    val params = if own { own_params.clone() } else { self.argument_struct_params(&td).with_defaults_of(&own_params) }
+                    val params = if own {
+                        own_params.clone()
+                    } else {
+                        self.argument_struct_params(&td).with_defaults_of(&own_params)
+                    }
                     val function_type = own_target.function_type(&td, if own { decls } else { null }, sigs, diags)
                     val declared = DeclaredAnnotation {
                         name: td.name, crate: td.crate, module: td.module_path, is_pub: is_pub, params: params,
