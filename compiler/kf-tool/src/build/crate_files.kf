@@ -1,0 +1,31 @@
+// The files kflatc compiles for a crate, as the book states the rule: every
+// `.kf` under its `src/`, `_test.kf` ones only for its tests. komp walks them
+// itself, before kflatc runs, to fingerprint them.
+
+import alloc.list.*
+import std.fs.is_directory
+import std.fs.read_dir
+
+/// The `.kf` files under `dir`, the `_test.kf` ones only with
+/// `include_tests`, sorted.
+/// CONSTRAINT: sorted, as kflatc assembles them in this order.
+pub fun crate_kf_files(dir: str, include_tests: bool): List<String> {
+    var found = List.new<String>()
+    collect_kf_files(dir, &var found, include_tests)
+    found.sort()
+    return found
+}
+
+fun collect_kf_files(dir: str, out: &var List<String>, include_tests: bool): void {
+    val listed = read_dir(dir)
+    if listed.is_err() { return }
+    val names = listed.unwrap()
+    while name in &names {
+        val full = "${dir}/${name}"
+        if is_directory(full.as_str()) {
+            collect_kf_files(full.as_str(), out, include_tests)
+        } else if name.ends_with(".kf") && (include_tests || !name.ends_with("_test.kf")) {
+            out.push(full)
+        }
+    }
+}

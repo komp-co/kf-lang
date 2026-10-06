@@ -1,6 +1,6 @@
 // Which files make up a crate: every `.kf` under its `src/`, and whether the
-// `_test.kf` ones count. The compiler assembles exactly these, and komp
-// fingerprints exactly these.
+// `_test.kf` ones count. The book states the rule; komp keeps its own copy to
+// fingerprint exactly these.
 
 import alloc.list.*
 import std.fs.is_directory
