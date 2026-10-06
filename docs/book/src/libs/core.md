@@ -1149,6 +1149,11 @@ people.
 | `ZeroWidth` | `zero_width` | `a width of zero` |
 | `AssertionFailed` | `assertion_failed` | `assertion failed` |
 
+`fault.kind()` is its `FaultKind`: the same names without the numbers, which
+an annotation argument can take, so `@test(panics = FaultKind.UnwrapNone)`
+expects one. `FaultKind` also has `AnyFault` and `NoFault`, and its `code()`
+is the code above, `"any"` or `""`.
+
 An index is checked by `checked_index(i, len)`, which returns `i` when it is
 below `len` and stops with `IndexOutOfBounds` otherwise. Arrays, slices,
 `List` and `Deque` all check through it.
