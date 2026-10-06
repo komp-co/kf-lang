@@ -5,7 +5,6 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import std.fs.scratch_path
-import kf_shared.crate_artifact_manifest_path
 import std.fs.exists
 
 extern "C" fun system(cmd: str): int32
