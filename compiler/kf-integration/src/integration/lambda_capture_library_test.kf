@@ -3,8 +3,9 @@
 // again. Needs two crates, so not a tests/cases file.
 
 import core.assert.assert_eq
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_root
+import testing.test
 
 extern "C" fun system(cmd: str): int32
 
@@ -56,7 +57,7 @@ fun main(): int32 {
 fun a_dependent_builds_against_a_library_whose_lambdas_capture(): void {
     val root = "${scratch_root()}/kf_lambda_capture_library"
     assert_eq(prepare_capturing_library(root.as_str()), 0, "the fixture is prepared")
-    val built = build_project_separate("${root}/app".as_str(), "")
+    val built = komp_build("${root}/app".as_str(), "")
     assert_eq(built, 0, "the library's lambda structs are not judged a second time")
     val ran = unsafe { system("${root}/app/target/kflat/app; test \"$?\" -eq 42") }
     assert_eq(ran, 0, "a captured `str` and a captured `int32` are both read")

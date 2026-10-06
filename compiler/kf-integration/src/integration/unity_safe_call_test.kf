@@ -99,8 +99,8 @@ fun an_array_literal_of_calls_compiles_in_the_unity_output(): void {
     val prepared = unsafe { system("rm -rf ${root} && mkdir -p ${root}/src/ranks") }
     assert_eq(prepared, 0, "the fixture is prepared")
     write_array_literal_fixture(root.as_str())
-    val out = default_unity_output(root)
-    assert_eq(build_project_mode(root, BuildMode.Unity, out.as_str()), 0, "the whole-program build succeeds")
+    assert_eq(komp_build_unity(root), 0, "the whole-program build succeeds")
+    val out = "${FixtureGraph.of(root).target_dir}/komp_out.c"
     val binary = "${root}/unity_array"
     val compiled = unsafe { system("cc -std=gnu17 -w -o ${binary} ${out} -lm") }
     assert_eq(compiled, 0, "the C names the array and its iterator with C identifiers")
