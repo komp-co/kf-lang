@@ -2,7 +2,7 @@
 // repository in scratch space, whose entries point at `greet` releases.
 
 import core.assert.assert_eq
-import kf_integration.harness.check_project
+import kf_tool.build.check_project_with_kflatc
 import kf_tool.build.default_fetch_policy
 import kf_tool.build.sync_sources
 import testing.test
@@ -71,7 +71,7 @@ fun a_resolved_requirement_checks(): void {
     val index = greet_index("kf_ix_b", false)
     val app = index_app("kf_ix_app_b", &index, "1.0")
     sync_sources(app.as_str(), &default_fetch_policy(), cache.as_str())
-    assert_eq(check_project(app.as_str()), 0, "the chosen version builds like any fetched crate")
+    assert_eq(check_project_with_kflatc(app.as_str(), false), 0, "the chosen version builds like any fetched crate")
 }
 
 @test

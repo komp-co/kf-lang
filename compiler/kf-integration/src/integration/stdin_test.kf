@@ -7,7 +7,7 @@ import alloc.list.*
 import std.fs.*
 import std.process.*
 import std.env.*
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import testing.test
 
 fun stdin_dir(): str { return scratch_path("kf_stdin_io") }
@@ -45,7 +45,7 @@ fun prepare_reader(): void {
 @test
 fun read_line_yields_every_line_and_stops_at_the_end(): void {
     prepare_reader()
-    val built = build_project_separate(scratch_path("kf_stdin_io/reader"), "")
+    val built = komp_build(scratch_path("kf_stdin_io/reader"), "")
     assert_eq(built, 0, "the reader builds")
     // A blank line in the middle: it is a line, not the end of input.
     val _in = create_dir_all(Path.new(stdin_dir()))
@@ -63,7 +63,7 @@ fun read_line_yields_every_line_and_stops_at_the_end(): void {
 @test
 fun read_line_on_empty_input_reads_nothing(): void {
     prepare_reader()
-    val built = build_project_separate(scratch_path("kf_stdin_io/reader"), "")
+    val built = komp_build(scratch_path("kf_stdin_io/reader"), "")
     assert_eq(built, 0, "the reader builds")
     val _e = create_dir_all(Path.new(stdin_dir()))
     write_file(scratch_path("kf_stdin_io/empty.txt"), "")

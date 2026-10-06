@@ -119,6 +119,14 @@ fun CratePlaces.source_of(root: str): String {
     return "path"
 }
 
+/// Which of `deps` only the crate's tests need: its `[dev-dependencies]`
+/// that are not also `[dependencies]`.
+fun BuildCrate.dev_deps_of(manifest: &Manifest): List<String> {
+    val regular = manifest.deps.map(|dep: Dependency| dep.name)
+    val dev = manifest.dev_deps.map(|dep: Dependency| dep.name)
+    return self.deps.filter(|name: String| dev.contains(&name) && !regular.contains(&name))
+}
+
 fun BuildCrate.write_metadata(writer: &var JsonWriter, members: &List<String>, places: &CratePlaces): void {
     val manifest = manifest_of(self.root.as_str())
     writer.begin_object()
@@ -133,6 +141,8 @@ fun BuildCrate.write_metadata(writer: &var JsonWriter, members: &List<String>, p
     writer.write_string_list(&self.deps)
     writer.key("loads")
     writer.write_string_list(&self.loads)
+    writer.key("dev_deps")
+    writer.write_string_list(&self.dev_deps_of(&manifest))
     writer.key("lints")
     writer.begin_array()
     val file = lint_toml_for(self.root.as_str())

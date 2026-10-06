@@ -4,7 +4,7 @@
 // borrows do not escape.
 
 import core.assert.assert_eq
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_path
 import testing.test
 
@@ -84,7 +84,7 @@ fun box_glue_contains(source: str, needle: str): bool {
 @test
 fun box_payload_enum_when_is_asan_leak_clean(): void {
     assert_eq(prepare_box_when_fixture(), 0, "fixture prepared")
-    val built = build_project_separate(scratch_path("kf_mm3_boxwhen"), "-fsanitize=address")
+    val built = komp_build(scratch_path("kf_mm3_boxwhen"), "-fsanitize=address")
     assert_eq(built, 0, "box-payload enum project builds")
     val ran = unsafe { system("ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ${scratch_path("kf_mm3_boxwhen/target/kflat/boxwhen")}") }
     assert_eq(ran, 0, "when over a Box-payload enum drops each box exactly once")
@@ -171,7 +171,7 @@ fun main(): int32 {
 @test
 fun list_members_in_aggregates_are_asan_leak_clean(): void {
     assert_eq(prepare_list_glue_fixture(), 0, "fixture prepared")
-    val built = build_project_separate(scratch_path("kf_mm3_listglue"), "-fsanitize=address")
+    val built = komp_build(scratch_path("kf_mm3_listglue"), "-fsanitize=address")
     assert_eq(built, 0, "List-member project builds")
     val ran = unsafe { system("ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ${scratch_path("kf_mm3_listglue/target/kflat/listglue")}") }
     assert_eq(ran, 0, "aggregate drops free List payloads and fields exactly once")
@@ -180,7 +180,7 @@ fun list_members_in_aggregates_are_asan_leak_clean(): void {
 @test
 fun aggregate_glue_drops_list_members(): void {
     val _p = prepare_list_glue_fixture()
-    val _b = build_project_separate(scratch_path("kf_mm3_listglue"), "")
+    val _b = komp_build(scratch_path("kf_mm3_listglue"), "")
     val source = read_file(scratch_path("kf_mm3_listglue/target/kflat/listglue.c"))
     assert_eq(box_glue_contains(source.as_str(), "List__listglue__W__glue_drop(v.u.V_Group._0);"), true, "enum drop glue drops the List payload")
     assert_eq(box_glue_contains(source.as_str(), "List__String__glue_drop(v.kids);"), true, "struct drop glue drops the List field")
@@ -256,7 +256,7 @@ fun main(): int32 {
 @test
 fun pub_lib_enum_with_list_payload_is_asan_leak_clean(): void {
     assert_eq(prepare_pub_list_enum_fixture(), 0, "fixture prepared")
-    val built = build_project_separate(scratch_path("kf_mm3_publist_app"), "-fsanitize=address")
+    val built = komp_build(scratch_path("kf_mm3_publist_app"), "-fsanitize=address")
     assert_eq(built, 0, "consumer of a pub lib List-payload enum builds")
     val ran = unsafe { system("ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ${scratch_path("kf_mm3_publist_app/target/kflat/publist_app")}") }
     assert_eq(ran, 0, "a pub lib enum's List payload drops across the crate boundary")
@@ -265,7 +265,7 @@ fun pub_lib_enum_with_list_payload_is_asan_leak_clean(): void {
 @test
 fun pub_lib_enum_glue_drops_its_list_payload(): void {
     val _p = prepare_pub_list_enum_fixture()
-    val _b = build_project_separate(scratch_path("kf_mm3_publist_app"), "")
+    val _b = komp_build(scratch_path("kf_mm3_publist_app"), "")
     val source = read_file(scratch_path("kf_mm3_publist_app/target/kflat/tree.c"))
     assert_eq(box_glue_contains(source.as_str(), "List__tree__Node__glue_drop(v.u.V_Group._0);"), true, "the pub enum's drop glue frees its List payload")
 }
@@ -273,7 +273,7 @@ fun pub_lib_enum_glue_drops_its_list_payload(): void {
 @test
 fun enum_drop_glue_frees_box_payloads(): void {
     val _p = prepare_box_when_fixture()
-    val _b = build_project_separate(scratch_path("kf_mm3_boxwhen"), "")
+    val _b = komp_build(scratch_path("kf_mm3_boxwhen"), "")
     val source = read_file(scratch_path("kf_mm3_boxwhen/target/kflat/boxwhen.c"))
     assert_eq(box_glue_contains(source.as_str(), "kf_free(v.u.V_Node._0); }"), true, "enum drop glue frees the recursive Box payload")
     assert_eq(box_glue_contains(source.as_str(), "kf_free(v.u.V_Tag._0); }"), true, "enum drop glue frees the Box<String> payload")

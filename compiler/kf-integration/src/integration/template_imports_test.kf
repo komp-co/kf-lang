@@ -4,7 +4,7 @@
 
 import core.assert.assert_eq
 import alloc.path.Path
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.create_dir_all
 import std.fs.remove_dir_all
 import std.fs.scratch_path
@@ -50,6 +50,6 @@ import ti_mid.Wrap
 fun main(): int32 { return with_base<int32>(1) + Wrap { v: 1 }.answer() - 84 }
 """)
     val app = crate_dir("ti_app")
-    assert_eq(build_project_separate(app, ""), 0, "the generic's call resolves in the app")
+    assert_eq(komp_build(app, ""), 0, "the generic's call resolves in the app")
     assert_eq(unsafe { system("${app}/target/kflat/ti_app") }, 0, "and runs")
 }

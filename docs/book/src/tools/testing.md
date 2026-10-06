@@ -82,6 +82,10 @@ many. Each test's output is held until its turn and printed in order, so the
 report reads the same whatever finishes first. With `KOMP_TEST_JOBS=1` a
 test's output streams as it runs.
 
+A test program runs with `KFLATC` naming the compiler komp runs, and `KOMP`
+the komp running the tests, so a test that builds a project of its own drives
+the same tools.
+
 ## One assertion per test
 
 The convention is one assertion per test function. This makes the failure

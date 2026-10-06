@@ -4,7 +4,7 @@
 // case corpus.
 
 import core.assert.assert_eq
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_path
 import testing.test
 
@@ -38,7 +38,7 @@ fun main(): int32 {
 @test
 fun field_assignment_drops_what_it_overwrites(): void {
     assert_eq(prepare_place_assign_fixture(), 0, "fixture prepared")
-    val built = build_project_separate(scratch_path("kf_place_assign"), "-fsanitize=address")
+    val built = komp_build(scratch_path("kf_place_assign"), "-fsanitize=address")
     assert_eq(built, 0, "place-assignment project builds")
     val ran = unsafe { system("ASAN_OPTIONS=detect_leaks=1 ${scratch_path("kf_place_assign/target/kflat/placeassign")}") }
     assert_eq(ran, 0, "assigning to a field drops the value it overwrites")

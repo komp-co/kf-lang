@@ -3,7 +3,7 @@
 // Iterator traits, so it builds a project.
 
 import core.assert.assert_eq
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_path
 import testing.test
 
@@ -62,7 +62,7 @@ core = { path = "../kf_user_iter_core" }
 @test
 fun a_user_defined_iterable_drives_a_for_loop(): void {
     val prepared = prepare_user_iterable_fixture()
-    val built = build_project_separate(scratch_path("kf_user_iter_app"), "")
+    val built = komp_build(scratch_path("kf_user_iter_app"), "")
     val binary = unsafe { access(scratch_path("kf_user_iter_app/target/kflat/user_iter_app"), 0) }
     val ran = unsafe { system(scratch_path("kf_user_iter_app/target/kflat/user_iter_app")) }
     val ok = prepared == 0 && built == 0 && binary == 0 && ran == 0

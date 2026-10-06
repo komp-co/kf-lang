@@ -3,7 +3,7 @@
 
 import core.assert.assert_eq
 
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_path
 import testing.test
 
@@ -77,7 +77,7 @@ fun main(): int32 {
 @test
 fun another_crate_reads_through_a_view(): void {
     val prep = prepare_view_fixture(reading_main())
-    val built = build_project_separate(scratch_path("kf_view_app"), "")
+    val built = komp_build(scratch_path("kf_view_app"), "")
     val ran = unsafe { system(scratch_path("kf_view_app/target/kflat/view_app").as_str()) }
     assert_eq(prep == 0 && built == 0 && ran == 0, true, "the view and its method cross")
 }
@@ -85,25 +85,25 @@ fun another_crate_reads_through_a_view(): void {
 @test
 fun another_crate_cannot_store_a_view(): void {
     val prep = prepare_view_fixture(storing_main())
-    val built = build_project_separate(scratch_path("kf_view_app"), "")
+    val built = komp_build(scratch_path("kf_view_app"), "")
     assert_eq(prep == 0 && built != 0, true, "the field is rejected in the consumer")
 }
 
 @test
 fun a_view_from_another_crate_freezes_its_origin(): void {
     val prep = prepare_view_fixture(freezing_main())
-    val built = build_project_separate(scratch_path("kf_view_app"), "")
+    val built = komp_build(scratch_path("kf_view_app"), "")
     assert_eq(prep == 0 && built != 0, true, "the consumer's change is rejected while the view is used")
 }
 
 @test
 fun a_view_is_read_back_from_the_interface(): void {
     val prep = prepare_view_fixture(reading_main())
-    val first = build_project_separate(scratch_path("kf_view_app"), "")
+    val first = komp_build(scratch_path("kf_view_app"), "")
     write_file(scratch_path("kf_view_app/src/main.kf"), storing_main())
     val source = scratch_path("kf_view_dep/src")
     val hidden = unsafe { system("mv ${source} ${source}.hidden") }
-    val rebuilt = build_project_separate(scratch_path("kf_view_app"), "")
+    val rebuilt = komp_build(scratch_path("kf_view_app"), "")
     val restored = unsafe { system("mv ${source}.hidden ${source}") }
     assert_eq(prep == 0 && first == 0 && hidden == 0 && rebuilt != 0 && restored == 0, true,
         "view_dep.kfi says the type is a view")

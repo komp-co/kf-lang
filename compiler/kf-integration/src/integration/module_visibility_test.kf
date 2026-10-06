@@ -4,7 +4,7 @@
 
 import core.assert.assert_eq
 import kf_integration.harness.check_project
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.scratch_root
 import testing.test
 
@@ -108,7 +108,7 @@ fun prepare_dependency_fixture(name: str, import_line: str): int32 {
 
 fun build_app_fixture(name: str): int32 {
     val dir = "${scratch_root()}/${name}_app"
-    return build_project_separate(dir.as_str(), "")
+    return komp_build(dir.as_str(), "")
 }
 
 /// Through `build`: check_project's import table is never empty, so only

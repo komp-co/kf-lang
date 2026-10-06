@@ -9,7 +9,7 @@ import testing.test
 
 /// A project taking komp_alpha "0.1", locked at 0.1.0, and a package from an
 /// index [indexes] does not declare; its [tools] pins komp_beta "1".
-fun outdated_project(name: str, index: str): String {
+fun write_outdated_project(name: str, index: str): String {
     val dir = dir_of(name)
     sh("rm -rf ${dir} && mkdir -p ${dir}/src".as_str())
     var manifest = String.from("[project]\nname = \"app\"\nkind = \"bin\"\n\n[indexes]\n")
@@ -26,7 +26,7 @@ fun outdated_project(name: str, index: str): String {
 
 fun report(name: str): Outdated {
     val index = catalog_index("${name}_index".as_str())
-    return outdated(outdated_project(name, index.as_str()).as_str(), test_cache().as_str(), false)
+    return outdated(write_outdated_project(name, index.as_str()).as_str(), test_cache().as_str(), false)
 }
 
 @test

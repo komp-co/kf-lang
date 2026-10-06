@@ -8,7 +8,7 @@ import kf_core.diagnostic.new_diagnostics
 import kf_driver.fresh_source_map
 import kf_driver.new_lint_config
 import kf_driver.checked_diagnostics
-import kf_tool.build.build_project_separate
+import kf_integration.harness.komp_build
 import std.fs.create_dir_all
 import std.fs.remove_dir_all
 import std.fs.scratch_path
@@ -123,7 +123,7 @@ fun main(): int32 {
 @test
 fun a_pub_val_reaches_another_crate_with_what_its_generics_use(): void {
     val prepared = prepare_constant_crates()
-    val built = build_project_separate(scratch_path("kf_val_app"), "")
+    val built = komp_build(scratch_path("kf_val_app"), "")
     val ran = unsafe { system(scratch_path("kf_val_app/target/kflat/valapp")) }
     assert_eq(prepared == 0 && built == 0 && ran == 0, true, "the values travel in the interface")
 }

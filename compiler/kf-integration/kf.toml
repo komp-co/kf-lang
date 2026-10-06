@@ -14,7 +14,6 @@ kf_lower = { path = "../kf-lower" }
 kf_codegen = { path = "../kf-codegen" }
 kf_interface = { path = "../kf-interface" }
 kf_driver = { path = "../kf-driver" }
-kf_tool = { path = "../kf-tool" }
 kf_lint = { path = "../kf-lint" }
 core = { path = "../../libs/core" }
 alloc = { path = "../../libs/alloc" }
