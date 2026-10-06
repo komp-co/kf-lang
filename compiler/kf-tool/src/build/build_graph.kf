@@ -41,7 +41,9 @@ pub struct BuildGraph {
     pub val error: String
 }
 
-pub fun build_crate_graph(root_dir: str): BuildGraph {
+/// `with_tests` builds the root for its tests too: it then also depends on
+/// `testing`, the crate that declares `@test`.
+pub fun build_crate_graph(root_dir: str, with_tests: bool): BuildGraph {
     var crates = List.new<BuildCrate>()
     var cycle = ""
     var error = ""
@@ -50,7 +52,8 @@ pub fun build_crate_graph(root_dir: str): BuildGraph {
     val root = canonicalize_path(absolutize(root_dir).as_str())
     val freestanding = root_is_freestanding(root.as_str())
     val sources = DependencySources { lock: read_lock(root.as_str()), cache: cache_root() }
-    visit_crate(root, freestanding, &sources, &var crates, &var cycle, &var error, &var in_progress, &var done)
+    visit_crate(root, freestanding, with_tests, &sources, &var crates, &var cycle, &var error, &var in_progress,
+        &var done)
     if error.as_str() != "" { crates = List.new<BuildCrate>() }
     return BuildGraph { crates: crates, cycle: cycle, freestanding: freestanding, error: error }
 }
@@ -70,7 +73,8 @@ struct DependencySources {
     val cache: String
 }
 
-fun visit_crate(root: String, freestanding: bool, sources: &DependencySources, crates: &var List<BuildCrate>,
+fun visit_crate(root: String, freestanding: bool, with_tests: bool, sources: &DependencySources,
+    crates: &var List<BuildCrate>,
     cycle: &var String, error: &var String, in_progress: &var List<String>,
     done: &var List<String>): void {
     if error.as_str() != "" { return }
@@ -109,11 +113,19 @@ fun visit_crate(root: String, freestanding: bool, sources: &DependencySources, c
         // The crate name comes from its own manifest; the dependency key is an
         // alias.
         val dep_manifest = dep_root.clone() + String.from("/kf.toml")
-        visit_crate(dep_root.clone(), freestanding, sources, crates, cycle, error, in_progress, done)
+        visit_crate(dep_root.clone(), freestanding, false, sources, crates, cycle, error, in_progress, done)
         if cycle.cycle_found() || error.as_str() != "" { return }
         if exists(dep_manifest.as_str()) {
             val dep_mf = parse_manifest(read_file(dep_manifest.as_str()).as_str())
             dep_names.push(String.from(dep_mf.name.as_str()))
+        }
+    }
+    if with_tests {
+        val testing = crates.testing_beside_core(mf.name.as_str())
+        if testing.byte_len() > 0 {
+            visit_crate(testing.clone(), freestanding, false, sources, crates, cycle, error, in_progress, done)
+            if cycle.cycle_found() || error.as_str() != "" { return }
+            if !name_listed(&dep_names, "testing") { dep_names.push(String.from("testing")) }
         }
     }
     in_progress.pop()
@@ -250,4 +262,18 @@ fun path_list_has(paths: &var List<String>, target: str): bool {
         if path.as_str() == target { return true }
     }
     return false
+}
+
+/// The `testing` crate a crate named `name` takes for its tests: the one beside
+/// the graph's `core`, so both come from one standard library. "" for `core`
+/// and `testing` themselves, which it would make a cycle, and when there is none.
+fun List<BuildCrate>.testing_beside_core(name: str): String {
+    if name == "core" || name == "testing" { return "" }
+    while item in &self {
+        if item.name.as_str() == "core" {
+            val testing = "${parent_path(item.root.as_str())}/testing"
+            return if exists("${testing}/kf.toml".as_str()) { canonicalize_path(testing.as_str()) } else { "" }
+        }
+    }
+    return ""
 }

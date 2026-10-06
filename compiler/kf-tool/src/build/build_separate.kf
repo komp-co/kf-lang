@@ -23,14 +23,16 @@ pub fun build_project_separate(root_dir: str, extra_cflags: str): int32 {
 
 /// Verbose explains every reuse and rebuild decision.
 pub fun build_project_separate_verbose(root_dir: str, extra_cflags: str, verbose: bool): int32 {
-    return build_project_separate_in(root_dir, extra_cflags, verbose, "")
+    return build_project_separate_in(root_dir, extra_cflags, verbose, "", false)
 }
 
 /// With the artifact directory chosen by the caller ("" for the default). The
 /// case corpus passes one shared directory, so `core` is built once for every
-/// case. Artifacts are named per crate, so sharing cannot collide.
-pub fun build_project_separate_in(root_dir: str, extra_cflags: str, verbose: bool, tdir_override: str): int32 {
-    val graph = build_crate_graph(root_dir)
+/// case. Artifacts are named per crate, so sharing cannot collide. `with_tests`
+/// builds what the root's tests also need.
+pub fun build_project_separate_in(root_dir: str, extra_cflags: str, verbose: bool, tdir_override: str,
+    with_tests: bool): int32 {
+    val graph = build_crate_graph(root_dir, with_tests)
     if graph.error.as_str() != "" {
         runtime_println(graph.error.as_str())
         return 1

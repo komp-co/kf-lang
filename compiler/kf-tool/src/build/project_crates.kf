@@ -8,7 +8,7 @@ import std.fs.exists
 
 /// None when the graph is broken.
 pub fun project_crates(root_dir: str): List<BuildCrate> {
-    var graph = build_crate_graph(root_dir)
+    var graph = build_crate_graph(root_dir, true)
     if graph.error.byte_len() > 0 || graph.cycle.byte_len() > 0 { return List.new<BuildCrate>() }
     return graph.crates
 }

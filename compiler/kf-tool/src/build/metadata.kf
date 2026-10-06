@@ -51,7 +51,7 @@ pub fun project_metadata(dir: str): MetadataResult {
     val members = metadata_members(dir)
     var graphs = List.new<BuildGraph>()
     while member in &members {
-        val graph = build_crate_graph(member.as_str())
+        val graph = build_crate_graph(member.as_str(), true)
         val error = graph.failure()
         if error.as_str() != "" { return metadata_failure(error.as_str()) }
         graphs.push(graph)

@@ -62,8 +62,8 @@ pub fun BuildGraph.collect_native_sources(): NativeSources {
     return NativeSources { text: text, error: "" }
 }
 
-pub fun compose_unity_source(root_dir: str, generated: String): NativeSources {
-    val graph = build_crate_graph(root_dir)
+pub fun compose_unity_source(root_dir: str, generated: String, with_tests: bool): NativeSources {
+    val graph = build_crate_graph(root_dir, with_tests)
     if graph.error.as_str() != "" {
         return NativeSources { text: "", error: graph.error }
     }
@@ -81,7 +81,7 @@ pub fun compose_unity_text(generated: String, native: String): NativeSources {
 
 /// None, reported, when a crate's native sources cannot be read.
 pub fun compose_project_unity(root_dir: str, generated: String): String? {
-    val unity = compose_unity_source(root_dir, generated)
+    val unity = compose_unity_source(root_dir, generated, false)
     if unity.error.as_str() == "" { return Option.Some(unity.text) }
     runtime_println(unity.error.as_str())
     return Option.None

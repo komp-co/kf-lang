@@ -25,7 +25,7 @@ pub fun lint_project_with_kflatc(root_dir: str, as_json: bool): int32 {
 /// The root crate, once every dependency's interface is current, or None
 /// after reporting why the project cannot be checked.
 pub fun prepare_check(root_dir: str, as_json: bool): BuildCrate? {
-    var graph = build_crate_graph(root_dir)
+    var graph = build_crate_graph(root_dir, true)
     val problem = if graph.error.byte_len() > 0 {
         graph.error.clone()
     } else if graph.cycle.byte_len() > 0 {

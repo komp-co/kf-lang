@@ -11,9 +11,9 @@ import kf_shared.test_crate_dir
 import kf_shared.test_artifact_path
 
 pub fun test_project_separate(root_dir: str, case_filter: str, test_filter: str): int32 {
-    val built = build_project_separate(root_dir, "")
+    val built = build_project_separate_in(root_dir, "", false, "", true)
     if built != 0 { return built }
-    val graph = build_crate_graph(root_dir)
+    val graph = build_crate_graph(root_dir, true)
     if graph.crates.size() == 0 { return 1 }
 
     val artifacts = target_dir(root_dir)

@@ -84,7 +84,7 @@ pub fun compile_crate_separate(crate_root: str, crate_name: str, is_bin: bool): 
 }
 
 pub fun check_project(root_dir: str): int32 {
-    val graph = build_crate_graph(root_dir)
+    val graph = build_crate_graph(root_dir, true)
     if graph.error.as_str() != "" {
         runtime_println(graph.error.as_str())
         return 1
@@ -123,7 +123,7 @@ pub fun Manifest.lint_config_from_manifest(diags: &var List<Diagnostic>): LintCo
 /// Per-crate C artifacts, dependencies first, crate-qualified. Empty on a
 /// dependency cycle.
 pub fun compile_project_separate(root_dir: str, errors: &var Diagnostics): List<CrateCodegenOutput> {
-    val graph = build_crate_graph(root_dir)
+    val graph = build_crate_graph(root_dir, false)
     return graph.compile_graph_outputs(errors)
 }
 
