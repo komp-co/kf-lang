@@ -136,7 +136,8 @@ fun only_the_crate_asked_about_is_a_member(): void {
 @test
 fun a_crate_names_its_dependencies_by_crate_name(): void {
     val metadata = project_metadata(lone_project().as_str())
-    assert_eq(crate_fields(&metadata.json, "deps").as_str().ends_with(",md_util testing,"), true, "the root's deps, testing for its tests")
+    val deps = crate_fields(&metadata.json, "deps")
+    assert_eq(deps.as_str().ends_with(",md_util testing,"), true, "the root's deps, testing for its tests")
 }
 
 @test
@@ -193,7 +194,8 @@ fun the_bundled_libraries_say_so(): void {
 @test
 fun a_path_dependency_is_a_path_source(): void {
     val metadata = project_metadata(lone_project().as_str())
-    assert_eq(crate_fields(&metadata.json, "source").as_str().ends_with("path,bundled,path,"), true, "neither is fetched, and testing is bundled")
+    val sources = crate_fields(&metadata.json, "source")
+    assert_eq(sources.as_str().ends_with("path,bundled,path,"), true, "neither is fetched, and testing is bundled")
 }
 
 @test
