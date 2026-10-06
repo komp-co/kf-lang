@@ -112,7 +112,7 @@ fun an_unfetched_dependency_is_a_graph_error(): void {
     test_cache()
     val repo = make_greet_repo("kf_fetch_repo_c", "42")
     val app = git_app("kf_fetch_app_c", &repo, "tag = \"v1\"")
-    val graph = build_crate_graph(app.as_str())
+    val graph = build_crate_graph(app.as_str(), false)
     assert_eq(graph.error.as_str(), "error: dependency `greet` of ${app} is not fetched; `komp build` fetches it",
         "the graph never fetches")
 }

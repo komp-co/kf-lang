@@ -31,7 +31,9 @@ fun list_of(elem: str): Ptr<TypeRef> {
     return lp
 }
 
-@test_disabled fun integration_list_int32_defs_compile(): void {
+@test
+@disabled("emitting a bare AST never defines a `List<T>` instance: it needs mono, lower and codegen")
+fun integration_list_int32_defs_compile(): void {
     var fields = List.new<Field>()
     fields.push(new_field(no_span(), String.from("xs"), list_of("int32"), false, true))
     val holder = new_top_decl(no_span(), String.from("Holder"), TopDeclKind.Struct(fields, true))
@@ -57,7 +59,9 @@ fun mcall_e(recv: Ptr<Expr>, method: str, margs: List<Expr>, mangled: str): Expr
     return e
 }
 
-@test_disabled fun integration_list_int32_runs(): void {
+@test
+@disabled("emitting a bare AST never defines a `List<T>` instance: it needs mono, lower and codegen")
+fun integration_list_int32_runs(): void {
     val xs_init = expr_ptr(ncall_e("new_list", List.new<Expr>(), "new_list__int32"))
     val let_xs = Stmt.new(no_span(), StmtKind.LetVal(intern("xs"), list_of("int32"), xs_init))
 
@@ -100,7 +104,9 @@ fun lit_str_e(s: str): Expr {
     return Expr.new(no_span(), ExprKind.LitStr(String.from(s)))
 }
 
-@test_disabled fun integration_list_string_asan_clean(): void {
+@test
+@disabled("emitting a bare AST never defines a `List<T>` instance: it needs mono, lower and codegen")
+fun integration_list_string_asan_clean(): void {
     // val xs: List<String> = List.new<Sym>()
     val xs_init = expr_ptr(ncall_e("new_list", List.new<Expr>(), "new_list__String"))
     val let_xs = Stmt.new(no_span(), StmtKind.LetVal(intern("xs"), list_of("String"), xs_init))
@@ -155,7 +161,9 @@ fun lit_str_e(s: str): Expr {
     assert_eq(contents.as_str(), "alpha\n", "get(0) printed the first element")
 }
 
-@test_disabled fun integration_list_user_struct_asan_clean(): void {
+@test
+@disabled("emitting a bare AST never defines a `List<T>` instance: it needs mono, lower and codegen")
+fun integration_list_user_struct_asan_clean(): void {
     // struct Pair { val s: String }
     var fields = List.new<Field>()
     fields.push(new_field(no_span(), String.from("s"), ty_ptr("String"), false, true))

@@ -17,6 +17,8 @@ members = [
     "kf-tool",
     "kf-integration",
     "../libs/core",
+    "../libs/core-tests",
+    "../libs/testing",
     "../libs/alloc",
     "../libs/std"
 ]

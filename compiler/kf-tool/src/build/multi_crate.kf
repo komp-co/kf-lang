@@ -13,7 +13,7 @@ extern "C" fun write_file(path: str, content: str): void
 /// kflatc's unity output with every crate's native C appended, or None when
 /// it failed, reported.
 pub fun compile_project(root_dir: str): String? {
-    val graph = build_crate_graph(root_dir)
+    val graph = build_crate_graph(root_dir, false)
     if graph.error.as_str() != "" {
         runtime_println(graph.error.as_str())
         return Option.None
@@ -44,7 +44,7 @@ pub fun manifest_of(root_dir: str): Manifest {
 /// a synthesized `main` calling every `@test`. Returns the test binary's exit
 /// status.
 pub fun test_project(root_dir: str): int32 {
-    val graph = build_crate_graph(root_dir)
+    val graph = build_crate_graph(root_dir, true)
     if graph.error.as_str() != "" {
         runtime_println(graph.error.as_str())
         return 1
@@ -56,7 +56,7 @@ pub fun test_project(root_dir: str): int32 {
         return 1
     }
     val generated = read_file(generated_path.as_str())
-    val unity = compose_unity_source(root_dir, generated)
+    val unity = compose_unity_source(root_dir, generated, true)
     if unity.error.as_str() != "" {
         runtime_println(unity.error.as_str())
         return 1

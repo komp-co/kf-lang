@@ -2,10 +2,9 @@
 // functions are checked for wiring and conventions, not arithmetic.
 
 import core.assert.assert_eq
-import core.assert.renders_as
 import core.display.assert_eq
-import core.display.renders_as
 import core.math.*
+import core_tests.renders_as
 
 fun eq(a: float64, b: float64, m: str): void {
     assert_eq(close_to(a, b, 0.000000001), true, m)

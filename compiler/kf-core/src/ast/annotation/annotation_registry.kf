@@ -6,7 +6,7 @@ import kf_core.ast.declaration.TopDecl
 
 /// The declaration kinds an annotation may sit on.
 pub enum AnnotationTarget {
-    /// `@test`, `@test_disabled`.
+    /// `@test`, `@disabled`.
     Function
     /// `@derive`, `@no_mangle`.
     StructOrEnum
@@ -35,9 +35,9 @@ pub fun annotation_registry(): List<AnnotationInfo> {
         takes_args: false
     })
     out.push(AnnotationInfo {
-        name: String.from("test_disabled"),
+        name: String.from("disabled"),
         target: AnnotationTarget.Function,
-        takes_args: false
+        takes_args: true
     })
     out.push(AnnotationInfo {
         name: String.from("allow"),
@@ -89,7 +89,7 @@ pub fun lookup_annotation(kind: str): AnnotationInfo {
 /// A built-in the standard library may also declare: a use binds to the
 /// declaration when one is visible, and is the built-in otherwise.
 pub fun annotation_is_declarable(kind: str): bool {
-    return kind == "test" || kind == "test_disabled"
+    return kind == "test" || kind == "disabled"
 }
 
 pub fun annotation_is_known(kind: str): bool {

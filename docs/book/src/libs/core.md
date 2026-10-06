@@ -947,32 +947,6 @@ Both are [views](../lang/memory.md#view-types), so a struct cannot hold one.
 `AnnotatedKind` is `Copy` and `Equal`, so an entry's kind can be compared:
 `entry.kind == AnnotatedKind.Trait`.
 
-## Running tests
-
-`core.testing` declares `@test` and `@test_disabled`, and `run_tests` is the
-entry point of a test program: `komp test` builds the main
-`return run_tests(&annotated<test>())`. It takes the entries of any
-annotation on `() -> void`, so a crate can run its own kind of check the
-same way:
-
-```kflat
-import core.testing.run_tests
-
-annotation check
-
-@check
-fun adds(): void { assert_eq(1 + 1, 2, "one and one") }
-
-fun main(): int32 {
-    return run_tests(&annotated<check>())
-}
-```
-
-Each test runs in its own child process, so a panic fails that test and the
-run goes on. `--filter <substring>` runs only the tests whose names contain
-it, and fails when none does; `--run-test <name>` runs one test in this
-process. The exit code is 1 when a test failed.
-
 ## Path
 
 `Path` represents a filesystem path. It wraps a `String`, so it lives in
@@ -1148,6 +1122,11 @@ people.
 | `RangeNotAscending` | `range_not_ascending` | `a range here must ascend by one` |
 | `ZeroWidth` | `zero_width` | `a width of zero` |
 | `AssertionFailed` | `assertion_failed` | `assertion failed` |
+
+`fault.kind()` is its `FaultKind`: the same names without the numbers, which
+an annotation argument can take, so `@test(panics = FaultKind.UnwrapNone)`
+expects one. `FaultKind` also has `AnyFault` and `NoFault`, and its `code()`
+is the code above, `"any"` or `""`.
 
 An index is checked by `checked_index(i, len)`, which returns `i` when it is
 below `len` and stops with `IndexOutOfBounds` otherwise. Arrays, slices,

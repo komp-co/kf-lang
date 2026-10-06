@@ -116,8 +116,8 @@ mutating fun JsonReader.string_array_or_rows(): String {
 @test
 fun a_lone_crate_lists_its_dependency_first(): void {
     val metadata = project_metadata(lone_project().as_str())
-    assert_eq(crate_fields(&metadata.json, "name").as_str().ends_with("md_util,md_app,"), true,
-        "the bundled libraries, then the dependency, then the root")
+    assert_eq(crate_fields(&metadata.json, "name").as_str().ends_with("md_util,testing,md_app,"), true,
+        "the bundled libraries, the dependency and testing, then the root")
 }
 
 @test
@@ -136,13 +136,14 @@ fun only_the_crate_asked_about_is_a_member(): void {
 @test
 fun a_crate_names_its_dependencies_by_crate_name(): void {
     val metadata = project_metadata(lone_project().as_str())
-    assert_eq(crate_fields(&metadata.json, "deps").as_str().ends_with(",md_util,"), true, "the root's deps")
+    val deps = crate_fields(&metadata.json, "deps")
+    assert_eq(deps.as_str().ends_with(",md_util testing,"), true, "the root's deps, testing for its tests")
 }
 
 @test
 fun a_crate_carries_its_version_and_kind(): void {
     val metadata = project_metadata(lone_project().as_str())
-    assert_eq(crate_fields(&metadata.json, "version").as_str().ends_with("1.2.3,1.2.3,"), true, "from kf.toml")
+    assert_eq(crate_fields(&metadata.json, "version").as_str().ends_with("1.2.3,0.1.0,1.2.3,"), true, "from kf.toml")
 }
 
 /// `[{"name":n,"key":k,"value":v}]` as `n.k=v`.
@@ -193,13 +194,14 @@ fun the_bundled_libraries_say_so(): void {
 @test
 fun a_path_dependency_is_a_path_source(): void {
     val metadata = project_metadata(lone_project().as_str())
-    assert_eq(crate_fields(&metadata.json, "source").as_str().ends_with("path,path,"), true, "neither is fetched")
+    val sources = crate_fields(&metadata.json, "source")
+    assert_eq(sources.as_str().ends_with("path,bundled,path,"), true, "neither is fetched, and testing is bundled")
 }
 
 @test
 fun a_shared_dependency_appears_once(): void {
     val metadata = project_metadata(workspace_project().as_str())
-    assert_eq(crate_fields(&metadata.json, "name").as_str().ends_with("md_shared,md_one,md_two,"), true,
+    assert_eq(crate_fields(&metadata.json, "name").as_str().ends_with("md_shared,testing,md_one,md_two,"), true,
         "every crate once, dependencies first")
 }
 

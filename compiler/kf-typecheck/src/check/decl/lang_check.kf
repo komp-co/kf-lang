@@ -13,6 +13,11 @@ pub fun may_declare_lang_items(crate: CrateId): bool {
     return crate.raw == new_crate_id("std").raw
 }
 
+/// Only `testing` declares `@test` and `@disabled`.
+pub fun may_declare_test_annotations(crate: CrateId): bool {
+    return crate.raw == new_crate_id("testing").raw
+}
+
 /// The registry already checked placement; this checks key and crate.
 pub fun TopDecl.validate_lang_annotation(diags: &var Diagnostics): void {
     val key = self.lang_key_of()

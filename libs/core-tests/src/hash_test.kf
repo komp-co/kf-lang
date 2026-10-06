@@ -1,8 +1,8 @@
 // Equal values must hash equally; unequal ones should differ enough to catch
 // an impl ignoring its input.
 
-import core.assert.*
-import core.hash.*
+import core.assert.assert_eq
+import core.hash.Hash
 
 @test
 fun equal_values_hash_equally(): void {

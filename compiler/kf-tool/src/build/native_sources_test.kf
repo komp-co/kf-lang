@@ -78,7 +78,7 @@ fun native_test_contains(haystack: str, needle: str): bool {
 @test
 fun native_sources_are_dependency_ordered_and_deduplicated(): void {
     write_native_graph_fixture()
-    val graph = build_crate_graph(scratch_path("kf_native_app"))
+    val graph = build_crate_graph(scratch_path("kf_native_app"), false)
     val sources = graph.collect_native_sources()
     assert_eq(sources.error.as_str() == "" && sources.text.as_str() == "/* dep */\n/* app */\n", true, "unity native sources are deterministic and unique")
 }
@@ -86,7 +86,7 @@ fun native_sources_are_dependency_ordered_and_deduplicated(): void {
 @test
 fun missing_native_source_names_its_crate_and_path(): void {
     write_missing_native_fixture()
-    val graph = build_crate_graph(scratch_path("kf_native_missing"))
+    val graph = build_crate_graph(scratch_path("kf_native_missing"), false)
     val sources = graph.collect_native_sources()
     val names_crate = native_test_contains(sources.error.as_str(), "core")
     val names_path = native_test_contains(sources.error.as_str(), "native/missing.c")
@@ -96,7 +96,7 @@ fun missing_native_source_names_its_crate_and_path(): void {
 @test
 fun unity_source_places_native_code_after_generated_code(): void {
     write_native_graph_fixture()
-    val unity = compose_unity_source(scratch_path("kf_native_app"), String.from("/* generated */\n"))
+    val unity = compose_unity_source(scratch_path("kf_native_app"), String.from("/* generated */\n"), false)
     assert_eq(unity.text.as_str() == """/* generated */
 
 #define KF_NATIVE_UNITY 1
@@ -108,7 +108,7 @@ fun unity_source_places_native_code_after_generated_code(): void {
 @test
 fun test_unity_source_rejects_manifest_graph_error(): void {
     write_nameless_unity_fixture()
-    val unity = compose_unity_source(scratch_path("kf_native_nameless"), String.from("/* generated */\n"))
+    val unity = compose_unity_source(scratch_path("kf_native_nameless"), String.from("/* generated */\n"), false)
     assert_eq(unity.text.as_str() == "" && native_test_contains(unity.error.as_str(), "invalid manifest"), true, "unity composition refuses an invalid graph")
 }
 
@@ -139,7 +139,7 @@ fun tiered_app_manifest(freestanding: str): String {
 @test
 fun a_hosted_root_gets_both_native_tiers(): void {
     write_tiered_native_fixture(tiered_app_manifest("").as_str())
-    val graph = build_crate_graph(scratch_path("kf_native_tier_app"))
+    val graph = build_crate_graph(scratch_path("kf_native_tier_app"), false)
     val sources = graph.collect_native_sources()
     assert_eq(sources.text.as_str(), "/* free */\n/* hosted */\n", "a hosted build takes a crate's C whole")
 }
@@ -147,7 +147,7 @@ fun a_hosted_root_gets_both_native_tiers(): void {
 @test
 fun a_freestanding_root_leaves_the_hosted_tier_out(): void {
     write_tiered_native_fixture(tiered_app_manifest("true").as_str())
-    val graph = build_crate_graph(scratch_path("kf_native_tier_app"))
+    val graph = build_crate_graph(scratch_path("kf_native_tier_app"), false)
     val sources = graph.collect_native_sources()
     assert_eq(sources.text.as_str(), "/* free */\n", "freestanding drops hosted_c_sources across the graph")
 }
@@ -166,7 +166,7 @@ hosted_c_sources = ["native/hosted.c"]
 """, "native/free.c", "/* free */\n")
     write_file(scratch_path("kf_native_tier_dep/native/hosted.c"), "/* hosted */\n")
     write_native_fixture_crate(scratch_path("kf_native_tier_app"), tiered_app_manifest("").as_str(), "", "")
-    val graph = build_crate_graph(scratch_path("kf_native_tier_app"))
+    val graph = build_crate_graph(scratch_path("kf_native_tier_app"), false)
     val sources = graph.collect_native_sources()
     assert_eq(sources.text.as_str(), "/* free */\n/* hosted */\n", "only the root manifest is asked")
 }

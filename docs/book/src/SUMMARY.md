@@ -38,6 +38,7 @@
 - [core](libs/core.md)
 - [alloc](libs/alloc.md)
 - [std](libs/std.md)
+- [testing](libs/testing.md)
 
 # Tooling
 

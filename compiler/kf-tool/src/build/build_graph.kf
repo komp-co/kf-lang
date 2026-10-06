@@ -40,7 +40,9 @@ pub struct BuildGraph {
     pub val error: String
 }
 
-pub fun build_crate_graph(root_dir: str): BuildGraph {
+/// `with_tests` builds the root for its tests too: it then also depends on
+/// `testing`, the crate that declares `@test`.
+pub fun build_crate_graph(root_dir: str, with_tests: bool): BuildGraph {
     var crates = List.new<BuildCrate>()
     var cycle = ""
     var error = ""
@@ -50,6 +52,9 @@ pub fun build_crate_graph(root_dir: str): BuildGraph {
     val freestanding = root_is_freestanding(root.as_str())
     val sources = DependencySources { lock: read_lock(root.as_str()), cache: cache_root() }
     visit_crate(root, freestanding, &sources, &var crates, &var cycle, &var error, &var in_progress, &var done)
+    if with_tests && error.as_str() == "" && !cycle.cycle_found() {
+        crates.add_testing(freestanding, &sources, &var cycle, &var error, &var done)
+    }
     if error.as_str() != "" { crates = List.new<BuildCrate>() }
     return BuildGraph { crates: crates, cycle: cycle, freestanding: freestanding, error: error }
 }
@@ -249,4 +254,38 @@ fun path_list_has(paths: &var List<String>, target: str): bool {
         if path.as_str() == target { return true }
     }
     return false
+}
+
+/// The `testing` crate a crate named `name` takes for its tests: the one beside
+/// the graph's `core`, so both come from one standard library. "" for `core`
+/// and `testing` themselves, which it would make a cycle, and when there is none.
+fun List<BuildCrate>.testing_beside_core(name: str): String {
+    if name == "core" || name == "testing" { return "" }
+    while item in &self {
+        if item.name.as_str() == "core" {
+            val testing = "${parent_path(item.root.as_str())}/testing"
+            return if exists("${testing}/kf.toml".as_str()) { Path.new(testing.as_str()).normalized().raw } else { "" }
+        }
+    }
+    return ""
+}
+
+/// The root, last, made to depend on `testing` too, which goes in before it.
+mutating fun List<BuildCrate>.add_testing(freestanding: bool, sources: &DependencySources, cycle: &var String,
+    error: &var String, done: &var List<String>): void {
+    val root = self.take_last() ?: return
+    val testing = self.testing_beside_core(root.name.as_str())
+    if testing.byte_len() == 0 || name_listed(&root.deps, "testing") {
+        self.push(root)
+        return
+    }
+    var in_progress = List.new<String>()
+    visit_crate(testing, freestanding, sources, self, cycle, error, &var in_progress, done)
+    var deps = root.deps.clone()
+    deps.push(String.from("testing"))
+    val loads = self.closure_of(&deps)
+    self.push(BuildCrate {
+        name: root.name.clone(), root: root.root.clone(), is_bin: root.is_bin, deps: deps, loads: loads,
+        c_sources: root.c_sources.clone(), hosted_c_sources: root.hosted_c_sources.clone()
+    })
 }
