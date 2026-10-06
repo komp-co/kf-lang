@@ -55,7 +55,6 @@
 1 compiler/kf-driver/src/editor/signature.kf
 6 compiler/kf-driver/src/editor/symbols_test.kf
 1 compiler/kf-driver/src/lint_levels_test.kf
-2 compiler/kf-driver/src/testing/test_runner_test.kf
 9 compiler/kf-integration/src/editor/completion_test.kf
 6 compiler/kf-integration/src/editor/hover_decl_test.kf
 4 compiler/kf-integration/src/editor/references_test.kf
