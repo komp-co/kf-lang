@@ -467,9 +467,13 @@ row of its file. `-q`, `--deny-warnings` and `-A/-W/-D <lint>` mean what they
 mean to komp, which passes its own along.
 
 With `--tests` in place of `--bin`, `kflatc compile` instead compiles the crate
-with its `_test.kf` files and a generated test main, and writes
-`test/<name>_tests.h` and `.c` under `--out`, reporting no warnings. This is
-the translation unit `komp test` compiles and links into the test binary.
+with its `_test.kf` files and writes `test/<name>_tests.h` and `.c` under
+`--out`, reporting no warnings. `--entry-file FILE` adds a file to the crate,
+as the module `entry`, whose `main` is the program's; a `main` of the crate's
+own is set aside. kflatc knows nothing of how tests run: `komp test` writes the
+main that hands the crate's `@test` functions to
+[`testing`](../libs/testing.md), passes it as the entry file, and compiles and
+links the translation unit into the test binary.
 
 The names kflatc reads and writes under `--out` are part of its command line;
 a change to them is a change to how komp drives it:
@@ -494,8 +498,8 @@ then runs `kflatc check` on the root.
 one C file, as `komp build --unity` needs: each `--crate` names a crate and its
 root, dependencies first and the root last, and `--crate-src NAME=DIR` gives a
 crate's source directory when it is not `<root>/src`. `--bin` and `--tests` mean
-what they do to `compile`. The crates' own C sources are left out; komp
-appends them.
+what they do to `compile`, and `--entry-file` adds the root's `main` as it does
+there. The crates' own C sources are left out; komp appends them.
 
 `kflatc lints` prints every lint at the level the lint flags on its command
 line give it, as `komp lint --list` shows; `--format=json` prints the same as one

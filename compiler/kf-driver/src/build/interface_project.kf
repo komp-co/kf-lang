@@ -12,9 +12,6 @@ import kf_interface.export_closure_diagnostics
 
 import kf_driver.*
 import kf_interface.emit.emit_interface_full
-import kf_driver.testing.gen_test_main_src
-import kf_driver.testing.parse_test_main
-import kf_driver.testing.rename_main_decls
 import kf_codegen.emit.glue.deep_clone_module
 import kf_driver.cli.render_json_error
 import kf_lint.lint_module
@@ -104,16 +101,17 @@ pub struct CrateCompileResult {
 /// `.kfi` is emitted between TypeCheck and Mono, as on the source path.
 pub fun CompileUnit.compile_crate_against_interfaces(artifacts: str, is_bin_root: bool,
     errors: &var Diagnostics): CrateCompileResult {
-    return self.compile_crate_mode(artifacts, is_bin_root, false, errors)
+    return self.compile_crate_mode(artifacts, is_bin_root, false, "", errors)
 }
 
-/// With `_test.kf` files and a synthetic test main; dependencies stay
-/// bodyless interfaces.
-pub fun CompileUnit.compile_test_crate_against_interfaces(artifacts: str, errors: &var Diagnostics): CrateCompileResult {
-    return self.compile_crate_mode(artifacts, true, true, errors)
+/// With `_test.kf` files, and `entry_file` supplying `main` unless it is "";
+/// dependencies stay bodyless interfaces.
+pub fun CompileUnit.compile_test_crate_against_interfaces(artifacts: str, entry_file: str,
+    errors: &var Diagnostics): CrateCompileResult {
+    return self.compile_crate_mode(artifacts, true, true, entry_file, errors)
 }
 
-fun CompileUnit.compile_crate_mode(artifacts: str, is_bin_root: bool, include_tests: bool,
+fun CompileUnit.compile_crate_mode(artifacts: str, is_bin_root: bool, include_tests: bool, entry_file: str,
     errors: &var Diagnostics): CrateCompileResult {
     val smap = fresh_source_map()
     var diagnostics = new_diagnostics()
@@ -140,12 +138,7 @@ fun CompileUnit.compile_crate_mode(artifacts: str, is_bin_root: bool, include_te
         errors.count_errors(1)
         diagnostic_index = diagnostic_index + 1
     }
-    if include_tests {
-        rename_main_decls(&var modules)
-        var main_module = parse_test_main(gen_test_main_src().as_str(), smap)
-        stamp_module_owner(&var main_module, new_crate_id(self.name.as_str()))
-        modules.push(main_module)
-    }
+    add_entry_file(&var modules, entry_file, self.name.as_str(), smap)
     var merged = merge_module_list(modules)
     // Separate mode: instances become this TU's static support.
     merged.crate = new_crate_id(self.name.as_str())

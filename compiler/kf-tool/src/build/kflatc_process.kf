@@ -28,27 +28,28 @@ pub fun beside_self(name: str): String {
 /// Compiles the crate into `tdir` with kflatc and answers its exit status: 0
 /// when the `.kfi`, `.h` and `.c` were written.
 pub fun BuildCrate.invoke_kflatc(project: str, tdir: str, dep_hashes: &List<String>, is_bin_root: bool): int32 {
-    return self.run_kflatc("compile", project, tdir, dep_hashes, if is_bin_root { "--bin" } else { "" }, "")
+    return self.run_kflatc("compile", project, tdir, dep_hashes, if is_bin_root { "--bin" } else { "" }, "", "")
 }
 
-/// Compiles the crate with its tests and a generated test main into
-/// `tdir/test`, and answers kflatc's exit status.
-pub fun BuildCrate.invoke_kflatc_tests(project: str, tdir: str, dep_hashes: &List<String>): int32 {
-    return self.run_kflatc("compile", project, tdir, dep_hashes, "--tests", "")
+/// Compiles the crate with its tests into `tdir/test`, `entry_file`
+/// supplying its main, and answers kflatc's exit status.
+pub fun BuildCrate.invoke_kflatc_tests(project: str, tdir: str, dep_hashes: &List<String>, entry_file: str): int32 {
+    return self.run_kflatc("compile", project, tdir, dep_hashes, "--tests", entry_file, "")
 }
 
 /// Type-checks the crate, its tests included, against the interfaces in
 /// `tdir`, and answers kflatc's exit status: 0 when it has no errors.
 pub fun BuildCrate.invoke_kflatc_check(project: str, tdir: str, as_json: bool): int32 {
     val no_hashes = List.new<String>()
-    return self.run_kflatc("check", project, tdir, &no_hashes, if as_json { "--format=json" } else { "" }, "")
+    return self.run_kflatc("check", project, tdir, &no_hashes, if as_json { "--format=json" } else { "" }, "", "")
 }
 
 /// As `invoke_kflatc_check`, with kflatc's tally of the lints after the
 /// diagnostics unless they are JSON.
 pub fun BuildCrate.invoke_kflatc_lint(project: str, tdir: str, as_json: bool): int32 {
     val no_hashes = List.new<String>()
-    return self.run_kflatc("check", project, tdir, &no_hashes, if as_json { "--format=json" } else { "--summary" }, "")
+    return self.run_kflatc("check", project, tdir, &no_hashes, if as_json { "--format=json" } else { "--summary" }, "",
+        "")
 }
 
 /// Every lint, at the level `project`'s configuration and this command
@@ -67,13 +68,13 @@ pub fun list_lints(project: str, as_json: bool): int32 {
 /// `report` rather than printed.
 pub fun BuildCrate.invoke_kflatc_check_into(project: str, tdir: str, report: str): int32 {
     val no_hashes = List.new<String>()
-    return self.run_kflatc("check", project, tdir, &no_hashes, "--format=json", report)
+    return self.run_kflatc("check", project, tdir, &no_hashes, "--format=json", "", report)
 }
 
 /// `mode` is one of kflatc's `--bin`, `--tests` or `--format=json`, or empty. A
 /// non-empty `stdout_path` receives kflatc's output.
 fun BuildCrate.run_kflatc(subcommand: str, project: str, tdir: str, dep_hashes: &List<String>, mode: str,
-    stdout_path: str): int32 {
+    entry_file: str, stdout_path: str): int32 {
     val path = kflatc_path()
     if kflatc_missing(&path) { return 1 }
     var command = Command.new(path.as_str())
@@ -91,6 +92,10 @@ fun BuildCrate.run_kflatc(subcommand: str, project: str, tdir: str, dep_hashes: 
     command.arg("--project")
     command.arg(project)
     if mode.byte_len() > 0 { command.arg(mode) }
+    if entry_file.byte_len() > 0 {
+        command.arg("--entry-file")
+        command.arg(entry_file)
+    }
     forward_compiler_flags(&var command, project)
     while i in 0..self.deps.size() {
         val hash = if i < dep_hashes.size() { dep_hashes.at(i).clone() } else { String.from("") }
@@ -106,8 +111,10 @@ fun BuildCrate.run_kflatc(subcommand: str, project: str, tdir: str, dep_hashes: 
 }
 
 /// Compiles every crate of the graph into the one C file `out` with `kflatc
-/// unity`, their native C sources left out, and answers its exit status.
-pub fun BuildGraph.invoke_kflatc_unity(project: str, out: str, is_bin: bool, with_tests: bool): int32 {
+/// unity`, their native C sources left out, `entry_file` supplying the main
+/// unless it is "", and answers its exit status.
+pub fun BuildGraph.invoke_kflatc_unity(project: str, out: str, is_bin: bool, with_tests: bool,
+    entry_file: str): int32 {
     val path = kflatc_path()
     if kflatc_missing(&path) { return 1 }
     var command = Command.new(path.as_str())
@@ -125,6 +132,10 @@ pub fun BuildGraph.invoke_kflatc_unity(project: str, out: str, is_bin: bool, wit
     command.arg("--project")
     command.arg(project)
     if with_tests { command.arg("--tests") } else if is_bin { command.arg("--bin") }
+    if entry_file.byte_len() > 0 {
+        command.arg("--entry-file")
+        command.arg(entry_file)
+    }
     forward_compiler_flags(&var command, project)
     return command.status().exit_code()
 }

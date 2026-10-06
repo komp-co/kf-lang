@@ -20,11 +20,11 @@ pub fun CompileUnit.write_crate_sources(tdir: str, is_bin_root: bool, errors: &v
     return publish_text(crate_source_path(tdir, name).as_str(), res.output.source.as_str())
 }
 
-/// Compiles the crate with its `_test.kf` files and a generated test main, and
-/// writes `<name>_tests.h` and `.c` to `test_crate_dir(tdir)`. False on any
-/// error.
-pub fun CompileUnit.write_test_sources(tdir: str, errors: &var Diagnostics): bool {
-    val res = self.compile_test_crate_against_interfaces(tdir, errors)
+/// Compiles the crate with its `_test.kf` files, `entry_file` supplying `main`
+/// unless it is "", and writes `<name>_tests.h` and `.c` to
+/// `test_crate_dir(tdir)`. False on any error.
+pub fun CompileUnit.write_test_sources(tdir: str, entry_file: str, errors: &var Diagnostics): bool {
+    val res = self.compile_test_crate_against_interfaces(tdir, entry_file, errors)
     if errors.error_count() != 0 { return false }
     if !publish_runtime_header(tdir) { return false }
     val test_dir = test_crate_dir(tdir)
