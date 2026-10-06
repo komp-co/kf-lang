@@ -9,3 +9,6 @@ alloc = { path = "../../libs/alloc" }
 
 [native]
 c_sources = ["native/compiler.c"]
+
+[dev-dependencies]
+testing = { path = "../../libs/testing" }

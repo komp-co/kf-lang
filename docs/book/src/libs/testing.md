@@ -1,15 +1,16 @@
 # testing
 
-`testing` is the crate tests are written against. It depends only on `core`,
-and komp adds it to a crate whenever that crate's `_test.kf` files are
-compiled: by `komp test`, `komp check`, `komp lint` and the editor. A normal
-build does not see it. A program that runs tests itself names it as a
-dependency like any other crate:
+`testing` is the crate tests are written against. It depends only on `core`.
+A crate with tests names it in
+[`[dev-dependencies]`](../start/projects.md#dev-dependencies), so it is
+compiled with the crate's `_test.kf` files and left out of a normal build:
 
 ```toml
-[dependencies]
+[dev-dependencies]
 testing = { path = "../libs/testing" }
 ```
+
+A program that runs tests itself names it in `[dependencies]` instead.
 
 `core` cannot depend on `testing`, which depends on it, so core's own tests
 live in a crate of their own, `libs/core-tests`, and test core through its

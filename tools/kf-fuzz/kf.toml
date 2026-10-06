@@ -7,3 +7,6 @@ kind = "bin"
 core = { path = "../../libs/core" }
 alloc = { path = "../../libs/alloc" }
 std = { path = "../../libs/std" }
+
+[dev-dependencies]
+testing = { path = "../../libs/testing" }

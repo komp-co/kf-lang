@@ -7,6 +7,7 @@ import kf_tool.cli.run_project_mode
 import kf_tool.testing.test_project_separate
 import kf_tool.build.check_project_with_kflatc
 import std.fs.scratch_path
+import kf_integration.harness.testing_dev_dependency
 import testing.test
 
 extern "C" fun system(cmd: str): int32
@@ -15,7 +16,8 @@ extern "C" fun access(path: str, mode: int32): int32
 fun write_lib_and_bin(name: str, library_test: str): String {
     val root = String.from(scratch_path(name))
     val _made = unsafe { system("rm -rf ${root} && mkdir -p ${root}/src/lib ${root}/src/bin") }
-    write_file("${root}/kf.toml".as_str(), "[project]\nname = \"pair\"\nversion = \"0.1.0\"\n\n[lib]\n\n[bin]\n")
+    val manifest = "[project]\nname = \"pair\"\nversion = \"0.1.0\"\n\n[lib]\n\n[bin]\n${testing_dev_dependency()}"
+    write_file("${root}/kf.toml".as_str(), manifest.as_str())
     write_file("${root}/src/lib/answer.kf".as_str(), "pub fun answer(): int32 { return 42 }\n")
     write_file("${root}/src/lib/answer_test.kf".as_str(), library_test)
     write_file("${root}/src/bin/main.kf".as_str(), """import pair.answer.answer

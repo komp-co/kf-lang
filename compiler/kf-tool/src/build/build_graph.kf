@@ -48,8 +48,8 @@ pub struct BuildGraph {
 }
 
 /// `with_tests` builds the root for its tests too: it then also depends on
-/// `testing`, the crate that declares `@test`. For a package holding a
-/// library and a program, the program is the root.
+/// its package's `[dev-dependencies]`. For a package holding a library and a
+/// program, the program is the root.
 pub fun build_crate_graph(root_dir: str, with_tests: bool): BuildGraph {
     return build_part_graph(root_dir, true, with_tests)
 }
@@ -78,7 +78,7 @@ fun build_part_graph(root_dir: str, with_program: bool, with_tests: bool): Build
     visit_crate(root, freestanding, &sources, &var crates, &var cycle, &var error, &var in_progress, &var done)
     if with_program && error.as_str() == "" && !cycle.cycle_found() { crates.add_program() }
     if with_tests && error.as_str() == "" && !cycle.cycle_found() {
-        crates.add_testing(freestanding, &sources, &var cycle, &var error, &var done)
+        crates.add_dev_dependencies(freestanding, &sources, &var cycle, &var error, &var done)
     }
     if error.as_str() != "" { crates = List.new<BuildCrate>() }
     return BuildGraph { crates: crates, cycle: cycle, freestanding: freestanding, error: error }
@@ -142,7 +142,7 @@ fun visit_crate(root: String, freestanding: bool, sources: &DependencySources, c
         if cycle.cycle_found() || error.as_str() != "" { return }
         if exists(dep_manifest.as_str()) {
             val dep_mf = parse_manifest(read_file(dep_manifest.as_str()).as_str())
-            dep_names.push(String.from(dep_mf.name.as_str()))
+            dep_names.push(dep_mf.first_crate_name())
         }
     }
     in_progress.pop()
@@ -155,7 +155,7 @@ fun visit_crate(root: String, freestanding: bool, sources: &DependencySources, c
     val loads = crates.closure_of(&dep_names)
     val src = mf.first_source_dir(root.as_str())
     crates.push(BuildCrate {
-        name: String.from(mf.name.as_str()), root: root, src: src, package: String.from(mf.name.as_str()),
+        name: mf.first_crate_name(), root: root, src: src, package: String.from(mf.name.as_str()),
         is_bin: is_bin, deps: dep_names, loads: loads, c_sources: c_sources, hosted_c_sources: hosted_c_sources
     })
 }
@@ -299,33 +299,25 @@ fun path_list_has(paths: &var List<String>, target: str): bool {
     return false
 }
 
-/// The `testing` crate a crate named `name` takes for its tests: the one beside
-/// the graph's `core`, so both come from one standard library. "" for `core`
-/// and `testing` themselves, which it would make a cycle, and when there is none.
-fun List<BuildCrate>.testing_beside_core(name: str): String {
-    if name == "core" || name == "testing" { return "" }
-    while item in &self {
-        if item.name.as_str() == "core" {
-            val testing = "${parent_path(item.root.as_str())}/testing"
-            return if exists("${testing}/kf.toml".as_str()) { Path.new(testing.as_str()).normalized().raw } else { "" }
-        }
-    }
-    return ""
-}
-
-/// The root, last, made to depend on `testing` too, which goes in before it.
-mutating fun List<BuildCrate>.add_testing(freestanding: bool, sources: &DependencySources, cycle: &var String,
-    error: &var String, done: &var List<String>): void {
+/// The root, last, made to depend on its package's `[dev-dependencies]` too,
+/// which go in before it.
+mutating fun List<BuildCrate>.add_dev_dependencies(freestanding: bool, sources: &DependencySources,
+    cycle: &var String, error: &var String, done: &var List<String>): void {
     val root = self.take_last() ?: return
-    val testing = self.testing_beside_core(root.name.as_str())
-    if testing.byte_len() == 0 || name_listed(&root.deps, "testing") {
-        self.push(root)
-        return
-    }
-    var in_progress = List.new<String>()
-    visit_crate(testing, freestanding, sources, self, cycle, error, &var in_progress, done)
+    val manifest = parse_manifest(read_file("${root.root}/kf.toml".as_str()).as_str())
     var deps = root.deps.clone()
-    deps.push(String.from("testing"))
+    while dev in &manifest.dev_deps {
+        val dev_root = dependency_root(root.root.as_str(), dev, &sources.lock, sources.cache.as_str())
+        if dev_root.byte_len() == 0 {
+            (*error) = "error: dev-dependency `${dev.name}` of ${root.root} is not fetched; `komp test` fetches it"
+            return
+        }
+        var in_progress = List.new<String>()
+        visit_crate(dev_root.clone(), freestanding, sources, self, cycle, error, &var in_progress, done)
+        if cycle.cycle_found() || error.as_str() != "" { return }
+        val name = parse_manifest(read_file("${dev_root}/kf.toml".as_str()).as_str()).first_crate_name()
+        if !name_listed(&deps, name.as_str()) { deps.push(name) }
+    }
     val loads = self.closure_of(&deps)
     self.push(BuildCrate {
         name: root.name.clone(), root: root.root.clone(), src: root.src.clone(), package: root.package.clone(),

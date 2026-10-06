@@ -7,3 +7,6 @@ kind = "lib"
 kf_core = { path = "../kf-core" }
 core = { path = "../../libs/core" }
 alloc = { path = "../../libs/alloc" }
+
+[dev-dependencies]
+testing = { path = "../../libs/testing" }

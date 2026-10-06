@@ -30,8 +30,15 @@ pub fun Manifest.first_source_dir(root: str): String {
     return if self.lib_section { "${root}/src/lib" } else { "${root}/src/bin" }
 }
 
+/// The crate a dependent builds against: the library, named by `[lib] name`
+/// or after the package, or for a package holding only a program, that
+/// program.
+pub fun Manifest.first_crate_name(): String {
+    return if self.has_library() && self.lib_name.byte_len() > 0 { self.lib_name.clone() } else { self.name.clone() }
+}
+
 /// The program's crate in a package holding both, named apart from the
-/// library, whose name is the package's.
+/// library.
 pub fun Manifest.program_crate_name(): String {
     return "${self.name}_bin"
 }

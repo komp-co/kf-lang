@@ -20,3 +20,6 @@ core = { path = "../../libs/core" }
 alloc = { path = "../../libs/alloc" }
 std = { path = "../../libs/std" }
 json = "0.2"
+
+[dev-dependencies]
+testing = { path = "../../libs/testing" }

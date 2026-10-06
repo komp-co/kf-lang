@@ -7,8 +7,13 @@
 //   [lib]                  # in place of `kind`: the package holds a library,
 //   [bin]                  # a program, or both; package_layout.kf has the rule
 //
+//   [lib]
+//   name = "testing"       # the library crate's name, the package's by default
+//
 //   [dependencies]
 //   kf_core = { path = "../kf-core" }     # dependency.kf reads the row
+//
+//   [dev-dependencies]     # as [dependencies], for the crate's tests only
 
 import alloc.list.*
 
@@ -22,7 +27,11 @@ pub struct Manifest {
     /// place of `kind`.
     pub val lib_section: bool
     pub val bin_section: bool
+    /// `[lib] name`, or "".
+    pub val lib_name: String
     pub val deps: List<Dependency>
+    /// What the crate's `_test.kf` files need beyond `deps`.
+    pub val dev_deps: List<Dependency>
     /// `[lint]` rows verbatim, in file order; validated against the registry
     /// elsewhere.
     pub val lint_names: List<String>
@@ -43,8 +52,9 @@ pub fun new_manifest_with_lints(name: String, version: String, kind: String, dep
         dep_error
     }
     return Manifest {
-        name: name, version: version, kind: kind, lib_section: false, bin_section: false, deps: deps,
-        lint_names: lint_names, lint_levels: lint_levels, freestanding: freestanding, error: error
+        name: name, version: version, kind: kind, lib_section: false, bin_section: false, lib_name: "", deps: deps,
+        dev_deps: List.new<Dependency>(), lint_names: lint_names, lint_levels: lint_levels,
+        freestanding: freestanding, error: error
     }
 }
 
@@ -56,12 +66,14 @@ pub fun parse_manifest(src: str): Manifest {
     var kind_given = false
     var lib_section = false
     var bin_section = false
+    var lib_name = String.from("")
     var deps = List.new<Dependency>()
+    var dev_deps = List.new<Dependency>()
     var lint_names = List.new<String>()
     var lint_levels = List.new<String>()
     var freestanding = false
     var section = ""
-    var dep_error = ""
+    var dep_error = String.from("")
     var index_names = List.new<String>()
     var index_urls = List.new<String>()
 
@@ -117,36 +129,49 @@ pub fun parse_manifest(src: str): Manifest {
                         index_names.push(read_key(line.clone()))
                         index_urls.push(read_string_value(line.clone()))
                     }
-                    if in_deps {
+                    if sect_str == "lib" && read_key(line.clone()).as_str() == "name" {
+                        lib_name = read_string_value(line.clone())
+                    }
+                    if in_deps || sect_str == "dev-dependencies" {
                         val dep = parse_dependency(read_key(line.clone()), line.as_str())
                         if dep_error.byte_len() == 0 { dep_error = dep.source_error() }
-                        deps.push(dep)
+                        if in_deps { deps.push(dep) } else { dev_deps.push(dep) }
                     }
                 }
             }
         }
     }
-    var looked_up = List.new<Dependency>()
-    while dep in &deps {
-        if dep.version.byte_len() == 0 {
-            looked_up.push(dep.clone())
-            continue
-        }
-        val url = index_url_for(dep.index.as_str(), &index_names, &index_urls)
-        if url.byte_len() == 0 && dep_error.byte_len() == 0 {
-            dep_error = "dependency `${dep.name}` names index `${dep.index}`, which `[indexes]` does not declare"
-        }
-        looked_up.push(dep.in_index(url.as_str()))
-    }
+    val looked_up = deps.looked_up_in(&index_names, &index_urls, &var dep_error)
+    val dev_looked_up = dev_deps.looked_up_in(&index_names, &index_urls, &var dep_error)
     if kind_given && (lib_section || bin_section) && dep_error.byte_len() == 0 {
         dep_error = "`kind` and a `[lib]` or `[bin]` section both say what the package holds; keep the sections"
     }
     val made = new_manifest_with_lints(name, version, kind, looked_up, lint_names, lint_levels, freestanding, dep_error)
     return Manifest {
         name: made.name, version: made.version, kind: made.kind, lib_section: lib_section, bin_section: bin_section,
-        deps: made.deps, lint_names: made.lint_names, lint_levels: made.lint_levels, freestanding: made.freestanding,
-        error: made.error
+        lib_name: lib_name, deps: made.deps, dev_deps: dev_looked_up, lint_names: made.lint_names,
+        lint_levels: made.lint_levels, freestanding: made.freestanding, error: made.error
     }
+}
+
+/// Each dependency naming a version, given the URL of the index it names;
+/// the first index `[indexes]` does not declare goes in `error` unless one
+/// is there already.
+fun List<Dependency>.looked_up_in(index_names: &List<String>, index_urls: &List<String>,
+    error: &var String): List<Dependency> {
+    var out = List.new<Dependency>()
+    while dep in &self {
+        if dep.version.byte_len() == 0 {
+            out.push(dep.clone())
+            continue
+        }
+        val url = index_url_for(dep.index.as_str(), index_names, index_urls)
+        if url.byte_len() == 0 && error.byte_len() == 0 {
+            (*error) = "dependency `${dep.name}` names index `${dep.index}`, which `[indexes]` does not declare"
+        }
+        out.push(dep.in_index(url.as_str()))
+    }
+    return out
 }
 
 /// `[native] c_sources`: C files, relative to the crate root, compiled and

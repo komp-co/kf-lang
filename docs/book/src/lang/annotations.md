@@ -402,8 +402,9 @@ fun addition_works(): void {
 ```
 
 The [`testing`](../libs/testing.md) crate declares it and `@disabled` as
-ordinary annotations, so a test file imports the ones it uses; `komp test`
-adds `testing` to the crate's dependencies for its tests:
+ordinary annotations, so a test file imports the ones it uses, and the crate
+names `testing` in its
+[`[dev-dependencies]`](../start/projects.md#dev-dependencies):
 
 ```kflat
 annotation test(name: str = "", panics: FaultKind = FaultKind.NoFault) on () -> void

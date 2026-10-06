@@ -30,7 +30,7 @@ fun test_graph_root(graph: &BuildGraph, root_dir: str, case_filter: str, test_fi
 
     val artifacts = target_dir(root_dir)
     val root = *graph.crates.at(graph.crates.size() - 1)
-    if root.name.as_str() != "testing" && !root.deps.contains_name("testing") { return root.test_without_testing() }
+    if !root.has_test_files() { return report_no_tests() }
     val manifest_path = crate_artifact_manifest_path(artifacts.as_str(), root.name.as_str())
     val parsed = parse_artifact_manifest(read_file(manifest_path.as_str()).as_str())
     if !parsed.ok {
@@ -81,25 +81,14 @@ fun test_graph_root(graph: &BuildGraph, root_dir: str, case_filter: str, test_fi
     return run.status().exit_code()
 }
 
-/// A crate `testing` cannot serve, `core`, which it depends on: it may hold
-/// no tests, and passes with none.
-fun BuildCrate.test_without_testing(): int32 {
-    val all = crate_kf_files(self.src.as_str(), true)
-    val sources = crate_kf_files(self.src.as_str(), false)
-    if all.size() == sources.size() {
-        runtime_println("running 0 tests")
-        runtime_println("")
-        runtime_println("test result: ok. 0 passed")
-        return 0
-    }
-    val why = "`testing`, which declares `@test`, depends on it; put its tests in a crate of their own"
-    runtime_println("komp test: `${self.name}` cannot hold tests: ${why}".as_str())
-    return 1
+fun BuildCrate.has_test_files(): bool {
+    return crate_kf_files(self.src.as_str(), true).size() > crate_kf_files(self.src.as_str(), false).size()
 }
 
-fun List<String>.contains_name(name: str): bool {
-    while item in &self {
-        if item.as_str() == name { return true }
-    }
-    return false
+/// What a test program with no tests prints, without building one.
+fun report_no_tests(): int32 {
+    runtime_println("running 0 tests")
+    runtime_println("")
+    runtime_println("test result: ok. 0 passed")
+    return 0
 }
