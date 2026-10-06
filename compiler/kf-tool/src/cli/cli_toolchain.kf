@@ -3,7 +3,7 @@
 // `~/.kflat/toolchains`.
 
 import json.writer.JsonWriter
-import kf_shared.kflat_version
+import kf_tool.build.default_kflatc_version
 import kf_tool.fetch.cache_root
 import kf_tool.install.default_toolchain
 import kf_tool.install.install_home
@@ -30,7 +30,7 @@ pub fun toolchain_command(nargs: int32): int32 {
         }
         "remove" => {
             if args.size() != 2 || starts_with_dash(args[1].as_str()) { return usage_error("toolchain") }
-            val error = remove_toolchain(home.as_str(), args[1].as_str(), kflat_version())
+            val error = remove_toolchain(home.as_str(), args[1].as_str(), default_kflatc_version().as_str())
             if error.byte_len() > 0 { return report_error(error.as_str(), wants_json(nargs)) }
             runtime_println("removed kflat ${args[1]}")
             return 0
@@ -40,11 +40,13 @@ pub fun toolchain_command(nargs: int32): int32 {
 }
 
 /// `{"running", "default", "toolchains": [{"version", "path", "default", "running"}]}`,
-/// `default` null when `bin/komp` points at no toolchain.
+/// `running` the kflatc komp runs now, `default` null when `bin/komp` points
+/// at no toolchain.
 fun list_toolchains_json(home: str): int32 {
     val chosen = default_toolchain(home)
+    val running = default_kflatc_version()
     var writer = JsonWriter.object()
-    writer.field_string("running", kflat_version())
+    writer.field_string("running", running.as_str())
     if chosen.is_empty() { writer.field_null("default") } else { writer.field_string("default", chosen.as_str()) }
     writer.key("toolchains")
     writer.begin_array()
@@ -55,7 +57,7 @@ fun list_toolchains_json(home: str): int32 {
         writer.field_string("version", shown.as_str())
         writer.field_string("path", "${home}/toolchains/${shown}".as_str())
         writer.field_bool("default", shown.as_str() == chosen.as_str())
-        writer.field_bool("running", shown.as_str() == kflat_version())
+        writer.field_bool("running", shown.as_str() == running.as_str())
         writer.end_object()
     }
     writer.end_array()
@@ -64,24 +66,27 @@ fun list_toolchains_json(home: str): int32 {
 }
 
 fun toolchain_install(home: str, version: str): int32 {
-    val done = self_update(version, kflat_version(), home, cache_root().as_str())
+    // Until komp ships on its own, a release holds komp and kflatc together,
+    // so the release installed is the default kflatc's.
+    val done = self_update(version, default_kflatc_version().as_str(), home, cache_root().as_str())
     if done.error.byte_len() > 0 {
         runtime_println("error: ${done.error}")
         return 1
     }
     if !done.installed {
-        runtime_println("komp ${done.version} is the newest release")
+        runtime_println("kflat ${done.version} is the newest release")
         return 0
     }
-    runtime_println("installed komp ${done.version}; ${installed_bin_dir(home)}/komp now runs it")
+    runtime_println("installed kflat ${done.version}; ${installed_bin_dir(home)}/komp now runs it")
     return 0
 }
 
 /// Each installed toolchain, the default and the running one marked.
 fun list_toolchains(home: str): int32 {
     val versions = installed_toolchains(home)
+    val running = default_kflatc_version()
     if versions.is_empty() {
-        runtime_println("no toolchain is installed in ${home}/toolchains; this komp is ${kflat_version()}")
+        runtime_println("no toolchain is installed in ${home}/toolchains; komp runs kflatc ${running}")
         return 0
     }
     val chosen = default_toolchain(home)
@@ -89,7 +94,7 @@ fun list_toolchains(home: str): int32 {
         val shown = version.render()
         var notes = ""
         if shown.as_str() == chosen.as_str() { notes.append("  default") }
-        if shown.as_str() == kflat_version() { notes.append("  running") }
+        if shown.as_str() == running.as_str() { notes.append("  running") }
         runtime_println("${shown}${notes}  ${home}/toolchains/${shown}")
     }
     return 0

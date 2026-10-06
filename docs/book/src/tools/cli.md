@@ -28,7 +28,7 @@ points, and then compiles and links the C with cc.
 | `komp metadata <dir>` | Print the resolved crate graph as JSON, for tools |
 | `komp publish <dir>` | Add a package's version to a package index by pull request |
 | `komp new [<name>]` | Scaffold a new project directory, or with no name the current one |
-| `komp --version` | Print the compiler version |
+| `komp --version` | Print komp's version; `kflatc version` prints the compiler's |
 
 At a workspace, `build`, `check`, `test` and `fix` work on the workspace's
 `default-member`. `-p <crate>` picks one member and `--workspace` picks all of
@@ -168,7 +168,7 @@ With `hello` depending on `greet` by path, and `[lint] dead_code = "allow"`
 $ komp metadata
 {
   "schema": 1,
-  "komp_version": "0.2.0",
+  "komp_version": "1.0.0",
   "kflatc": "/home/user/komp/bin/kflatc",
   "workspace_root": null,
   "target_dir": "/tmp/work/hello/target/kflat",
@@ -407,13 +407,13 @@ $ komp toolchain install
 building komp 0.5.1 with cc
 building kflatc 0.5.1 with cc
 installed kflat 0.5.1 in /home/me/.kflat/toolchains/0.5.1
-installed komp 0.5.1; /home/me/.kflat/bin/komp now runs it
+installed kflat 0.5.1; /home/me/.kflat/bin/komp now runs it
 $ komp toolchain install
-komp 0.5.1 is the newest release
+kflat 0.5.1 is the newest release
 ```
 
 `komp toolchain list` shows every installed toolchain, marking the default,
-the one `~/.kflat/bin/komp` runs, and the komp running the command;
+the one `~/.kflat/bin/komp` runs, and the kflatc the running komp would use;
 `komp toolchain remove <version>` removes one, but neither of those two:
 
 ```console

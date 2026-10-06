@@ -144,7 +144,7 @@ crates_given="${CRATES+given}"
 CRATES="${CRATES:-compiler/kf-core compiler/kf-parse compiler/kf-assemble
         compiler/kf-resolve compiler/kf-typecheck compiler/kf-mono
         compiler/kf-lower compiler/kf-codegen compiler/kf-interface
-        compiler/kf-shared compiler/kf-lint compiler/kf-driver compiler/kf-tool compiler/kf-integration
+        compiler/kf-lint compiler/kf-driver compiler/kf-tool compiler/kf-integration
         libs/core-tests libs/testing libs/alloc libs/std tools/kf-fuzz tools/kf-reduce}"
 CHECK_CLI="${CHECK_CLI:-1}"
 

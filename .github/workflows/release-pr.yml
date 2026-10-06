@@ -32,6 +32,6 @@ jobs:
           echo "main has ${old:-none}, this PR releases $new"
           higher=$(printf '%s\n%s\n' "$old" "$new" | sort -V | tail -1)
           if [ -n "$old" ] && { [ "$higher" != "$new" ] || [ "$old" = "$new" ]; }; then
-            echo "bump kflat_version() in compiler/kf-shared/src/version.kf past $old" >&2
+            echo "bump kflat_version() in compiler/kf-driver/src/version.kf past $old" >&2
             exit 1
           fi

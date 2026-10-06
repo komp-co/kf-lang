@@ -13,7 +13,6 @@ kf_mono = { path = "../kf-mono" }
 kf_lower = { path = "../kf-lower" }
 kf_codegen = { path = "../kf-codegen" }
 kf_interface = { path = "../kf-interface" }
-kf_shared = { path = "../kf-shared" }
 kf_lint = { path = "../kf-lint" }
 core = { path = "../../libs/core" }
 alloc = { path = "../../libs/alloc" }

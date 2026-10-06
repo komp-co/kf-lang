@@ -9,7 +9,7 @@ import kf_tool.project.command_dir
 import kf_tool.project.parent_path
 import std.fs.*
 import kf_tool.build.binary_path
-import kf_shared.kflat_version
+import kf_tool.komp_version
 
 // Bodies in the runtime prelude, which captures argv in main().
 
@@ -125,7 +125,7 @@ pub fun run_cli(): int32 {
     }
     // Before the positional form, which would read `--version` as a directory.
     if wants_version() {
-        println("komp ${kflat_version()}")
+        println("komp ${komp_version()}")
         return 0
     }
     if nargs < 1 {

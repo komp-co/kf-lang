@@ -1,0 +1,5 @@
+/// komp's own release, printed by `komp --version`. It moves on its own:
+/// the compiler komp runs reports its version through `kflatc version`.
+pub fun komp_version(): str {
+    return "1.0.0"
+}

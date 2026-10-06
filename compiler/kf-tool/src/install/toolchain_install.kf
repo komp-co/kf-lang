@@ -13,8 +13,8 @@ import std.process.Command
 
 /// As `choose_toolchain`, installing the release the pin needs first when
 /// none installed fits, unless `offline`.
-pub fun choose_or_install_toolchain(pin: str, own_version: str, home: str, cache: str, offline: bool): ToolchainChoice {
-    val choice = choose_toolchain(pin, own_version, home)
+pub fun choose_or_install_toolchain(pin: str, default_version: str, home: str, cache: str, offline: bool): ToolchainChoice {
+    val choice = choose_toolchain(pin, default_version, home)
     if choice.error.byte_len() == 0 || !choice.installable { return choice }
     if offline {
         return ToolchainChoice { kflatc: "", error: "${choice.error}; --offline installs none", installable: false }
@@ -28,7 +28,7 @@ pub fun choose_or_install_toolchain(pin: str, own_version: str, home: str, cache
         val error = "${choice.error}; installing ${version}: ${failed}"
         return ToolchainChoice { kflatc: "", error: error, installable: false }
     }
-    return choose_toolchain(pin, own_version, home)
+    return choose_toolchain(pin, default_version, home)
 }
 
 /// Installs release `version`, from the first of `pages` that publishes it,

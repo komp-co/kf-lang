@@ -1,0 +1,7 @@
+import core.assert.assert_eq
+import testing.test
+
+@test
+fun komp_has_a_version_of_its_own(): void {
+    assert_eq(komp_version().split(".").size(), 3, "major.minor.patch")
+}
