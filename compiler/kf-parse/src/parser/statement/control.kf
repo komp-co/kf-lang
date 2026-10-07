@@ -176,9 +176,11 @@ impl Parser {
 
         if is_op(self.peek(), Operator.LBrace) {
             unsafe { self.advance() }
+            val outer = self.set_member_loop_aside()
             while true {
                 self.skip_newlines()
                 if is_op(self.peek(), Operator.RBrace) {
+                    if self.closes_member_loop() { continue }
                     unsafe { self.advance() }
                     break
                 }
@@ -186,12 +188,19 @@ impl Parser {
                     self.parse_err(self.peek().span, String.from("unclosed `when` body: missing `}` before the end of the file"))
                     break
                 }
-                arms.push(self.parse_arm())
+                if self.at_member_loop() {
+                    self.open_member_loop()
+                    continue
+                }
+                var arm = self.parse_arm()
+                arm.member_loop = self.member_loop.clone()
+                arms.push(arm)
                 self.skip_newlines()
                 if is_op(self.peek(), Operator.Comma) {
                     unsafe { self.advance() }
                 }
             }
+            self.member_loop = outer
         } else {
             self.parse_err(self.peek().span, "expected `{` to open the `when` body, found ${tok_str(self.peek())}")
         }
@@ -288,7 +297,7 @@ impl Parser {
                     unsafe { self.advance() }
                 } else {
                     while true {
-                        subs.push(self.parse_pattern())
+                        subs.push(self.parse_payload_pattern())
                         if is_op(self.peek(), Operator.Comma) {
                             unsafe { self.advance() }
                         } else {

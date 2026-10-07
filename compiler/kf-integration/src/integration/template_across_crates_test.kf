@@ -127,3 +127,33 @@ fun main(): int32 { return First { v: 1 }.listed_count() as int32 - 2 }
     assert_eq(komp_build(app, ""), 0, "the query names the app's structs")
     assert_eq(unsafe { system("${app}/target/kflat/tw_count_app") }, 0, "both of them")
 }
+
+@test
+fun an_enum_template_expands_for_the_enums_of_a_crate_importing_it(): void {
+    write_across_crate("tw_enum_lib", "lib", "", """pub annotation counted on enum
+
+template counted on enum T {
+    fun T.payload_count(): int64 {
+        return when (self) {
+            while variant in T.variants {
+                \${variant.name}(..a) => variant.payloads.size()
+            }
+        }
+    }
+}
+""")
+    val deps = "\n[dependencies]\ntw_enum_lib = { path = \"../kf_template_across_tw_enum_lib\" }\n"
+    write_across_crate("tw_enum_app", "bin", deps, """import tw_enum_lib.counted
+
+@counted
+enum Event {
+    Click(int32, int32)
+    Quit
+}
+
+fun main(): int32 { return (Event.Click(1, 2).payload_count() + Event.Quit.payload_count() - 2) as int32 }
+""")
+    val app = across_dir("tw_enum_app")
+    assert_eq(komp_build(app, ""), 0, "the library's enum template adds `payload_count` in the app")
+    assert_eq(unsafe { system("${app}/target/kflat/tw_enum_app") }, 0, "an arm per variant")
+}

@@ -131,7 +131,9 @@ fun all_paths_return(stmts: &List<Stmt>, ctx: &var TypeCtx): bool {
 fun Stmt.all_paths_return_stmt(ctx: &var TypeCtx): bool {
     when (self.kind) {
         Return(_e) => return true
-        If(_c, then_body, else_body) => {
+        If(c, then_body, else_body) => {
+            // `if true { ... }`, a template's decided block, is its body.
+            if is_literal_true((*c).clone()) { return all_paths_return(&then_body, ctx) }
             // Both branches must exist and return.
             if else_body.size() == 0 { return false }
             return all_paths_return(&then_body, ctx) && all_paths_return(&else_body, ctx)

@@ -1,0 +1,41 @@
+//! run: exit 0
+//! deps: core
+// `variant.build(|payload| e)` makes the variant with `e` per payload, and
+// `return` in a member loop ends its copies, so a template's `Default` is
+// the first variant without payloads.
+
+annotation zero on enum
+
+template zero on enum T {
+    impl Default for T {
+        static fun default(): T {
+            while variant in T.variants.filter(|variant| variant.payloads.size() == 0) {
+                return T.${variant.name}
+            }
+        }
+    }
+
+    fun T.doubled(): T {
+        return when (self) {
+            while variant in T.variants {
+                ${variant.name}(..a) => variant.build(|payload| payload.of(a) * 2)
+            }
+        }
+    }
+}
+
+@zero
+@derive(Equal)
+enum Shape {
+    Circle(int32)
+    Rect(int32, int32)
+    Empty
+    Point
+}
+
+fun main(): int32 {
+    if !(Shape.default() == Shape.Empty) { return 1 }
+    if !(Shape.Rect(1, 2).doubled() == Shape.Rect(2, 4)) { return 2 }
+    if !(Shape.Point.doubled() == Shape.Point) { return 3 }
+    return 0
+}

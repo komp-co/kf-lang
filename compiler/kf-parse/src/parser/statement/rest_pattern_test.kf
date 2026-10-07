@@ -1,0 +1,74 @@
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.ast.Arm
+import kf_core.ast.Pattern
+import kf_core.ast.declaration.TopDecl
+import kf_parse.parser.parser_for
+import testing.test
+
+fun enum_template(arms: str): String {
+    return "template t on enum T {\n    fun T.f(): void {\n        when (self) {\n${arms}\n        }\n    }\n}"
+}
+
+/// The arms of the `when` opening the template's one function.
+fun TopDecl.first_arms(): List<Arm> {
+    when (self.kind) {
+        Template(_kind, _marked, body) => {
+            when (body.at(0).kind) {
+                Function(_params, _ret, stmts, _pub, _unsafe, _mutating, _static) => {
+                    when (stmts.at(0).kind) {
+                        When(_subject, arms) => return arms.clone()
+                        _ => {}
+                    }
+                }
+                _ => {}
+            }
+        }
+        _ => {}
+    }
+    return List.new<Arm>()
+}
+
+/// `name(subs)` with each sub-pattern's binder, or the binder alone.
+fun Pattern.shape(): String {
+    when (self.kind) {
+        Identifier(name) => return name.as_string()
+        Variant(name, subs) => {
+            var out = String.from(name.as_str())
+            out.append("(")
+            while sub in &subs {
+                out.append(sub.shape().as_str())
+            }
+            out.append(")")
+            return out
+        }
+        _ => return String.from("?")
+    }
+}
+
+@test fun an_arm_loop_marks_its_arms_and_binds_the_payloads(): void {
+    val looped = "            while variant in T.variants {\n                \${variant.name}(..a) => {}\n            }"
+    val arms = "${looped}\n            _ => {}"
+    var p = parser_for(enum_template(arms).as_str())
+    val td = p.parse_top_decl()
+    assert_eq(p.diags.size(), 0, "no errors")
+    val parsed = td.first_arms()
+    assert_eq(parsed.size(), 2, "the looped arm and the last")
+    assert_eq(parsed.at(0).member_loop != null, true, "the first is in the loop")
+    assert_eq(parsed.at(1).member_loop == null, true, "`_` is not")
+    assert_eq(parsed.at(0).pattern.shape().as_str(), "\${variant.name}(..a)", "`..a` is one binder")
+}
+
+@test fun an_enum_template_loops_over_its_variants_not_fields(): void {
+    var p = parser_for(enum_template("            while variant in T.fields {\n            }").as_str())
+    val _td = p.parse_top_decl()
+    assert_eq(p.diags.size(), 1, "an enum's members are `T.variants`")
+}
+
+@test fun a_rest_binder_outside_a_template_is_an_error(): void {
+    val arms = "        Some(..a) => {}\n        _ => {}"
+    var p = parser_for("fun f(o: Option<int32>): void {\n    when (o) {\n${arms}\n    }\n}".as_str())
+    val _td = p.parse_top_decl()
+    assert_eq(p.diags.size(), 1, "`..a` is only for a template")
+}

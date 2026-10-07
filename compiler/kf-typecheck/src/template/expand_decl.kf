@@ -1,4 +1,4 @@
-// One template's declarations for one marked struct: `T` renamed in every
+// One template's declarations for one marked struct or enum: `T` renamed in every
 // header, each body expanded, and a clash with a declaration written by hand
 // reported with both.
 
@@ -26,11 +26,13 @@ fun Module.expand_for(template: &TopDecl, marked: &TopDecl, annotation: uint64, 
         annotation: template.name,
         marked: template.template_param(),
         type_name: marked.name,
+        on_enum: template.template_kind() == MarkKind.Enum,
         home: marked.module_path,
         fields: marked.field_facts(),
         args: self.use_arguments(marked, annotation),
         shapes: self.annotation_shapes(),
         bound: List.new<Bound>(),
+        rests: List.new<Sym>(),
         diags: List.new<Diagnostic>()
     }
     when (template.kind) {
@@ -45,7 +47,7 @@ fun Module.expand_for(template: &TopDecl, marked: &TopDecl, annotation: uint64, 
     while diag in &x.diags {
         diags.push(diag.clone())
     }
-    sites.record(template, marked, &x.fields)
+    sites.record(template, marked, &x.fields, x.member_word())
     return self.without_clashes(&out, template, diags)
 }
 
@@ -63,8 +65,17 @@ fun TopDecl.field_facts(): List<FieldFacts> {
             while i in 0..fields.size() {
                 val field = fields.at(i)
                 out.push(FieldFacts {
-                    name: field.name, index: i, ty: (*field.ty).clone(), annotations: field.annotations.clone(),
-                    span: field.span
+                    name: field.name, index: i, ty: (*field.ty).clone(), payloads: List.new<TypeRef>(),
+                    annotations: field.annotations.clone(), span: field.span
+                })
+            }
+        }
+        EnumDecl(variants, _pub) => {
+            while i in 0..variants.size() {
+                val variant = variants.at(i)
+                out.push(FieldFacts {
+                    name: variant.name, index: i, ty: TypeRef.new_poison(variant.span),
+                    payloads: variant.payloads.clone(), annotations: variant.annotations.clone(), span: variant.span
                 })
             }
         }

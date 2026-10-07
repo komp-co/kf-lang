@@ -121,9 +121,8 @@ on a struct holding one ([#299]). Compare or print the elements instead.
 
 ## Templates
 
-- A [template](lang/templates.md) adds to structs only; templates on enums
-  come with the variant loop ([#289]).
-- A template does not add to a generic struct ([#296]).
+- A [template](lang/templates.md) does not add to a generic struct or enum
+  ([#296]).
 - A `pub` extension function a template adds cannot be imported by another
   module: imports are checked before templates expand ([#297]).
 
@@ -212,7 +211,6 @@ not agree with it in every case.
 [#190]: https://github.com/komp-co/komp/issues/190
 [#194]: https://github.com/komp-co/komp/issues/194
 [#216]: https://github.com/komp-co/komp/issues/216
-[#289]: https://github.com/komp-co/komp/issues/289
 [#296]: https://github.com/komp-co/komp/issues/296
 [#297]: https://github.com/komp-co/komp/issues/297
 [#299]: https://github.com/komp-co/komp/issues/299

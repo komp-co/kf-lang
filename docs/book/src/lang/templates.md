@@ -1,8 +1,8 @@
 # Templates
 
-A template is code an annotation adds beside each struct it marks. It is
-written in KFlat, in the library that declares the annotation, and read over
-the struct's fields while the program compiles:
+A template is code an annotation adds beside each struct or enum it marks. It
+is written in KFlat, in the library that declares the annotation, and read over
+the struct's fields, or the enum's variants, while the program compiles:
 
 ```kflat
 annotation fields_equal on struct
@@ -39,6 +39,7 @@ hand beside the struct. It is then checked like any other code.
 `template NAME on struct T { declarations }` belongs to the annotation `NAME`,
 which must be declared in the same crate and mark structs. An annotation has at
 most one template on `struct`. `T` names the marked struct inside the template.
+`on enum T` is the same for enums, as [below](#enums) says.
 
 The template holds ordinary declarations: trait impls, `impl T` blocks, and
 extension functions such as `fun T.describe()`. `template`, like `annotation`,
@@ -104,6 +105,8 @@ The condition is facts alone, so for each field only one branch is written:
 `T.fields.map(|field| e)` writes `e` once per field into an array literal,
 `[e(x), e(y)]`. An array is `Iterable`, so `all`, `any`, `count` and `fold`
 take it, and nothing is allocated, in a crate on `core` alone too.
+`T.fields.all(|field| c)` is shorter for a condition: `c(x) && c(y)`, and
+`true` with no fields; `any` joins them with `||`, and is `false` with none.
 `T.fields.filter(|field| c)` keeps the fields `c` holds for, and `size()`
 counts them:
 
@@ -246,6 +249,97 @@ fun main(): int32 {
 [below](#names-built-from-facts) says, or every copy would have the same one.
 A member loop inside another is an error, wherever either stands.
 
+## Enums
+
+A template `on enum T` walks `T.variants`. A member loop may also stand among
+a `when`'s arms, where it writes its arms once per variant. In an arm's
+pattern, `${variant.name}(..a)` matches the variant and binds each of its
+payloads, which `payload.of(a)` reads; with no payloads it is `${variant.name}`
+alone. `variant.payloads` is a list as `T.fields` is: loop over it, or `map`,
+`filter`, `all`, `any` or `size()` it.
+
+```kflat
+annotation same on enum
+
+template same on enum T {
+    impl Equal for T {
+        fun equals(other: &T): bool {
+            return when (self) {
+                while variant in T.variants {
+                    ${variant.name}(..a) => when (other) {
+                        ${variant.name}(..b) => variant.payloads.all(|payload| payload.of(a) == payload.of(b))
+                        _ => false
+                    }
+                }
+            }
+        }
+    }
+
+    fun T.shown(): String {
+        var out = String.from("")
+        when (self) {
+            while variant in T.variants {
+                ${variant.name}(..a) => {
+                    out.append(variant.name)
+                    while payload in variant.payloads {
+                        out.append(if payload.index == 0 { "(" } else { ", " })
+                        out.append("${payload.of(a)}")
+                    }
+                    if variant.payloads.size() > 0 { out.append(")") }
+                }
+            }
+        }
+        return out
+    }
+}
+
+@same
+enum Shape {
+    Circle(int32)
+    Rect(int32, int32)
+    Empty
+}
+
+fun main(): int32 {
+    val a = Shape.Rect(1, 2)
+    if !(a == Shape.Rect(1, 2)) || a == Shape.Empty { return 1 }
+    return if a.shown() == "Rect(1, 2)" && Shape.Empty.shown() == "Empty" { 0 } else { 2 }
+}
+```
+
+A variant has the facts `name`, `index`, `has<A>()` and `get<A>()`, and a
+payload `index`, and `type` where a type goes. `variant.build(|payload| e)`
+makes the variant with `e` per payload, `T.Rect(e(0), e(1))`, and
+`T.${variant.name}` names one without payloads. A `return` the facts decide
+ends a member loop's copies, as `break` does, so a `Default` can return the
+first variant without payloads:
+
+```kflat
+annotation zero on enum
+
+template zero on enum T {
+    impl Default for T {
+        static fun default(): T {
+            while variant in T.variants.filter(|variant| variant.payloads.size() == 0) {
+                return T.${variant.name}
+            }
+        }
+    }
+}
+
+@zero
+@derive(Equal)
+enum Shape {
+    Circle(int32)
+    Empty
+}
+
+fun main(): int32 { return if Shape.default() == Shape.Empty { 0 } else { 1 } }
+```
+
+An enum with no such variant gets a `default` that does not return, which is
+reported with a note naming the enum.
+
 ## Where the code lives
 
 What a template adds belongs to the marked struct's module: an extension
@@ -337,7 +431,8 @@ fun main(): int32 {
 }
 ```
 
-A name is built from `T.name`, a member loop's `field.name`, and text in
+A name is built from `T.name`, a member loop's `field.name` or
+`variant.name`, and text in
 `args`; nothing else, and no casing or other change to them. Any name in a
 template may be built: a declaration, a parameter or a field, a variable, and
 a name that refers to one of them, in a type too. A type is never built from a
@@ -363,6 +458,6 @@ naming the struct it was adding to.
 
 ## Limits
 
-A template does not add to a generic struct. A `pub` extension function a
+A template does not add to a generic struct or enum. A `pub` extension function a
 template adds cannot be imported by another module. [Limitations](../limitations.md#templates)
 lists each with its issue.
