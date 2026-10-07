@@ -1,4 +1,4 @@
-# Contributing to komp
+# Contributing to kf-lang
 
 ## Where work is tracked
 
@@ -206,8 +206,8 @@ issue closes, so a recurrence fails the gate again.
 
 ## The bootstrap seed
 
-The seed is a released komp and kflatc as C. `bootstrap/stage0.toml` pins
-which release, and `bootstrap/build.sh` fetches and verifies it; nothing
+The seed is a released kflatc as C, with the released komp that drives the
+build. `bootstrap/stage0.toml` pins which release, and `bootstrap/build.sh` fetches and verifies it; nothing
 generated is checked in. [`bootstrap/README.md`](bootstrap/README.md) has the
 mechanics.
 
@@ -217,7 +217,7 @@ seed is.
 
 ### When a change needs a newer seed
 
-Sometimes the seed cannot build the tree: the change makes komp's own source
+Sometimes the seed cannot build the tree: the change makes kflatc's own source
 use a construct the seed mis-compiles or does not parse. `bootstrap/build.sh`
 catches it and reports `FAIL: the seed cannot build this tree` (a C error in
 stage1) or `FAIL: the seed rejected the current source` (a KFlat error).
@@ -263,8 +263,8 @@ detect its own age, which is why this is written down rather than checked.
 
 ## Local dev quickstart
 
-- The checkout directory must be named lowercase `komp`: a path dependency
-  reaches the stdlib through that name. The first build fetches `json` from
-  the index.
+- The first build fetches `json` from the index.
+- `sh scripts/refresh-komp.sh` builds `.build/kflatc` from the tree, with the
+  pinned driver komp beside it as `.build/komp`.
 - Self-host + fixpoint: `sh bootstrap/build.sh` (fetches the seed once).
 - Test one crate: `komp test compiler/<crate>`.

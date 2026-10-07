@@ -13,12 +13,12 @@ the issue, where it is archived and cannot go stale in the tree.
 
 ## Project Structure
 
-Komp is a self-hosted KFlat compiler. Its source workspace lives under
+kflatc is the self-hosted KFlat compiler. Its source workspace lives under
 `compiler/`; repository-level assets stay at the root:
 
 ```
 bootstrap/   — the pinned seed (`stage0.toml`) and the self-hosting script
-compiler/    — compiler workspace (`kf.toml`, `kf-*` passes, `komp/`, `kflatc/`)
+compiler/    — compiler workspace (`kf.toml`, `kf-*` passes, `kflatc/`)
 docs/book/   — the user-facing book
 libs/        — KFlat language libraries (core, alloc, std), `testing`, which
                crates with tests name in `[dev-dependencies]`, and core-tests,
@@ -34,19 +34,16 @@ The passes run in order `kf-parse` → `kf-assemble` → `kf-resolve` →
 `kf-typecheck` → `kf-mono` → `kf-lower` → `kf-codegen`. `kf-core` holds the
 shared AST and diagnostics, `kf-interface` the compiled crate metadata
 (`.kfi`), `kf-driver` the compiler's entry points (one crate, `check`,
-`serve` and the editor answers it gives). `kf-tool` is the project tool: manifests, fetching, the
-build graph, cc. Each side has its own version: kflatc's `kflat_version()` in
-kf-driver, which a project's `kflat = "..."` pin names, and komp's
-`komp_version()` in kf-tool. `kf-integration` holds the compiler's whole-project tests: it links no part of
-kf-tool, and reads a fixture's crates through `komp metadata` and builds it by
-running komp (`KOMP`, which `komp test` sets). komp's own whole-project tests
-are in kf-tool's `integration` module. What else
-they must agree on (the files kflatc writes, which files make a crate) is
-kflatc's documented command line, and each side keeps its own copy. Two binaries sit on top: `kflatc`, the compiler, which
-links kf-driver and turns one crate into C, and `komp`, the project tool, which
-links only kf-tool and runs `kflatc` per crate and cc after it. A crate may
-only import its declared dependencies; kf-tool must never depend on a compiler
-crate.
+`serve` and the editor answers it gives). `kf-integration` holds the
+whole-project tests: it reads a fixture's crates through `komp metadata` and
+builds it by running komp (`KOMP`, which `komp test` sets). `kflatc`, the one
+binary, links kf-driver and turns one crate into C. komp, which drives it, is
+komp-co/komp's: this repository uses the released komp `bootstrap/stage0.toml`
+pins and never its source. What the two agree on (the files kflatc writes,
+which files make a crate, the `serve` protocol) is kflatc's documented command
+line; a change to it keeps the komps already released working. kflatc's
+version is `kflat_version()` in kf-driver, which a project's `kflat = "..."`
+pin names. A crate may only import its declared dependencies.
 
 ## Build, Test, and Development Commands
 
@@ -206,7 +203,7 @@ commit**, so the tree never contradicts itself at any point in history.
 |---|---|
 | syntax, semantics, or a diagnostic's text | `docs/book/src/lang/` |
 | the library surface (`libs/`) | `docs/book/src/libs/` |
-| the CLI, its flags, or `kf.toml` | `docs/book/src/tools/cli.md`, `start/projects.md` |
+| kflatc's command line or the `serve` protocol | `docs/book/src/tools/serve.md`, and komp-co/komp's `tools/cli.md` if komp sees it |
 | a rule other code must follow | this file |
 | a keyword, an operator, or a builtin type name | regenerate the grammar in komp-co/kf-extensions (`vscode/scripts/generate-grammar.js`) |
 
@@ -219,15 +216,16 @@ built from the tree being changed. `docs/book/AUTHORING.md` has the method.
 
 ## Git and Forge
 
-The repository is `komp-co/komp` on GitHub, with `json`, `kf-lsp` and
-`kf-extensions` beside it in the same organization. Use the `gh` CLI:
+The repository is `komp-co/kf-lang` on GitHub, with `komp` (the project
+tool), `json`, `komp-test`, `kf-lsp` and `kf-extensions` beside it in the same
+organization. Use the `gh` CLI:
 
 | Command | Purpose |
 |---|---|
-| `gh issue create --repo komp-co/komp ...` | Create an issue |
-| `gh pr create --repo komp-co/komp --base development ...` | Open a pull request |
-| `gh pr checks <n> --repo komp-co/komp` | Watch a PR's CI |
-| `gh pr merge <n> --repo komp-co/komp` | Merge once CI is green |
+| `gh issue create --repo komp-co/kf-lang ...` | Create an issue |
+| `gh pr create --repo komp-co/kf-lang --base development ...` | Open a pull request |
+| `gh pr checks <n> --repo komp-co/kf-lang` | Watch a PR's CI |
+| `gh pr merge <n> --repo komp-co/kf-lang` | Merge once CI is green |
 
 Work merges into `development`. A PR from `development` into `main` is a
 release; CONTRIBUTING.md has the steps.

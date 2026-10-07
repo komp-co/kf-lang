@@ -9,7 +9,7 @@ fun main(): void {
 ```
 
 Save this as `src/main.kf` inside a project directory (one with a `kf.toml`
-— see [Projects and kf.toml](projects.md)). Then run it:
+— see [Projects and kf.toml](https://github.com/komp-co/komp/blob/main/docs/book/src/start/projects.md)). Then run it:
 
 ```console
 $ komp run .

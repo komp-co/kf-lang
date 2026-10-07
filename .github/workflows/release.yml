@@ -1,9 +1,11 @@
 name: Release
 
-# A merge into `main` is a release: this workflow builds the seed, this
-# commit's komp and kflatc as C, from the pinned seed, verifies the fixpoint,
-# publishes it under the tag `v<kflat_version()>`, and opens the PR that pins
-# it in bootstrap/stage0.toml on `development`, merging once CI is green.
+# A merge into `main` is a release: this workflow builds this commit's kflatc
+# as C from the pinned seed, verifies the fixpoint, and publishes the seed and
+# the toolchain archive komp installs, kflat-<version>.tar.gz with its
+# .sha256, under the tag `v<kflat_version()>`. Then it opens the PR that pins
+# the new seed in bootstrap/stage0.toml on `development`, merging once CI is
+# green.
 on:
   push:
     branches: [main]

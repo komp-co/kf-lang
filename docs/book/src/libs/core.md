@@ -1080,7 +1080,7 @@ fallible call costs four lines at each layer.
 So the *derived* half of the allocation ABI is freestanding and the
 *primitive* half is not — which is the right way round, because the
 primitives are the ones a target replaces anyway. A
-[freestanding](../start/projects.md#the-freestanding-tier) program gets the
+[freestanding](https://github.com/komp-co/komp/blob/main/docs/book/src/start/projects.md#the-freestanding-tier) program gets the
 first column and defines the second column's seams itself.
 
 ## Faults
@@ -1142,7 +1142,7 @@ Running out of memory stops the same way, from the runtime's C:
 ## assert
 
 `assert`, `assert_eq` and `fail` are provided for tests (see
-[Writing tests](../tools/testing.md)). On failure they print the label and
+[Writing tests](https://github.com/komp-co/komp/blob/main/docs/book/src/tools/testing.md)). On failure they print the label and
 then stop with `Fault.AssertionFailed`, which ends the current test. Import
 `core.assert.*`.
 

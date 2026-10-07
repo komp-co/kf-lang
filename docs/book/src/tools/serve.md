@@ -71,7 +71,7 @@ followed by the file's path under it, such as `/home/me/app/src/main.kf`.
 
 **`check` type-checks one crate** with its `_test.kf` files, as
 `kflatc check` does, reading staged text where there is some. `crate` has the
-shape of an entry in [`komp metadata`](cli.md#komp-metadata)'s `crates`
+shape of an entry in [`komp metadata`](https://github.com/komp-co/komp/blob/main/docs/book/src/tools/cli.md#komp-metadata)'s `crates`
 array, so a client passes one through unchanged: `name`, `root`, `loads` (the
 interfaces to read, dependencies first), `lints` (`{"name", "level"}`
 objects, or `name=level` strings) and `lint_options` (`{"name", "key",
@@ -90,7 +90,7 @@ interface in the target directory. Nothing is written to the target
 directory. A kflatc older than this field passes over it and checks against
 the target directory, so a client can always send it. Each diagnostic is the object `komp check
 --format=json` prints, described under
-[Structured fixes](cli.md#structured-fixes). A lint row that names no lint,
+[Structured fixes](https://github.com/komp-co/komp/blob/main/docs/book/src/tools/cli.md#structured-fixes). A lint row that names no lint,
 or an option no lint has, is
 reported as an error diagnostic, as `kf.toml` reports it.
 
