@@ -6,7 +6,7 @@ extern "C" fun kf_type_nodes_swap(next: uint64): uint64
 /// Where a typing's `Type` children live. A `Type` is a copy that shares its
 /// children with every other copy, so none can free them; the typing that
 /// made them drops them all at once with this.
-pub struct TypeNodes {
+struct TypeNodes {
     var types: Arena<Type>
     var lists: Arena<List<Type>>
     var signatures: Arena<FnSig>
@@ -14,7 +14,7 @@ pub struct TypeNodes {
 }
 
 impl TypeNodes {
-    pub static fun new(): TypeNodes {
+    static fun new(): TypeNodes {
         return TypeNodes {
             types: Arena.new<Type>(), lists: Arena.new<List<Type>>(), signatures: Arena.new<FnSig>(),
             objects: Arena.new<DynTraitType>()
@@ -77,14 +77,14 @@ pub fun type_node(value: Type): Ptr<Type> {
     return current_type_nodes().types.put(value)
 }
 
-pub fun type_list_node(value: List<Type>): Ptr<List<Type>> {
+internal fun type_list_node(value: List<Type>): Ptr<List<Type>> {
     return current_type_nodes().lists.put(value)
 }
 
-pub fun signature_node(value: FnSig): Ptr<FnSig> {
+fun signature_node(value: FnSig): Ptr<FnSig> {
     return current_type_nodes().signatures.put(value)
 }
 
-pub fun dyn_trait_node(value: DynTraitType): Ptr<DynTraitType> {
+internal fun dyn_trait_node(value: DynTraitType): Ptr<DynTraitType> {
     return current_type_nodes().objects.put(value)
 }

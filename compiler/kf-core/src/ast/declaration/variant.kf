@@ -1,0 +1,23 @@
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.annotation.*
+import kf_core.ast.declaration.*
+import kf_core.ast.types.*
+import kf_core.intern.*
+
+pub struct Variant {
+    pub val span: Span
+    pub val name: Sym
+    pub var payloads: List<TypeRef>
+    /// The `@...` run above the variant.
+    pub var annotations: List<Annotation>
+}
+
+impl Variant {
+    pub static fun new(span: Span, name: String, payloads: List<TypeRef>): Variant {
+        return Variant {
+            span: span, name: intern(name.as_str()), payloads: payloads, annotations: []
+        }
+    }
+}

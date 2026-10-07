@@ -8,12 +8,11 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.Module
-import kf_core.ast.Sym
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TypeParam
-import kf_core.ast.declaration.new_type_param
 import kf_core.diagnostic.*
+import kf_core.intern.Sym
 import kf_typecheck.*
 
 pub mutating fun Module.prepare_annotation_params(diags: &var Diagnostics): void {
@@ -34,7 +33,7 @@ mutating fun TopDecl.add_target_params(types: &List<String>, diags: &var Diagnos
     }
     found.warn_near_annotation_types(types, diags)
     while i in 0..found.names.size() {
-        self.generics.push(new_type_param(found.spans.get(i), *found.names.at(i)))
+        self.generics.push(TypeParam.new(found.spans.get(i), *found.names.at(i)))
     }
 }
 
@@ -101,7 +100,7 @@ fun ReceiverParams.warn_near_annotation_types(types: &List<String>, diags: &var 
         if near.byte_len() > 0 {
             val why = "`${name}` is not a type in scope, so it makes this annotation generic over a parameter"
             val message = "${why} named `${name}`; did you mean `${near.as_str()}`?"
-            diags.emit(new_diagnostic(Severity.Warning, new_label(self.spans.get(i), message)))
+            diags.emit(Diagnostic.new(Severity.Warning, Label.new(self.spans.get(i), message)))
         }
     }
 }
@@ -113,7 +112,7 @@ pub fun TopDecl.check_type_params(table: &SigTable, diags: &var List<Diagnostic>
     val slots = self.target_slots()
     if slots.size() == 0 {
         val message = "`@${self.name.as_str()}` marks by kind, so it has no signature to name a type parameter in"
-        diags.push(error_at(self.generics.at(0).span, message))
+        diags.push(Diagnostic.error_at(self.generics.at(0).span, message))
         return
     }
     while param in &self.generics {
@@ -124,9 +123,11 @@ pub fun TopDecl.check_type_params(table: &SigTable, diags: &var List<Diagnostic>
         }
         val name = param.name.as_str()
         if uses.nested > 0 {
-            diags.push(error_at(param.span, "`${name}` stands for a whole parameter or result, or for one behind `&`"))
+            diags.push(Diagnostic.error_at(
+                param.span, "`${name}` stands for a whole parameter or result, or for one behind `&`"
+            ))
         } else if uses.whole == 0 {
-            diags.push(error_at(param.span, "type parameter `${name}` is not named in the target"))
+            diags.push(Diagnostic.error_at(param.span, "type parameter `${name}` is not named in the target"))
         }
     }
 }
@@ -135,9 +136,9 @@ fun TypeParam.check_bounds_name_traits(table: &SigTable, diags: &var List<Diagno
     while bound in &self.bounds {
         val trait_name = bound.bare_name()
         if trait_name.as_str().equals("") {
-            diags.push(error_at(bound.span, "an annotation's bound names a trait without type arguments"))
+            diags.push(Diagnostic.error_at(bound.span, "an annotation's bound names a trait without type arguments"))
         } else if table.find_trait(trait_name.as_str()) == null {
-            diags.push(error_at(bound.span, "cannot find trait `${trait_name.as_str()}` for this bound"))
+            diags.push(Diagnostic.error_at(bound.span, "cannot find trait `${trait_name.as_str()}` for this bound"))
         }
     }
 }

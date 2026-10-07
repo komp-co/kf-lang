@@ -1,0 +1,24 @@
+// Which emitted names take a crate's prefix, and how the prefix is spelled.
+
+import kf_core.intern.*
+
+impl CrateId {
+    /// What every symbol of the crate starts with. In kf-core so codegen and
+    /// the interface writer share one spelling.
+    pub fun symbol_prefix(): String {
+        if self.is_poison() { return "" }
+        val name = Sym { id: self.raw }
+        return "${CrateId.as_c_identifier(name.as_str())}__"
+    }
+
+    /// `name` with each byte a C identifier cannot hold replaced by `_`.
+    static fun as_c_identifier(name: str): String {
+        var out = ""
+        while i in 0..name.byte_len() {
+            val byte = name.byte_at(i)
+            val fits = (byte as char).is_alnum() || byte == '_' as uint8
+            out.push(if fits { byte as char } else { '_' })
+        }
+        return out
+    }
+}

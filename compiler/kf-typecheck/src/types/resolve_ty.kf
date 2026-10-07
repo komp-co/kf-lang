@@ -4,16 +4,17 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
 import kf_core.ast.types.*
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
 import kf_resolve.*
 import kf_typecheck.traits.assoc_owner_key
 import kf_typecheck.check.mangle_base_name
 import kf_typecheck.check.check_generic_bounds
 import kf_typecheck.check.check_generic_arg_kinds
-import kf_core.ast.dyn_meta.dyn_trait_type
+import kf_core.ast.types.Type
+import kf_core.intern.*
+import kf_core.lang.*
 import kf_typecheck.note_import_use
 
 // Declared per file: the shim is in every translation unit.
@@ -28,13 +29,13 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
             }
             var s = name.as_str()
             // A local annotation may still name the `?` placeholder.
-            if name.lang_placeholder_key().as_str().equals(lang_option_key()) {
+            if name.lang_placeholder_key().as_str().equals(LangItem.Option.key()) {
                 s = ctx.option_name().as_str()
             }
             val placeholder = name.lang_placeholder_key()
-            if placeholder.as_str() == lang_array_key() { s = ctx.array_name().as_str() }
-            if placeholder.as_str() == lang_slice_key() { s = ctx.slice_name().as_str() }
-            if placeholder.as_str() == lang_slice_mut_key() { s = ctx.slice_mut_name().as_str() }
+            if placeholder.as_str() == LangItem.Array.key() { s = ctx.array_name().as_str() }
+            if placeholder.as_str() == LangItem.Slice.key() { s = ctx.slice_name().as_str() }
+            if placeholder.as_str() == LangItem.SliceMut.key() { s = ctx.slice_mut_name().as_str() }
             // A builtin name a crate also declares (the lang string) still
             // counts as a use of that crate's import.
             val is_lang_string = is_lang_name(s, ctx.string_name())
@@ -94,8 +95,8 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
                 Some(tab) => {
                     val d = (unsafe { *tab }).lookup(s)
                     if d.is_none() {
-                        val lab = new_label(self.span, "unknown type `${name.as_string()}`")
-                        ctx.emit(new_diagnostic(Severity.Error, lab))
+                        val lab = Label.new(self.span, "unknown type `${name.as_string()}`")
+                        ctx.emit(Diagnostic.new(Severity.Error, lab))
                         return Type.new_poison()
                     }
                 }
@@ -105,7 +106,7 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
                 Some(info) => {
                     if info.type_params.size() != args.size() {
                         val message = "type `${s}` expects ${info.type_params.size()} type arguments, found ${args.size()}"
-                        ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+                        ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
                         return Type.new_poison()
                     }
                     if !check_generic_arg_kinds(s, &info.type_params, args, ctx) { return Type.new_poison() }
@@ -116,14 +117,14 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
                 val identity = unsafe { (*ctx.sigs).lookup_type_identity(s, ctx.owner_crate, ctx.owner_module) }
                 if !identity.crate.is_poison() {
                     note_import_use(ctx.sigs, ctx.owner_file, identity.module)
-                    return named_struct_ty(identity, self.span)
+                    return Type.new_named_struct(identity, self.span)
                 }
                 val imported = unsafe { (*ctx.sigs).lookup_unique_type_identity(s) }
                 if !imported.crate.is_poison() {
                     // Writing the name is a use of its module's import, even though
                     // types resolve globally.
                     note_import_use(ctx.sigs, ctx.owner_file, imported.module)
-                    return named_struct_ty(imported, self.span)
+                    return Type.new_named_struct(imported, self.span)
                 }
             }
             // Generic arguments fold into the name: `List__String`.
@@ -153,22 +154,22 @@ pub fun TypeRef.resolve_type_ref(ctx: &var TypeCtx): Type {
                 } else {
                     "unknown trait `${name.as_string()}` in dynamic trait type"
                 }
-                ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+                ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
                 return Type.new_poison()
             }
             if count > 1 {
                 val message = "trait name `${name.as_string()}` is ambiguous in this scope"
-                ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+                ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
                 return Type.new_poison()
             }
             when (unsafe { sigs.find_unique_trait(name.as_str()) }) {
                 Some(info) => {
                     if info.type_params.size() != args.size() {
                         val message = "trait `${name.as_string()}` expects ${info.type_params.size()} type arguments, found ${args.size()}"
-                        ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+                        ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
                         return Type.new_poison()
                     }
-                    return dyn_trait_type(info.identity, resolved_args, self.span)
+                    return Type.new_dyn_trait(info.identity, resolved_args, self.span)
                 }
                 None => return Type.new_poison()
             }
@@ -243,7 +244,7 @@ fun resolve_projection(owner_ty: Type, member: Sym, span: Span, ctx: &var TypeCt
     }
     if found == 0 {
         val message = "no associated type `${member.as_str()}` on `${owner_key.as_str()}`"
-        ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
+        ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
         return Type.new_poison()
     }
     if found > 1 {
@@ -260,7 +261,7 @@ fun resolve_projection(owner_ty: Type, member: Sym, span: Span, ctx: &var TypeCt
         // Two traits may each declare `Item`; the projection is what is
         // reported.
         val message = "`${owner_key.as_str()}.${member.as_str()}` is ambiguous: more than one trait binds `${member.as_str()}` for `${owner_key.as_str()}`"
-        ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
+        ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
         return Type.new_poison()
     }
     return unsafe { (*ctx.sigs).lookup_assoc_binding(owner_key.as_str(), member.as_str()) }
@@ -273,7 +274,7 @@ pub fun subst_all_generics(t: Type, names: &List<String>, args: &List<Type>): Ty
     val n = if names.size() < args.size() { names.size() } else { args.size() }
     var cur = t
     while i in 0..n {
-        cur = cur.subst_generic(*names.at(i), Type.new_generic("%${i}", no_span()))
+        cur = cur.subst_generic(*names.at(i), Type.new_generic("%${i}", Span.none()))
     }
     while i in 0..n {
         cur = cur.subst_generic("%${i}", *args.at(i))

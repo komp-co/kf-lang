@@ -6,14 +6,14 @@
 
 import alloc.list.*
 
-import kf_core.ast.Sym
-import kf_core.ast.intern
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.span.*
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_typecheck.types.*
 import kf_typecheck.traits.check_dyn_method_call
 import kf_typecheck.traits.receiver_declares_trait_method
@@ -83,7 +83,7 @@ fun extension_arity_fits(link: str, name: str, args: &List<Expr>, span: Span, ct
     val written = args.size()
     if written == wanted || ctx.names_arguments(span) || ctx.sig_table().defaults_cover(link, written) { return true }
     val message = "wrong number of arguments to `${name}`: expected ${wanted}, found ${written}"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
     return false
 }
 
@@ -173,7 +173,7 @@ fun chosen_extension(name: str, recv: &Type, span: Span, ctx: &var TypeCtx): Str
     val shown = recv.display_type(ctx)
     val fix = "import only the one you mean"
     val message = "ambiguous extension `${name}` on `${shown.as_str()}`: ${which.as_str()} all apply; ${fix}"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
     return String.from(".")
 }
 

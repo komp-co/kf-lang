@@ -11,6 +11,10 @@ import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.statement.Stmt
+import kf_core.intern.*
+import kf_core.ast.pattern.*
+import kf_core.ast.expression.*
+import kf_core.ast.types.*
 
 /// `is_expr` separates typed expressions from the declaration around them. A
 /// call carries its name and receiver type for signature help.
@@ -36,7 +40,7 @@ pub struct ExprHit {
 }
 
 pub fun no_expr_hit(): ExprHit {
-    return ExprHit { found: false, span: no_span(), ty: Type.new_poison() }
+    return ExprHit { found: false, span: Span.none(), ty: Type.new_poison() }
 }
 
 /// Everything covering `offset`, in walk order.

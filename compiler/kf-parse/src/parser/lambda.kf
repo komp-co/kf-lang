@@ -9,7 +9,6 @@ import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.declaration.Param
-import kf_core.ast.declaration.new_param
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 
@@ -57,10 +56,10 @@ impl Parser {
         unsafe { self.advance() }
         if is_op(self.peek(), Operator.Colon) {
             unsafe { self.advance() }
-            return new_param(span, name, self.parse_type_ref_ptr())
+            return Param.new(span, name, self.parse_type_ref_ptr())
         }
         // TypeCheck infers it from the expected `Call` bound.
         val inferred: Ptr<TypeRef> = unsafe { 0 as Ptr<TypeRef> }
-        return new_param(span, name, inferred)
+        return Param.new(span, name, inferred)
     }
 }

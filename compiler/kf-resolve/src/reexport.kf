@@ -6,6 +6,7 @@ import alloc.list.*
 
 import kf_core.ast.*
 import kf_core.diagnostic.*
+import kf_core.intern.*
 
 /// One resolved export: `owner` offers `offered` from `target` under the name
 /// `exposed`. A poison `offered` (and `exposed`) is every name, unrenamed.
@@ -56,7 +57,7 @@ fun Module.reexport_of(imp: &Import, target: Sym, diags: &var List<Diagnostic>):
     }
     if self.declares_extension(target, offered) {
         val why = "is an extension, which is called by its receiver: export it without `as`"
-        diags.push(error_at(imp.span, "`${offered.as_str()}` ${why}"))
+        diags.push(Diagnostic.error_at(imp.span, "`${offered.as_str()}` ${why}"))
     }
     return Reexport { owner: owner, target: target, offered: offered, exposed: intern(imp.exposed.as_str()) }
 }

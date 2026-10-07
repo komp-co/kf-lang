@@ -4,7 +4,7 @@ import kf_core.span.Span
 import kf_core.span.Location
 import kf_core.span.SourceMap
 import kf_core.span.path_file_stem
-import kf_core.ast.Sym
+import kf_core.intern.Sym
 import alloc.text_edit.replace
 import alloc.text_edit.substring
 

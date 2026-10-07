@@ -42,16 +42,16 @@ impl TypeCtx {
         return self.locals.at(i).uses
     }
 
-    /// The use that decided the binding, or `no_span()`.
+    /// The use that decided the binding, or `Span.none()`.
     pub fun binding_decided_at(name: str): Span {
-        val i = self.binding_index(name) ?: return no_span()
+        val i = self.binding_index(name) ?: return Span.none()
         return self.locals.at(i).decided_at
     }
 
     /// The first use that narrowed the binding without deciding it, or
-    /// `no_span()`.
+    /// `Span.none()`.
     pub fun binding_narrowed_at(name: str): Span {
-        val i = self.binding_index(name) ?: return no_span()
+        val i = self.binding_index(name) ?: return Span.none()
         return self.locals.at(i).narrowed_at
     }
 

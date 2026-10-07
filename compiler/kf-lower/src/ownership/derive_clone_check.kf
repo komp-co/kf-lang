@@ -9,11 +9,11 @@
 
 import alloc.list.*
 
-import kf_core.ast.Intrinsic
 import kf_core.ast.Module
 import kf_core.ast.NameIndex
 import kf_core.ast.decl_index
-import kf_core.ast.view
+import kf_core.ast.expression.view
+import kf_core.ast.types.view
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.Field
@@ -45,7 +45,7 @@ fun report_freed_ptr_fields(fields: &List<Field>, freed: &List<String>, span: Sp
             var msg = String.from("this type's `drop` frees `")
             msg.append(f.name.as_str())
             msg.append("`, so a derived `Clone` would copy the pointer and free the buffer twice; write an `impl Clone` that copies what `drop` frees")
-            diags.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+            diags.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
         }
     }
 }

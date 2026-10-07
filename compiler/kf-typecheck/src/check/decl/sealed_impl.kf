@@ -4,10 +4,10 @@
 import alloc.list.*
 
 import kf_core.ast.Module
-import kf_core.ast.Sym
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
+import kf_core.intern.Sym
 
 /// Each impl of this crate for another crate's sealed trait, reported at the
 /// trait it names.
@@ -20,10 +20,10 @@ pub fun Module.check_sealed_impls(diags: &var Diagnostics): void {
         if sealed.crate.raw == td.crate.raw { continue }
         val owner = Sym { id: sealed.crate.raw }.as_str()
         val message = "`${trait_name.as_str()}` is sealed: only its crate, `${owner}`, implements it"
-        var diag = new_diagnostic(Severity.Error, new_label(implemented.span, message))
+        var diag = Diagnostic.new(Severity.Error, Label.new(implemented.span, message))
         // A trait read from an interface has no source to point at.
         val at = sealed.decl_name_span()
-        if !at.is_none() { diag.secondary.push(new_label(at, "sealed here")) }
+        if !at.is_none() { diag.secondary.push(Label.new(at, "sealed here")) }
         diags.emit(diag)
     }
 }

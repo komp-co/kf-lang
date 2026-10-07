@@ -1,0 +1,21 @@
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.declaration.*
+import kf_core.ast.types.*
+import kf_core.intern.*
+
+/// A declared type parameter, e.g. the `T` in `struct Box<T>`, with its trait
+/// bounds.
+@derive(Clone)
+pub struct TypeParam {
+    pub val span: Span
+    pub val name: Sym
+    pub var bounds: List<TypeRef>
+}
+
+impl TypeParam {
+    pub static fun new(span: Span, name: String): TypeParam {
+        return TypeParam { span: span, name: intern(name.as_str()), bounds: [] }
+    }
+}

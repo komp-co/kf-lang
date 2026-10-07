@@ -6,13 +6,11 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.Module
-import kf_core.ast.Sym
-import kf_core.ast.new_module
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.*
 import kf_core.diagnostic.*
-import kf_core.ast.subst.clone_type_ref
 import kf_core.ast.subst.subst_stmt_list
+import kf_core.intern.Sym
 import kf_lower.alpha_rename_module
 import kf_lower.desugar_block_expr_module
 import kf_lower.desugar_when_expr_module
@@ -22,7 +20,7 @@ import kf_lower.new_reached
 /// type parameter. `m` is not changed: the templates are checked as copies.
 pub fun check_generic_copies(m: &Module, smap: Ptr<SourceMap>, clone_trait: Sym, copy_trait: Sym,
     lints: &var Diagnostics): void {
-    var templates = new_module(m.path.clone())
+    var templates = Module.new(m.path.clone())
     templates.crate = m.crate
     while td in &m.decls {
         if decl_is_template(td) { templates.decls.push(copy_template(td)) }
@@ -36,7 +34,7 @@ pub fun check_generic_copies(m: &Module, smap: Ptr<SourceMap>, clone_trait: Sym,
         warned: List.new<Span>(), reached: new_reached(), prune: false,
         clone_names: List.new<String>(), lints: List.new<Diagnostic>()
     }
-    var discarded = new_diagnostics()
+    var discarded = Diagnostics.new()
     var moves_out_of_borrows = MobCount { n: 0 }
     val bounds = TemplateBounds { clone_trait: clone_trait, copy_trait: copy_trait, supers: m.trait_supers() }
     while td in &templates.decls {
@@ -54,17 +52,16 @@ fun copy_template(td: &TopDecl): TopDecl {
     var out = td.clone()
     when (td.kind) {
         Function(params, ret, body, is_pub, is_unsafe, is_mutating, is_static) => {
-            var names = List.new<String>()
-            var repls = List.new<TypeRef>()
+            var subst = Substitution.new()
             var copied = List.new<Param>()
             while param in &params {
                 val ty: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-                unsafe { *ty = clone_type_ref(&*param.ty) }
+                unsafe { *ty = (*param.ty).clone() }
                 copied.push(param.retyped(ty))
             }
             val ret_copy: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-            unsafe { *ret_copy = clone_type_ref(&*ret) }
-            out.kind = TopDeclKind.Function(copied, ret_copy, subst_stmt_list(&body, &var names, &var repls),
+            unsafe { *ret_copy = (*ret).clone() }
+            out.kind = TopDeclKind.Function(copied, ret_copy, subst_stmt_list(&body, &subst),
                 is_pub, is_unsafe, is_mutating, is_static)
         }
         ImplBlock(methods) => {

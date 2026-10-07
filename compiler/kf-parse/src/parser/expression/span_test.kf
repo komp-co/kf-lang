@@ -11,7 +11,7 @@ import testing.test
 fun first_stmt_span(src: str): Span {
     var p = parser_for(src)
     val m = p.parse_module(List.new<String>())
-    var out = no_span()
+    var out = Span.none()
     if m.decls.size() == 0 { return out }
     val td = *m.decls.at(0)
     when (td.kind) {
@@ -26,7 +26,7 @@ fun first_stmt_span(src: str): Span {
 fun first_expr_span(src: str): Span {
     var p = parser_for(src)
     val m = p.parse_module(List.new<String>())
-    var out = no_span()
+    var out = Span.none()
     if m.decls.size() == 0 { return out }
     val td = *m.decls.at(0)
     when (td.kind) {

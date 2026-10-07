@@ -6,7 +6,7 @@ import alloc.list.*
 
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
-import kf_core.diagnostic.error_at
+import kf_core.diagnostic.Diagnostic
 import kf_typecheck.check.mentions_any
 
 /// Reports a temporary `String` passed to a callee that keeps it as a
@@ -21,7 +21,7 @@ pub fun Expr.reject_kept_temporary(expected: &Type, callee: str, ctx: &var TypeC
     if !self.ty.is_lang_struct(ctx.string_name()) || self.is_place() { return false }
     var message = "`${callee}` keeps this `str`, which points into a `String` freed at the end of "
     message.append("the statement; keep the `String` in a local first, or store `String`s")
-    ctx.emit(error_at(self.span, message))
+    ctx.emit(Diagnostic.error_at(self.span, message))
     return true
 }
 

@@ -6,7 +6,6 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.Module
-import kf_core.ast.new_module
 import kf_core.ast.types.Type
 import kf_assemble.Overlay
 import kf_assemble.no_overlay
@@ -22,7 +21,6 @@ import kf_driver.build.crate_source_dir
 import kf_driver.build.CrateSource
 import kf_driver.build.assemble_crate_list
 import kf_core.diagnostic.Diagnostics
-import kf_core.diagnostic.new_diagnostics
 import kf_core.ast.types.TypingNodes
 import kf_core.ast.types.restore_type_nodes
 import std.fs.absolute
@@ -82,7 +80,7 @@ pub struct DependencySignatures {
 pub fun no_dependency_signatures(): DependencySignatures {
     return DependencySignatures {
         keys: List.new<String>(), module_ends: List.new<uint64>(), file_ends: List.new<uint64>(),
-        modules: List.new<Module>(), smap: new_source_map()
+        modules: List.new<Module>(), smap: SourceMap.new()
     }
 }
 
@@ -103,13 +101,13 @@ pub fun typed_crate_cached(file_path: str, overlay: &Overlay, crates: &List<Crat
         val typing = TypedModule { diags: List.new<Diagnostic>(), sigs: Box.new(new_sig_table()) }
         val empty: Ptr<SigTable> = typing.sigs
         return TypedCrate {
-            ok: false, file_id: 0, module: new_module(List.new<String>()), sigs: empty, typing: typing, source: "",
+            ok: false, file_id: 0, module: Module.new(List.new<String>()), sigs: empty, typing: typing, source: "",
             smap: fresh_source_map(), root: "", nodes: TypingNodes.new(), decls: Box.new(new_decl_table())
         }
     }
     val nodes = TypingNodes.new()
     val previous = nodes.enter()
-    var pdiags = new_diagnostics()
+    var pdiags = Diagnostics.new()
     signatures.hold(crates, bodies_from, overlay)
     val smap = Box.new(signatures.smap.copy_files(signatures.file_count(bodies_from)))
     var with_bodies = List.new<CrateSource>()
@@ -166,7 +164,7 @@ pub mutating fun TypedCrate.focus(file_path: str): bool {
 
 /// As its author wrote it.
 pub fun Type.written_type(sigs: Ptr<SigTable>): String {
-    var sink = new_diagnostics()
+    var sink = Diagnostics.new()
     val ctx = new_type_ctx(Type.new_poison(), &var sink, null, sigs)
     return display_type(self, &ctx)
 }
@@ -204,7 +202,7 @@ impl DependencySignatures {
             val item = crates.at(i)
             var one = List.new<CrateSource>()
             one.push(item.clone())
-            var pdiags = new_diagnostics()
+            var pdiags = Diagnostics.new()
             var modules = assemble_crate_list(&one, &var self.smap, &var pdiags, false, overlay)
             drop_bodies(&var modules)
             while module in &modules { self.modules.push(module.clone()) }

@@ -3,8 +3,7 @@ import core.assert.assert
 import core.assert.fail
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.span.Span
 import kf_core.ast.types.Provenance
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
@@ -12,6 +11,9 @@ import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
+import kf_core.intern.CrateId
+import kf_core.intern.intern
+import kf_core.ast.pattern.*
 import kf_typecheck.check.mk_stmt_ctx
 import testing.test
 
@@ -22,67 +24,67 @@ fun mk_color_ctx(): TypeCtx {
     variants.push(VariantInfo { name: String.from("Red"), payloads: List.new<Type>() })
     variants.push(VariantInfo { name: String.from("Green"), payloads: List.new<Type>() })
     variants.push(VariantInfo { name: String.from("Blue"), payloads: List.new<Type>() })
-    unsafe { (*ctx.sigs).insert_enum(EnumLayout { name: String.from("Color"), variants: variants, owner_crate: crate_id_poison() }) }
+    unsafe { (*ctx.sigs).insert_enum(EnumLayout { name: String.from("Color"), variants: variants, owner_crate: CrateId.new_poison() }) }
     return ctx
 }
 
 fun color_ty(): Type {
-    return Type { kind: TypeKind.EnumTy(intern("Color")), provenance: Provenance.Inferred(no_span()) }
+    return Type { kind: TypeKind.EnumTy(intern("Color")), provenance: Provenance.Inferred(Span.none()) }
 }
 
 fun variant_arm(name: str): Arm {
     val pp: Box<Pattern> = unsafe { alloc<Pattern>() }
-    unsafe { *pp = new_pattern(no_span(), PatternKind.Variant(intern(name), List.new<Pattern>())) }
-    return new_arm(no_span(), pp, null, List.new<Stmt>())
+    unsafe { *pp = Pattern.new(Span.none(), PatternKind.Variant(intern(name), List.new<Pattern>())) }
+    return Arm.new(Span.none(), pp, null, List.new<Stmt>())
 }
 
 fun wildcard_arm(): Arm {
     val pp: Box<Pattern> = unsafe { alloc<Pattern>() }
-    unsafe { *pp = new_pattern(no_span(), PatternKind.Wildcard) }
-    return new_arm(no_span(), pp, null, List.new<Stmt>())
+    unsafe { *pp = Pattern.new(Span.none(), PatternKind.Wildcard) }
+    return Arm.new(Span.none(), pp, null, List.new<Stmt>())
 }
 
 fun lit_bool_arm(value: bool): Arm {
     val pp: Box<Pattern> = unsafe { alloc<Pattern>() }
-    unsafe { *pp = new_pattern(no_span(), PatternKind.LitBool(value)) }
-    return new_arm(no_span(), pp, null, List.new<Stmt>())
+    unsafe { *pp = Pattern.new(Span.none(), PatternKind.LitBool(value)) }
+    return Arm.new(Span.none(), pp, null, List.new<Stmt>())
 }
 
 fun lit_int_arm(value: int64): Arm {
     val pp: Box<Pattern> = unsafe { alloc<Pattern>() }
-    unsafe { *pp = new_pattern(no_span(), PatternKind.LitInt(value)) }
-    return new_arm(no_span(), pp, null, List.new<Stmt>())
+    unsafe { *pp = Pattern.new(Span.none(), PatternKind.LitInt(value)) }
+    return Arm.new(Span.none(), pp, null, List.new<Stmt>())
 }
 
 // lower_snake_case survives reclassification, so it binds.
 fun binding_arm(name: str): Arm {
     val pp: Box<Pattern> = unsafe { alloc<Pattern>() }
-    unsafe { *pp = new_pattern(no_span(), PatternKind.Identifier(intern(name))) }
-    return new_arm(no_span(), pp, null, List.new<Stmt>())
+    unsafe { *pp = Pattern.new(Span.none(), PatternKind.Identifier(intern(name))) }
+    return Arm.new(Span.none(), pp, null, List.new<Stmt>())
 }
 
 fun guarded_wildcard_arm(): Arm {
     val pp: Box<Pattern> = unsafe { alloc<Pattern>() }
-    unsafe { *pp = new_pattern(no_span(), PatternKind.Wildcard) }
+    unsafe { *pp = Pattern.new(Span.none(), PatternKind.Wildcard) }
     val guard: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *guard = Expr.new(no_span(), ExprKind.LitBool(true)) }
-    return new_arm(no_span(), pp, guard, List.new<Stmt>())
+    unsafe { *guard = Expr.new(Span.none(), ExprKind.LitBool(true)) }
+    return Arm.new(Span.none(), pp, guard, List.new<Stmt>())
 }
 
 fun guarded_lit_bool_arm(value: bool): Arm {
     val pp: Box<Pattern> = unsafe { alloc<Pattern>() }
-    unsafe { *pp = new_pattern(no_span(), PatternKind.LitBool(value)) }
+    unsafe { *pp = Pattern.new(Span.none(), PatternKind.LitBool(value)) }
     val guard: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *guard = Expr.new(no_span(), ExprKind.LitBool(true)) }
-    return new_arm(no_span(), pp, guard, List.new<Stmt>())
+    unsafe { *guard = Expr.new(Span.none(), ExprKind.LitBool(true)) }
+    return Arm.new(Span.none(), pp, guard, List.new<Stmt>())
 }
 
 fun guarded_variant_arm(name: str): Arm {
     val pp: Box<Pattern> = unsafe { alloc<Pattern>() }
-    unsafe { *pp = new_pattern(no_span(), PatternKind.Variant(intern(name), List.new<Pattern>())) }
+    unsafe { *pp = Pattern.new(Span.none(), PatternKind.Variant(intern(name), List.new<Pattern>())) }
     val guard: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *guard = Expr.new(no_span(), ExprKind.LitBool(true)) }
-    return new_arm(no_span(), pp, guard, List.new<Stmt>())
+    unsafe { *guard = Expr.new(Span.none(), ExprKind.LitBool(true)) }
+    return Arm.new(Span.none(), pp, guard, List.new<Stmt>())
 }
 
 @test fun omitted_variant_is_reported_missing(): void {
@@ -149,7 +151,7 @@ fun guarded_variant_arm(name: str): Arm {
     var ctx = mk_color_ctx()
     var arms = List.new<Arm>()
     arms.push(lit_bool_arm(true))
-    val missing = when_missing_variants(Type.new_bool(no_span()), &arms, &var ctx)
+    val missing = when_missing_variants(Type.new_bool(Span.none()), &arms, &var ctx)
     assert_eq(missing.size(), 1, "`false` reaches no arm")
 }
 
@@ -157,7 +159,7 @@ fun guarded_variant_arm(name: str): Arm {
     var ctx = mk_color_ctx()
     var arms = List.new<Arm>()
     arms.push(lit_bool_arm(true))
-    val missing = when_missing_variants(Type.new_bool(no_span()), &arms, &var ctx)
+    val missing = when_missing_variants(Type.new_bool(Span.none()), &arms, &var ctx)
     assert_eq(missing.at(0).as_str(), "false", "the gap is spelled as a source writes it")
 }
 
@@ -166,7 +168,7 @@ fun guarded_variant_arm(name: str): Arm {
     var arms = List.new<Arm>()
     arms.push(lit_bool_arm(true))
     arms.push(lit_bool_arm(false))
-    assert_eq(when_is_exhaustive(Type.new_bool(no_span()), &arms, &var ctx), true, "two values, two arms")
+    assert_eq(when_is_exhaustive(Type.new_bool(Span.none()), &arms, &var ctx), true, "two values, two arms")
 }
 
 @test fun bool_wildcard_closes_the_when(): void {
@@ -174,13 +176,13 @@ fun guarded_variant_arm(name: str): Arm {
     var arms = List.new<Arm>()
     arms.push(lit_bool_arm(true))
     arms.push(wildcard_arm())
-    assert_eq(when_is_exhaustive(Type.new_bool(no_span()), &arms, &var ctx), true, "`_` covers `false`")
+    assert_eq(when_is_exhaustive(Type.new_bool(Span.none()), &arms, &var ctx), true, "`_` covers `false`")
 }
 
 @test fun empty_bool_when_misses_both_values(): void {
     var ctx = mk_color_ctx()
     val arms = List.new<Arm>()
-    val missing = when_missing_variants(Type.new_bool(no_span()), &arms, &var ctx)
+    val missing = when_missing_variants(Type.new_bool(Span.none()), &arms, &var ctx)
     assert_eq(missing.size(), 2, "no arm covers either value")
 }
 
@@ -189,7 +191,7 @@ fun guarded_variant_arm(name: str): Arm {
     var arms = List.new<Arm>()
     arms.push(guarded_lit_bool_arm(true))
     arms.push(lit_bool_arm(false))
-    val missing = when_missing_variants(Type.new_bool(no_span()), &arms, &var ctx)
+    val missing = when_missing_variants(Type.new_bool(Span.none()), &arms, &var ctx)
     assert_eq(missing.size(), 1, "a guard may be false at runtime, so `true` is still open")
 }
 
@@ -197,7 +199,7 @@ fun guarded_variant_arm(name: str): Arm {
     var ctx = mk_color_ctx()
     var arms = List.new<Arm>()
     arms.push(lit_bool_arm(true))
-    report_non_exhaustive_when(Type.new_bool(no_span()), &arms, no_span(), &var ctx)
+    report_non_exhaustive_when(Type.new_bool(Span.none()), &arms, Span.none(), &var ctx)
     val d = unsafe { *(*ctx.diags).at(0) }
     val expected = "non-exhaustive `when`: `false` is not covered — add an arm for it, or `_ =>` to ignore the rest"
     assert_eq(d.primary.message.as_str(), expected, "the bool gap reads like the enum one")
@@ -207,7 +209,7 @@ fun guarded_variant_arm(name: str): Arm {
     var ctx = mk_color_ctx()
     var arms = List.new<Arm>()
     arms.push(variant_arm("Red"))
-    val missing = when_missing_variants(Type.new_int32(no_span()), &arms, &var ctx)
+    val missing = when_missing_variants(Type.new_int32(Span.none()), &arms, &var ctx)
     assert_eq(missing.size(), 0, "an int32 subject has no finite variant set")
 }
 
@@ -218,7 +220,9 @@ fun guarded_variant_arm(name: str): Arm {
     var arms = List.new<Arm>()
     arms.push(lit_int_arm(113))
     arms.push(lit_int_arm(119))
-    assert_eq(when_is_exhaustive(Type.new_int32(no_span()), &arms, &var ctx), false, "any other integer reaches no arm")
+    assert_eq(
+        when_is_exhaustive(Type.new_int32(Span.none()), &arms, &var ctx), false, "any other integer reaches no arm"
+    )
 }
 
 @test fun scalar_when_with_a_wildcard_is_exhaustive(): void {
@@ -226,7 +230,7 @@ fun guarded_variant_arm(name: str): Arm {
     var arms = List.new<Arm>()
     arms.push(lit_int_arm(113))
     arms.push(wildcard_arm())
-    assert_eq(when_is_exhaustive(Type.new_int32(no_span()), &arms, &var ctx), true, "`_` covers every other integer")
+    assert_eq(when_is_exhaustive(Type.new_int32(Span.none()), &arms, &var ctx), true, "`_` covers every other integer")
 }
 
 @test fun scalar_when_with_a_binding_is_exhaustive(): void {
@@ -234,33 +238,37 @@ fun guarded_variant_arm(name: str): Arm {
     var arms = List.new<Arm>()
     arms.push(lit_int_arm(113))
     arms.push(binding_arm("other"))
-    assert_eq(when_is_exhaustive(Type.new_int32(no_span()), &arms, &var ctx), true, "a bare binding matches anything")
+    assert_eq(when_is_exhaustive(Type.new_int32(Span.none()), &arms, &var ctx), true, "a bare binding matches anything")
 }
 
 @test fun a_guarded_wildcard_does_not_close_a_scalar_when(): void {
     var ctx = mk_color_ctx()
     var arms = List.new<Arm>()
     arms.push(guarded_wildcard_arm())
-    assert_eq(when_is_exhaustive(Type.new_int32(no_span()), &arms, &var ctx), false, "a guard may be false at runtime")
+    assert_eq(
+        when_is_exhaustive(Type.new_int32(Span.none()), &arms, &var ctx), false, "a guard may be false at runtime"
+    )
 }
 
 @test fun a_str_subject_needs_an_irrefutable_arm(): void {
     var ctx = mk_color_ctx()
     val arms = List.new<Arm>()
-    assert_eq(when_is_exhaustive(Type.new_str(no_span()), &arms, &var ctx), false, "a `str` cannot be listed either")
+    assert_eq(when_is_exhaustive(Type.new_str(Span.none()), &arms, &var ctx), false, "a `str` cannot be listed either")
 }
 
 @test fun a_char_subject_needs_an_irrefutable_arm(): void {
     var ctx = mk_color_ctx()
     val arms = List.new<Arm>()
-    assert_eq(when_is_exhaustive(Type.new_char(no_span()), &arms, &var ctx), false, "a `char` cannot be listed either")
+    assert_eq(
+        when_is_exhaustive(Type.new_char(Span.none()), &arms, &var ctx), false, "a `char` cannot be listed either"
+    )
 }
 
 @test fun scalar_report_asks_for_a_wildcard(): void {
     var ctx = mk_color_ctx()
     var arms = List.new<Arm>()
     arms.push(lit_int_arm(113))
-    report_non_exhaustive_when(Type.new_int32(no_span()), &arms, no_span(), &var ctx)
+    report_non_exhaustive_when(Type.new_int32(Span.none()), &arms, Span.none(), &var ctx)
     val d = unsafe { *(*ctx.diags).at(0) }
     val expected = "non-exhaustive `when`: `int32` has more values than arms can list — add a `_ =>` arm"
     assert_eq(d.primary.message.as_str(), expected, "naming a missing value is impossible, so ask for the arm")
@@ -269,7 +277,7 @@ fun guarded_variant_arm(name: str): Arm {
 @test fun scalar_report_names_the_subject_type(): void {
     var ctx = mk_color_ctx()
     val arms = List.new<Arm>()
-    report_non_exhaustive_when(Type.new_str(no_span()), &arms, no_span(), &var ctx)
+    report_non_exhaustive_when(Type.new_str(Span.none()), &arms, Span.none(), &var ctx)
     val d = unsafe { *(*ctx.diags).at(0) }
     val expected = "non-exhaustive `when`: `str` has more values than arms can list — add a `_ =>` arm"
     assert_eq(d.primary.message.as_str(), expected, "the message says which subject it is about")
@@ -280,7 +288,7 @@ fun guarded_variant_arm(name: str): Arm {
     var arms = List.new<Arm>()
     arms.push(lit_int_arm(113))
     arms.push(wildcard_arm())
-    report_non_exhaustive_when(Type.new_int32(no_span()), &arms, no_span(), &var ctx)
+    report_non_exhaustive_when(Type.new_int32(Span.none()), &arms, Span.none(), &var ctx)
     assert_eq(ctx.diags.items.size(), 0, "nothing to say about a closed `when`")
 }
 
@@ -290,7 +298,7 @@ fun guarded_variant_arm(name: str): Arm {
     var arms = List.new<Arm>()
     arms.push(lit_bool_arm(true))
     arms.push(lit_bool_arm(false))
-    report_non_exhaustive_when(Type.new_bool(no_span()), &arms, no_span(), &var ctx)
+    report_non_exhaustive_when(Type.new_bool(Span.none()), &arms, Span.none(), &var ctx)
     assert_eq(ctx.diags.items.size(), 0, "listing both values closes a bool `when`")
 }
 
@@ -305,7 +313,7 @@ fun guarded_variant_arm(name: str): Arm {
     var ctx = mk_color_ctx()
     var arms = List.new<Arm>()
     arms.push(variant_arm("Red"))
-    report_non_exhaustive_when(color_ty(), &arms, no_span(), &var ctx)
+    report_non_exhaustive_when(color_ty(), &arms, Span.none(), &var ctx)
     val d = unsafe { *(*ctx.diags).at(0) }
     when (d.severity) {
         Error => assert(true, "an unmatched variant has no defined behaviour")
@@ -318,7 +326,7 @@ fun guarded_variant_arm(name: str): Arm {
     var arms = List.new<Arm>()
     arms.push(variant_arm("Red"))
     arms.push(variant_arm("Green"))
-    report_non_exhaustive_when(color_ty(), &arms, no_span(), &var ctx)
+    report_non_exhaustive_when(color_ty(), &arms, Span.none(), &var ctx)
     val d = unsafe { *(*ctx.diags).at(0) }
     val expected = "non-exhaustive `when`: `Blue` is not covered — add an arm for it, or `_ =>` to ignore the rest"
     assert_eq(d.primary.message.as_str(), expected, "the gap is named, not just counted")
@@ -328,7 +336,7 @@ fun guarded_variant_arm(name: str): Arm {
     var ctx = mk_color_ctx()
     var arms = List.new<Arm>()
     arms.push(variant_arm("Red"))
-    report_non_exhaustive_when(color_ty(), &arms, no_span(), &var ctx)
+    report_non_exhaustive_when(color_ty(), &arms, Span.none(), &var ctx)
     val d = unsafe { *(*ctx.diags).at(0) }
     val expected = "non-exhaustive `when`: `Green`, `Blue` are not covered — add an arm for each, or `_ =>` to ignore the rest"
     assert_eq(d.primary.message.as_str(), expected, "two gaps are both named, and the plural reads correctly")
@@ -340,14 +348,14 @@ fun guarded_variant_arm(name: str): Arm {
     arms.push(variant_arm("Red"))
     arms.push(variant_arm("Green"))
     arms.push(variant_arm("Blue"))
-    report_non_exhaustive_when(color_ty(), &arms, no_span(), &var ctx)
+    report_non_exhaustive_when(color_ty(), &arms, Span.none(), &var ctx)
     assert_eq(ctx.diags.items.size(), 0, "nothing to say about a total `when`")
 }
 
 @test fun unregistered_enum_name_is_not_judged(): void {
     var ctx = mk_color_ctx()
     val arms = List.new<Arm>()
-    val unknown = Type { kind: TypeKind.EnumTy(intern("Nope")), provenance: Provenance.Inferred(no_span()) }
+    val unknown = Type { kind: TypeKind.EnumTy(intern("Nope")), provenance: Provenance.Inferred(Span.none()) }
     val missing = when_missing_variants(unknown, &arms, &var ctx)
     assert_eq(missing.size(), 0, "nothing known about the subject means nothing to report")
 }
@@ -358,13 +366,13 @@ fun mk_shape_ctx(): TypeCtx {
     val halt = EnumLayout {
         name: String.from("Halt"),
         variants: List.new<VariantInfo>(),
-        owner_crate: crate_id_poison()
+        owner_crate: CrateId.new_poison()
     }
     unsafe { (*ctx.sigs).insert_enum(halt) }
     var circle = List.new<Type>()
-    circle.push(Type.new_int32(no_span()))
+    circle.push(Type.new_int32(Span.none()))
     var stuck = List.new<Type>()
-    val halt_ty = Type { kind: TypeKind.EnumTy(intern("Halt")), provenance: Provenance.Inferred(no_span()) }
+    val halt_ty = Type { kind: TypeKind.EnumTy(intern("Halt")), provenance: Provenance.Inferred(Span.none()) }
     stuck.push(halt_ty)
     var variants = List.new<VariantInfo>()
     variants.push(VariantInfo { name: String.from("Circle"), payloads: circle })
@@ -372,14 +380,14 @@ fun mk_shape_ctx(): TypeCtx {
     val shape = EnumLayout {
         name: String.from("Shape"),
         variants: variants,
-        owner_crate: crate_id_poison()
+        owner_crate: CrateId.new_poison()
     }
     unsafe { (*ctx.sigs).insert_enum(shape) }
     return ctx
 }
 
 fun shape_ty(): Type {
-    return Type { kind: TypeKind.EnumTy(intern("Shape")), provenance: Provenance.Inferred(no_span()) }
+    return Type { kind: TypeKind.EnumTy(intern("Shape")), provenance: Provenance.Inferred(Span.none()) }
 }
 
 @test

@@ -1,9 +1,11 @@
 import kf_core.span.*
-import kf_core.ast.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import kf_core.intern.intern
+import kf_core.ast.pattern.*
+import kf_core.ast.statement.*
 import kf_parse.parser.*
 
 fun Arm.arm_body_ends_in_expression(): bool {
@@ -243,7 +245,7 @@ impl Parser {
             body.push(self.parse_stmt())
         }
 
-        return new_arm(arm_span, pat_ptr, guard_ptr, body)
+        return Arm.new(arm_span, pat_ptr, guard_ptr, body)
     }
 
     /// `_`, `42`/`-42`, `true`/`false`, `"abc"`, `'a'`, `name` (bind or bare
@@ -255,11 +257,11 @@ impl Parser {
         // payload and double-free.
         if is_keyword(self.peek(), Keyword.True) {
             unsafe { self.advance() }
-            return new_pattern(pat_span, PatternKind.LitBool(true))
+            return Pattern.new(pat_span, PatternKind.LitBool(true))
         }
         if is_keyword(self.peek(), Keyword.False) {
             unsafe { self.advance() }
-            return new_pattern(pat_span, PatternKind.LitBool(false))
+            return Pattern.new(pat_span, PatternKind.LitBool(false))
         }
         if is_int_literal(self.peek()) {
             val n = int_literal_value(self.peek())
@@ -283,7 +285,7 @@ impl Parser {
         when (self.peek().string_literal_text()) {
             Some(text) => {
                 unsafe { self.advance() }
-                return new_pattern(pat_span, PatternKind.LitStr(text))
+                return Pattern.new(pat_span, PatternKind.LitStr(text))
             }
             None => { }
         }
@@ -308,9 +310,9 @@ impl Parser {
                         unsafe { self.advance() }
                     }
                 }
-                return new_pattern(pat_span, PatternKind.Variant(intern(name.as_str()), subs))
+                return Pattern.new(pat_span, PatternKind.Variant(intern(name.as_str()), subs))
             }
-            return new_pattern(pat_span, PatternKind.Identifier(intern(name.as_str())))
+            return Pattern.new(pat_span, PatternKind.Identifier(intern(name.as_str())))
         }
 
         // Unsupported here: reported, then resynced on the arm's `=>` so it
@@ -318,7 +320,7 @@ impl Parser {
         unsafe { self.advance() }
         self.parse_err(pat_span, String.from("unsupported pattern — `when` matches enum variants, integer, char, bool and string literals, ranges, a binding, or `_`"))
         self.skip_to_arm_arrow()
-        return pattern_poison(pat_span)
+        return Pattern.new_poison(pat_span)
     }
 
     /// `p | p | ...`. `|` binds looser than a range's `..`, so `1..5 | 9` is
@@ -337,15 +339,15 @@ impl Parser {
             alternatives.push(next)
         }
         val span = Span { file_id: start.file_id, start: start.start, end: end.end }
-        return new_pattern(span, PatternKind.Or(alternatives))
+        return Pattern.new(span, PatternKind.Or(alternatives))
     }
 
     /// A literal already read, or the low bound of `low..high` / `low..=high`.
     mutating fun literal_or_range(span: Span, low: int64, is_char: bool): Pattern {
         val inclusive = is_op(self.peek(), Operator.DotDotEq)
         if !inclusive && !is_op(self.peek(), Operator.DotDot) {
-            if is_char { return new_pattern(span, PatternKind.LitChar(low as uint32)) }
-            return new_pattern(span, PatternKind.LitInt(low))
+            if is_char { return Pattern.new(span, PatternKind.LitChar(low as uint32)) }
+            return Pattern.new(span, PatternKind.LitInt(low))
         }
         unsafe { self.advance() }
         val high_span = self.peek().span
@@ -354,15 +356,15 @@ impl Parser {
         val last = if inclusive { high } else { high - 1 }
         if last < low {
             self.parse_err(whole, String.from("this range matches nothing: its upper bound is not above its lower bound"))
-            return pattern_poison(whole)
+            return Pattern.new_poison(whole)
         }
-        return new_pattern(whole, PatternKind.Range(low, last, is_char))
+        return Pattern.new(whole, PatternKind.Range(low, last, is_char))
     }
 
     mutating fun bad_range_bound(bound: Span, whole: Span, is_char: bool): Pattern {
         val kind = if is_char { "a char" } else { "an integer" }
         self.parse_err(bound, "a range pattern's upper bound must be ${kind} literal, like its lower bound")
-        return pattern_poison(whole)
+        return Pattern.new_poison(whole)
     }
 
     /// The upper bound, of the same kind as the lower.

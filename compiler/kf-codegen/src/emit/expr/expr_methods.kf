@@ -1,8 +1,8 @@
 import alloc.list.*
 
-import kf_core.ast.*
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
+import kf_core.names.CName
 
 import kf_codegen.concat_all
 import kf_codegen.emit.*
@@ -125,7 +125,7 @@ fun emit_retain_expr(inner_p: Ptr<Expr>): String {
     if rl == 0 {
         return inner_c
     }
-    return type_retain_fn(ct.as_str()) + String.from("(") + inner_c + String.from(")")
+    return CName.retain_fn(ct.as_str()) + String.from("(") + inner_c + String.from(")")
 }
 
 // `Enum.Variant` parses as a FieldAccess and `Enum.Variant(args)` as a
@@ -201,7 +201,7 @@ fun Expr.emit_field_or_enum_ctor(recv_p: Ptr<Expr>, fname: String): String {
         parts.push(String.from("("))
         parts.push(ename.clone())
         parts.push(String.from("){ .tag = "))
-        parts.push(enum_tag_const(ename.as_str(), fname.as_str()))
+        parts.push(CName.enum_tag_const(ename.as_str(), fname.as_str()))
         parts.push(String.from(" }"))
         return concat_all(parts)
     }
@@ -224,7 +224,7 @@ fun Expr.emit_method_or_enum_ctor(recv_p: Ptr<Expr>, mname: String, margs: &List
         parts.push(String.from("("))
         parts.push(ename.clone())
         parts.push(String.from("){ .tag = "))
-        parts.push(enum_tag_const(ename.as_str(), mname.as_str()))
+        parts.push(CName.enum_tag_const(ename.as_str(), mname.as_str()))
         while i in 0..margs.size() {
             parts.push(String.from(", .u.V_"))
             parts.push(mname.clone())
@@ -250,8 +250,8 @@ fun emit_field_access(recv_p: Ptr<Expr>, fname: String): String {
     while _layer in 0..recv.ty.kind.pointer_layers() { parts.push(String.from("*")) }
     parts.push(recv_c)
     parts.push(String.from(")."))
-    // A C keyword is escaped; see c_field_name.
-    parts.push(c_field_name(fname.as_str()))
+    // A C keyword is escaped; see `CName.field`.
+    parts.push(CName.field(fname.as_str()))
     return concat_all(parts)
 }
 

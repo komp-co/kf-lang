@@ -4,19 +4,19 @@
 
 import alloc.list.*
 
-import kf_core.ast.c_local_name
-import kf_core.ast.view
+import kf_core.ast.expression.view
+import kf_core.ast.types.view
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.type_identity_display
 import kf_core.ast.expression.Expr
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.SwitchArm
+import kf_core.names.CName
 
 import kf_codegen.concat_all
 import kf_codegen.emit.*
 import kf_codegen.emit.expr.emit_expr
-import kf_core.ast.enum_tag_const
 
 pub fun emit_block(stmts: &List<Stmt>, indent: uint64, env: &var LocalEnv): String {
     var parts = List.new<String>()
@@ -255,7 +255,7 @@ fun emit_enum_arm(a: &SwitchArm, ename: String, through_ref: bool, by_address: b
     val tag = a.tag
     when (tag) {
         Variant(name) => {
-            parts.push("case ${enum_tag_const(ename.as_str(), name.as_str())}: {\n")
+            parts.push("case ${CName.enum_tag_const(ename.as_str(), name.as_str())}: {\n")
             // Each payload binds through the union member; `__auto_type`
             // saves threading its C type.
             while bi in 0..a.binders.size() {
@@ -268,7 +268,7 @@ fun emit_enum_arm(a: &SwitchArm, ename: String, through_ref: bool, by_address: b
                     parts.push(emit_indent(indent + 1))
                     val read = "__when_subj${member_access(through_ref)}u.V_${name}._${bstr}"
                     val by_ref = a.binds_by_ref(b)
-                    parts.push("__auto_type ${c_local_name(b.as_str())} = ${binder_init(read, by_ref)};\n")
+                    parts.push("__auto_type ${CName.local(b.as_str())} = ${binder_init(read, by_ref)};\n")
                     // Records the binder's release function, since the C type
                     // is only known to C. A reference owns nothing.
                     var rel = String.from("")
@@ -303,7 +303,7 @@ fun emit_subject_binders(a: &SwitchArm, by_address: bool, indent: uint64): Strin
         if !b.as_str().equals("_") {
             parts.push(emit_indent(indent))
             val read = whole_subject_read(a.binds_by_ref(b), by_address)
-            parts.push("__auto_type ${c_local_name(b.as_str())} = ${read};\n")
+            parts.push("__auto_type ${CName.local(b.as_str())} = ${read};\n")
         }
     }
     return concat_all(parts)
@@ -414,7 +414,7 @@ fun emit_let(name: String, ty_p: Ptr<TypeRef>?, init_p: Ptr<Expr>?, indent: uint
     parts.push(emit_indent(indent))
     parts.push(ct.clone())
     parts.push(String.from(" "))
-    parts.push(c_local_name(name.as_str()))
+    parts.push(CName.local(name.as_str()))
     parts.push(String.from(" = "))
     val init = unsafe { *ip }
     // A `void` initializer is still called for its effects, yielding the
@@ -448,7 +448,7 @@ fun emit_uninitialized_let(name: String, ty_p: Ptr<TypeRef>, indent: uint64, env
     parts.push(emit_indent(indent))
     parts.push(ct)
     parts.push(String.from(" "))
-    parts.push(c_local_name(name.as_str()))
+    parts.push(CName.local(name.as_str()))
     parts.push(String.from(" = {0};\n"))
     return concat_all(parts)
 }
@@ -499,7 +499,7 @@ fun emit_assign_to(pp: Ptr<Expr>, vp: Ptr<Expr>, indent: uint64): String {
 fun emit_assign(name: String, vp: Ptr<Expr>, indent: uint64): String {
     var parts = List.new<String>()
     parts.push(emit_indent(indent))
-    parts.push(c_local_name(name.as_str()))
+    parts.push(CName.local(name.as_str()))
     parts.push(String.from(" = "))
     val v = unsafe { *vp }
     parts.push(v.emit_expr())
@@ -552,11 +552,11 @@ fun emit_box_release(rel: String, name: String, indent: uint64): String {
     if has_inner {
         parts.push(innerdrop.clone())
         parts.push(String.from("((*"))
-        parts.push(c_local_name(name.as_str()))
+        parts.push(CName.local(name.as_str()))
         parts.push(String.from(")); "))
     }
     parts.push(String.from("kf_free("))
-    parts.push(c_local_name(name.as_str()))
+    parts.push(CName.local(name.as_str()))
     parts.push(String.from(");\n"))
     return concat_all(parts)
 }
@@ -572,7 +572,7 @@ fun emit_release(name: String, indent: uint64, env: &var LocalEnv): String {
     parts.push(emit_indent(indent))
     parts.push(rel.clone())
     parts.push(String.from("("))
-    parts.push(c_local_name(name.as_str()))
+    parts.push(CName.local(name.as_str()))
     parts.push(String.from(");\n"))
     return concat_all(parts)
 }

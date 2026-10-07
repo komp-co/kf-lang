@@ -12,6 +12,11 @@ import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.SwitchArm
+import kf_core.intern.*
+import kf_core.lang.*
+import kf_core.ast.pattern.*
+import kf_core.ast.expression.*
+import kf_core.ast.types.*
 
 /// The names the library gave the types the placeholders stand for.
 @derive(Copy)
@@ -25,12 +30,12 @@ pub struct LangHeads {
 /// Records the names the library gave its lang types, and returns the ones
 /// placeholders stand for.
 pub mutating fun SigTable.note_lang_types(m: &Module): LangHeads {
-    self.lang_string = m.lang_type_name(lang_string_key())
-    self.lang_option = m.lang_type_name(lang_option_key())
-    self.lang_list = m.lang_type_name(lang_list_key())
-    self.lang_array = m.lang_type_name(lang_array_key())
-    self.lang_slice = m.lang_type_name(lang_slice_key())
-    self.lang_slice_mut = m.lang_type_name(lang_slice_mut_key())
+    self.lang_string = m.lang_type_name(LangItem.String)
+    self.lang_option = m.lang_type_name(LangItem.Option)
+    self.lang_list = m.lang_type_name(LangItem.List)
+    self.lang_array = m.lang_type_name(LangItem.Array)
+    self.lang_slice = m.lang_type_name(LangItem.Slice)
+    self.lang_slice_mut = m.lang_type_name(LangItem.SliceMut)
     return LangHeads {
         option: self.lang_option, array: self.lang_array, slice: self.lang_slice, slice_mut: self.lang_slice_mut
     }
@@ -39,10 +44,10 @@ pub mutating fun SigTable.note_lang_types(m: &Module): LangHeads {
 /// The real name for a placeholder head, or `name` itself.
 fun LangHeads.head_for(name: Sym): Sym {
     val key = name.lang_placeholder_key()
-    if key.as_str() == lang_option_key() { return self.option }
-    if key.as_str() == lang_array_key() { return self.array }
-    if key.as_str() == lang_slice_key() { return self.slice }
-    if key.as_str() == lang_slice_mut_key() { return self.slice_mut }
+    if key.as_str() == LangItem.Option.key() { return self.option }
+    if key.as_str() == LangItem.Array.key() { return self.array }
+    if key.as_str() == LangItem.Slice.key() { return self.slice }
+    if key.as_str() == LangItem.SliceMut.key() { return self.slice_mut }
     return name
 }
 

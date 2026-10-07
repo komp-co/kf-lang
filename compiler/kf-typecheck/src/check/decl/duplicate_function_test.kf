@@ -3,12 +3,14 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
+import kf_core.intern.intern
+import kf_core.intern.CrateId
 import kf_resolve.new_decl_table
 import kf_resolve.resolve_module
 import kf_typecheck.typecheck_module
@@ -16,27 +18,27 @@ import testing.test
 
 fun dupfn_in(td: TopDecl, module_path: str): TopDecl {
     var owned = td
-    owned.crate = new_crate_id("sample")
+    owned.crate = CrateId.new("sample")
     owned.module_path = intern(module_path)
     return owned
 }
 
 fun dupfn_int32(): Ptr<TypeRef> {
     val ret: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ret = TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())) }
+    unsafe { *ret = TypeRef.new(Span.none(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())) }
     return ret
 }
 
 fun dupfn_function(name: str): TopDecl {
-    return dupfn_in(new_top_decl(no_span(), String.from(name), TopDeclKind.Function(List.new<Param>(), dupfn_int32(), List.new<Stmt>(), true, false, false, false)), "sample.api")
+    return dupfn_in(TopDecl.new(Span.none(), String.from(name), TopDeclKind.Function(List.new<Param>(), dupfn_int32(), List.new<Stmt>(), true, false, false, false)), "sample.api")
 }
 
 fun dupfn_extern(name: str): TopDecl {
-    return dupfn_in(new_top_decl(no_span(), String.from(name), TopDeclKind.Extern(List.new<Param>(), dupfn_int32(), false, false)), "sample.api")
+    return dupfn_in(TopDecl.new(Span.none(), String.from(name), TopDeclKind.Extern(List.new<Param>(), dupfn_int32(), false, false)), "sample.api")
 }
 
 fun dupfn_reported(decls: List<TopDecl>, needle: str): bool {
-    var module = Module { crate: new_crate_id("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
+    var module = Module { crate: CrateId.new("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
     var declarations = new_decl_table()
     resolve_module(&var module, &var declarations)
     val diagnostics = module.typecheck_module(&var declarations)

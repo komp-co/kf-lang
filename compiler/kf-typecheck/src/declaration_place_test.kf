@@ -1,15 +1,15 @@
 import core.assert.assert_eq
 
 import kf_core.span.*
-import kf_core.ast.intern
+import kf_core.intern.intern
 import testing.test
 
 /// Gives `table` a source map holding one file, and returns its id.
 fun table_over(path: str, content: str, table: &var SigTable): uint32 {
     val smap: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
-    unsafe { *smap = new_source_map() }
+    unsafe { *smap = SourceMap.new() }
     table.smap = smap
-    return unsafe { smap.add_file(new_source_file(String.from(path), String.from(content))) }
+    return unsafe { smap.add_file(SourceFile.new(String.from(path), String.from(content))) }
 }
 
 @test

@@ -12,8 +12,8 @@ import kf_integration.harness.compile_project_separate
 import kf_integration.harness.copy_tree_by_content
 import std.fs.read_to_string
 import std.fs.scratch_path
-import kf_core.diagnostic.new_diagnostics
 import testing.test
+import kf_core.diagnostic.Diagnostics
 
 extern "C" fun system(cmd: str): int32
 extern "C" fun access(path: str, mode: int32): int32
@@ -114,7 +114,7 @@ fun source_and_interface_consumer_c_are_identical(): void {
     // Against json.kfi and from dependency source.
     val first = build_real_json_app()
     val interface_c = read_file(scratch_path("kf_sc4_json_app/target/kflat/json_app.c"))
-    var errors = new_diagnostics()
+    var errors = Diagnostics.new()
     val outputs = compile_project_separate(scratch_path("kf_sc4_json_app"), errors)
     val clean = errors.error_count() == 0
     val source_c = outputs.at(outputs.size() - 1).source

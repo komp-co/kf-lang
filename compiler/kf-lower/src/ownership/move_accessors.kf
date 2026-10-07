@@ -1,12 +1,11 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.Sym
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
-import kf_core.ast.expression.coerce_clone
-import kf_core.ast.expression.coerce_none
+import kf_core.ast.expression.Coercion
 import kf_core.diagnostic.*
+import kf_core.intern.Sym
 
 // A local recorded as borrowed, not owned (`val t = xs.get(i)`, or a
 // `when` binder over a move-only subject). Moving it is a move out of a
@@ -114,8 +113,8 @@ pub mutating fun MoveCtx.clear_consumed_here(): void {
 pub fun ctx_clone_node(node: Ptr<Expr>): bool {
     val raw: uint64 = unsafe { node as uint64 }
     if raw == 0 { return false }
-    if unsafe { node.coerce } != coerce_none() { return false }
-    unsafe { node.coerce = coerce_clone() }
+    if unsafe { node.coerce } != Coercion.Identity { return false }
+    unsafe { node.coerce = Coercion.Clone }
     return true
 }
 

@@ -5,11 +5,11 @@
 
 import alloc.list.*
 
-import kf_core.ast.intern
 import kf_core.ast.types.*
 import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 import kf_core.span.*
+import kf_core.intern.intern
 import kf_typecheck.types.*
 
 /// Arity is checked by the caller.
@@ -100,7 +100,7 @@ fun emit_signature_err(diags: &var Diagnostics, span: Span, what: str, want: &Ty
     val wanted = want.display_type(ctx)
     val actual = got.display_type(ctx)
     val message = "`${req.name.as_str()}` declares ${what} `${actual.as_str()}` where trait `${tname.as_str()}` requires `${wanted.as_str()}`"
-    diags.emit(new_diagnostic(Severity.Error, new_label(span, message)))
+    diags.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
 }
 
 /// Generic impls carry their parameters: `impl Compare for Pair<A, B>` reads

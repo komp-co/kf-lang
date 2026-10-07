@@ -1,16 +1,18 @@
 // Which declaration a name means, by the caller's place and its file's
 // imports. File 7 is in `application` unless a test says otherwise.
 
+import kf_core.intern.intern
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.ast.*
+import kf_core.ast.alias_admission
+import kf_core.ast.renamed_admission
 import kf_core.ast.declaration.DeclId
 import testing.test
 
 fun function_entry(name: str, crate: str, module: str, is_pub: bool, is_prelude: bool): ScopeEntry {
     return ScopeEntry {
-        name: intern(name), crate: new_crate_id(crate), module: intern(module), surface: intern(name), callable: true,
+        name: intern(name), crate: CrateId.new(crate), module: intern(module), surface: intern(name), callable: true,
         is_type: false, is_pub: is_pub, is_prelude: is_prelude
     }
 }
@@ -34,7 +36,7 @@ fun table_importing_library(): DeclTable {
 
 /// The id `name` answers with in `crate`'s `module`, or 0 for none.
 mutating fun DeclTable.answer(name: str, file: uint32, crate: str, module: str): uint32 {
-    val found = self.visible(name, file, new_crate_id(crate), intern(module)) ?: return 0
+    val found = self.visible(name, file, CrateId.new(crate), intern(module)) ?: return 0
     return found.raw
 }
 

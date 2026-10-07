@@ -4,9 +4,8 @@
 
 import alloc.list.*
 
-import kf_core.ast.Arm
-import kf_core.ast.Intrinsic
-import kf_core.ast.view
+import kf_core.ast.pattern.Arm
+import kf_core.ast.expression.view
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.FieldInit
 import kf_core.ast.declaration.DeclId

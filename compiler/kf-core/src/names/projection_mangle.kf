@@ -1,0 +1,99 @@
+// A deferred associated-type projection inside a mangled name:
+// `Proj__<owner>__<member>__EndProj`. The owner is its own `__` segment so
+// substitution can rewrite it; the closing bracket is needed because
+// substitution can make the owner span several segments.
+
+import alloc.list.*
+
+impl Frag {
+    /// `F`, `Out` -> `Proj__F__Out__EndProj`.
+    pub static fun projection(owner: str, member: str): String {
+        return "Proj__${owner}__${member}__EndProj"
+    }
+}
+
+/// Finding and reading a projection's brackets among a mangled name's segments.
+pub struct MangledProjection {}
+
+impl MangledProjection {
+    /// Both names are reserved: a user type called `Proj` would read as one.
+    pub static fun opens(seg: str): bool {
+        return seg == "Proj"
+    }
+
+    /// Possibly with a method tail glued on by a single `_` (`...__EndProj_push`).
+    static fun closes(seg: str): bool {
+        if seg == "EndProj" { return true }
+        return MangledProjection.close_tail_len(seg) > 0
+    }
+
+    /// What follows the `EndProj` in a closing segment (`_push`), or "".
+    pub static fun close_tail(seg: str): String {
+        val n = seg.byte_len()
+        val tail = MangledProjection.close_tail_len(seg)
+        if tail == 0 { return "" }
+        return seg.substring(n - tail, n)
+    }
+
+    static fun close_tail_len(seg: str): uint64 {
+        if !seg.starts_with("EndProj_") { return 0 }
+        return seg.byte_len() - "EndProj".byte_len()
+    }
+
+    /// The `EndProj` closing the `Proj` at `open`, counting nesting, or `open`
+    /// when there is none.
+    pub static fun close_index(segs: &List<String>, open: uint64): uint64 {
+        var depth: uint64 = 0
+        var i: uint64 = open
+        while i < segs.size() {
+            val seg = *segs.at(i)
+            if MangledProjection.opens(seg.as_str()) { depth = depth + 1 }
+            if MangledProjection.closes(seg.as_str()) {
+                if depth <= 1 { return i }
+                depth = depth - 1
+            }
+            i = i + 1
+        }
+        return open
+    }
+
+    /// A cheap filter; the segment walk decides.
+    pub static fun may_be_in(mangled: str): bool {
+        return mangled.contains("Proj")
+    }
+
+    /// `Owner.Member` in place of the brackets, for diagnostics.
+    pub static fun display(mangled: str): String {
+        if !MangledProjection.may_be_in(mangled) { return String.from(mangled) }
+        val segs = Frag.segments(mangled)
+        var out = ""
+        var emitted = false
+        var i = 0
+        while i < segs.size() {
+            var seg = *segs.at(i)
+            var step = 1
+            if MangledProjection.opens(seg.as_str()) {
+                val close = MangledProjection.close_index(&segs, i)
+                if close > i + 2 {
+                    var text = ""
+                    var j = i + 1
+                    while j < close - 1 {
+                        if j > i + 1 { text.append("__") }
+                        text.append(segs.at(j).as_str())
+                        j = j + 1
+                    }
+                    text.append(".")
+                    text.append(segs.at(close - 1).as_str())
+                    text.append(MangledProjection.close_tail(segs.at(close).as_str()).as_str())
+                    seg = text
+                    step = close + 1 - i
+                }
+            }
+            if emitted { out.append("__") }
+            out.append(seg.as_str())
+            emitted = true
+            i = i + step
+        }
+        return out
+    }
+}

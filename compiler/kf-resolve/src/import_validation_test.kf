@@ -8,14 +8,15 @@ import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
 import kf_core.span.*
 import testing.test
+import kf_core.intern.*
 
 fun make_decl(name: str, module_path: str): TopDecl {
-    return make_decl_at(no_span(), name, module_path)
+    return make_decl_at(Span.none(), name, module_path)
 }
 
 fun make_decl_at(span: Span, name: str, module_path: str): TopDecl {
     val kind = TopDeclKind.Function(List.new<Param>(), null_type_ref_ptr(), List.new<Stmt>(), false, false, false, false)
-    var decl = new_top_decl(span, String.from(name), kind)
+    var decl = TopDecl.new(span, String.from(name), kind)
     decl.module_path = intern(module_path.as_str())
     return decl
 }
@@ -28,7 +29,7 @@ fun make_import(seg1: String, seg2: String, wildcard: bool): Import {
     var path = List.new<String>()
     path.push(seg1)
     path.push(seg2)
-    return new_import(no_span(), path, wildcard)
+    return Import.new(Span.none(), path, wildcard)
 }
 
 fun make_import3(seg1: String, seg2: String, seg3: String, wildcard: bool): Import {
@@ -36,7 +37,7 @@ fun make_import3(seg1: String, seg2: String, seg3: String, wildcard: bool): Impo
     path.push(seg1)
     path.push(seg2)
     path.push(seg3)
-    return new_import(no_span(), path, wildcard)
+    return Import.new(Span.none(), path, wildcard)
 }
 
 fun make_import_with_fid(seg1: String, seg2: String, wildcard: bool, file_id: uint32): Import {
@@ -44,14 +45,14 @@ fun make_import_with_fid(seg1: String, seg2: String, wildcard: bool, file_id: ui
     path.push(seg1)
     path.push(seg2)
     val s = Span { file_id: file_id, start: 0, end: 0 }
-    return new_import(s, path, wildcard)
+    return Import.new(s, path, wildcard)
 }
 
 /// An empty map: enough for every case that imports a module by its full
 /// path, since no file name has to be resolved to answer those.
 fun no_files(): Ptr<SourceMap> {
     val p: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
-    unsafe { *p = new_source_map() }
+    unsafe { *p = SourceMap.new() }
     return p
 }
 
@@ -59,18 +60,18 @@ fun no_files(): Ptr<SourceMap> {
 /// declaration so the resolver can see which file it came from.
 fun map_with_file(path: str): Ptr<SourceMap> {
     val p = no_files()
-    unsafe { p.add_file(new_source_file(String.from(path), String.from(""))) }
+    unsafe { p.add_file(SourceFile.new(String.from(path), String.from(""))) }
     return p
 }
 
 /// A declaration that came from a real file, so its module reports that file
-/// as importable. `make_decl` leaves `no_span()`, which names no file at all.
+/// as importable. `make_decl` leaves `Span.none()`, which names no file at all.
 fun make_decl_in_file(name: str, module_path: str, file_id: uint32): TopDecl {
     return make_decl_at(Span { file_id: file_id, start: 0, end: 0 }, name, module_path)
 }
 
 fun module_with(decls: List<TopDecl>, imports: List<Import>): Module {
-    return Module { crate: crate_id_poison(), path: List.new<String>(), decls: decls, imports: imports }
+    return Module { crate: CrateId.new_poison(), path: List.new<String>(), decls: decls, imports: imports }
 }
 
 @test fun valid_wildcard_import_passes(): void {
@@ -246,7 +247,7 @@ fun module_with(decls: List<TopDecl>, imports: List<Import>): Module {
 }
 
 fun crate_module_with(decls: List<TopDecl>, imports: List<Import>): Module {
-    val crate = new_crate_id("my_crate")
+    val crate = CrateId.new("my_crate")
     return Module { crate: crate, path: List.new<String>(), decls: decls, imports: imports }
 }
 
@@ -256,7 +257,7 @@ fun crate_module_with(decls: List<TopDecl>, imports: List<Import>): Module {
     var imports = List.new<Import>()
     var path = List.new<String>()
     path.push(String.from("utils"))
-    imports.push(new_import(no_span(), path, true))
+    imports.push(Import.new(Span.none(), path, true))
     val diags = crate_module_with(decls, imports).validate_imports(no_files())
     val message = diags.at(0).primary.message
     assert_eq(message.as_str().contains("`import my_crate.utils.*`"), true, "the hint names the crate-qualified path")
@@ -286,7 +287,7 @@ fun aliased_import(seg1: String, seg2: String, alias: str): Import {
     var path = List.new<String>()
     path.push(seg1)
     path.push(seg2)
-    return new_aliased_import(no_span(), path, String.from(alias))
+    return Import.new_aliased(Span.none(), path, String.from(alias))
 }
 
 @test fun an_aliased_import_resolves_to_its_module(): void {

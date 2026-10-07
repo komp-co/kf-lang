@@ -3,21 +3,22 @@
 import alloc.list.*
 import core.assert.assert_eq
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.ast.declaration.*
 import testing.test
+import kf_core.intern.CrateId
 
 // `Point` is public, so the header owns it; `Secret` stays here.
 fun src_view(): Module {
     var point_fields = List.new<Field>()
-    point_fields.push(new_field(no_span(), String.from("x"), hdr_ty_ptr("int32"), false, true))
+    point_fields.push(Field.new(Span.none(), String.from("x"), hdr_ty_ptr("int32"), false, true))
     var secret_fields = List.new<Field>()
-    secret_fields.push(new_field(no_span(), String.from("v"), hdr_ty_ptr("int32"), false, true))
+    secret_fields.push(Field.new(Span.none(), String.from("v"), hdr_ty_ptr("int32"), false, true))
     var decls = List.new<TopDecl>()
-    decls.push(new_top_decl(no_span(), String.from("Point"), TopDeclKind.Struct(point_fields, true)))
-    decls.push(new_top_decl(no_span(), String.from("Secret"), TopDeclKind.Struct(secret_fields, false)))
-    return Module { crate: new_crate_id("cc"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
+    decls.push(TopDecl.new(Span.none(), String.from("Point"), TopDeclKind.Struct(point_fields, true)))
+    decls.push(TopDecl.new(Span.none(), String.from("Secret"), TopDeclKind.Struct(secret_fields, false)))
+    return Module { crate: CrateId.new("cc"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 }
 
 fun emit_src(): String {

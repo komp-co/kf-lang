@@ -5,11 +5,11 @@
 
 import alloc.list.*
 
-import kf_core.ast.Arm
-import kf_core.ast.Pattern
+import kf_core.ast.pattern.Arm
+import kf_core.ast.pattern.Pattern
 import kf_core.ast.types.Type
 import kf_core.span.*
-import kf_core.diagnostic.error_at
+import kf_core.diagnostic.Diagnostic
 import kf_typecheck.types.type_is_uninhabited
 
 /// In declaration order. Empty when exhaustive, when an arm is irrefutable,
@@ -75,7 +75,7 @@ pub fun report_non_exhaustive_when(subject_ty: Type, arms: &List<Arm>, span: Spa
         var scalar_msg = String.from("non-exhaustive `when`: `")
         scalar_msg = scalar_msg + subject_ty.scalar_frag()
         scalar_msg = scalar_msg + String.from("` has more values than arms can list — add a `_ =>` arm")
-        ctx.emit(error_at(span, scalar_msg))
+        ctx.emit(Diagnostic.error_at(span, scalar_msg))
         return
     }
     val missing = when_missing_variants(subject_ty, arms, ctx)
@@ -88,7 +88,7 @@ pub fun report_non_exhaustive_when(subject_ty: Type, arms: &List<Arm>, span: Spa
         msg = msg + String.from(" are not covered — add an arm for each")
     }
     msg = msg + String.from(", or `_ =>` to ignore the rest")
-    ctx.emit(error_at(span, msg))
+    ctx.emit(Diagnostic.error_at(span, msg))
 }
 
 /// Arms fully covered by an earlier unguarded arm.
@@ -103,7 +103,7 @@ pub fun report_covered_when_arms(arms: &List<Arm>, ctx: &var TypeCtx): void {
             if !earlier.arm_has_guard() {
                 val earlier_pattern = unsafe { &*earlier.pattern }
                 if earlier_pattern.pattern_covers_pattern(pattern) {
-                    ctx.emit(error_at(pattern.span, pattern.covered_arm_message()))
+                    ctx.emit(Diagnostic.error_at(pattern.span, pattern.covered_arm_message()))
                     break
                 }
             }

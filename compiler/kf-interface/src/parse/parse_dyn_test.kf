@@ -1,6 +1,6 @@
 import core.assert.assert_eq
 
-import kf_core.ast.new_crate_id
+import kf_core.intern.CrateId
 import kf_interface.interface_format_version
 import kf_interface.emit.emitted_dyn_interface
 import kf_interface.emit.dyn_type_to_source
@@ -63,7 +63,9 @@ fun valid_dyn_layout_json(): str {
 
 @test fun dyn_interface_round_trip_restores_vtable_owner(): void {
     val loaded = loaded_dyn_interface()
-    assert_eq(loaded.dyn_vtables.at(0).owner.raw, new_crate_id("sample").raw, "dynamic vtable ownership survives round trip")
+    assert_eq(
+        loaded.dyn_vtables.at(0).owner.raw, CrateId.new("sample").raw, "dynamic vtable ownership survives round trip"
+    )
 }
 
 @test fun dyn_interface_round_trip_attaches_to_anchor(): void {

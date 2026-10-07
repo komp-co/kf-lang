@@ -7,10 +7,10 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.intern
+import kf_core.intern.intern
+import kf_core.lang.lang_placeholder
+import kf_core.lang.LangItem
 import core.text.byte_at_in
-import kf_core.ast.lang_placeholder
-import kf_core.ast.lang_string_key
 
 pub fun raw_literal_body(src: str, from: uint32, to: uint32): String {
     var out = String.from("")
@@ -33,7 +33,7 @@ pub fun raw_literal_body(src: str, from: uint32, to: uint32): String {
 /// The receiver of an expansion's `from` and `of` calls: a placeholder the
 /// type checker replaces with the lang string.
 pub fun lang_string_token(sp: Span): Token {
-    return new_token(TokenKind.Identifier(lang_placeholder(lang_string_key())), sp)
+    return new_token(TokenKind.Identifier(lang_placeholder(LangItem.String)), sp)
 }
 
 impl Lexer {

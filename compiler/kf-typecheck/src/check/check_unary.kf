@@ -12,7 +12,7 @@ fun check_unary(op: UnaryOp, inner: &Expr, span: Span, ctx: &var TypeCtx): Type 
             return inner.ty
         }
         Not => {
-            val expected = Type.new_bool(no_span())
+            val expected = Type.new_bool(Span.none())
             if !inner.ty.type_eq(expected) { return Type.new_poison() }
             return inner.ty
         }

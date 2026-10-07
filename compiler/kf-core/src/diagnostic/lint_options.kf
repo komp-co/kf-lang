@@ -9,11 +9,11 @@ pub struct LintOptions {
     var values: List<int64>
 }
 
-pub fun no_lint_options(): LintOptions {
-    return LintOptions { names: List.new<String>(), values: List.new<int64>() }
-}
-
 impl LintOptions {
+    pub static fun none(): LintOptions {
+        return LintOptions { names: [], values: List.new<int64>() }
+    }
+
     pub mutating fun set(lint: str, key: str, value: int64): void {
         val name = "${lint}.${key}"
         while i in 0..self.names.size() {
@@ -32,6 +32,6 @@ impl LintOptions {
         while i in 0..self.names.size() {
             if self.names[i].as_str() == name.as_str() { return self.values[i] }
         }
-        return lookup_lint_option(lint, key)?.default ?: 0
+        return LintInfo.option_of(lint, key)?.default ?: 0
     }
 }

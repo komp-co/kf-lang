@@ -1,5 +1,5 @@
-import kf_core.ast.Sym
 import kf_core.ast.expression.Expr
+import kf_core.intern.Sym
 
 @derive(Clone)
 pub enum SwitchTag {
@@ -16,8 +16,6 @@ pub enum SwitchTag {
 }
 
 /// One arm of a Lower-desugared `Switch`.
-/// CONSTRAINT: in this file so its typedef is emitted before StmtKind's;
-/// cross-file typedef order follows file names.
 @derive(Clone)
 pub struct SwitchArm {
     pub val span: Span
@@ -42,10 +40,10 @@ impl SwitchArm {
         guard: Box<Expr>?,
         body: List<Stmt>
     ): Self {
-        return SwitchArm.new_guarded(span, tag, binders, guard, List.new<Stmt>(), body)
+        return SwitchArm.new_guarded(span, tag, binders, guard, [], body)
     }
 
-    pub static fun new_guarded(
+    internal static fun new_guarded(
         span: Span,
         tag: SwitchTag,
         binders: List<Sym>,
@@ -60,7 +58,7 @@ impl SwitchArm {
             guard: guard,
             guard_prelude: guard_prelude,
             body: body,
-            ref_binders: List.new<Sym>()
+            ref_binders: []
         }
     }
 

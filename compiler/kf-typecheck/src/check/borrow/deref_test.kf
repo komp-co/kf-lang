@@ -1,11 +1,11 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.intern
+import kf_core.span.Span
 import kf_core.ast.types.*
 import kf_core.ast.expression.*
 import kf_core.diagnostic.*
+import kf_core.intern.intern
 import kf_typecheck.check.check_expr
 import kf_typecheck.check.mk_ctx
 import kf_typecheck.types.type_eq
@@ -13,17 +13,17 @@ import testing.test
 
 mutating fun TypeCtx.invalid_deref_option_type(): Type {
     var args = List.new<TypeRef>()
-    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    args.push(TypeRef.new(Span.none(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
     val sigs = self.sigs
     unsafe { sigs.insert_inst(GenericInst { mangled: String.from("Option__int32"), base: String.from("Option"), args: args }) }
-    return Type { kind: TypeKind.Struct(intern("Option__int32")), provenance: Provenance.Inferred(no_span()) }
+    return Type { kind: TypeKind.Struct(intern("Option__int32")), provenance: Provenance.Inferred(Span.none()) }
 }
 
 fun deref_test_check_in(ty: Type, ctx: &var TypeCtx): Type {
     ctx.declare_val(String.from("value"), ty)
     val inner: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *inner = Expr.new(no_span(), ExprKind.Variable(intern("value"))) }
-    var expr = Expr.new(no_span(), ExprKind.Deref(inner))
+    unsafe { *inner = Expr.new(Span.none(), ExprKind.Variable(intern("value"))) }
+    var expr = Expr.new(Span.none(), ExprKind.Deref(inner))
     check_expr(&var expr, ctx)
     return expr.ty
 }
@@ -51,7 +51,7 @@ fun TypeCtx.invalid_deref_first_message(): String {
 }
 
 @test fun test_invalid_deref_struct_emits_one_diagnostic(): void {
-    val ty = Type { kind: TypeKind.Struct(intern("Widget")), provenance: Provenance.Inferred(no_span()) }
+    val ty = Type { kind: TypeKind.Struct(intern("Widget")), provenance: Provenance.Inferred(Span.none()) }
     val ctx = invalid_deref_check(ty)
     assert_eq(ctx.invalid_deref_count(), 1, "struct dereference is rejected")
 }
@@ -71,33 +71,33 @@ fun TypeCtx.invalid_deref_first_message(): String {
 
 @test fun test_valid_deref_pointer_returns_pointee(): void {
     var ctx = mk_ctx()
-    val result = deref_test_check_in(Type.new_ptr(Type.new_int32(no_span()), no_span()), &var ctx)
-    assert_eq(result.type_eq(Type.new_int32(no_span())), true, "raw-pointer dereference returns its pointee type")
+    val result = deref_test_check_in(Type.new_ptr(Type.new_int32(Span.none()), Span.none()), &var ctx)
+    assert_eq(result.type_eq(Type.new_int32(Span.none())), true, "raw-pointer dereference returns its pointee type")
 }
 
 // `&*p` and `&var *p` become references.
 
 fun int_ty(): Type {
-    return Type { kind: TypeKind.Int32, provenance: Provenance.Inferred(no_span()) }
+    return Type { kind: TypeKind.Int32, provenance: Provenance.Inferred(Span.none()) }
 }
 
 fun ptr_to_int(): Type {
     val p: Ptr<Type> = unsafe { alloc<Type>() }
     unsafe { *p = int_ty() }
-    return Type { kind: TypeKind.PtrTo(p), provenance: Provenance.Inferred(no_span()) }
+    return Type { kind: TypeKind.PtrTo(p), provenance: Provenance.Inferred(Span.none()) }
 }
 
-mutating fun Expr.borrow_written_deref_in(written: uint8): void {
+mutating fun Expr.borrow_written_deref_in(written: Coercion): void {
     var ctx = mk_ctx()
     self.borrow_written_deref(written, &var ctx)
 }
 
 fun checked_deref_of_p(): Expr {
-    var p = Expr.new(no_span(), ExprKind.Variable(intern("p")))
+    var p = Expr.new(Span.none(), ExprKind.Variable(intern("p")))
     p.ty = ptr_to_int()
     val pp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *pp = p }
-    var e = Expr.new(no_span(), ExprKind.Deref(pp))
+    var e = Expr.new(Span.none(), ExprKind.Deref(pp))
     e.ty = int_ty()
     return e
 }
@@ -111,7 +111,7 @@ fun Type.ref_mutability(): int32 {
 
 @test fun a_written_borrow_of_a_deref_is_the_pointer_as_a_reference(): void {
     var e = checked_deref_of_p()
-    e.borrow_written_deref_in(coerce_written_amp_var())
+    e.borrow_written_deref_in(Coercion.WrittenAmpVar)
     var is_p = false
     when (e.kind) {
         Variable(name) => { is_p = name.as_str() == "p" }
@@ -119,18 +119,18 @@ fun Type.ref_mutability(): int32 {
     }
     assert_eq(is_p, true, "the node is the pointer again")
     assert_eq(e.ty.ref_mutability(), 1, "typed `&var int32`, as written")
-    assert_eq(e.coerce, coerce_none(), "and needs no address taken")
+    assert_eq(e.coerce, Coercion.Identity, "and needs no address taken")
 }
 
 @test fun a_shared_borrow_stays_shared(): void {
     var e = checked_deref_of_p()
-    e.borrow_written_deref_in(coerce_written_amp())
+    e.borrow_written_deref_in(Coercion.WrittenAmp)
     assert_eq(e.ty.ref_mutability(), 0, "`&*p` is `&int32`")
 }
 
 @test fun a_plain_deref_is_left_alone(): void {
     var e = checked_deref_of_p()
-    e.borrow_written_deref_in(coerce_none())
+    e.borrow_written_deref_in(Coercion.Identity)
     var still_deref = false
     when (e.kind) {
         Deref(_) => { still_deref = true }

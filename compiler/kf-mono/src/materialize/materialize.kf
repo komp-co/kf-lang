@@ -6,7 +6,6 @@ import alloc.list.*
 import alloc.hash_map.*
 
 import kf_core.ast.*
-import kf_core.span.no_span
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
@@ -19,6 +18,9 @@ import kf_typecheck.types.subst_projections_module
 import kf_typecheck.check.decl.assoc_projection_registry
 import kf_core.ast.subst.monomorphized_type_name
 import kf_core.ast.subst.mangle_tyref
+import kf_core.intern.*
+import kf_core.lang.*
+import kf_core.names.GenericTwin
 
 /// A needed instantiation. `owner` is empty for a top-level template and
 /// names the receiver type for a generic method, which has no top-level name:
@@ -39,7 +41,7 @@ pub fun free_inst(base: String, args: List<TypeRef>): Inst {
 
 /// Owner-qualified, so `Terminal.draw` and a free `draw` stay distinct.
 fun Inst.inst_key(): String {
-    val mangled = monomorphized_type_name(String.from(self.base.as_str()), &self.args)
+    val mangled = monomorphized_type_name(String.from(self.base.as_str()), &self.args).display()
     if self.owner.as_str().equals("") { return mangled }
     var key = String.from(self.owner.as_str())
     key.append("_")
@@ -58,8 +60,8 @@ pub mutating fun Module.materialize_generics(): void {
     // impls the loop mints are caught by the module pass at the end.
     val proj_sigs = assoc_projection_registry(self)
     self.trait_impl_registry(proj_sigs)
-    val copy_name = self.lang_trait_name(lang_copy_key())
-    val array_name = self.lang_type_name(lang_array_key())
+    val copy_name = self.lang_trait_name(LangItem.Copy)
+    val array_name = self.lang_type_name(LangItem.Array)
     // Seeded from non-generic bodies only; templates are walked once cloned.
     while td in &self.decls {
         if td.generics.size() == 0 {
@@ -75,7 +77,7 @@ pub mutating fun Module.materialize_generics(): void {
     var w = 0
     while w < work.size() {
         val inst = *work.at(w)
-        val mangled_name = monomorphized_type_name(String.from(inst.base.as_str()), &inst.args)
+        val mangled_name = monomorphized_type_name(String.from(inst.base.as_str()), &inst.args).display()
         val key = inst.inst_key()
         val seen = done.contains(&key)
         // A method whose owner's impl blocks are not minted yet waits, once,
@@ -100,7 +102,7 @@ pub mutating fun Module.materialize_generics(): void {
                     if d.generics.size() > 0 { templates.add(d.name.as_string(), indexed) }
                     indexed = indexed + 1
                 }
-                val candidates = templates.positions(qualified_generic_name(inst.base.as_str()).as_str())
+                val candidates = templates.positions(GenericTwin.name_of(inst.base.as_str()).as_str())
                 while c in 0..candidates.size() {
                     val tmpl = *self.decls.at(candidates.get(c))
                     if tmpl.answers_to(inst.base.as_str()) {
@@ -145,9 +147,8 @@ pub mutating fun Module.materialize_generics(): void {
 /// Whether an instance of `base` is cloned from this template. A
 /// crate-qualified base names one crate's template only.
 fun TopDecl.answers_to(base: str): bool {
-    val crate = qualified_generic_crate(base)
-    if crate < 0 { return self.name.as_str().equals(base) }
-    return self.crate.raw as int64 == crate && self.name.as_str().equals(qualified_generic_name(base).as_str())
+    val crate = GenericTwin.crate_of(base) ?: return self.name.as_str().equals(base)
+    return self.crate.raw as int64 == crate && self.name.as_str().equals(GenericTwin.name_of(base).as_str())
 }
 
 /// A generic method has no top-level name, so `strip_templates` would leave
@@ -211,7 +212,7 @@ mutating fun TopDecl.keep_rebuilt_block_fields(): void {
     self.from_trait_impl = false
     self.dyn_layouts = List.new<DynTraitLayout>()
     self.dyn_vtables = List.new<DynVTableInstance>()
-    self.name_span = no_span()
+    self.name_span = Span.none()
     self.ext_name = intern("")
     self.resolves_in = intern("")
     self.is_sealed = false
@@ -285,7 +286,7 @@ fun Module.has_trait_impl_like(made: &TopDecl): bool {
 
 fun TopDecl.trait_ref_spelling(): String {
     return when (self.kind) {
-        TraitImpl(tref, _methods) => tref.mangle_tyref()
+        TraitImpl(tref, _methods) => tref.mangle_tyref().display()
         _ => String.from("")
     }
 }
@@ -377,7 +378,7 @@ mutating fun TopDecl.add_array_storage(args: &List<TypeRef>): void {
     when (self.kind) {
         Struct(fields, _is_pub) => {
             var with_storage = fields
-            with_storage.push(new_field(self.span, String.from("items"), Box.new(storage), true, false))
+            with_storage.push(Field.new(self.span, String.from("items"), Box.new(storage), true, false))
             self.kind = TopDeclKind.Struct(with_storage, _is_pub)
         }
         _ => { }

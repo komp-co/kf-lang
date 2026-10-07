@@ -2,7 +2,6 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
 import kf_core.ast.types.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
@@ -13,6 +12,9 @@ import kf_core.ast.statement.Stmt
 import kf_codegen.concat_all
 import kf_codegen.emit.*
 import kf_core.ast.subst.subst_stmt_list
+import kf_core.intern.*
+import kf_core.names.CName
+import kf_core.ast.expression.*
 import kf_codegen.emit.stmt.*
 
 // A method takes `self` by pointer so field stores persist; every `self` read
@@ -167,7 +169,7 @@ fun emit_params(params: &List<Param>): String {
         val p_ty = unsafe { *p_ty_ptr }
         val ty_c = p_ty.c_value_type()
         if i > 0 { parts.push(String.from(", ")) }
-        parts.push("${ty_c} ${c_local_name(p_name.as_str())}")
+        parts.push("${ty_c} ${CName.local(p_name.as_str())}")
     }
     return concat_all(parts)
 }
@@ -232,7 +234,7 @@ fun emit_method_params(struct_name: String, params: &List<Param>, is_static: boo
         first = false
         parts.push(emit_method_value_type(struct_name.clone(), p_ty))
         parts.push(String.from(" "))
-        parts.push(c_local_name(p.name.as_str()))
+        parts.push(CName.local(p.name.as_str()))
     }
     if first { parts.push(String.from("void")) }
     return concat_all(parts)
@@ -322,9 +324,8 @@ fun TypeRef.param_release(ct: String): String {
 fun TopDecl.extract_body(): List<Stmt> {
     when (self.kind) {
         Function(_p, _r, body, _pb, _u, _m, _s) => {
-            var names = List.new<String>()
-            var repls = List.new<TypeRef>()
-            return subst_stmt_list(&body, &var names, &var repls)
+            var subst = Substitution.new()
+            return subst_stmt_list(&body, &subst)
         }
         _ => return List.new<Stmt>()
     }

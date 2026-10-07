@@ -1,15 +1,15 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.intern
+import kf_core.span.Span
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.*
 import testing.test
+import kf_core.intern.intern
 
 fun method_named(name: str, generic: bool): TopDecl {
-    var m = new_top_decl(no_span(), String.from(name), TopDeclKind.Poison)
-    if generic { m.generics.push(TypeParam { span: no_span(), name: intern("U"), bounds: List.new<TypeRef>() }) }
+    var m = TopDecl.new(Span.none(), String.from(name), TopDeclKind.Poison)
+    if generic { m.generics.push(TypeParam { span: Span.none(), name: intern("U"), bounds: List.new<TypeRef>() }) }
     return m
 }
 
@@ -18,7 +18,7 @@ fun method_named(name: str, generic: bool): TopDecl {
     methods.push(method_named("map", true))
     methods.push(method_named("size", false))
     methods.push(method_named("fold", true))
-    var owner = new_top_decl(no_span(), String.from("Bag"), TopDeclKind.ImplBlock(methods))
+    var owner = TopDecl.new(Span.none(), String.from("Bag"), TopDeclKind.ImplBlock(methods))
     owner.drop_method_templates()
     val kept = when (owner.kind) {
         ImplBlock(ms) => if ms.size() == 1 { ms.at(0).name.as_string() } else { "" }

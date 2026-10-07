@@ -11,7 +11,6 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.intern
 import kf_core.ast.types.*
 import kf_core.ast.expression.*
 import kf_core.ast.declaration.*
@@ -21,7 +20,7 @@ import kf_typecheck.types.*
 import kf_typecheck.traits.register_assoc_bindings_decl
 import kf_typecheck.traits.register_struct
 import kf_typecheck.*
-import kf_core.ast.subst.clone_type_ref
+import kf_core.intern.intern
 import kf_typecheck.check.decl.register_type_identity
 import kf_typecheck.check.decl.register_sigs
 
@@ -102,8 +101,8 @@ fun annotated_params(params: &List<Param>, expected: &List<TypeRef>, span: Span)
         if !p.is_typed() {
             if i < expected.size() {
                 val slot: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-                unsafe { *slot = clone_type_ref(expected.at(i)) }
-                out.push(new_param(p.span, p.name.as_string(), slot))
+                unsafe { *slot = expected.at(i).clone() }
+                out.push(Param.new(p.span, p.name.as_string(), slot))
                 continue
             }
         }
@@ -146,7 +145,7 @@ fun capture_fields(captures: &List<LambdaCapture>, span: Span, ctx: &var TypeCtx
             }
             _ => unsafe { *ty_ptr = tref }
         }
-        fields.push(new_field(span, nm, ty_ptr, false, true))
+        fields.push(Field.new(span, nm, ty_ptr, false, true))
     }
     return fields
 }
@@ -160,8 +159,8 @@ fun capture_inits(captures: &List<LambdaCapture>, span: Span, ctx: &var TypeCtx)
         unsafe { *v = Expr.new(span, ExprKind.Variable(intern(nm.as_str()))) }
         unsafe { v.ty = ctx.lookup(nm.as_str()) }
         when (capture.mode) {
-            Shared => unsafe { v.coerce = coerce_addr_of() }
-            Mutable => unsafe { v.coerce = coerce_addr_of() }
+            Shared => unsafe { v.coerce = Coercion.AddrOf }
+            Mutable => unsafe { v.coerce = Coercion.AddrOf }
             _ => { }
         }
         inits.push(FieldInit.new(span, nm, v))
@@ -171,7 +170,7 @@ fun capture_inits(captures: &List<LambdaCapture>, span: Span, ctx: &var TypeCtx)
 
 /// A name neither parameter nor capture is undeclared, and says so.
 fun lambda_body_type(params: &List<Param>, captures: &List<LambdaCapture>, body: &List<Stmt>, span: Span, ctx: &var TypeCtx): Type {
-    var sink = new_diagnostics()
+    var sink = Diagnostics.new()
     // Poison, not void: the return type is what is being computed;
     // `validate_lambda_returns` judges early returns afterwards.
     var inner = new_type_ctx(Type.new_poison(), &var sink, ctx.table, ctx.sigs)
@@ -224,7 +223,7 @@ fun Stmt.validate_returns_stmt(value: &Type, span: Span, ctx: &var TypeCtx): boo
             if got.type_eq(unsafe { *value }) { return true }
             if ctx.fits(got, unsafe { *value }) { return true }
             val msg = "this `return` answers `${got.display_type(ctx)}`, but the lambda's value is `${value.display_type(ctx)}`"
-            ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+            ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
             return false
         }
         If(_c, then_body, else_body) => {
@@ -255,7 +254,7 @@ fun synth_lambda_decls(name: String, params: &List<Param>, fields: List<Field>, 
     val sigs = ctx.sigs
     val diags = ctx.diags
 
-    var lam = new_top_decl(span, name.clone(), TopDeclKind.Struct(fields, true))
+    var lam = TopDecl.new(span, name.clone(), TopDeclKind.Struct(fields, true))
     lam.crate = owner
     lam.module_path = modp
 
@@ -273,14 +272,14 @@ fun synth_lambda_decls(name: String, params: &List<Param>, fields: List<Field>, 
             body.push(lambda_body.at(bi).clone())
         }
     }
-    var call_fn = new_top_decl(span, String.from("call"), TopDeclKind.Function(params.clone(), ret_ptr, body, true, false, mutating_call, false))
+    var call_fn = TopDecl.new(span, String.from("call"), TopDeclKind.Function(params.clone(), ret_ptr, body, true, false, mutating_call, false))
     call_fn.crate = owner
     call_fn.module_path = modp
 
     // type Out = ret
     val out_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *out_ptr = ret_ref }
-    var out_decl = new_top_decl(span, String.from("Out"), TopDeclKind.AssocTypeBinding(out_ptr))
+    var out_decl = TopDecl.new(span, String.from("Out"), TopDeclKind.AssocTypeBinding(out_ptr))
     out_decl.crate = owner
     out_decl.module_path = modp
 
@@ -290,7 +289,7 @@ fun synth_lambda_decls(name: String, params: &List<Param>, fields: List<Field>, 
 
     val trait_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *trait_ptr = TypeRef.new(span, TypeRefKind.Named(intern(call_trait_name(params.size(), mutating_call).as_str()), param_type_refs(params))) }
-    var impl_decl = new_top_decl(span, name, TopDeclKind.TraitImpl(trait_ptr, methods))
+    var impl_decl = TopDecl.new(span, name, TopDeclKind.TraitImpl(trait_ptr, methods))
     impl_decl.crate = owner
     impl_decl.module_path = modp
 
@@ -307,7 +306,7 @@ fun synth_lambda_decls(name: String, params: &List<Param>, fields: List<Field>, 
 mutating fun TopDecl.register_lambda_struct(sigs: Ptr<SigTable>, diags: &var Diagnostics): void {
     when (self.kind) {
         Struct(fields, _is_pub) => {
-            var ctx0 = new_type_ctx(Type.new_void(no_span()), diags, Option.None, sigs)
+            var ctx0 = new_type_ctx(Type.new_void(Span.none()), diags, Option.None, sigs)
             ctx0.owner_crate = self.crate
             ctx0.owner_module = self.module_path
             ctx0.owner_file = self.span.file_id
@@ -340,5 +339,5 @@ fun param_type_refs(params: &List<Param>): List<TypeRef> {
 }
 
 fun emit_lambda_err(span: Span, msg: String, ctx: &var TypeCtx): void {
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
 }

@@ -1,0 +1,12 @@
+import alloc.list.*
+
+/// The words as the end of an "expected ..." message: `a`, `a or b`,
+/// `a, b or c`.
+pub fun alternatives(words: &List<String>): String {
+    var out = ""
+    while i in 0..words.size() {
+        if i > 0 { out.append(if i == words.size() - 1 { " or " } else { ", " }) }
+        out.append(words.at(i).as_str())
+    }
+    return out
+}

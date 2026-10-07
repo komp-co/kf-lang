@@ -3,15 +3,16 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
 import kf_core.span.Span
+import kf_core.intern.*
+import kf_core.ast.pattern.*
 import kf_typecheck.types.display_type
 
 /// The subject must implement `Iterable`, or it reaches cc as an undeclared
@@ -39,7 +40,7 @@ mutating fun Stmt.check_foreach(binder: Sym, subj_ptr: Ptr<Expr>, body: List<Stm
         val subject = subj.ty.iterable_subject_ty()
         val base = subject.ty_base_name()
         val sp = ctx.sigs
-        val iterable = ctx.lang_trait_name(lang_iterable_key()).as_str()
+        val iterable = ctx.lang_trait_name(LangItem.Iterable).as_str()
         if !unsafe { sp.type_implements_any(base.as_str(), iterable) } && !subject.bounded_by_iterable(ctx) {
             // Names the type as written: `&List<int32>`, not `List__int32`.
             var msg = String.from("type `")
@@ -47,7 +48,7 @@ mutating fun Stmt.check_foreach(binder: Sym, subj_ptr: Ptr<Expr>, body: List<Stm
             msg.append("` cannot be iterated: `while ")
             msg.append(binder.as_string().as_str())
             msg.append(" in ...` needs `impl Iterable` for it")
-            ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+            ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
             return
         }
     }
@@ -103,16 +104,16 @@ fun expand_foreach(binder: Sym, binder_at: Span, subj_ptr: Ptr<Expr>, body: List
     val let_opt = Stmt.new(span, StmtKind.LetVal(intern(optname.as_str()), null, next_call_ptr))
 
     var some_payloads = List.new<Pattern>()
-    some_payloads.push(new_pattern(if binder_at.is_none() { span } else { binder_at }, PatternKind.Identifier(binder)))
+    some_payloads.push(Pattern.new(if binder_at.is_none() { span } else { binder_at }, PatternKind.Identifier(binder)))
     val some_pat_box: Ptr<Pattern> = unsafe { alloc<Pattern>() }
-    unsafe { *some_pat_box = new_pattern(span, PatternKind.Variant(intern("Some"), some_payloads)) }
-    val some_arm = new_arm(span, some_pat_box, null, body)
+    unsafe { *some_pat_box = Pattern.new(span, PatternKind.Variant(intern("Some"), some_payloads)) }
+    val some_arm = Arm.new(span, some_pat_box, null, body)
 
     var none_body = List.new<Stmt>()
     none_body.push(Stmt.new(span, StmtKind.Break))
     val none_pat_box: Ptr<Pattern> = unsafe { alloc<Pattern>() }
-    unsafe { *none_pat_box = new_pattern(span, PatternKind.Variant(intern("None"), List.new<Pattern>())) }
-    val none_arm = new_arm(span, none_pat_box, null, none_body)
+    unsafe { *none_pat_box = Pattern.new(span, PatternKind.Variant(intern("None"), List.new<Pattern>())) }
+    val none_arm = Arm.new(span, none_pat_box, null, none_body)
 
     var arms = List.new<Arm>()
     arms.push(some_arm)

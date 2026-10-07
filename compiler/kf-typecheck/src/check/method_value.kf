@@ -4,13 +4,13 @@
 
 import alloc.list.*
 
-import kf_core.ast.Sym
-import kf_core.ast.intern
 import kf_core.ast.types.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_typecheck.types.resolve_type_ref
 import kf_typecheck.note_import_use
 
@@ -25,7 +25,7 @@ pub mutating fun Expr.name_method_value(receiver: &Expr, method: Sym, ctx: &var 
     if sig.generics.size() > 0 {
         val what = "`${type_name.as_str()}.${method.as_str()}`"
         val message = "generic method ${what} cannot be used as a value: a function value has one type"
-        ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+        ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
         self.ty = Type.new_poison()
         return true
     }

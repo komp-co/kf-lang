@@ -1,15 +1,14 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.intern
-import kf_core.ast.mangle_segments
-import kf_core.ast.value_from_frag
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_typecheck.types.*
 import kf_core.ast.subst.subst_tref_list
 import kf_core.ast.subst.monomorphized_type_name
+import kf_core.intern.intern
+import kf_core.names.Frag
 
 // A call's return type is synthesized from the callee's template, so it never
 // passes the written-type path that registers an instance. Registered here:
@@ -45,7 +44,7 @@ fun Type.register_returned_instance(span: Span, ctx: &var TypeCtx): void {
     if info.type_params.size() == 1 {
         frags.push(suffix)
     } else {
-        frags = mangle_segments(suffix.as_str())
+        frags = Frag.segments(suffix.as_str())
         if frags.size() != info.type_params.size() { return }
     }
     var args = List.new<TypeRef>()
@@ -65,7 +64,7 @@ fun Type.register_returned_instance(span: Span, ctx: &var TypeCtx): void {
 fun String.tref_from_frag(span: Span, ctx: &var TypeCtx): TypeRef {
     val function = ctx.fn_type_for(self.as_str())
     if function != null { return function!!.type_to_type_ref(span) }
-    val value = value_from_frag(self.as_str())
+    val value = Frag.value_of(self.as_str())
     if value != null { return TypeRef.new(span, TypeRefKind.Value(value ?: 0)) }
     val builtins = ["Ptr", "Box"]
     while builtin in &builtins {
@@ -90,7 +89,7 @@ fun String.tref_from_frag(span: Span, ctx: &var TypeCtx): TypeRef {
 /// itself, and an instance around it would claim arguments nobody supplied.
 fun String.frag_names_a_type(ctx: &var TypeCtx): bool {
     if ctx.fn_type_for(self.as_str()) != null { return true }
-    val t = ty_from_mangle_frag(self.clone(), no_span(), ctx.string_name())
+    val t = ty_from_mangle_frag(self.clone(), Span.none(), ctx.string_name())
     if t.kind.kind_tag() != TAG_STRUCT() { return true }
     val as_struct = unsafe { (*ctx.sigs).find_struct(self.as_str(), ctx.owner_crate) }
     if as_struct.is_some() { return true }
@@ -169,17 +168,16 @@ fun Type.register_substituted_return_row(post: &Type, binding: &RecvBinding, spa
     val sp = ctx.sigs
     if unsafe { sp.find_inst(post_name.as_str()) }.is_some() { return }
     val row = unsafe { sp.find_inst(pre_name.as_str()) } ?: return
-    var names = List.new<String>()
-    var repls = List.new<TypeRef>()
+    var subst = Substitution.new()
     var i = 0
     while i < binding.names.size() {
         val flat = mangle_type(*binding.types.at(i))
         if flat.as_str().byte_len() == 0 { return }
-        names.push(*binding.names.at(i))
-        repls.push(TypeRef.new(span, TypeRefKind.Named(intern(flat.as_str()), List.new<TypeRef>())))
+        val concrete = TypeRef.new(span, TypeRefKind.Named(intern(flat.as_str()), List.new<TypeRef>()))
+        subst.bind(*binding.names.at(i), concrete)
         i = i + 1
     }
-    val args = subst_tref_list(&row.args, &var names, &var repls)
+    val args = subst_tref_list(&row.args, &subst)
     // Only when the rebuilt name is exactly the substituted one.
     if !monomorphized_type_name(row.base.clone(), &args).as_str().equals(post_name.as_str()) { return }
     unsafe { sp.insert_inst(GenericInst { mangled: post_name.clone(), base: row.base.clone(), args: args }) }
@@ -230,6 +228,6 @@ fun mangled_name_is_ambiguous(name: str, ctx: &var TypeCtx): bool {
     val base_len = base.as_str().byte_len()
     val name_len = name.byte_len()
     if base_len + 2 >= name_len { return false }
-    val frags = mangle_segments(mangle_suffix(owned, base_len + 2).as_str())
+    val frags = Frag.segments(mangle_suffix(owned, base_len + 2).as_str())
     return frags.size() != info.type_params.size()
 }

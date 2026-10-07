@@ -1,21 +1,20 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.intern
+import kf_core.span.Span
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.Field
-import kf_core.ast.declaration.new_field
 import testing.test
+import kf_core.intern.intern
 
 fun named_ref(name: str): TypeRef {
-    return TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
+    return TypeRef.new(Span.none(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
 }
 
 fun storage_field(element: str, length: uint64): Field {
-    val storage = TypeRef.new(no_span(), TypeRefKind.Array(Box.new(named_ref(element)), length))
-    return new_field(no_span(), String.from("items"), Box.new(storage), true, false)
+    val storage = TypeRef.new(Span.none(), TypeRefKind.Array(Box.new(named_ref(element)), length))
+    return Field.new(Span.none(), String.from("items"), Box.new(storage), true, false)
 }
 
 @test
@@ -34,6 +33,6 @@ fun array_glue_runs_once_per_element(): void {
 
 @test
 fun a_plain_field_is_its_own_slot(): void {
-    val f = new_field(no_span(), String.from("x"), Box.new(named_ref("int32")), false, false)
+    val f = Field.new(Span.none(), String.from("x"), Box.new(named_ref("int32")), false, false)
     assert_eq(f.glue_slot().index.as_str(), "", "no element index")
 }

@@ -2,9 +2,9 @@
 // binding each payload of the variant, and `payload.of(a)` reading one.
 // `variant.build(|payload| e)` makes the variant, `e` written per payload.
 
+import kf_core.intern.intern
 import alloc.list.*
 
-import kf_core.ast.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 
@@ -50,9 +50,9 @@ fun Pattern.expanded_pattern(x: &var Expansion): Pattern {
         Identifier(name) => {
             if name.as_str().starts_with("..") {
                 x.report(self.span, String.from("`..name` stands alone between a variant's parentheses"))
-                return pattern_poison(self.span)
+                return Pattern.new_poison(self.span)
             }
-            return new_pattern(self.span, PatternKind.Identifier(x.built(name, self.span)))
+            return Pattern.new(self.span, PatternKind.Identifier(x.built(name, self.span)))
         }
         Variant(name, subs) => {
             val built = x.built(name, self.span)
@@ -64,21 +64,21 @@ fun Pattern.expanded_pattern(x: &var Expansion): Pattern {
             while sub in &subs {
                 out.push(sub.expanded_pattern(x))
             }
-            return new_pattern(self.span, PatternKind.Variant(built, out))
+            return Pattern.new(self.span, PatternKind.Variant(built, out))
         }
         StructPat(name, fields, pats) => {
             var out = List.new<Pattern>()
             while sub in &pats {
                 out.push(sub.expanded_pattern(x))
             }
-            return new_pattern(self.span, PatternKind.StructPat(x.built(name, self.span), fields.clone(), out))
+            return Pattern.new(self.span, PatternKind.StructPat(x.built(name, self.span), fields.clone(), out))
         }
         Or(alternatives) => {
             var out = List.new<Pattern>()
             while alternative in &alternatives {
                 out.push(alternative.expanded_pattern(x))
             }
-            return new_pattern(self.span, PatternKind.Or(out))
+            return Pattern.new(self.span, PatternKind.Or(out))
         }
         _ => return self.clone()
     }
@@ -101,16 +101,16 @@ fun Pattern.rest_pattern(name: Sym, binder: Sym, x: &var Expansion): Pattern {
     val variant = x.variant()
     if variant == null {
         x.report(self.span, "`..${binder.as_str()}` binds the payloads of the variant a member loop is on")
-        return pattern_poison(self.span)
+        return Pattern.new_poison(self.span)
     }
     x.rests.push(binder)
     val count = x.fields.at(variant ?: 0).payloads.size()
-    if count == 0 { return new_pattern(self.span, PatternKind.Identifier(name)) }
+    if count == 0 { return Pattern.new(self.span, PatternKind.Identifier(name)) }
     var subs = List.new<Pattern>()
     while i in 0..count {
-        subs.push(new_pattern(self.span, PatternKind.Identifier(rest_payload(binder, i))))
+        subs.push(Pattern.new(self.span, PatternKind.Identifier(rest_payload(binder, i))))
     }
-    return new_pattern(self.span, PatternKind.Variant(name, subs))
+    return Pattern.new(self.span, PatternKind.Variant(name, subs))
 }
 
 /// `payload.index` as a literal; null for any other member, reported.

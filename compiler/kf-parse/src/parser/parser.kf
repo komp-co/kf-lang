@@ -1,7 +1,7 @@
 import alloc.list.*
 import kf_core.span.*
-import kf_core.ast.Sym
-import kf_core.ast.intern
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_core.ast.declaration.MemberLoop
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
@@ -65,7 +65,7 @@ pub struct PendingTry {
 }
 
 pub fun new_parser(toks: List<Token>): Parser {
-    return Parser { toks: toks, pos: 0, no_struct_lit: false, cast_after_prefix: false, diags: List.new<Diagnostic>(), speculative: false, block_done: false, used_range: false, pending_try: List.new<PendingTry>(), try_ctr: 0, elv_ctr: 0, sc_ctr: 0, fn_ret: List.new<TypeRef>(), template_param: intern(""), template_members: intern(""), member_loop: null, loop_ctr: 0, eof: new_token(TokenKind.Eof, no_span()) }
+    return Parser { toks: toks, pos: 0, no_struct_lit: false, cast_after_prefix: false, diags: List.new<Diagnostic>(), speculative: false, block_done: false, used_range: false, pending_try: List.new<PendingTry>(), try_ctr: 0, elv_ctr: 0, sc_ctr: 0, fn_ret: List.new<TypeRef>(), template_param: intern(""), template_members: intern(""), member_loop: null, loop_ctr: 0, eof: new_token(TokenKind.Eof, Span.none()) }
 }
 
 /// For "found X" messages.
@@ -165,7 +165,7 @@ impl Parser {
             }
             KeywordTok(k) => {
                 val msg = "`${kw_str(k)}` is a keyword and cannot be used as a ${what} name"
-                self.diags.push(error_at(t.span, msg))
+                self.diags.push(Diagnostic.error_at(t.span, msg))
                 return String.from("_")
             }
             Op(_) => return self.name_err(t.span, what)
@@ -181,14 +181,14 @@ impl Parser {
 
     mutating fun name_err(span: Span, what: str): String {
         val msg = "expected a ${what} name here, found ${tok_str(self.peek())}"
-        self.diags.push(error_at(span, msg))
+        self.diags.push(Diagnostic.error_at(span, msg))
         return String.from("_")
     }
 
     /// Every caller recovers and continues.
     pub mutating fun parse_err(span: Span, msg: String): void {
         if self.speculative { return }
-        self.diags.push(error_at(span, msg))
+        self.diags.push(Diagnostic.error_at(span, msg))
     }
 
     /// Consumes `o` and returns true, or reports "expected `<o>` <ctx>" and

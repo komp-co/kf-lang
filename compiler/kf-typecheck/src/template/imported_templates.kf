@@ -4,10 +4,9 @@
 
 import alloc.list.*
 
-import kf_core.ast.CrateId
+import kf_core.intern.CrateId
 import kf_core.ast.Module
-import kf_core.ast.Sym
-import kf_core.ast.linkage_source
+import kf_core.intern.Sym
 import kf_core.ast.declaration.*
 
 /// The annotation a dependency's `template` belongs to: the public one of
@@ -73,13 +72,13 @@ fun Module.annotation_params(index: uint64): List<Sym> {
 /// if by hand, wherever the template was read from.
 fun TopDecl.adopted(crate: CrateId, module: Sym): TopDecl {
     var out = self.clone()
-    out.stamp_decl_owner(crate, module)
+    out.stamp_owner(crate, module)
     out.written_here()
     return out
 }
 
 mutating fun TopDecl.written_here(): void {
-    self.linkage = linkage_source()
+    self.linkage = Linkage.Source
     when (self.kind) {
         ImplBlock(methods) => self.kind = TopDeclKind.ImplBlock(methods_written_here(&methods))
         TraitImpl(trait_ref, methods) => {

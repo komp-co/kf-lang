@@ -16,6 +16,9 @@ import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
+import kf_core.ast.borrow.*
+import kf_core.ast.expression.*
+import kf_core.ast.types.*
 
 /// Keyed by the mangled `Type_method`: a name alone would conflate a mutating
 /// `append` on one type with a read-only one on another.
@@ -139,7 +142,7 @@ fun owning_origin(stmts: &List<Stmt>, at: uint64, origin: String, views: &List<S
 
 fun Stmt.emit_outlives_error(borrow: str, origin: str, diags: &var Diagnostics): void {
     val message = "`${origin}` cannot be changed here: `${borrow}` borrows it and is still used afterwards"
-    diags.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+    diags.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
 }
 
 /// `val view = text.as_str()` then `return view`: TypeCheck catches the
@@ -150,7 +153,7 @@ fun report_returned_borrow_of_local(stmts: &List<Stmt>, from: uint64, bound: str
     while i < stmts.size() {
         if (stmts.at(i)).stmt_returns(bound, views) {
             val message = "cannot return `${bound}`: it borrows `${origin}`, which this function owns and drops at the return"
-            diags.emit(new_diagnostic(Severity.Error, new_label(stmts.at(i).span, message)))
+            diags.emit(Diagnostic.new(Severity.Error, Label.new(stmts.at(i).span, message)))
             return
         }
         i = i + 1
@@ -166,7 +169,7 @@ fun name_in(names: &List<String>, name: str): bool {
 
 fun Stmt.emit_moved_error(borrow: str, origin: str, diags: &var Diagnostics): void {
     val message = "`${origin}` cannot be moved here: `${borrow}` borrows it and is still used afterwards"
-    diags.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+    diags.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
 }
 
 /// The local a `val`/`var` initializer borrows from, or "".

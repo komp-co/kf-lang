@@ -4,8 +4,8 @@
 import core.assert.assert_eq
 import kf_integration.harness.compile_project_separate
 import std.fs.scratch_path
-import kf_core.diagnostic.new_diagnostics
 import testing.test
+import kf_core.diagnostic.Diagnostics
 
 extern "C" fun system(cmd: str): int32
 
@@ -36,7 +36,7 @@ stlib = { path = "../kf_st_lib" }
 /// The supertrait's name is asserted, not just an error count.
 fun compile_supertrait_app(app_src: str): int32 {
     write_supertrait_fixtures(app_src)
-    var errors = new_diagnostics()
+    var errors = Diagnostics.new()
     val _outputs = compile_project_separate(scratch_path("kf_st_app"), errors)
     return errors.error_count()
 }

@@ -3,8 +3,8 @@
 // template's parameters with the receiver's arguments.
 
 import kf_core.span.*
-import kf_core.ast.mangle_segments
 import kf_core.ast.types.Type
+import kf_core.names.Frag
 import kf_typecheck.traits.str_list_has
 import kf_typecheck.check.mangle_base_name
 import kf_typecheck.check.mangle_suffix
@@ -72,7 +72,7 @@ pub fun recv_type_bindings(sname: String, span: Span, ctx: &var TypeCtx): RecvBi
                             types.push(recv_arg_from_frag(suffix, span, ctx))
                         } else {
                             // Otherwise split by segment, only when the counts agree.
-                            val segs = mangle_segments(suffix.as_str())
+                            val segs = Frag.segments(suffix.as_str())
                             if segs.size() == gi.type_params.size() {
                                 while s in 0..segs.size() {
                                     names.push(*gi.type_params.at(s))

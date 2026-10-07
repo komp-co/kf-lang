@@ -1,7 +1,6 @@
 // Consumed-move marking for the refcount pass.
 
 import alloc.list.*
-import kf_core.ast.Intrinsic
 import kf_core.ast.types.type_identity_display
 import kf_core.ast.expression.*
 import kf_lower.ownership.names_contains
@@ -43,7 +42,7 @@ fun mark_arg_if_consumed(ap: Ptr<Expr>, callee: String, idx: uint64, ctx: &var R
     when (a.kind) {
         Variable(n) => {
             if a.ty.is_move_only(ctx) {
-                if a.coerce != coerce_addr_of() {
+                if a.coerce != Coercion.AddrOf {
                     if arg_callee_keeps_ownership(ap, callee, idx, ctx) { return }
                     consume_var_site(ap, n.as_string(), ctx)
                 }
@@ -57,8 +56,8 @@ fun mark_arg_if_consumed(ap: Ptr<Expr>, callee: String, idx: uint64, ctx: &var R
 // borrow-sink param, or an extern. False for an unknown, uncoerced callee.
 fun arg_callee_keeps_ownership(ap: Ptr<Expr>, callee: String, idx: uint64, ctx: &var RcCtx): bool {
     val co = unsafe { ap.coerce }
-    if co == coerce_to_cstr() { return true }
-    if co == coerce_clone() { return true }
+    if co == Coercion.ToCStr { return true }
+    if co == Coercion.Clone { return true }
     if callee.as_str().equals("") { return false }
     val pl = param_lookup(unsafe { &*ctx.ptable }, callee, idx)
     if !pl.found { return false }
@@ -82,8 +81,8 @@ fun consume_var_site(ap: Ptr<Expr>, name: String, ctx: &var RcCtx): void {
     if kind == 2 {
         // An existing coercion is kept: a clone, or a read that consumes
         // nothing.
-        if unsafe { ap.coerce } == coerce_none() {
-            unsafe { ap.coerce = coerce_clone() }
+        if unsafe { ap.coerce } == Coercion.Identity {
+            unsafe { ap.coerce = Coercion.Clone }
         }
     }
 }
@@ -159,7 +158,7 @@ fun mark_lambda_capture_moved(ap: Ptr<Expr>, ctx: &var RcCtx): void {
     val capture = unsafe { *ap }
     when (capture.kind) {
         Variable(name) => {
-            if capture.coerce == coerce_addr_of() { return }
+            if capture.coerce == Coercion.AddrOf { return }
             if is_heap_ty_rc(capture.ty) { consume_var_site(ap, name.as_string(), ctx) }
         }
         _ => { }

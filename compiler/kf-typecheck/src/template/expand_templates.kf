@@ -6,14 +6,13 @@
 import alloc.list.*
 
 import kf_core.ast.Module
-import kf_core.ast.Sym
-import kf_core.ast.duplicate
-import kf_core.ast.declaration.MarkKind
+import kf_core.ast.annotation.MarkKind
 import kf_core.ast.declaration.TopDecl
 import kf_core.span.SourceMap
 import kf_core.diagnostic.*
 import kf_resolve.DeclTable
 import kf_resolve.should_register_decl
+import kf_core.intern.Sym
 
 /// A checked template and the annotation it belongs to, by index into the
 /// module's declarations.
@@ -78,8 +77,8 @@ fun Module.checked_templates(diags: &var List<Diagnostic>): List<TemplateAt> {
             val same_kind = self.decls.at(earlier.template).template_kind() == td.template_kind()
             if earlier.annotation == annotation && same_kind {
                 val kind = td.template_kind().word()
-                var diag = error_at(at, "`@${td.name.as_str()}` already has a template on `${kind}`")
-                diag.secondary.push(new_label(self.decls.at(earlier.template).decl_name_span(), "the first"))
+                var diag = Diagnostic.error_at(at, "`@${td.name.as_str()}` already has a template on `${kind}`")
+                diag.secondary.push(Label.new(self.decls.at(earlier.template).decl_name_span(), "the first"))
                 diags.push(diag)
                 duplicate = true
             }
@@ -102,19 +101,20 @@ fun Module.template_annotation(template: &TopDecl, diags: &var List<Diagnostic>)
     val name = template.name.as_str()
     val kind = template.template_kind()
     if kind != MarkKind.Struct && kind != MarkKind.Enum {
-        diags.push(error_at(at, "a template cannot add to `${kind.word()}`: it adds to a `struct` or an `enum`"))
+        val message = "a template cannot add to `${kind.word()}`: it adds to a `struct` or an `enum`"
+        diags.push(Diagnostic.error_at(at, message))
         return null
     }
     val found = self.own_annotation(template.name, template.module_path)
     if found == null {
-        diags.push(error_at(at, "no annotation `${name}` in this crate: a template belongs to one"))
+        diags.push(Diagnostic.error_at(at, "no annotation `${name}` in this crate: a template belongs to one"))
         return null
     }
     val index = found ?: return null
     if !self.decls.at(index).marks(kind) {
         val word = kind.word()
         val declare = "declare it `on ${word}` for a template on `${word}`"
-        diags.push(error_at(at, "`@${name}` does not mark ${word}s: ${declare}"))
+        diags.push(Diagnostic.error_at(at, "`@${name}` does not mark ${word}s: ${declare}"))
         return null
     }
     return index
@@ -171,7 +171,7 @@ fun TopDecl.body_is_expandable(diags: &var List<Diagnostic>): bool {
             while item in &body {
                 if item.is_template() || item.is_annotation() {
                     val message = "a template adds declarations beside a type, not annotations or templates"
-                    diags.push(error_at(item.decl_name_span(), message))
+                    diags.push(Diagnostic.error_at(item.decl_name_span(), message))
                     fits = false
                 }
             }

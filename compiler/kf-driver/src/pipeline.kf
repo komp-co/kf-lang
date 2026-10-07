@@ -5,6 +5,7 @@ import alloc.list.*
 import kf_core.span.*
 import kf_core.ast.*
 import kf_core.diagnostic.*
+import kf_core.lang.*
 
 import kf_resolve.*
 import kf_typecheck.typecheck_module_with_imports
@@ -12,7 +13,6 @@ import kf_mono.mono_module
 import kf_lower.*
 import kf_lower.ownership.borrow_liveness_module
 import kf_lower.ownership.borrow_exclusivity_module
-import kf_lower.ownership.check_generic_copies
 import kf_lower.ownership.check_generic_copies
 import kf_codegen.emit_module_kind
 import kf_codegen.emit_module_unit
@@ -29,7 +29,7 @@ extern "C" fun kf_set_local_root(path: str): void
 /// Filled by the assembler, read by the diagnostic renderer.
 /// Owned by the caller; the passes it is handed to borrow it.
 pub fun fresh_source_map(): Box<SourceMap> {
-    return Box.new(new_source_map())
+    return Box.new(SourceMap.new())
 }
 
 /// The whole pipeline, from a merged module to one C translation unit.
@@ -81,7 +81,7 @@ pub fun separate_passes(): MiddlePasses {
 pub mutating fun Module.run_middle_passes(mode: MiddlePasses, errors: &var Diagnostics, smap: Ptr<SourceMap>): bool {
     if errors.has_errors() { return false }
     if mode.qualify { qualify_type_symbols(self) }
-    val list_name = self.lang_type_name(lang_list_key())
+    val list_name = self.lang_type_name(LangItem.List)
     self.report_template_copies(errors, smap)
     mono_module(self)
     report_lower_diags(lower_module(self, smap, list_name), self, errors, smap)
@@ -93,9 +93,9 @@ pub mutating fun Module.run_middle_passes(mode: MiddlePasses, errors: &var Diagn
 
 // CONSTRAINT: before Mono, which replaces each template with its instances.
 fun Module.report_template_copies(errors: &var Diagnostics, smap: Ptr<SourceMap>): void {
-    var lints = new_diagnostics()
-    val clone_trait = self.lang_trait_name(lang_clone_key())
-    check_generic_copies(self, smap, clone_trait, self.lang_trait_name(lang_copy_key()), &var lints)
+    var lints = Diagnostics.new()
+    val clone_trait = self.lang_trait_name(LangItem.Clone)
+    check_generic_copies(self, smap, clone_trait, self.lang_trait_name(LangItem.Copy), &var lints)
     report_lower_diags(lints.items, self, errors, smap)
 }
 
@@ -156,7 +156,7 @@ pub mutating fun Module.checked_diagnostics(smap: Ptr<SourceMap>, cfg: &LintConf
     while d in &diags { out.push(d.clone()) }
     if count_errors(&out) > 0 { return out }
     alpha_rename_module(self)
-    var live = new_diagnostics()
+    var live = Diagnostics.new()
     borrow_liveness_module(self, &var live)
     borrow_exclusivity_module(self, &var live)
     while d in &live.items { out.push(d.clone()) }
@@ -202,7 +202,7 @@ pub fun Diagnostic.print_diag(smap: Ptr<SourceMap>): void {
         if unsafe { kf_warnings_are_muted() } != 0 { return }
         if self.warning_belongs_to_a_dependency(smap) { return }
     }
-    val text = render_colored(self, smap, color_enabled())
+    val text = self.render_colored(smap, color_enabled())
     runtime_println(text.as_str())
 }
 

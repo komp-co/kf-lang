@@ -1,0 +1,25 @@
+/// Interned crate identity. Zero means not yet stamped by Assemble.
+@derive(Copy)
+pub struct CrateId {
+    pub val raw: uint32
+}
+
+impl CrateId {
+    pub static fun new_poison(): CrateId {
+        return CrateId { raw: 0 }
+    }
+
+    pub static fun new(name: str): CrateId {
+        return CrateId { raw: intern(name).id }
+    }
+
+    pub fun is_poison(): bool {
+        return self.raw == 0
+    }
+}
+
+impl Equal for CrateId {
+    fun equals(other: &CrateId): bool {
+        return self.raw == other.raw
+    }
+}

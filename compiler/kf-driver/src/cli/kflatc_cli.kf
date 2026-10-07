@@ -19,7 +19,7 @@
 //
 // Exit 0 on success, 1 when the crate has errors, 2 on a malformed line.
 
-import kf_core.diagnostic.new_diagnostics
+import kf_core.diagnostic.Diagnostics
 import alloc.list.*
 import core.args.arg_at
 import core.args.arg_count
@@ -125,7 +125,7 @@ pub fun kflatc_cli(): int32 {
     if command == "check" {
         return if crate.check_against_interfaces(out, as_json, summary) == 0 { 0 } else { 1 }
     }
-    var errors = new_diagnostics()
+    var errors = Diagnostics.new()
     if with_tests {
         unsafe { kf_mute_warnings(1) }
         if !crate.write_test_sources(out, entry_file, &var errors) { return 1 }

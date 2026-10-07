@@ -4,25 +4,25 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.intern
-import kf_core.ast.new_crate_id
+import kf_core.span.Span
 import kf_core.ast.types.*
+import kf_core.intern.intern
+import kf_core.intern.CrateId
 import kf_typecheck.types.type_ref_is_poison
 import testing.test
 
 // A canonical identity `crate::module::Name` is not a C identifier and must
 // not be written back. Twin of kf-mono's ty_to_mangle_hides_canonical_identity.
 @test fun flat_ref_name_hides_canonical_identity(): void {
-    val identity = TypeIdentity.new(new_crate_id("kf_core"), intern("span"), intern("SourceMap"))
-    val n: String = ty_flat_ref_name(&named_struct_ty(identity, no_span()))
+    val identity = TypeIdentity.new(CrateId.new("kf_core"), intern("span"), intern("SourceMap"))
+    val n: String = ty_flat_ref_name(&Type.new_named_struct(identity, Span.none()))
     assert_eq(n.as_str(), "SourceMap", "the write-back name omits the semantic identity")
 }
 
 // `List__int32` cannot be written back flat; the guard survives stripping.
 @test fun flat_ref_name_declines_a_monomorphized_instance(): void {
-    val identity = TypeIdentity.new(new_crate_id("alloc"), intern("list"), intern("List__int32"))
-    val n: String = ty_flat_ref_name(&named_struct_ty(identity, no_span()))
+    val identity = TypeIdentity.new(CrateId.new("alloc"), intern("list"), intern("List__int32"))
+    val n: String = ty_flat_ref_name(&Type.new_named_struct(identity, Span.none()))
     assert_eq(n.as_str(), "", "a mono-suffixed instance is not writable flat")
 }
 
@@ -30,13 +30,13 @@ import testing.test
 // arg on the call was dropped.
 @test fun written_ref_spells_a_borrow_structurally(): void {
     val inner: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *inner = Type.new_int32(no_span()) }
-    val borrowed = Type { kind: TypeKind.RefTo(false, inner), provenance: Provenance.Inferred(no_span()) }
+    unsafe { *inner = Type.new_int32(Span.none()) }
+    val borrowed = Type { kind: TypeKind.RefTo(false, inner), provenance: Provenance.Inferred(Span.none()) }
 
     val flat: String = borrowed.ty_flat_ref_name()
     assert_eq(flat.as_str(), "", "a borrow still has no flat name")
 
-    val tr: TypeRef = borrowed.ty_written_ref(no_span(), unsafe { 0 as Ptr<SigTable> })
+    val tr: TypeRef = borrowed.ty_written_ref(Span.none(), unsafe { 0 as Ptr<SigTable> })
     assert_eq(tr.type_ref_is_poison(), false, "and is written back anyway")
     var is_reference = false
     when (tr.kind) {
@@ -49,10 +49,10 @@ import testing.test
 // `&T` and `&var T` stamp differently.
 @test fun written_ref_carries_mutability(): void {
     val inner: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *inner = Type.new_int32(no_span()) }
-    val mutable = Type { kind: TypeKind.RefTo(true, inner), provenance: Provenance.Inferred(no_span()) }
+    unsafe { *inner = Type.new_int32(Span.none()) }
+    val mutable = Type { kind: TypeKind.RefTo(true, inner), provenance: Provenance.Inferred(Span.none()) }
 
-    val tr: TypeRef = mutable.ty_written_ref(no_span(), unsafe { 0 as Ptr<SigTable> })
+    val tr: TypeRef = mutable.ty_written_ref(Span.none(), unsafe { 0 as Ptr<SigTable> })
     var saw_mutable = false
     when (tr.kind) {
         Reference(m, _inner) => saw_mutable = m
@@ -65,12 +65,12 @@ import testing.test
 @test fun written_ref_spells_an_instance_as_its_template(): void {
     var ctx = mk_ctx()
     var args = List.new<TypeRef>()
-    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    args.push(TypeRef.new(Span.none(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
     val inst = GenericInst { mangled: String.from("Wrap__int32"), base: String.from("Wrap"), args: args }
     unsafe { ctx.sigs.insert_inst(inst) }
-    val wrapped = Type { kind: TypeKind.Struct(intern("Wrap__int32")), provenance: Provenance.Inferred(no_span()) }
+    val wrapped = Type { kind: TypeKind.Struct(intern("Wrap__int32")), provenance: Provenance.Inferred(Span.none()) }
 
-    val tr: TypeRef = wrapped.ty_written_ref(no_span(), ctx.sigs)
+    val tr: TypeRef = wrapped.ty_written_ref(Span.none(), ctx.sigs)
     var spelled = ""
     var arity: uint64 = 0
     when (tr.kind) {
@@ -84,7 +84,7 @@ import testing.test
     assert_eq(arity, 1, "with its argument")
 
     val pair = TypeKind.Struct(intern("Pair__int32__bool"))
-    val unknown = Type { kind: pair, provenance: Provenance.Inferred(no_span()) }
-    val unspelled = (&unknown.ty_written_ref(no_span(), ctx.sigs)).type_ref_is_poison()
+    val unknown = Type { kind: pair, provenance: Provenance.Inferred(Span.none()) }
+    val unspelled = (&unknown.ty_written_ref(Span.none(), ctx.sigs)).type_ref_is_poison()
     assert_eq(unspelled, true, "an unregistered instance has no spelling")
 }

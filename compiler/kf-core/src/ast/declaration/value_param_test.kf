@@ -1,0 +1,35 @@
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.span.Span
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.TypeParam
+import testing.test
+import kf_core.intern.intern
+
+fun bounded(name: str, bound: str): TypeParam {
+    var tp = TypeParam.new(Span.none(), String.from(name))
+    tp.bounds.push(TypeRef.new(Span.none(), TypeRefKind.Named(intern(bound), [])))
+    return tp
+}
+
+@test
+fun an_integer_bound_makes_a_value_parameter(): void {
+    val n = bounded("N", "uint64")
+    assert_eq(n.value_type(&[]) != null, true, "`N: uint64`")
+}
+
+@test
+fun a_trait_bound_makes_a_type_parameter(): void {
+    val t = bounded("T", "Clone")
+    assert_eq(t.value_type(&[]) == null, true, "`T: Clone`")
+}
+
+@test
+fun a_sibling_bound_makes_a_value_parameter(): void {
+    var params = []
+    params.push(bounded("I", "Integer"))
+    params.push(bounded("M", "I"))
+    assert_eq(params.at(1).value_type(&params) != null, true, "`M: I`")
+}

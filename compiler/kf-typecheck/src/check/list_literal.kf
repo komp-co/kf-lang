@@ -5,13 +5,13 @@
 
 import alloc.list.*
 
-import kf_core.ast.Sym
-import kf_core.ast.empty_list_literal_receiver
-import kf_core.ast.intern
+import kf_core.ast.expression.empty_list_literal_receiver
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
-import kf_core.ast.expression.coerce_addr_of
-import kf_core.diagnostic.error_at
+import kf_core.ast.expression.Coercion
+import kf_core.diagnostic.Diagnostic
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_typecheck.types.nominal_name
 
 /// `[]` names the lang List, and is remembered as a literal.
@@ -22,7 +22,9 @@ mutating fun Expr.name_empty_list_literal(ctx: &var TypeCtx): void {
     }
     if !is_empty_literal { return }
     if ctx.list_name().as_str() == "" {
-        ctx.emit(error_at(self.span, "`[]` builds a `List`, and this crate has no `alloc` dependency to provide one"))
+        ctx.emit(Diagnostic.error_at(
+            self.span, "`[]` builds a `List`, and this crate has no `alloc` dependency to provide one"
+        ))
         *self = Expr.new_poison(self.span)
         return
     }
@@ -54,7 +56,7 @@ mutating fun Expr.lend_empty_list_literal(expected: &Type, ctx: &var TypeCtx): b
         _ => return false
     }
     if !self.apply_expected(expected.through_borrow(), ctx) { return false }
-    self.coerce = coerce_addr_of()
+    self.coerce = Coercion.AddrOf
     return true
 }
 

@@ -7,11 +7,11 @@
 
 import alloc.list.*
 
-import kf_core.ast.intern
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.expression.Expr
+import kf_core.intern.intern
 import kf_typecheck.types.bind_generic_from_param
 import kf_typecheck.types.open_call_pending
 import kf_typecheck.types.type_to_type_ref

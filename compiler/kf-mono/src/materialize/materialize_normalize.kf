@@ -3,17 +3,14 @@ import alloc.list.*
 import kf_core.ast.Module
 import kf_core.ast.NameIndex
 import kf_core.ast.decl_index
-import kf_core.ast.Sym
-import kf_core.ast.intern
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TopDeclKind
 import kf_core.ast.declaration.keep_flagged
-import kf_core.ast.declaration.new_top_decl
 import kf_core.ast.subst.mangle_tyref
-import kf_core.ast.dyn_meta.clone_dyn_layout_list
-import kf_core.ast.dyn_meta.clone_dyn_vtable_list
 
 /// Every TraitImpl becomes an ImplBlock and every TraitDecl is dropped.
 mutating fun Module.normalize_trait_impls(): void {
@@ -40,7 +37,7 @@ mutating fun Module.normalize_trait_impls(): void {
                     method.from_trait_impl = true
                     renamed.push(method)
                 }
-                var normalized = new_top_decl(td.span, td.name.as_string(), TopDeclKind.ImplBlock(renamed))
+                var normalized = TopDecl.new(td.span, td.name.as_string(), TopDeclKind.ImplBlock(renamed))
                 normalized.crate = td.crate
                 normalized.module_path = td.module_path
                 normalized.decl = td.decl
@@ -48,8 +45,8 @@ mutating fun Module.normalize_trait_impls(): void {
                 normalized.annotations = td.annotations.clone()
                 normalized.linkage = td.linkage
                 normalized.link_name = td.link_name
-                normalized.dyn_layouts = clone_dyn_layout_list(&td.dyn_layouts)
-                normalized.dyn_vtables = clone_dyn_vtable_list(&td.dyn_vtables)
+                normalized.dyn_layouts = td.dyn_layouts.clone()
+                normalized.dyn_vtables = td.dyn_vtables.clone()
                 normalized.decl_end = td.decl_end
                 normalized.resolves_in = td.resolves_in
                 val principal = tref.trait_ref_principal()
@@ -79,14 +76,12 @@ fun Module.append_default_trait_methods(index: &NameIndex, owner: &TopDecl, tref
 }
 
 fun append_missing_defaults(out: &var List<TopDecl>, owner: &TopDecl, trait_decl: &TopDecl, tref: &TypeRef, defaults: &List<TopDecl>, suffix: str): void {
-    var names = List.new<String>()
-    var replacements = List.new<TypeRef>()
-    names.push(String.from("Self"))
-    replacements.push(TypeRef.new(owner.span, TypeRefKind.Named(owner.name, List.new<TypeRef>())))
-    trait_decl.append_trait_arg_substitutions(tref, &var names, &var replacements)
+    var subst = Substitution.new()
+    subst.bind(String.from("Self"), TypeRef.new(owner.span, TypeRefKind.Named(owner.name, List.new<TypeRef>())))
+    trait_decl.append_trait_arg_substitutions(tref, &var subst)
     while method in &defaults {
         if method.default_method_has_body() && !method_list_has_name(out, method.name.as_str()) {
-            var concrete = clone_subst_method(method, &var names, &var replacements)
+            var concrete = clone_subst_method(method, &subst)
             concrete.crate = owner.crate
             concrete.module_path = owner.module_path
             concrete.from_trait_impl = true
@@ -96,13 +91,12 @@ fun append_missing_defaults(out: &var List<TopDecl>, owner: &TopDecl, trait_decl
     }
 }
 
-fun TopDecl.append_trait_arg_substitutions(tref: &TypeRef, names: &var List<String>, replacements: &var List<TypeRef>): void {
+fun TopDecl.append_trait_arg_substitutions(tref: &TypeRef, subst: &var Substitution): void {
     when (tref.kind) {
         Named(_name, args) => {
             var i = 0
             while i < self.generics.size() && i < args.size() {
-                names.push(self.generics.at(i).name.as_string())
-                replacements.push(*args.at(i))
+                subst.bind(self.generics.at(i).name.as_string(), *args.at(i))
                 i = i + 1
             }
         }

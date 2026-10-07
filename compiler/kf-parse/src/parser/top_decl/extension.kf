@@ -8,12 +8,11 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.extension_link_name
-import kf_core.ast.intern
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
-import kf_core.ast.subst.clone_type_ref
+import kf_core.intern.intern
+import kf_core.names.CName
 import kf_parse.parser.*
 
 fun TypeRef.type_ref_head_name(): String {
@@ -48,13 +47,13 @@ fun receiver_mentions(names: &List<String>, wanted: str): bool {
 fun TypeRef.receiver_param(is_mutating: bool): Param {
     val ty: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     if !is_mutating && self.receiver_is_copied() {
-        unsafe { *ty = clone_type_ref(self) }
+        unsafe { *ty = self.clone() }
     } else {
         val inner: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-        unsafe { *inner = clone_type_ref(self) }
+        unsafe { *inner = self.clone() }
         unsafe { *ty = TypeRef.new(self.span, TypeRefKind.Reference(is_mutating, inner)) }
     }
-    return new_param(self.span, String.from("self"), ty)
+    return Param.new(self.span, String.from("self"), ty)
 }
 
 fun TypeRef.receiver_is_copied(): bool {
@@ -127,7 +126,7 @@ impl Parser {
         val ret = self.parse_fun_ret(span)
         val body = self.parse_fun_body(ret)
         val kind = TopDeclKind.Function(params, ret, body, is_pub, false, false, false)
-        var td = new_top_decl(span, extension_link_name(name.as_str(), &receiver), kind)
+        var td = TopDecl.new(span, CName.extension_link(name.as_str(), &receiver), kind)
         td.name_span = name_at
         // The function's own parameters come first, so an explicit type
         // argument at a call site means one of them.

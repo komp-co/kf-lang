@@ -4,8 +4,8 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.intern
 import kf_core.diagnostic.*
+import kf_core.intern.intern
 import kf_typecheck.import_was_used
 import kf_typecheck.new_sig_table
 import testing.test
@@ -17,7 +17,7 @@ fun bounds_table(): Ptr<SigTable> {
 }
 
 fun declare_trait(sp: Ptr<SigTable>, name: str, module: str): void {
-    unsafe { sp.insert_trait(TraitInfo { name: String.from(name), identity: intern(name), module: intern(module), span: no_span(), type_params: List.new<String>(), methods: List.new<TraitMethodReq>(), assoc_types: List.new<TraitAssocReq>(), supertraits: List.new<SuperTraitReq>() }) }
+    unsafe { sp.insert_trait(TraitInfo { name: String.from(name), identity: intern(name), module: intern(module), span: Span.none(), type_params: List.new<String>(), methods: List.new<TraitMethodReq>(), assoc_types: List.new<TraitAssocReq>(), supertraits: List.new<SuperTraitReq>() }) }
 }
 
 fun bind(sp: Ptr<SigTable>, owner: str, param: str, trait_name: str, file: uint32): void {
@@ -26,7 +26,7 @@ fun bind(sp: Ptr<SigTable>, owner: str, param: str, trait_name: str, file: uint3
 
 fun declare_trait_with_params(sp: Ptr<SigTable>, name: str, params: List<String>): void {
     unsafe { sp.insert_trait(TraitInfo {
-        name: String.from(name), identity: intern(name), module: intern("core"), span: no_span(),
+        name: String.from(name), identity: intern(name), module: intern("core"), span: Span.none(),
         type_params: params, methods: List.new<TraitMethodReq>(),
         assoc_types: List.new<TraitAssocReq>(), supertraits: List.new<SuperTraitReq>()
     }) }

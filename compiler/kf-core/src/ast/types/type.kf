@@ -1,8 +1,8 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.Sym
-import kf_core.ast.intern
+import kf_core.intern.Sym
+import kf_core.intern.intern
 
 /// A resolved type with provenance, attached to an Expr after typecheck, as
 /// opposed to the syntactic `TypeRef`. Poison propagates silently through
@@ -79,7 +79,7 @@ pub struct FnParts {
 }
 
 impl Type {
-    pub static fun new(kind: TypeKind, provenance: Provenance): Self {
+    static fun new(kind: TypeKind, provenance: Provenance): Self {
         return Self { kind: kind, provenance: provenance }
     }
 
@@ -102,7 +102,7 @@ impl Type {
     }
 
     pub static fun new_poison(): Self {
-        val s = no_span()
+        val s = Span.none()
         return Type.new(TypeKind.Poison, Provenance.Synth(s, intern("error recovery")))
     }
 
@@ -163,7 +163,7 @@ impl Type {
     pub fun fn_parts(): FnParts? {
         return when (self.kind) {
             FnTy(signature) => {
-                var params = List.new<Type>()
+                var params = []
                 val source = unsafe { &*signature.params }
                 while i in 0..source.size() {
                     params.push(source.get(i))

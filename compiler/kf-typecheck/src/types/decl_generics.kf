@@ -1,8 +1,8 @@
 import alloc.list.*
 
-import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.TypeParam
+import kf_core.names.*
 
 pub fun type_param_names(tps: &List<TypeParam>): List<String> {
     var out = List.new<String>()
@@ -31,15 +31,15 @@ pub fun TypeRef.tref_name_key(): String {
         // different members would share a name.
         Projection(owner, member) => {
             val inner = (unsafe { &*owner }).tref_name_key()
-            return projection_mangle_frag(inner.as_str(), member.as_str())
+            return Frag.projection(inner.as_str(), member.as_str())
         }
         // `Call1<&T>` keys as `kf__ref__T`; otherwise it would key as "",
         // the same as no arguments.
         Reference(is_mut, inner) => {
-            return borrow_frag(is_mut, (unsafe { &*inner }).tref_name_key().as_str())
+            return Frag.borrow(is_mut, (unsafe { &*inner }).tref_name_key().as_str())
         }
         // `Make<T[2]>` keys its length as an instance name does.
-        Value(v) => return value_frag(v)
+        Value(v) => return Frag.value(v)
         _ => return ""
     }
 }
@@ -47,12 +47,12 @@ pub fun TypeRef.tref_name_key(): String {
 /// What a borrow key borrows, or "". The inverse of the `Reference` arm,
 /// both spelled through `c_names.kf`. `ref_key_is_mut` answers mutability.
 pub fun ref_key_inner(key: str): String {
-    return borrow_frag_inner(key)
+    return Frag.borrow_inner(key)
 }
 
 /// Only meaningful where `ref_key_inner` answered.
 pub fun ref_key_is_mut(key: str): bool {
-    return borrow_frag_is_mut(key)
+    return Frag.borrow_is_mut(key)
 }
 
 /// Positional, so an argument can be matched to its parameter.

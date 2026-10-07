@@ -1,0 +1,19 @@
+import core.assert.assert_eq
+import kf_core.intern.*
+import testing.test
+
+@test fun a_qualified_generic_names_its_crate(): void {
+    assert_eq(GenericTwin.qualify(CrateId { raw: 3 }, "max").as_str(), "kf__c3__max", "spelled")
+}
+
+@test fun a_qualified_generic_reads_back_its_crate(): void {
+    assert_eq(GenericTwin.crate_of("kf__c12__take_if_ext_T") ?: 0, 12 as int64, "crate")
+}
+
+@test fun a_qualified_generic_reads_back_its_name(): void {
+    assert_eq(GenericTwin.name_of("kf__c12__take_if_ext_T").as_str(), "take_if_ext_T", "name")
+}
+
+@test fun an_ordinary_name_has_no_crate(): void {
+    assert_eq(GenericTwin.crate_of("max").is_none(), true, "not qualified")
+}

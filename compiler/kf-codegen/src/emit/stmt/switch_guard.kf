@@ -7,11 +7,11 @@ import alloc.list.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.statement.SwitchArm
 import kf_core.ast.statement.SwitchTag
+import kf_core.names.CName
 
 import kf_codegen.concat_all
 import kf_codegen.emit.*
 import kf_codegen.emit.expr.emit_expr
-import kf_core.ast.c_local_name
 
 pub fun arms_have_guard(arms: &List<SwitchArm>): bool {
     while arm in &arms {
@@ -97,7 +97,7 @@ fun chain_binder_decls(a: &SwitchArm, through_ref: bool, by_address: bool): List
                 Variant(_) => binder_init(chain_binder_rhs(a.tag, through_ref, i), by_ref)
                 _ => whole_subject_read(by_ref, by_address)
             }
-            out.push("__auto_type ${c_local_name(b.as_str())} = ${init};")
+            out.push("__auto_type ${CName.local(b.as_str())} = ${init};")
         }
     }
     return out

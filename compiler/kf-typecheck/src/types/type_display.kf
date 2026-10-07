@@ -1,10 +1,8 @@
-import kf_core.ast.Sym
-import kf_core.ast.projection_mangle_display
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.type_identity_display
-import kf_core.ast.dyn_meta.dyn_trait_name
-import kf_core.ast.dyn_meta.dyn_trait_args
+import kf_core.intern.Sym
+import kf_core.names.MangledProjection
 import kf_typecheck.check.bound_shown
 
 /// A checked type as a KFlat programmer writes it. Generic instances recover
@@ -32,8 +30,8 @@ pub fun Type.display_type(ctx: &TypeCtx): String {
         TraitTy(name) => return name.display_named_type(ctx)
         DynTraitTy(_) => {
             var result = String.from("dyn ")
-            result.append(type_identity_display(dyn_trait_name(self)).as_str())
-            val args = dyn_trait_args(self)
+            result.append(type_identity_display(self.dyn_trait_name()).as_str())
+            val args = self.dyn_trait_args()
             if unsafe { args.size() } == 0 { return result }
             result.append("<")
             var i = 0
@@ -91,7 +89,7 @@ fun Sym.display_named_type(ctx: &TypeCtx): String {
         Some(inst) => inst.display_instance(ctx)
         // A deferred projection's bracketed spelling is internal; shown as
         // `Owner.Member`.
-        None => projection_mangle_display(type_identity_display(Sym { id: self.id }).as_str())
+        None => MangledProjection.display(type_identity_display(Sym { id: self.id }).as_str())
     }
 }
 

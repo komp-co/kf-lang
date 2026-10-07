@@ -6,14 +6,14 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.expression.FieldInit
 import kf_core.ast.declaration.Param
-import kf_core.ast.declaration.new_param
+import kf_core.intern.*
+import kf_core.ast.pattern.*
 
 fun TypeRef.expanded_type(x: &var Expansion): TypeRef {
     when (self.kind) {
@@ -318,7 +318,7 @@ fun expanded_params(params: &List<Param>, x: &var Expansion): List<Param> {
     while param in &params {
         val name = x.built(param.name, param.span)
         if !param.is_typed() {
-            out.push(new_param(param.span, name.as_string(), ptr_null<TypeRef>()))
+            out.push(Param.new(param.span, name.as_string(), ptr_null<TypeRef>()))
             continue
         }
         val ty = Box.new(param.ty.expanded_type(x))

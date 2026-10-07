@@ -24,8 +24,8 @@ fun Module.reject_duplicate_functions(diags: &var Diagnostics): void {
             when (seen.get(&key)) {
                 Some(first) => {
                     val message = td.duplicate_function_message(self.decls.at(*first))
-                    val lab = new_label(td.decl_name_span(), message)
-                    diags.emit(new_diagnostic(Severity.Error, lab))
+                    val lab = Label.new(td.decl_name_span(), message)
+                    diags.emit(Diagnostic.new(Severity.Error, lab))
                 }
                 None => seen.insert(key, i)
             }

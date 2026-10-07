@@ -4,11 +4,11 @@
 
 import alloc.list.*
 
-import kf_core.ast.Sym
 import kf_core.span.*
-import kf_core.diagnostic.error_at
+import kf_core.diagnostic.Diagnostic
 import kf_core.diagnostic.with_fix
 import kf_core.runtime.runtime_name_is_reserved
+import kf_core.intern.Sym
 import kf_typecheck.import_insert_at
 
 /// Taken in every generated translation unit, so no program declaration
@@ -26,12 +26,12 @@ pub fun report_unknown_callee(name: str, span: Span, ctx: &var TypeCtx): void {
     if home.as_str() == "" || span.is_none() {
         val private_home = sole_declaring_module(name, false, ctx)
         val why = if private_home.as_str() == "" { "" } else { ": it is private to `${private_home.as_str()}`" }
-        ctx.emit(error_at(span, "cannot find function `${name}` in this scope${why}"))
+        ctx.emit(Diagnostic.error_at(span, "cannot find function `${name}` in this scope${why}"))
         return
     }
     val path = "${home.as_str()}.${name}"
     val why = "`${home.as_str()}` declares it, and this file does not import it"
-    val diag = error_at(span, "cannot find function `${name}` in this scope: ${why.as_str()}")
+    val diag = Diagnostic.error_at(span, "cannot find function `${name}` in this scope: ${why.as_str()}")
     val fix_span = import_insert_span(span.file_id, ctx)
     ctx.emit(with_fix(diag, fix_span, import_text(path.as_str(), span.file_id, ctx), import_title(path.as_str())))
 }
@@ -41,7 +41,7 @@ pub fun report_unknown_callee(name: str, span: Span, ctx: &var TypeCtx): void {
 pub fun report_not_in_module(name: str, admission: Sym, private: bool, span: Span, ctx: &var TypeCtx): void {
     val alias = admission.as_str().substring(3, admission.as_str().byte_len())
     val why = if private { ": it is private" } else { "" }
-    ctx.emit(error_at(span, "module alias `${alias}` has no function `${name}`${why}"))
+    ctx.emit(Diagnostic.error_at(span, "module alias `${alias}` has no function `${name}`${why}"))
 }
 
 /// The one module declaring a function of that name and visibility; "" for
@@ -94,14 +94,16 @@ pub fun report_undeclared_variable(name: str, span: Span, ctx: &var TypeCtx): vo
         return
     }
     if name.reported_internal("value", span, ctx) { return }
-    ctx.emit(error_at(span, "cannot find value `${name}` in this scope"))
+    ctx.emit(Diagnostic.error_at(span, "cannot find value `${name}` in this scope"))
 }
 
 /// Another crate's `internal` declaration, named here: reported as such.
 fun str.reported_internal(what: str, span: Span, ctx: &var TypeCtx): bool {
     val home = ctx.sig_table().internal_home(self, ctx.owner_crate)
     if home.is_empty() { return false }
-    ctx.emit(error_at(span, "cannot find ${what} `${self}` in this scope: it is `internal` to crate `${home}`"))
+    ctx.emit(
+        Diagnostic.error_at(span, "cannot find ${what} `${self}` in this scope: it is `internal` to crate `${home}`")
+    )
     return true
 }
 
@@ -126,7 +128,7 @@ pub mutating fun TypeCtx.report_untyped_nulls(): void {
     while i < self.nulls_seen.size() {
         val span = self.nulls_seen.get(i)
         if !span_list_contains(&self.nulls_typed, span) {
-            self.emit(error_at(span, String.from("`null` has no type here — annotate the binding, or use it where an optional type is expected")))
+            self.emit(Diagnostic.error_at(span, String.from("`null` has no type here — annotate the binding, or use it where an optional type is expected")))
         }
         i = i + 1
     }
@@ -148,7 +150,7 @@ pub fun note_literal_sized(span: Span, ctx: &var TypeCtx): void {
 pub mutating fun TypeCtx.report_unsized_wide_literals(): void {
     while span in &self.wide_literals_seen {
         if !span_list_contains(&self.wide_literals_sized, span) {
-            self.emit(error_at(span, String.from("integer literal is out of range for `int32`")))
+            self.emit(Diagnostic.error_at(span, String.from("integer literal is out of range for `int32`")))
         }
     }
 }
@@ -200,7 +202,7 @@ pub mutating fun TypeCtx.report_open_calls(): void {
         if !span_list_contains(&self.open_typed, open.span) && span_list_contains(&self.list_literals, open.span) {
             val what = "cannot tell what `[]` holds"
             val repair = "annotate the binding (`val xs: List<int32> = []`), or push to it first"
-            self.emit(error_at(open.span, "${what} — ${repair}"))
+            self.emit(Diagnostic.error_at(open.span, "${what} — ${repair}"))
         } else if !span_list_contains(&self.open_typed, open.span) {
             var msg = String.from("cannot tell what `")
             msg.append(open.base.as_str())
@@ -211,7 +213,7 @@ pub mutating fun TypeCtx.report_open_calls(): void {
             msg.append(".")
             msg.append(open.method.as_str())
             msg.append("<...>()`), or annotate the binding")
-            self.emit(error_at(open.span, msg))
+            self.emit(Diagnostic.error_at(open.span, msg))
         }
         i = i + 1
     }

@@ -1,0 +1,97 @@
+import alloc.list.*
+
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+
+/// What each name stands for. Cloning an instance from its template, a name
+/// is a type parameter and its replacement the argument (`T` is `int32`);
+/// qualifying symbols, a name is a type's and its replacement the name it is
+/// emitted under. The first entry for a name wins.
+pub struct Substitution {
+    pub var names: List<String>
+    pub var replacements: List<TypeRef>
+}
+
+impl Substitution {
+    /// Nothing replaced: applying it copies a tree as it is.
+    pub static fun new(): Substitution {
+        return Substitution { names: [], replacements: [] }
+    }
+
+    /// `names[i]` stands for `replacements[i]`.
+    pub static fun of(names: List<String>, replacements: List<TypeRef>): Substitution {
+        return Substitution { names: names, replacements: replacements }
+    }
+
+    pub mutating fun bind(name: String, replacement: TypeRef): void {
+        self.names.push(name)
+        self.replacements.push(replacement)
+    }
+
+    pub fun size(): uint64 {
+        return self.names.size()
+    }
+
+    /// None for a name it does not replace.
+    pub fun replacement_of(name: str): TypeRef? {
+        while i in 0..self.names.size() {
+            if self.names.at(i).as_str() == name && i < self.replacements.size() {
+                return self.replacements.at(i).clone()
+            }
+        }
+        return null
+    }
+
+    /// `name` is one of its names whole, not a compound containing one.
+    fun binds(name: str): bool {
+        while bound in &self.names {
+            if bound.as_str() == name { return true }
+        }
+        return false
+    }
+
+    /// Some one of `segments` is one of its names.
+    fun binds_one_of(segments: &List<String>): bool {
+        if self.names.is_empty() { return false }
+        while segment in &segments {
+            if self.binds(segment.as_str()) { return true }
+        }
+        return false
+    }
+
+    /// The mangled replacement of `segment`, or the segment itself when it
+    /// is not one of its names.
+    fun spelling_of(segment: str): String {
+        val replacement = self.replacement_of(segment) ?: return String.from(segment)
+        return replacement.mangle_tyref().display()
+    }
+
+    /// `mangled` is a replacement's spelling, or ends in one as whole
+    /// segments.
+    fun spells_end_of(mangled: str): bool {
+        while replacement in &self.replacements {
+            val spelled = replacement.mangle_tyref()
+            if mangled == spelled.as_str() || mangled.ends_with("__${spelled}") { return true }
+        }
+        return false
+    }
+
+    /// The same names, each borrow read through to what it borrows. For a
+    /// parameter in owner position: impls are registered on `int32`, not
+    /// `&int32`.
+    fun through_borrows(): Substitution {
+        var replacements = []
+        while replacement in &self.replacements {
+            replacements.push(through_borrow(replacement))
+        }
+        return Substitution { names: self.names.clone(), replacements: replacements }
+    }
+}
+
+fun through_borrow(written: TypeRef): TypeRef {
+    when (written.kind) {
+        Reference(_mutable, inner) => { return through_borrow(unsafe { *inner }) }
+        _ => { }
+    }
+    return written
+}

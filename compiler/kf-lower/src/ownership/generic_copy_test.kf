@@ -1,18 +1,18 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.Sym
-import kf_core.ast.intern
+import kf_core.span.Span
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
 import testing.test
+import kf_core.intern.Sym
+import kf_core.intern.intern
 
 fun param_bounded(name: str, bound: str): TypeParam {
-    var tp = new_type_param(no_span(), String.from(name))
-    tp.bounds.push(TypeRef.new(no_span(), TypeRefKind.Named(intern(bound), List.new<TypeRef>())))
+    var tp = TypeParam.new(Span.none(), String.from(name))
+    tp.bounds.push(TypeRef.new(Span.none(), TypeRefKind.Named(intern(bound), List.new<TypeRef>())))
     return tp
 }
 
@@ -21,7 +21,7 @@ fun no_supers(): TemplateBounds {
 }
 
 fun empty_fn(name: str): TopDecl {
-    return new_top_decl(no_span(), String.from(name),
+    return TopDecl.new(Span.none(), String.from(name),
         TopDeclKind.Function(List.new<Param>(), void_ret(), List.new<Stmt>(), true, false, false, false))
 }
 
@@ -57,7 +57,7 @@ fun a_supertrait_bounds_the_parameter(): void {
 @test
 fun a_generic_function_is_a_template(): void {
     var f = empty_fn("pick")
-    f.generics.push(new_type_param(no_span(), String.from("T")))
+    f.generics.push(TypeParam.new(Span.none(), String.from("T")))
     assert_eq(decl_is_template(&f), true, "it has a type parameter")
 }
 
@@ -69,9 +69,9 @@ fun a_plain_function_is_not_a_template(): void {
 @test
 fun an_impl_with_a_generic_method_is_a_template(): void {
     var method = empty_fn("map")
-    method.generics.push(new_type_param(no_span(), String.from("F")))
+    method.generics.push(TypeParam.new(Span.none(), String.from("F")))
     var methods = List.new<TopDecl>()
     methods.push(method)
-    val block = new_top_decl(no_span(), String.from("Bag"), TopDeclKind.ImplBlock(methods))
+    val block = TopDecl.new(Span.none(), String.from("Bag"), TopDeclKind.ImplBlock(methods))
     assert_eq(decl_is_template(&block), true, "one generic method is enough")
 }

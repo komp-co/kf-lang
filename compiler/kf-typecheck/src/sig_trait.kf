@@ -1,14 +1,13 @@
 import alloc.list.*
 import alloc.hash_map.*
 
-import kf_core.ast.CrateId
-import kf_core.ast.Sym
-import kf_core.ast.intern
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeIdentity
 import kf_core.ast.types.TypeRef
-import kf_core.span.no_span
-import kf_core.ast.subst.clone_type_ref
+import kf_core.span.Span
+import kf_core.intern.CrateId
+import kf_core.intern.Sym
+import kf_core.intern.intern
 
 /// The trait fields are optional filters: an empty `trait_name` means any
 /// trait, as an unqualified projection asks; a name narrows to one
@@ -210,10 +209,10 @@ impl SigTable {
     pub fun lookup_assoc_binding_tref_in(type_name: str, trait_name: str, trait_args: str, assoc_name: str): TypeRef {
         while ab in &self.assoc_bindings {
             if ab.assoc_binding_matches(type_name, assoc_name, trait_name, trait_args) {
-                return clone_type_ref(&ab.chosen_tref)
+                return ab.chosen_tref.clone()
             }
         }
-        return TypeRef.new_poison(no_span())
+        return TypeRef.new_poison(Span.none())
     }
 
     pub mutating fun insert_method_link(link: MethodLink): void {

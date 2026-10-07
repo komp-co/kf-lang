@@ -5,7 +5,7 @@
 
 import alloc.list.*
 
-import kf_core.span.no_span
+import kf_core.span.Span
 
 /// Each once, in first-reached order, never the starting trait. An
 /// unregistered trait requires nothing; name resolution reports it.
@@ -77,7 +77,7 @@ pub fun SigTable.supertrait_closure_reqs(name: str, args: str): List<SuperTraitR
         qi = qi + 1
         if hname.as_str() == name { continue }
         if super_req_listed(&found, hname.as_str(), hargs.as_str()) { continue }
-        found.push(SuperTraitReq { name: String.from(hname.as_str()), args: String.from(hargs.as_str()), span: no_span() })
+        found.push(SuperTraitReq { name: String.from(hname.as_str()), args: String.from(hargs.as_str()), span: Span.none() })
         self.push_super_reqs(hname.as_str(), hargs.as_str(), &var qname, &var qargs)
     }
     return found

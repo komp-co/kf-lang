@@ -6,11 +6,12 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
 import kf_core.ast.expression.Expr
-import kf_core.ast.expression.coerce_none
+import kf_core.ast.expression.Coercion
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.SwitchArm
+import kf_core.ast.pattern.*
+import kf_core.ast.expression.*
 
 fun Stmt.stmt_returns(name: str, views: &List<String>): bool {
     when (self.kind) {
@@ -114,7 +115,7 @@ fun Expr.arg_is_moved_origin(origin: str, callee: String, idx: uint64, ptable: P
         }
         _ => return false
     }
-    if self.coerce != coerce_none() { return false }
+    if self.coerce != Coercion.Identity { return false }
     val pl = param_lookup(unsafe { &*ptable }, callee, idx)
     if !pl.found { return false }
     return !pl.is_borrow_sink
@@ -124,7 +125,7 @@ fun Stmt.stmt_disturbs(origin: str, muts: &List<MutatingMethod>): bool {
     when (self.kind) {
         Assign(name, _rhs) => return name.as_str() == origin
         AssignTo(place, _rhs) => {
-            val root = expr_borrow_root(unsafe { &*place })
+            val root = (unsafe { &*place }).borrow_root()
             return root.as_str() == origin
         }
         Expression(e) => return expr_mutates(unsafe { &*e }, origin, muts)
@@ -145,7 +146,7 @@ fun Expr.expr_mutates(origin: str, muts: &List<MutatingMethod>): bool {
     when (self.kind) {
         MethodCall(receiver, method, args) => {
             val recv = unsafe { *receiver }
-            if expr_borrow_root(&recv).as_str() == origin {
+            if recv.borrow_root().as_str() == origin {
                 if recv.ty.is_mutating_method(method.as_str(), muts) { return true }
             }
             if recv.expr_mutates(origin, muts) { return true }

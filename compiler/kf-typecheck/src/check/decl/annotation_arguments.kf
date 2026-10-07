@@ -3,12 +3,12 @@
 
 import alloc.list.*
 
-import kf_core.ast.CrateId
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
-import kf_core.ast.declaration.Annotation
+import kf_core.ast.annotation.Annotation
 import kf_core.ast.declaration.Param
 import kf_core.diagnostic.*
+import kf_core.intern.CrateId
 import kf_typecheck.*
 import kf_typecheck.types.display_type_ref
 
@@ -71,7 +71,7 @@ pub fun check_annotation_params(params: &List<Param>, table: &SigTable, crate: C
             Unsupported => {
                 val allowed = "a number, `bool`, `char`, `str`, `String` or an enum whose variants carry nothing"
                 val message = "annotation parameter `${param.name.as_str()}` must be ${allowed}"
-                diags.push(new_diagnostic(Severity.Error, new_label(param.span, message)))
+                diags.push(Diagnostic.new(Severity.Error, Label.new(param.span, message)))
             }
             _ => {
                 val written = param.default
@@ -80,7 +80,7 @@ pub fun check_annotation_params(params: &List<Param>, table: &SigTable, crate: C
                     if !value.fits_param(kind, &*param.ty, table, crate) {
                         val wanted = "a literal of type `${(*param.ty).display_type_ref().as_str()}`"
                         val message = "the default of `${param.name.as_str()}` must be ${wanted}"
-                        diags.push(new_diagnostic(Severity.Error, new_label(value.span, message)))
+                        diags.push(Diagnostic.new(Severity.Error, Label.new(value.span, message)))
                     }
                 }
             }
@@ -105,11 +105,11 @@ pub fun Annotation.arguments_in_order(params: &List<Param>, table: &SigTable, cr
         val at = arg.value.span
         if arg.name.as_str().equals("") {
             if named_seen {
-                diags.push(error_at(at, "a positional argument of `@${kind}` cannot follow a named one"))
+                diags.push(Diagnostic.error_at(at, "a positional argument of `@${kind}` cannot follow a named one"))
                 ok = false
             } else if slots.size() >= params.size() {
                 val counts = "takes ${params.size()}, found ${self.args.size()}"
-                diags.push(error_at(at, "too many arguments to `@${kind}`: it ${counts}"))
+                diags.push(Diagnostic.error_at(at, "too many arguments to `@${kind}`: it ${counts}"))
                 ok = false
             } else {
                 slots.push(slots.size())
@@ -119,10 +119,10 @@ pub fun Annotation.arguments_in_order(params: &List<Param>, table: &SigTable, cr
         named_seen = true
         val index = params.position_of(arg.name.as_str())
         if index >= params.size() {
-            diags.push(error_at(at, "`@${kind}` has no parameter `${arg.name.as_str()}`"))
+            diags.push(Diagnostic.error_at(at, "`@${kind}` has no parameter `${arg.name.as_str()}`"))
             ok = false
         } else if slots.contains(&index) {
-            diags.push(error_at(at, "`${arg.name.as_str()}` is given twice to `@${kind}`"))
+            diags.push(Diagnostic.error_at(at, "`${arg.name.as_str()}` is given twice to `@${kind}`"))
             ok = false
         } else {
             slots.push(index)
@@ -149,7 +149,7 @@ fun Annotation.values_for(slots: &List<uint64>, params: &List<Param>, table: &Si
                 values.push((*filled).clone())
                 continue
             }
-            diags.push(error_at(self.span, "`@${kind}` is missing `${param.name.as_str()}`"))
+            diags.push(Diagnostic.error_at(self.span, "`@${kind}` is missing `${param.name.as_str()}`"))
             ok = false
             continue
         }
@@ -157,7 +157,7 @@ fun Annotation.values_for(slots: &List<uint64>, params: &List<Param>, table: &Si
         val value = &*self.args.at(at).value
         if !value.fits_param((*param.ty).param_kind(table, crate), &*param.ty, table, crate) {
             val wanted = "a literal of type `${(*param.ty).display_type_ref().as_str()}`"
-            diags.push(error_at(value.span, "`${param.name.as_str()}` of `@${kind}` must be ${wanted}"))
+            diags.push(Diagnostic.error_at(value.span, "`${param.name.as_str()}` of `@${kind}` must be ${wanted}"))
             ok = false
             continue
         }

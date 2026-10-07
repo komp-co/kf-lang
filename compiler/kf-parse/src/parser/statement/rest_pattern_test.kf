@@ -1,8 +1,8 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.ast.Arm
-import kf_core.ast.Pattern
+import kf_core.ast.pattern.Arm
+import kf_core.ast.pattern.Pattern
 import kf_core.ast.declaration.TopDecl
 import kf_parse.parser.parser_for
 import testing.test

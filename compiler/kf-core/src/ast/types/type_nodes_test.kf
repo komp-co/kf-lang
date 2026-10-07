@@ -1,12 +1,12 @@
 import core.assert.assert_eq
-import kf_core.span.no_span
 import testing.test
+import kf_core.span.Span
 
 @test
 fun a_type_built_inside_a_typing_lives_in_its_nodes(): void {
     val nodes = TypingNodes.new()
     val previous = nodes.enter()
-    val _p = Type.new_ptr(Type.new_int32(no_span()), no_span())
+    val _p = Type.new_ptr(Type.new_int32(Span.none()), Span.none())
     restore_type_nodes(previous)
     assert_eq(nodes.size(), 1 as uint64, "the pointee")
 }
@@ -15,7 +15,7 @@ fun a_type_built_inside_a_typing_lives_in_its_nodes(): void {
 fun a_function_type_puts_its_signature_list_and_result(): void {
     val nodes = TypingNodes.new()
     val previous = nodes.enter()
-    val _f = Type.new_fn(List.new<Type>(), Type.new_void(no_span()), Provenance.Inferred(no_span()))
+    val _f = Type.new_fn([], Type.new_void(Span.none()), Provenance.Inferred(Span.none()))
     restore_type_nodes(previous)
     assert_eq(nodes.size(), 3 as uint64, "signature, parameter list and result")
 }
@@ -27,13 +27,13 @@ fun a_type_built_after_restoring_goes_to_the_previous_nodes(): void {
     val inner = TypingNodes.new()
     val previous = inner.enter()
     restore_type_nodes(previous)
-    val _p = Type.new_ptr(Type.new_bool(no_span()), no_span())
+    val _p = Type.new_ptr(Type.new_bool(Span.none()), Span.none())
     restore_type_nodes(before)
     assert_eq(outer.size(), 1 as uint64, "the outer typing's")
 }
 
 @test
 fun types_built_outside_any_typing_still_have_a_home(): void {
-    val p = Type.new_ptr(Type.new_char(no_span()), no_span())
+    val p = Type.new_ptr(Type.new_char(Span.none()), Span.none())
     assert_eq(p.is_poison(), false, "built without a typing")
 }

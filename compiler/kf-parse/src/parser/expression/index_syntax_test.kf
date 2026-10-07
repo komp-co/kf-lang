@@ -3,7 +3,7 @@ import alloc.list.*
 
 import kf_core.ast.expression.Expr
 import kf_core.ast.statement.Stmt
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_parse.parser.parser_for
 import testing.test
 
@@ -29,7 +29,7 @@ fun index_accessor(src: str): String {
         Function(_ps, _r, b, _p, _u, _mu, _st) => { body = b }
         _ => return ""
     }
-    var subscript = Expr.new_poison(no_span())
+    var subscript = Expr.new_poison(Span.none())
     when (body.at(0).kind) {
         AssignTo(place, _rhs) => { subscript = unsafe { *place } }
         Return(value) => {

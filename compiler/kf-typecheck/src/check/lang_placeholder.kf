@@ -1,13 +1,13 @@
 // The lexer names the lang string through a placeholder, since it runs
 // before any library is loaded.
 
-import kf_core.ast.Sym
-import kf_core.ast.intern
-import kf_core.ast.lang_option_key
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
+import kf_core.lang.LangItem
 
 /// Replaced in place with the real name. Without a lang string it becomes
 /// poison, reported once per `${...}` slot at its `of` call. Answers the
@@ -22,11 +22,11 @@ pub fun receiver_naming_lang_types(recv_ptr: Ptr<Expr>, method_name: &String, ct
     if key.as_str().equals("") { return recv.written_receiver() }
     var name = ctx.string_name()
     // `T?` and postfix `?` name the option type by key too.
-    if key.as_str().equals(lang_option_key()) { name = ctx.option_name() }
+    if key.as_str().equals(LangItem.Option.key()) { name = ctx.option_name() }
     if name.as_str().equals("") {
         if method_name.as_str().equals("of") {
             val message = "string interpolation builds an owned string, which needs `alloc`: add it to the dependencies"
-            ctx.emit(new_diagnostic(Severity.Error, new_label(recv.span, message)))
+            ctx.emit(Diagnostic.new(Severity.Error, Label.new(recv.span, message)))
         }
         unsafe { (*recv_ptr).kind = ExprKind.Poison }
         return intern("")

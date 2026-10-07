@@ -1,21 +1,20 @@
+import kf_core.intern.intern
 import alloc.list.*
 import core.assert.assert_eq
 
-import kf_core.span.no_span
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.declaration.*
-import kf_core.ast.annotation.argument_source
 import kf_core.ast.statement.Stmt
 import kf_interface.emit.emit_interface
 import testing.test
 
 fun named_type(name: str): Ptr<TypeRef> {
     val out: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *out = TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
+    unsafe { *out = TypeRef.new(Span.none(), TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
     return out
 }
 
@@ -23,17 +22,17 @@ fun named_type(name: str): Ptr<TypeRef> {
 /// back.
 fun loaded_connect_params(): List<Param> {
     var params = List.new<Param>()
-    params.push(new_param(no_span(), String.from("host"), named_type("str")))
-    var port = new_param(no_span(), String.from("port"), named_type("int32"))
-    port.default = Box.new(Expr.new(no_span(), ExprKind.LitInt(80)))
+    params.push(Param.new(Span.none(), String.from("host"), named_type("str")))
+    var port = Param.new(Span.none(), String.from("port"), named_type("int32"))
+    port.default = Box.new(Expr.new(Span.none(), ExprKind.LitInt(80)))
     params.push(port)
-    var connect = new_top_decl(no_span(), String.from("connect"),
+    var connect = TopDecl.new(Span.none(), String.from("connect"),
         TopDeclKind.Function(params, named_type("int32"), List.new<Stmt>(), true, false, false, false))
-    connect.crate = new_crate_id("sample")
+    connect.crate = CrateId.new("sample")
     connect.module_path = intern("sample")
     var decls = List.new<TopDecl>()
     decls.push(connect)
-    val crate = new_crate_id("sample")
+    val crate = CrateId.new("sample")
     val m = Module { crate: crate, path: List.new<String>(), decls: decls, imports: List.new<Import>() }
     val loaded = parse_interface(m.emit_interface(String.from("sample"), &List.new<String>()).as_str())
     val module = *loaded.modules.at(0)

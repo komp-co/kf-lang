@@ -1,7 +1,7 @@
 import core.assert.*
 import alloc.list.*
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
@@ -10,36 +10,38 @@ import kf_core.ast.declaration.Variant
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import testing.test
+import kf_core.intern.*
+import kf_core.ast.pattern.*
 
 fun mk_some_x_arm(): Arm {
-    val inner = new_pattern(no_span(), PatternKind.Identifier(intern("x")))
+    val inner = Pattern.new(Span.none(), PatternKind.Identifier(intern("x")))
     var payloads = List.new<Pattern>()
     payloads.push(inner)
-    val some_pat = new_pattern(no_span(), PatternKind.Variant(intern("Some"), payloads))
+    val some_pat = Pattern.new(Span.none(), PatternKind.Variant(intern("Some"), payloads))
     val sp: Ptr<Pattern> = unsafe { alloc<Pattern>() }
     unsafe { *sp = some_pat }
     var body = List.new<Stmt>()
-    body.push(Stmt.new(no_span(), StmtKind.Return(bare_op())))
-    return new_arm(no_span(), sp, null, body)
+    body.push(Stmt.new(Span.none(), StmtKind.Return(bare_op())))
+    return Arm.new(Span.none(), sp, null, body)
 }
 
 fun mk_none_arm(): Arm {
-    val none_pat = new_pattern(no_span(), PatternKind.Variant(intern("None"), List.new<Pattern>()))
+    val none_pat = Pattern.new(Span.none(), PatternKind.Variant(intern("None"), List.new<Pattern>()))
     val np: Ptr<Pattern> = unsafe { alloc<Pattern>() }
     unsafe { *np = none_pat }
     var body = List.new<Stmt>()
-    body.push(Stmt.new(no_span(), StmtKind.Return(bare_op())))
-    return new_arm(no_span(), np, null, body)
+    body.push(Stmt.new(Span.none(), StmtKind.Return(bare_op())))
+    return Arm.new(Span.none(), np, null, body)
 }
 
 @test fun desugar_when_to_switch(): void {
     var arms = List.new<Arm>()
     arms.push(mk_some_x_arm())
     arms.push(mk_none_arm())
-    val subj = Expr.new(no_span(), ExprKind.Variable(intern("opt")))
+    val subj = Expr.new(Span.none(), ExprKind.Variable(intern("opt")))
     val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *sp = subj }
-    var rewritten = Stmt.new(no_span(), StmtKind.When(sp, arms))
+    var rewritten = Stmt.new(Span.none(), StmtKind.When(sp, arms))
     rewritten.desugar_stmt()
     when (rewritten.kind) {
         Switch(_, switch_arms) => {
@@ -60,19 +62,19 @@ fun mk_none_arm(): Arm {
 }
 
 @test fun desugar_when_wildcard_arm(): void {
-    val wild = new_pattern(no_span(), PatternKind.Wildcard)
+    val wild = Pattern.new(Span.none(), PatternKind.Wildcard)
     val wp: Ptr<Pattern> = unsafe { alloc<Pattern>() }
     unsafe { *wp = wild }
     var body = List.new<Stmt>()
-    body.push(Stmt.new(no_span(), StmtKind.Return(bare_op())))
-    val arm = new_arm(no_span(), wp, null, body)
+    body.push(Stmt.new(Span.none(), StmtKind.Return(bare_op())))
+    val arm = Arm.new(Span.none(), wp, null, body)
     var arms = List.new<Arm>()
     arms.push(arm)
 
-    val subj = Expr.new(no_span(), ExprKind.LitBool(true))
+    val subj = Expr.new(Span.none(), ExprKind.LitBool(true))
     val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *sp = subj }
-    var rewritten = Stmt.new(no_span(), StmtKind.When(sp, arms))
+    var rewritten = Stmt.new(Span.none(), StmtKind.When(sp, arms))
     rewritten.desugar_stmt()
     when (rewritten.kind) {
         Switch(_, switch_arms) => {
@@ -92,7 +94,7 @@ fun mk_none_arm(): Arm {
 
 @test fun desugar_module_empty_clean(): void {
     var m = Module {
-        crate: crate_id_poison(),
+        crate: CrateId.new_poison(),
         path: List.new<String>(),
         decls: List.new<TopDecl>(),
         imports: List.new<Import>()
@@ -103,7 +105,7 @@ fun mk_none_arm(): Arm {
 
 // A literal pattern is a scalar tag, not `default:`.
 @test fun an_integer_pattern_lowers_to_a_scalar_tag(): void {
-    val tag = (new_pattern(no_span(), PatternKind.LitInt(7))).pattern_to_tag()
+    val tag = (Pattern.new(Span.none(), PatternKind.LitInt(7))).pattern_to_tag()
     when (tag) {
         IntLit(n) => assert_eq(n, 7, "the literal carries through to the case constant")
         Variant(_) => fail("expected IntLit, got Variant")
@@ -114,7 +116,7 @@ fun mk_none_arm(): Arm {
 }
 
 @test fun a_true_pattern_lowers_to_one(): void {
-    val tag = (new_pattern(no_span(), PatternKind.LitBool(true))).pattern_to_tag()
+    val tag = (Pattern.new(Span.none(), PatternKind.LitBool(true))).pattern_to_tag()
     when (tag) {
         IntLit(n) => assert_eq(n, 1, "C compares a bool as an integer")
         Variant(_) => fail("expected IntLit, got Variant")
@@ -125,7 +127,7 @@ fun mk_none_arm(): Arm {
 }
 
 @test fun a_false_pattern_lowers_to_zero(): void {
-    val tag = (new_pattern(no_span(), PatternKind.LitBool(false))).pattern_to_tag()
+    val tag = (Pattern.new(Span.none(), PatternKind.LitBool(false))).pattern_to_tag()
     when (tag) {
         IntLit(n) => assert_eq(n, 0, "`false` is case 0")
         Variant(_) => fail("expected IntLit, got Variant")
@@ -140,7 +142,7 @@ fun bare_op(): Box<Expr>? {
 }
 
 @test fun a_range_pattern_lowers_to_a_range_tag(): void {
-    val tag = (new_pattern(no_span(), PatternKind.Range(0, 31, false))).pattern_to_tag()
+    val tag = (Pattern.new(Span.none(), PatternKind.Range(0, 31, false))).pattern_to_tag()
     when (tag) {
         Range(low, high) => assert_eq(high - low, 31, "both bounds carry through, inclusive")
         IntLit(_) => fail("expected Range, got IntLit")
@@ -152,9 +154,9 @@ fun bare_op(): Box<Expr>? {
 
 @test fun a_catch_all_alternative_lowers_to_a_wildcard(): void {
     var alternatives = List.new<Pattern>()
-    alternatives.push(new_pattern(no_span(), PatternKind.LitInt(1)))
-    alternatives.push(new_pattern(no_span(), PatternKind.Wildcard))
-    val tag = (new_pattern(no_span(), PatternKind.Or(alternatives))).pattern_to_tag()
+    alternatives.push(Pattern.new(Span.none(), PatternKind.LitInt(1)))
+    alternatives.push(Pattern.new(Span.none(), PatternKind.Wildcard))
+    val tag = (Pattern.new(Span.none(), PatternKind.Or(alternatives))).pattern_to_tag()
     when (tag) {
         Wildcard => assert_eq(true, true, "`1 | _` matches anything")
         IntLit(_) => fail("expected Wildcard, got IntLit")
@@ -166,9 +168,9 @@ fun bare_op(): Box<Expr>? {
 
 @test fun alternatives_lower_to_one_label_each(): void {
     var alternatives = List.new<Pattern>()
-    alternatives.push(new_pattern(no_span(), PatternKind.LitInt(1)))
-    alternatives.push(new_pattern(no_span(), PatternKind.LitInt(2)))
-    val tag = (new_pattern(no_span(), PatternKind.Or(alternatives))).pattern_to_tag()
+    alternatives.push(Pattern.new(Span.none(), PatternKind.LitInt(1)))
+    alternatives.push(Pattern.new(Span.none(), PatternKind.LitInt(2)))
+    val tag = (Pattern.new(Span.none(), PatternKind.Or(alternatives))).pattern_to_tag()
     when (tag) {
         Alternatives(tags) => assert_eq(tags.size(), 2, "one tag per alternative")
         IntLit(_) => fail("expected Alternatives, got IntLit")

@@ -2,10 +2,10 @@
 // reads them by position, so a call short of one stops here.
 
 import kf_core.span.*
-import kf_core.ast.Intrinsic
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
-import kf_core.diagnostic.error_at
+import kf_core.diagnostic.Diagnostic
+import kf_core.lang.Intrinsic
 import kf_typecheck.types.resolve_type_ref
 
 /// Reports a call with `found` arguments when that is not the arity; true
@@ -13,7 +13,9 @@ import kf_typecheck.types.resolve_type_ref
 fun Intrinsic.report_arity(found: uint64, span: Span, ctx: &var TypeCtx): bool {
     val wanted = self.arity()
     if wanted < 0 || found == wanted as uint64 { return false }
-    ctx.emit(error_at(span, "wrong number of arguments to `${self.name()}`: expected ${wanted}, found ${found}"))
+    ctx.emit(
+        Diagnostic.error_at(span, "wrong number of arguments to `${self.name()}`: expected ${wanted}, found ${found}")
+    )
     return true
 }
 
@@ -21,6 +23,6 @@ fun Intrinsic.report_arity(found: uint64, span: Span, ctx: &var TypeCtx): bool {
 /// names none or several.
 fun Intrinsic.type_argument(type_args: &List<TypeRef>, span: Span, ctx: &var TypeCtx): Type {
     if type_args.size() == 1 { return (*type_args.at(0)).resolve_type_ref(ctx) }
-    ctx.emit(error_at(span, "`${self.name()}` takes one type argument, found ${type_args.size()}"))
+    ctx.emit(Diagnostic.error_at(span, "`${self.name()}` takes one type argument, found ${type_args.size()}"))
     return Type.new_poison()
 }

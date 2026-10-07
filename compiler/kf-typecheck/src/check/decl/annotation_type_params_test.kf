@@ -1,27 +1,27 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.intern
+import kf_core.span.Span
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
 import kf_core.diagnostic.Diagnostics
 import testing.test
+import kf_core.intern.intern
 
 fun slot_ref(name: str): TypeRef {
-    return TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
+    return TypeRef.new(Span.none(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
 }
 
 fun mutable_slot_ref(name: str): TypeRef {
-    return TypeRef.new(no_span(), TypeRefKind.Reference(true, Box.new(slot_ref(name))))
+    return TypeRef.new(Span.none(), TypeRefKind.Reference(true, Box.new(slot_ref(name))))
 }
 
 /// `annotation NAME on (params) -> ret`.
 fun targeted(params: List<TypeRef>, ret: TypeRef): TopDecl {
-    val function = TypeRef.new(no_span(), TypeRefKind.Function(params, Box.new(ret)))
+    val function = TypeRef.new(Span.none(), TypeRefKind.Function(params, Box.new(ret)))
     val kind = TopDeclKind.AnnotationDecl(List.new<Param>(), MarkTarget.Function(Box.new(function)), true)
-    return new_top_decl(no_span(), String.from("handler"), kind)
+    return TopDecl.new(Span.none(), String.from("handler"), kind)
 }
 
 fun implicit_params(td: TopDecl): String {
@@ -62,7 +62,7 @@ fun implicit_params(td: TopDecl): String {
     var params = List.new<TypeRef>()
     params.push(slot_ref("T"))
     var td = targeted(params, slot_ref("T"))
-    td.generics.push(new_type_param(no_span(), String.from("T")))
+    td.generics.push(TypeParam.new(Span.none(), String.from("T")))
     assert_eq(implicit_params(td).as_str(), "T", "the declared one")
 }
 
@@ -79,6 +79,6 @@ fun uses_of(slot: TypeRef, name: str): String {
 @test fun a_type_argument_is_a_nested_use(): void {
     var args = List.new<TypeRef>()
     args.push(slot_ref("T"))
-    val listed = TypeRef.new(no_span(), TypeRefKind.Named(intern("List"), args))
+    val listed = TypeRef.new(Span.none(), TypeRefKind.Named(intern("List"), args))
     assert_eq(uses_of(listed, "T").as_str(), "0/1", "inside `List<T>`")
 }

@@ -1,13 +1,15 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.expression.FieldInit
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import kf_core.intern.*
+import kf_core.lang.*
+import kf_core.ast.pattern.*
 import kf_parse.parser.*
 
 impl Parser {
@@ -275,9 +277,9 @@ impl Parser {
         val bsym = intern(binder.as_str())
 
         var some_payloads = List.new<Pattern>()
-        some_payloads.push(new_pattern(recv_span, PatternKind.Identifier(bsym)))
+        some_payloads.push(Pattern.new(recv_span, PatternKind.Identifier(bsym)))
         val some_pat: Ptr<Pattern> = unsafe { alloc<Pattern>() }
-        unsafe { *some_pat = new_pattern(recv_span, PatternKind.Variant(intern("Some"), some_payloads)) }
+        unsafe { *some_pat = Pattern.new(recv_span, PatternKind.Variant(intern("Some"), some_payloads)) }
 
         var member = self.parse_member_access(Expr.new(recv_span, ExprKind.Variable(bsym)))
         member.is_safe_call_value = true
@@ -288,15 +290,15 @@ impl Parser {
         some_body.push(Stmt.new(full, StmtKind.Expression(mptr)))
 
         val none_pat: Ptr<Pattern> = unsafe { alloc<Pattern>() }
-        unsafe { *none_pat = new_pattern(full, PatternKind.Variant(intern("None"), List.new<Pattern>())) }
+        unsafe { *none_pat = Pattern.new(full, PatternKind.Variant(intern("None"), List.new<Pattern>())) }
         val nullp: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *nullp = Expr.new(full, ExprKind.Variable(intern("null"))) }
         var none_body = List.new<Stmt>()
         none_body.push(Stmt.new(full, StmtKind.Expression(nullp)))
 
         var arms = List.new<Arm>()
-        arms.push(new_arm(full, some_pat, null, some_body))
-        arms.push(new_arm(full, none_pat, null, none_body))
+        arms.push(Arm.new(full, some_pat, null, some_body))
+        arms.push(Arm.new(full, none_pat, null, none_body))
 
         val subj: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *subj = recv }

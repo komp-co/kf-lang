@@ -6,12 +6,13 @@
 
 import alloc.list.*
 
-import kf_core.ast.Sym
+import kf_core.intern.Sym
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import kf_core.intern.intern
 
 fun expand_stmts(stmts: &List<Stmt>, x: &var Expansion): List<Stmt> {
     var out = List.new<Stmt>()

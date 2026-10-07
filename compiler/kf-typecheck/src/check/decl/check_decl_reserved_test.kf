@@ -3,17 +3,19 @@ import alloc.list.*
 import kf_core.ast.*
 import kf_core.ast.declaration.*
 import kf_resolve.new_decl_table
-import kf_core.span.no_span
+import kf_core.span.Span
+import kf_core.intern.CrateId
+import kf_core.lang.lang_annotation
 import kf_typecheck.typecheck_module
 import testing.test
 
 // `Box` and `Ptr` win in every annotation, so declaring either is refused.
 fun diags_for_type_named(name: str, kind: TopDeclKind): uint64 {
-    var declaration = new_top_decl(no_span(), String.from(name), kind)
-    declaration.crate = new_crate_id("application")
+    var declaration = TopDecl.new(Span.none(), String.from(name), kind)
+    declaration.crate = CrateId.new("application")
     var declarations = List.new<TopDecl>()
     declarations.push(declaration)
-    var module = Module { crate: new_crate_id("application"), path: List.new<String>(), decls: declarations, imports: List.new<Import>() }
+    var module = Module { crate: CrateId.new("application"), path: List.new<String>(), decls: declarations, imports: List.new<Import>() }
     var table = new_decl_table()
     return module.typecheck_module(&var table).size()
 }
@@ -38,11 +40,11 @@ fun an_enum_cannot_be_named_box(): void {
 
 /// The first message, to tell which rule fired.
 fun message_for_type_named(name: str, kind: TopDeclKind): String {
-    var declaration = new_top_decl(no_span(), String.from(name), kind)
-    declaration.crate = new_crate_id("application")
+    var declaration = TopDecl.new(Span.none(), String.from(name), kind)
+    declaration.crate = CrateId.new("application")
     var declarations = List.new<TopDecl>()
     declarations.push(declaration)
-    var module = Module { crate: new_crate_id("application"), path: List.new<String>(), decls: declarations, imports: List.new<Import>() }
+    var module = Module { crate: CrateId.new("application"), path: List.new<String>(), decls: declarations, imports: List.new<Import>() }
     var table = new_decl_table()
     val diagnostics = module.typecheck_module(&var table)
     if diagnostics.size() == 0 { return String.from("") }
@@ -61,15 +63,15 @@ fun a_non_type_declaration_is_not_refused_as_a_reserved_name(): void {
 fun lang_name_messages(crate: str, with_lang: bool): uint64 {
     var declarations = List.new<TopDecl>()
     if with_lang {
-        var lang = new_top_decl(no_span(), String.from("String"), TopDeclKind.Struct(List.new<Field>(), true))
-        lang.crate = new_crate_id("alloc")
+        var lang = TopDecl.new(Span.none(), String.from("String"), TopDeclKind.Struct(List.new<Field>(), true))
+        lang.crate = CrateId.new("alloc")
         lang.annotations.push(lang_annotation("string"))
         declarations.push(lang)
     }
-    var declaration = new_top_decl(no_span(), String.from("String"), TopDeclKind.Struct(List.new<Field>(), true))
-    declaration.crate = new_crate_id(crate)
+    var declaration = TopDecl.new(Span.none(), String.from("String"), TopDeclKind.Struct(List.new<Field>(), true))
+    declaration.crate = CrateId.new(crate)
     declarations.push(declaration)
-    var module = Module { crate: new_crate_id(crate), path: List.new<String>(), decls: declarations, imports: List.new<Import>() }
+    var module = Module { crate: CrateId.new(crate), path: List.new<String>(), decls: declarations, imports: List.new<Import>() }
     var table = new_decl_table()
     val diagnostics = module.typecheck_module(&var table)
     var count: uint64 = 0
@@ -82,11 +84,11 @@ fun lang_name_messages(crate: str, with_lang: bool): uint64 {
 @test
 fun the_lang_string_is_not_refused_its_own_name(): void {
     var declarations = List.new<TopDecl>()
-    var lang = new_top_decl(no_span(), String.from("String"), TopDeclKind.Struct(List.new<Field>(), true))
-    lang.crate = new_crate_id("alloc")
+    var lang = TopDecl.new(Span.none(), String.from("String"), TopDeclKind.Struct(List.new<Field>(), true))
+    lang.crate = CrateId.new("alloc")
     lang.annotations.push(lang_annotation("string"))
     declarations.push(lang)
-    var module = Module { crate: new_crate_id("alloc"), path: List.new<String>(), decls: declarations, imports: List.new<Import>() }
+    var module = Module { crate: CrateId.new("alloc"), path: List.new<String>(), decls: declarations, imports: List.new<Import>() }
     var table = new_decl_table()
     assert_eq(module.typecheck_module(&var table).size(), 0, "alloc declares the language's string")
 }

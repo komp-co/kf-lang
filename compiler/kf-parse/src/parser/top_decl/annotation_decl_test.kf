@@ -1,6 +1,6 @@
 import core.assert.assert_eq
 
-import kf_core.ast.declaration.MarkTarget
+import kf_core.ast.annotation.MarkTarget
 import kf_core.ast.declaration.Param
 import kf_core.ast.declaration.TopDecl
 import kf_parse.parser.parser_for

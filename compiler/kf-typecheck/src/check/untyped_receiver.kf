@@ -4,9 +4,9 @@
 
 import alloc.list.*
 
-import kf_core.ast.intern
 import kf_core.span.*
 import kf_core.diagnostic.*
+import kf_core.intern.intern
 
 pub fun record_untyped_receiver(span: Span, method: str, sigs: Ptr<SigTable>): void {
     if unsafe { sigs as uint64 } == 0 { return }
@@ -31,7 +31,7 @@ pub fun untyped_receiver_diags(sigs: Ptr<SigTable>, found: &List<Diagnostic>): L
         val m = methods.get(i).as_str()
         val why = "internal error: the receiver of `${m}` lost its type with no error to explain it"
         val message = "${why}; this is a komp bug — the C it would emit calls `poison_${m}`"
-        out.push(new_diagnostic(Severity.Error, new_label(spans.get(i), message)))
+        out.push(Diagnostic.new(Severity.Error, Label.new(spans.get(i), message)))
         i = i + 1
     }
     return out

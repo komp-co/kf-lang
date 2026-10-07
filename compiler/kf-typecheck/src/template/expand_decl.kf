@@ -14,6 +14,8 @@ import kf_core.ast.expression.FieldInit
 import kf_core.ast.declaration.*
 import kf_core.diagnostic.*
 import kf_typecheck.place_in
+import kf_core.intern.*
+import kf_core.names.CName
 
 fun Module.expand_for(template: &TopDecl, marked: &TopDecl, annotation: uint64, diags: &var List<Diagnostic>,
     sites: &var List<ExpansionSite>, smap: Ptr<SourceMap>): List<TopDecl> {
@@ -22,7 +24,7 @@ fun Module.expand_for(template: &TopDecl, marked: &TopDecl, annotation: uint64, 
     if marked.generics.size() > 0 {
         val why = "it has type parameters"
         val message = "`@${name}`'s template cannot add to `${marked.name.as_str()}`: ${why}"
-        diags.push(error_at(marked.decl_name_span(), message))
+        diags.push(Diagnostic.error_at(marked.decl_name_span(), message))
         return out
     }
     var x = Expansion {
@@ -168,7 +170,7 @@ fun TopDecl.expanded_decl(x: &var Expansion): TopDecl {
             if self.ext_name.as_str().byte_len() > 0 && expanded.size() > 0 {
                 out.ext_name = x.built(self.ext_name, self.decl_name_span())
                 val receiver = expanded.at(0).ty.through_reference()
-                out.name = intern(extension_link_name(out.ext_name.as_str(), &receiver).as_str())
+                out.name = intern(CName.extension_link(out.ext_name.as_str(), &receiver).as_str())
             }
             out.kind = TopDeclKind.Function(expanded, Box.new(ret.expanded_type(x)), expand_stmts(&body, x), is_pub,
                 is_unsafe, is_mutating, is_static)
@@ -201,8 +203,10 @@ fun Module.without_clashes(added: &List<TopDecl>, template: &TopDecl, diags: &va
             val clash = item.clash_with(written)
             if clash.byte_len() == 0 { continue }
             val by = "`@${template.name.as_str()}`'s template"
-            var diag = error_at(written.decl_name_span(), "${clash.as_str()} is written here and added by ${by}")
-            diag.secondary.push(new_label(template.decl_name_span(), "the template adding it"))
+            var diag = Diagnostic.error_at(
+                written.decl_name_span(), "${clash.as_str()} is written here and added by ${by}"
+            )
+            diag.secondary.push(Label.new(template.decl_name_span(), "the template adding it"))
             diags.push(diag)
             clashes = true
         }

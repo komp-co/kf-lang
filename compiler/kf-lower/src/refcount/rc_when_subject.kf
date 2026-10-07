@@ -4,10 +4,10 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.intern
 import kf_core.ast.expression.*
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import kf_core.intern.intern
 
 // `when (make())`: an owning rvalue subject is hoisted into a local so its
 // scope-exit drop fires. Borrowed subjects are left alone. Returns the
@@ -46,7 +46,7 @@ fun hoist_owned_when_subject(subj_ptr: Ptr<Expr>, span: Span, ctx: &var RcCtx): 
 fun hoisted_subject_prefix(): str { return "__when_own_" }
 
 fun Expr.is_cloned_local(): bool {
-    if self.coerce != coerce_clone() { return false }
+    if self.coerce != Coercion.Clone { return false }
     return when (self.kind) {
         Variable(_n) => true
         _ => false

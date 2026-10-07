@@ -2,9 +2,8 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
 import kf_core.ast.types.*
-import kf_core.ast.dyn_meta.dyn_trait_identity
+import kf_core.names.*
 import kf_codegen.concat
 
 pub fun TypeRef.c_type(): String {
@@ -86,7 +85,7 @@ fun c_type_named(name: String, args: &List<TypeRef>): String {
 
     // A function type flattened to its fragment, as a generic argument.
     if args.size() == 0 {
-        val function = fn_frag_parts(s)
+        val function = Frag.function_parts(s)
         if function != null {
             val parts = function!!
             var c_params = List.new<String>()
@@ -137,19 +136,19 @@ pub fun TypeRef.tyref_mangle(): String {
                 DynTrait(_principal, _args) => return inner.tyref_mangle()
                 _ => { }
             }
-            return borrow_frag(is_mut, inner.tyref_mangle().as_str())
+            return Frag.borrow(is_mut, inner.tyref_mangle().as_str())
         }
         Function(params, ret) => {
             var frags = List.new<String>()
             while param in &params {
                 frags.push(param.tyref_mangle())
             }
-            return fn_frag(&frags, ret.tyref_mangle().as_str())
+            return Frag.function(&frags, ret.tyref_mangle().as_str())
         }
         Array(_e, _n) => return String.from("array")
         // Unresolved: emitted like poison.
         Projection(_owner, _member) => return String.from("poison")
-        Value(v) => return value_frag(v)
+        Value(v) => return Frag.value(v)
         Poison => return String.from("poison")
     }
 }
@@ -185,7 +184,7 @@ pub fun Type.c_type_of_type(): String {
         RefTo(_m, p) => {
             val inner = unsafe { *p }
             when (inner.kind) {
-                DynTraitTy(_) => return "Dyn__${type_identity_display(dyn_trait_identity(&inner))}"
+                DynTraitTy(_) => return "Dyn__${type_identity_display(inner.dyn_trait_identity())}"
                 _ => return concat(inner.c_type_of_type(), String.from("*"))
             }
         }
@@ -312,7 +311,7 @@ fun fn_pointer_c_type(params: &List<String>, ret: str): String {
 /// A fragment inside a function fragment, where a borrow is spelled
 /// structurally.
 fun frag_c_type(frag: str): String {
-    val borrowed = borrow_frag_inner(frag)
+    val borrowed = Frag.borrow_inner(frag)
     if borrowed.byte_len() > 0 { return concat(frag_c_type(borrowed.as_str()), String.from("*")) }
     return c_type_name(String.from(frag))
 }

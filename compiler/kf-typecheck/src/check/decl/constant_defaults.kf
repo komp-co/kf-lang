@@ -4,7 +4,7 @@
 import alloc.list.*
 
 import kf_core.ast.Module
-import kf_core.ast.Sym
+import kf_core.intern.Sym
 import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.Param
 import kf_core.ast.declaration.TopDecl

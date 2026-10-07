@@ -1,30 +1,30 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
 import kf_core.span.Location
-import kf_core.ast.intern
+import kf_core.intern.intern
+import kf_core.span.Span
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.expression.FieldInit
-import kf_core.ast.declaration.Annotation
+import kf_core.ast.annotation.Annotation
 import kf_core.ast.declaration.Param
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import testing.test
 
 fun named(name: str): TypeRef {
-    return TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
+    return TypeRef.new(Span.none(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
 }
 
 fun variable(name: str): Expr {
-    return Expr.new(no_span(), ExprKind.Variable(intern(name)))
+    return Expr.new(Span.none(), ExprKind.Variable(intern(name)))
 }
 
 fun access(owner: Expr, member: str): Expr {
-    return Expr.new(no_span(), ExprKind.FieldAccess(Box.new(owner), intern(member)))
+    return Expr.new(Span.none(), ExprKind.FieldAccess(Box.new(owner), intern(member)))
 }
 
 /// `Point { x: int32, label: String }`, the loop on `label`.
@@ -34,11 +34,11 @@ fun point_expansion_with(args: List<FieldInit>): Expansion {
     var fields = List.new<FieldFacts>()
     fields.push(FieldFacts {
         name: intern("x"), index: 0, ty: named("int32"), payloads: List.new<TypeRef>(),
-        annotations: List.new<Annotation>(), span: no_span(), line: 0
+        annotations: List.new<Annotation>(), span: Span.none(), line: 0
     })
     fields.push(FieldFacts {
         name: intern("label"), index: 1, ty: named("String"), payloads: List.new<TypeRef>(),
-        annotations: List.new<Annotation>(), span: no_span(), line: 0
+        annotations: List.new<Annotation>(), span: Span.none(), line: 0
     })
     return Expansion {
         annotation: intern("shown"), marked: intern("T"), type_name: intern("Point"), on_enum: false,
@@ -75,12 +75,12 @@ fun ExprKind.text(): String {
 
 @test fun field_type_is_the_fields_type(): void {
     var x = point_expansion()
-    val written = TypeRef.new(no_span(), TypeRefKind.Projection(Box.new(named("field")), intern("type")))
+    val written = TypeRef.new(Span.none(), TypeRefKind.Projection(Box.new(named("field")), intern("type")))
     assert_eq(written.expanded_type(&var x).bare_type_name().as_str(), "String", "`field.type` on `label`")
 }
 
 fun field_of(args: List<Expr>): Expr {
-    return Expr.new(no_span(), ExprKind.MethodCall(Box.new(variable("field")), intern("of"), args))
+    return Expr.new(Span.none(), ExprKind.MethodCall(Box.new(variable("field")), intern("of"), args))
 }
 
 fun just(e: Expr): List<Expr> {
@@ -129,19 +129,19 @@ fun just(e: Expr): List<Expr> {
     var x = point_expansion()
     x.bound = List.new<Bound>()
     var body = List.new<Stmt>()
-    body.push(Stmt.new(no_span(), StmtKind.Expression(Box.new(access(variable("field"), "name")))))
+    body.push(Stmt.new(Span.none(), StmtKind.Expression(Box.new(access(variable("field"), "name")))))
     var stmts = List.new<Stmt>()
-    stmts.push(Stmt.new(no_span(), StmtKind.ForEach(intern("field"), Box.new(access(variable("T"), "fields")), body)))
+    stmts.push(Stmt.new(Span.none(), StmtKind.ForEach(intern("field"), Box.new(access(variable("T"), "fields")), body)))
     assert_eq(expand_stmts(&stmts, &var x).size(), 2, "one block per field")
 }
 
 @test fun a_decided_if_keeps_only_its_branch(): void {
     var x = point_expansion()
     var then_body = List.new<Stmt>()
-    then_body.push(Stmt.new(no_span(), StmtKind.Break))
+    then_body.push(Stmt.new(Span.none(), StmtKind.Break))
     var stmts = List.new<Stmt>()
-    val condition = Expr.new(no_span(), ExprKind.LitBool(false))
-    stmts.push(Stmt.new(no_span(), StmtKind.If(Box.new(condition), then_body, List.new<Stmt>())))
+    val condition = Expr.new(Span.none(), ExprKind.LitBool(false))
+    stmts.push(Stmt.new(Span.none(), StmtKind.If(Box.new(condition), then_body, List.new<Stmt>())))
     val out = expand_stmts(&stmts, &var x)
     val kept = when (out.at(0).kind) {
         If(_c, taken, _other) => taken.size()
@@ -159,7 +159,7 @@ fun TypeRef.bare_type_name(): String {
 
 fun member_loop(body: List<Stmt>): List<Stmt> {
     var stmts = List.new<Stmt>()
-    stmts.push(Stmt.new(no_span(), StmtKind.ForEach(intern("field"), Box.new(access(variable("T"), "fields")), body)))
+    stmts.push(Stmt.new(Span.none(), StmtKind.ForEach(intern("field"), Box.new(access(variable("T"), "fields")), body)))
     return stmts
 }
 
@@ -167,7 +167,7 @@ fun member_loop(body: List<Stmt>): List<Stmt> {
     var x = point_expansion()
     x.bound = List.new<Bound>()
     var body = List.new<Stmt>()
-    body.push(Stmt.new(no_span(), StmtKind.Break))
+    body.push(Stmt.new(Span.none(), StmtKind.Break))
     val out = expand_stmts(&member_loop(body), &var x)
     assert_eq(out.size(), 1, "the first copy, cut at its `break`, and no second")
 }
@@ -176,9 +176,9 @@ fun member_loop(body: List<Stmt>): List<Stmt> {
     var x = point_expansion()
     x.bound = List.new<Bound>()
     var jump = List.new<Stmt>()
-    jump.push(Stmt.new(no_span(), StmtKind.Break))
+    jump.push(Stmt.new(Span.none(), StmtKind.Break))
     var body = List.new<Stmt>()
-    body.push(Stmt.new(no_span(), StmtKind.If(Box.new(variable("c")), jump, List.new<Stmt>())))
+    body.push(Stmt.new(Span.none(), StmtKind.If(Box.new(variable("c")), jump, List.new<Stmt>())))
     val out = expand_stmts(&member_loop(body), &var x)
     assert_eq(out.size(), 3, "the flag, then a guarded pass for each of the two fields")
 }
@@ -187,47 +187,47 @@ fun member_loop(body: List<Stmt>): List<Stmt> {
     var x = point_expansion()
     x.bound = List.new<Bound>()
     var inner = List.new<Stmt>()
-    inner.push(Stmt.new(no_span(), StmtKind.Break))
+    inner.push(Stmt.new(Span.none(), StmtKind.Break))
     var body = List.new<Stmt>()
-    val always = Expr.new(no_span(), ExprKind.LitBool(true))
-    body.push(Stmt.new(no_span(), StmtKind.While(Box.new(always), inner)))
+    val always = Expr.new(Span.none(), ExprKind.LitBool(true))
+    body.push(Stmt.new(Span.none(), StmtKind.While(Box.new(always), inner)))
     var stmts = List.new<Stmt>()
-    stmts.push(Stmt.new(no_span(), StmtKind.ForEach(intern("field"), Box.new(access(variable("T"), "fields")), body)))
+    stmts.push(Stmt.new(Span.none(), StmtKind.ForEach(intern("field"), Box.new(access(variable("T"), "fields")), body)))
     val _out = expand_stmts(&stmts, &var x)
     assert_eq(x.diags.size(), 0, "`break` leaves its own loop")
 }
 
 @test fun a_name_builds_from_the_field(): void {
     var x = point_expansion()
-    assert_eq(x.built(intern("with_\${field.name}"), no_span()).as_str(), "with_label", "`field.name` in a name")
+    assert_eq(x.built(intern("with_\${field.name}"), Span.none()).as_str(), "with_label", "`field.name` in a name")
 }
 
 @test fun a_name_builds_from_the_struct(): void {
     var x = point_expansion()
-    assert_eq(x.built(intern("\${T.name}Builder"), no_span()).as_str(), "PointBuilder", "`T.name` in a name")
+    assert_eq(x.built(intern("\${T.name}Builder"), Span.none()).as_str(), "PointBuilder", "`T.name` in a name")
 }
 
 @test fun a_name_builds_from_text_arguments(): void {
-    val value = Box.new(Expr.new(no_span(), ExprKind.LitStr(String.from("get"))))
+    val value = Box.new(Expr.new(Span.none(), ExprKind.LitStr(String.from("get"))))
     var args = List.new<FieldInit>()
-    args.push(FieldInit { span: no_span(), name: intern("prefix"), value: value })
+    args.push(FieldInit { span: Span.none(), name: intern("prefix"), value: value })
     var x = point_expansion_with(args)
-    assert_eq(x.built(intern("\${args.prefix}_\${field.name}"), no_span()).as_str(), "get_label", "two parts")
+    assert_eq(x.built(intern("\${args.prefix}_\${field.name}"), Span.none()).as_str(), "get_label", "two parts")
 }
 
 @test fun a_name_from_anything_else_is_reported(): void {
     var x = point_expansion()
-    val _name = x.built(intern("with_\${field.index}"), no_span())
+    val _name = x.built(intern("with_\${field.index}"), Span.none())
     assert_eq(x.diags.size(), 1, "`field.index` is not text")
 }
 
 fun build_call(binder: str, value: Expr): Expr {
     var params = List.new<Param>()
-    params.push(Param { span: no_span(), name: intern(binder), ty: Box.new(named("_")), default: null })
+    params.push(Param { span: Span.none(), name: intern(binder), ty: Box.new(named("_")), default: null })
     var body = List.new<Stmt>()
-    body.push(Stmt.new(no_span(), StmtKind.Expression(Box.new(value))))
-    val lambda = Expr.new(no_span(), ExprKind.Lambda(params, body))
-    return Expr.new(no_span(), ExprKind.MethodCall(Box.new(variable("T")), intern("build"), just(lambda)))
+    body.push(Stmt.new(Span.none(), StmtKind.Expression(Box.new(value))))
+    val lambda = Expr.new(Span.none(), ExprKind.Lambda(params, body))
+    return Expr.new(Span.none(), ExprKind.MethodCall(Box.new(variable("T")), intern("build"), just(lambda)))
 }
 
 @test fun build_writes_one_field_init_per_field(): void {

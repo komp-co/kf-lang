@@ -9,6 +9,7 @@ import alloc.list.*
 import kf_core.span.*
 import kf_core.ast.*
 import kf_core.ast.declaration.TopDecl
+import kf_core.intern.*
 import json.writer.*
 import kf_interface.*
 
@@ -21,12 +22,12 @@ pub fun Module.emit_interface(crate_name: String, deps: &List<String>): String {
 
 pub fun Module.emit_interface_hashed(crate_name: String, deps: &List<String>, hashes: &List<String>): String {
     val empty: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
-    unsafe { *empty = new_source_map() }
+    unsafe { *empty = SourceMap.new() }
     return self.emit_interface_full(crate_name, deps, hashes, empty)
 }
 
 pub fun Module.emit_interface_full(crate_name: String, deps: &List<String>, hashes: &List<String>, smap: Ptr<SourceMap>): String {
-    val crate = new_crate_id(crate_name.as_str())
+    val crate = CrateId.new(crate_name.as_str())
     var doc = JsonWriter.object()
     doc.field_int64("kfi", interface_format_version())
     doc.field_string("crate", crate_name.as_str())

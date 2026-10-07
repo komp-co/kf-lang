@@ -1,0 +1,124 @@
+// The fragments a type contributes to a mangled name, and reading them back.
+//
+// A borrow in a generic's instance name is mangled structurally, with a
+// reserved-prefix marker that carries mutability. A plain `Ref__String` would
+// collide with a user's `struct Ref<T>`, and ignoring mutability would give
+// `&T` and `&var T` one name and one layout.
+
+import alloc.list.*
+
+/// A function fragment's parameter and result fragments, the inverse of
+/// `Frag.function`.
+pub struct FnFragParts {
+    pub val params: List<String>
+    pub val ret: String
+}
+
+/// Writing a fragment, and its inverse where a pass needs the parts back.
+pub struct Frag {}
+
+impl Frag {
+    static fun borrow_marker(is_mut: bool): str {
+        if is_mut { return "kf__mut__" }
+        return "kf__ref__"
+    }
+
+    pub static fun borrow(is_mut: bool, inner: str): String {
+        var out = String.from(Frag.borrow_marker(is_mut))
+        out.append(inner)
+        return out
+    }
+
+    /// A function type's fragment: `kf__fn__`, the parameters separated by
+    /// `__kf__and__`, `__kf__to__` and the result, then `__kf__nf`. The markers are
+    /// reserved, so the fragment splits back apart even when nested.
+    pub static fun function(params: &List<String>, ret: str): String {
+        var out = "kf__fn__"
+        while i in 0..params.size() {
+            if i > 0 { out.append("__kf__and__") }
+            out.append(params.at(i).as_str())
+        }
+        out.append("__kf__to__")
+        out.append(ret)
+        out.append("__kf__nf")
+        return out
+    }
+
+    /// None when `frag` is not exactly one function fragment.
+    pub static fun function_parts(frag: str): FnFragParts? {
+        if !frag.starts_with("kf__fn__") || !frag.ends_with("__kf__nf") { return null }
+        val body = frag.substring(8, frag.byte_len() - 8)
+        var params = []
+        var depth = 0
+        var start: uint64 = 0
+        var i: uint64 = 0
+        var ret = ""
+        var seen_to = false
+        while i < body.byte_len() {
+            val rest = body.substring(i, body.byte_len())
+            if rest.starts_with("kf__fn__") {
+                depth = depth + 1
+                i = i + 8
+            } else if rest.starts_with("__kf__nf") {
+                depth = depth - 1
+                i = i + 8
+            } else if depth == 0 && rest.starts_with("__kf__and__") {
+                params.push(body.substring(start, i))
+                i = i + 11
+                start = i
+            } else if depth == 0 && rest.starts_with("__kf__to__") {
+                if i > start { params.push(body.substring(start, i)) }
+                i = i + 10
+                start = i
+                seen_to = true
+            } else {
+                i = i + 1
+            }
+        }
+        if !seen_to || depth != 0 { return null }
+        ret = body.substring(start, body.byte_len())
+        return FnFragParts { params: params, ret: ret }
+    }
+
+    /// What `frag` borrows, or "" when it is not a borrow. The inverse of
+    /// `Frag.borrow`.
+    pub static fun borrow_inner(frag: str): String {
+        val n = frag.byte_len()
+        if n <= 9 { return "" }
+        if frag.starts_with("kf__ref__") { return frag.substring(9, n) }
+        if frag.starts_with("kf__mut__") { return frag.substring(9, n) }
+        return ""
+    }
+
+    /// Only meaningful where `borrow_inner` answered with something.
+    pub static fun borrow_is_mut(frag: str): bool {
+        return frag.starts_with("kf__mut__")
+    }
+
+    /// A value argument's fragment: its digits, behind `0m` when negative. A
+    /// leading digit keeps it apart from every type's fragment.
+    pub static fun value(value: int64): String {
+        if value >= 0 { return "${value}" }
+        val magnitude = (0 - (value + 1)) as uint64 + 1
+        return "0m${magnitude}"
+    }
+
+    /// The value `Frag.value` spelled, or None for any other fragment.
+    pub static fun value_of(frag: str): int64? {
+        val negative = frag.starts_with("0m")
+        val digits = if negative { frag.substring(2, frag.byte_len()) } else { String.from(frag) }
+        if digits.byte_len() == 0 { return null }
+        var magnitude: uint64 = 0
+        while i in 0..digits.byte_len() {
+            val digit = (digits.byte_at(i) as char).digit_value() ?: return null
+            magnitude = magnitude * 10 + digit as uint64
+        }
+        if negative { return 0 - ((magnitude - 1) as int64) - 1 }
+        return magnitude as int64
+    }
+
+    /// Split on `__`; a single `_` stays inside its segment.
+    pub static fun segments(mangled: str): List<String> {
+        return mangled.split("__")
+    }
+}

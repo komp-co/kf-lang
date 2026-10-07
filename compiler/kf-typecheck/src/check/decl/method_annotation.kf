@@ -5,11 +5,11 @@
 
 import alloc.list.*
 
-import kf_core.ast.Sym
-import kf_core.ast.intern
 import kf_core.ast.declaration.TopDecl
-import kf_core.ast.annotation.annotation_is_known
 import kf_core.diagnostic.*
+import kf_core.intern.Sym
+import kf_core.intern.intern
+import kf_core.lang.AnnotationInfo
 import kf_typecheck.*
 import kf_typecheck.types.trait_method_suffix
 
@@ -56,12 +56,12 @@ fun validate_members(members: &List<TopDecl>, diags: &var Diagnostics): void {
     while member in &members {
         while annotation in &member.annotations {
             val kind = annotation.name.as_str()
-            if kind.equals("") || !annotation_is_known(kind) { continue }
+            if kind.equals("") || !AnnotationInfo.is_known(kind) { continue }
             if kind == "allow" {
                 member.validate_allow_names(&annotation.words(), diags)
             } else {
                 val message = "`@${kind}` cannot annotate a method"
-                diags.emit(new_diagnostic(Severity.Error, new_label(member.decl_name_span(), message)))
+                diags.emit(Diagnostic.new(Severity.Error, Label.new(member.decl_name_span(), message)))
             }
         }
     }
@@ -94,7 +94,7 @@ fun register_members(members: &List<TopDecl>, owner: &MethodOwner, sigs: Ptr<Sig
     while member in &members {
         while annotation in &member.annotations {
             val kind = annotation.name.as_str()
-            if kind.equals("") || annotation_is_known(kind) { continue }
+            if kind.equals("") || AnnotationInfo.is_known(kind) { continue }
             member.register_annotation_use(annotation, owner, sigs, pass_diags, table, diags)
         }
     }
@@ -105,7 +105,7 @@ fun reject_on_trait_members(members: &List<TopDecl>, sigs: Ptr<SigTable>, table:
     while member in &members {
         while annotation in &member.annotations {
             val kind = annotation.name.as_str()
-            if kind.equals("") || annotation_is_known(kind) { continue }
+            if kind.equals("") || AnnotationInfo.is_known(kind) { continue }
             val at = member.decl_name_span()
             val found = table.find_annotation(kind, member.span.file_id, member.crate, member.module_path)
             if found == null {
@@ -116,7 +116,7 @@ fun reject_on_trait_members(members: &List<TopDecl>, sigs: Ptr<SigTable>, table:
             val declared = table.annotations.at(index)
             note_import_use_named(sigs, member.span.file_id, declared.module, declared.name)
             val message = "`@${kind}` cannot annotate a trait's method: it has no body to name"
-            diags.push(new_diagnostic(Severity.Error, new_label(at, message)))
+            diags.push(Diagnostic.new(Severity.Error, Label.new(at, message)))
         }
     }
 }

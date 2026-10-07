@@ -6,6 +6,7 @@ import alloc.list.*
 
 import kf_core.ast.*
 import kf_core.ast.declaration.TopDecl
+import kf_core.intern.*
 import kf_codegen.emit.unit.emit_crate_header_supported
 import kf_codegen.emit.unit.emit_crate_source_supported
 import kf_codegen.emit.glue.collect_exported_glue_symbols
@@ -34,7 +35,7 @@ pub fun Module.emit_crate(crate_name: String, deps: List<String>, is_bin: bool):
 /// only names the files. They differ for `komp test`, whose
 /// `<crate>_tests.c` must include `<crate>_tests.h`, not the library header.
 pub fun Module.emit_crate_named(crate_name: String, artifact_name: String, deps: List<String>, is_bin: bool): CrateCodegenOutput {
-    val view = self.crate_view(new_crate_id(crate_name.as_str()))
+    val view = self.crate_view(CrateId.new(crate_name.as_str()))
     val header = view.emit_crate_header_supported(self, artifact_name.clone(), &deps)
     val source = view.emit_crate_source_supported(self, artifact_name.clone(), is_bin)
     var symbols = view.collect_exported_symbols()

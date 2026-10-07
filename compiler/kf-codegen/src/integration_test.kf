@@ -1,15 +1,15 @@
 import alloc.list.*
 import core.assert.*
-import kf_core.span.no_span
-import kf_core.ast.Intrinsic
-import kf_core.ast.Sym
-import kf_core.ast.intern
+import kf_core.span.Span
 import kf_core.ast.types.*
 import kf_core.ast.expression.*
 import kf_core.ast.declaration.Param
 import kf_core.ast.declaration.TopDeclKind
-import kf_core.ast.declaration.new_top_decl
+import kf_core.ast.declaration.TopDecl
 import kf_core.ast.statement.*
+import kf_core.intern.Sym
+import kf_core.intern.intern
+import kf_core.lang.Intrinsic
 import kf_codegen.*
 import kf_codegen.emit.stmt.emit_stmt
 import kf_codegen.emit.expr.emit_expr
@@ -22,7 +22,7 @@ import testing.test
 
 fun ty_ptr(s: str): Ptr<TypeRef> {
     val rp: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    val tr = TypeRef.new(no_span(), TypeRefKind.Named(intern(s), List.new<TypeRef>()))
+    val tr = TypeRef.new(Span.none(), TypeRefKind.Named(intern(s), List.new<TypeRef>()))
     unsafe { *rp = tr }
     return rp
 }
@@ -36,34 +36,34 @@ fun expr_ptr(e: Expr): Ptr<Expr> {
 // `outer<inner>` as a Ptr<TypeRef>: ("Ptr","Expr") is Ptr<Expr>.
 fun ty_ptr_generic(outer: str, inner: str): Ptr<TypeRef> {
     var args = List.new<TypeRef>()
-    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern(inner), List.new<TypeRef>())))
+    args.push(TypeRef.new(Span.none(), TypeRefKind.Named(intern(inner), List.new<TypeRef>())))
     val rp: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *rp = TypeRef.new(no_span(), TypeRefKind.Named(intern(outer), args)) }
+    unsafe { *rp = TypeRef.new(Span.none(), TypeRefKind.Named(intern(outer), args)) }
     return rp
 }
 
 @test fun emit_deref_wraps_operand(): void {
-    val p = expr_ptr(Expr.new(no_span(), ExprKind.Variable(intern("p"))))
-    val d = Expr.new(no_span(), ExprKind.Deref(p))
+    val p = expr_ptr(Expr.new(Span.none(), ExprKind.Variable(intern("p"))))
+    val d = Expr.new(Span.none(), ExprKind.Deref(p))
     val c = d.emit_expr()
     assert_eq(c.as_str(), "(*__p)", "deref emits (*operand)")
 }
 
 @test fun emit_if_expr_is_ternary(): void {
-    val c = expr_ptr(Expr.new(no_span(), ExprKind.LitBool(true)))
-    val t = expr_ptr(Expr.new(no_span(), ExprKind.LitInt(1)))
-    val el = expr_ptr(Expr.new(no_span(), ExprKind.LitInt(2)))
-    val ife = Expr.new(no_span(), ExprKind.IfExpr(c, t, el))
+    val c = expr_ptr(Expr.new(Span.none(), ExprKind.LitBool(true)))
+    val t = expr_ptr(Expr.new(Span.none(), ExprKind.LitInt(1)))
+    val el = expr_ptr(Expr.new(Span.none(), ExprKind.LitInt(2)))
+    val ife = Expr.new(Span.none(), ExprKind.IfExpr(c, t, el))
     val out = ife.emit_expr()
     assert_eq(out.as_str(), "(true ? 1 : 2)", "if-expr → ternary")
 }
 
 // `*p = x` emits `(*__p) = __x;`.
 @test fun emit_assign_to_deref_store(): void {
-    val pvar = expr_ptr(Expr.new(no_span(), ExprKind.Variable(intern("p"))))
-    val place = expr_ptr(Expr.new(no_span(), ExprKind.Deref(pvar)))
-    val rhs = expr_ptr(Expr.new(no_span(), ExprKind.Variable(intern("x"))))
-    val s = Stmt.new(no_span(), StmtKind.AssignTo(place, rhs))
+    val pvar = expr_ptr(Expr.new(Span.none(), ExprKind.Variable(intern("p"))))
+    val place = expr_ptr(Expr.new(Span.none(), ExprKind.Deref(pvar)))
+    val rhs = expr_ptr(Expr.new(Span.none(), ExprKind.Variable(intern("x"))))
+    val s = Stmt.new(Span.none(), StmtKind.AssignTo(place, rhs))
     var env = new_local_env()
     val c = emit_stmt(s, 0, &var env)
     assert_eq(c.as_str(), "(*__p) = __x;\n", "deref store emits place = rhs")
@@ -92,14 +92,14 @@ fun int_has_sub(s: str, needle: str): bool {
 
 // A `_` payload binder emits no binding.
 @test fun emit_enum_arm_skips_wildcard_binder(): void {
-    var subj = Expr.new(no_span(), ExprKind.Variable(intern("v")))
-    subj.ty = Type { kind: TypeKind.Struct(intern("MyEnum")), provenance: Provenance.Inferred(no_span()) }
+    var subj = Expr.new(Span.none(), ExprKind.Variable(intern("v")))
+    subj.ty = Type { kind: TypeKind.Struct(intern("MyEnum")), provenance: Provenance.Inferred(Span.none()) }
     var binders = List.new<Sym>()
     binders.push(intern("a"))
     binders.push(intern("_"))
     var arms = List.new<SwitchArm>()
-    arms.push(SwitchArm.new(no_span(), SwitchTag.Variant(String.from("Foo")), binders, null, List.new<Stmt>()))
-    val s = Stmt.new(no_span(), StmtKind.Switch(expr_ptr(subj), arms))
+    arms.push(SwitchArm.new(Span.none(), SwitchTag.Variant(String.from("Foo")), binders, null, List.new<Stmt>()))
+    val s = Stmt.new(Span.none(), StmtKind.Switch(expr_ptr(subj), arms))
     var env = new_local_env()
     val c = emit_stmt(s, 0, &var env)
     assert_eq(int_has_sub(c.as_str(), "__auto_type __a ="), true, "named binder a is bound")
@@ -108,35 +108,37 @@ fun int_has_sub(s: str, needle: str): bool {
 
 // `ctx.sigs` on a `&var TypeCtx` emits `recv.field`.
 @test fun emit_field_access_through_pointer(): void {
-    var recv = Expr.new(no_span(), ExprKind.Variable(intern("ctx")))
+    var recv = Expr.new(Span.none(), ExprKind.Variable(intern("ctx")))
     val inner_t: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *inner_t = Type { kind: TypeKind.Struct(intern("TypeCtx")), provenance: Provenance.Inferred(no_span()) } }
-    recv.ty = Type { kind: TypeKind.PtrTo(inner_t), provenance: Provenance.Inferred(no_span()) }
-    val fa = Expr.new(no_span(), ExprKind.FieldAccess(expr_ptr(recv), intern("sigs")))
+    unsafe { *inner_t = Type { kind: TypeKind.Struct(intern("TypeCtx")), provenance: Provenance.Inferred(
+        Span.none()
+    ) } }
+    recv.ty = Type { kind: TypeKind.PtrTo(inner_t), provenance: Provenance.Inferred(Span.none()) }
+    val fa = Expr.new(Span.none(), ExprKind.FieldAccess(expr_ptr(recv), intern("sigs")))
     val c = fa.emit_expr()
     assert_eq(c.as_str(), "(*__ctx).sigs", "pointer receiver derefs before field")
 }
 
 @test fun emit_method_proto_prepends_self(): void {
     val ret = ty_ptr("int32")
-    val area = new_top_decl(no_span(), String.from("area"), TopDeclKind.Function(List.new<Param>(), ret, List.new<Stmt>(), true, false, false, false))
+    val area = TopDecl.new(Span.none(), String.from("area"), TopDeclKind.Function(List.new<Param>(), ret, List.new<Stmt>(), true, false, false, false))
     val c = emit_method_proto(String.from("Foo"), area)
     assert_eq(c.as_str(), "int32_t Foo_area(Foo* __self)", "method proto mangles name + prepends self")
 }
 
 @test fun emit_primitive_method_proto_uses_the_c_receiver_type(): void {
     val fkind = TopDeclKind.Function(List.new<Param>(), ty_ptr("String"), List.new<Stmt>(), true, false, false, false)
-    val method = new_top_decl(no_span(), String.from("display"), fkind)
+    val method = TopDecl.new(Span.none(), String.from("display"), fkind)
     val proto = emit_method_proto(String.from("int32"), method)
     assert_eq(int_has_sub(proto.as_str(), "int32_t* __self"), true, "primitive method receivers use their C type")
 }
 
 // `String.from(x)` is an ordinary static call.
 @test fun emit_string_from_method_call(): void {
-    val recv = expr_ptr(Expr.new(no_span(), ExprKind.Variable(intern("String"))))
+    val recv = expr_ptr(Expr.new(Span.none(), ExprKind.Variable(intern("String"))))
     var margs = List.new<Expr>()
-    margs.push(Expr.new(no_span(), ExprKind.Variable(intern("x"))))
-    var e = Expr.new(no_span(), ExprKind.MethodCall(recv, intern("from"), margs))
+    margs.push(Expr.new(Span.none(), ExprKind.Variable(intern("x"))))
+    var e = Expr.new(Span.none(), ExprKind.MethodCall(recv, intern("from"), margs))
     e.is_static_call = true
     e.mangled_callee = intern("String_from")
     val c = e.emit_expr()
@@ -144,9 +146,9 @@ fun int_has_sub(s: str, needle: str): bool {
 }
 
 fun string_method_expr(name: str, args: List<Expr>): Expr {
-    var recv_expr = Expr.new(no_span(), ExprKind.Variable(intern("s")))
-    recv_expr.ty = Type { kind: TypeKind.Struct(intern("String")), provenance: Provenance.Inferred(no_span()) }
-    return Expr.new(no_span(), ExprKind.MethodCall(expr_ptr(recv_expr), intern(name), args))
+    var recv_expr = Expr.new(Span.none(), ExprKind.Variable(intern("s")))
+    recv_expr.ty = Type { kind: TypeKind.Struct(intern("String")), provenance: Provenance.Inferred(Span.none()) }
+    return Expr.new(Span.none(), ExprKind.MethodCall(expr_ptr(recv_expr), intern(name), args))
 }
 
 // String's methods are called like any struct's.
@@ -168,10 +170,10 @@ fun string_method_expr(name: str, args: List<Expr>): Expr {
 @test fun emit_string_equals_dispatches_to_trait(): void {
     var args = List.new<Expr>()
     var from_args = List.new<Expr>()
-    from_args.push(Expr.new(no_span(), ExprKind.LitStr(String.from("x"))))
-    val from_recv = Expr.new(no_span(), ExprKind.Variable(intern("String")))
-    var arg = Expr.new(no_span(), ExprKind.MethodCall(expr_ptr(from_recv), intern("from"), from_args))
-    arg.ty = Type { kind: TypeKind.Struct(intern("String")), provenance: Provenance.Inferred(no_span()) }
+    from_args.push(Expr.new(Span.none(), ExprKind.LitStr(String.from("x"))))
+    val from_recv = Expr.new(Span.none(), ExprKind.Variable(intern("String")))
+    var arg = Expr.new(Span.none(), ExprKind.MethodCall(expr_ptr(from_recv), intern("from"), from_args))
+    arg.ty = Type { kind: TypeKind.Struct(intern("String")), provenance: Provenance.Inferred(Span.none()) }
     arg.mangled_callee = intern("String_from__From__str")
     arg.is_static_call = true
     args.push(arg)
@@ -181,31 +183,31 @@ fun string_method_expr(name: str, args: List<Expr>): Expr {
 
 @test fun emit_string_append_calls_the_method(): void {
     var args = List.new<Expr>()
-    args.push(Expr.new(no_span(), ExprKind.LitStr(String.from("x"))))
+    args.push(Expr.new(Span.none(), ExprKind.LitStr(String.from("x"))))
     val c = emit_expr(string_method_expr("append", args))
     assert_eq(c.as_str(), "String_append(&(__s), \"x\")", "String.append dispatches to alloc")
 }
 
 @test fun emit_string_retain_calls_its_retain_glue(): void {
-    var inner = Expr.new(no_span(), ExprKind.Variable(intern("s")))
-    inner.ty = Type { kind: TypeKind.Struct(intern("String")), provenance: Provenance.Inferred(no_span()) }
-    val retained = Expr.new(no_span(), ExprKind.Retain(expr_ptr(inner)))
+    var inner = Expr.new(Span.none(), ExprKind.Variable(intern("s")))
+    inner.ty = Type { kind: TypeKind.Struct(intern("String")), provenance: Provenance.Inferred(Span.none()) }
+    val retained = Expr.new(Span.none(), ExprKind.Retain(expr_ptr(inner)))
     val c = retained.emit_expr()
     assert_eq(c.as_str(), "kf__retain__String(__s)", "direct String retain creates an independent owner")
 }
 
 @test fun emit_cast_null_ptr(): void {
-    val zero = expr_ptr(Expr.new(no_span(), ExprKind.LitInt(0)))
+    val zero = expr_ptr(Expr.new(Span.none(), ExprKind.LitInt(0)))
     val target = ty_ptr_generic("Ptr", "Expr")
-    val e = Expr.new(no_span(), ExprKind.Cast(zero, target))
+    val e = Expr.new(Span.none(), ExprKind.Cast(zero, target))
     val c = e.emit_expr()
     assert_eq(c.as_str(), "(Expr*)(0)", "null ptr cast emits (T*)(0)")
 }
 
 /// `intrinsic<type_name>()`, with no arguments.
 fun intrinsic_on(intrinsic: Intrinsic, type_name: str): Expr {
-    var e = Expr.new(no_span(), ExprKind.Intrinsic(intrinsic, List.new<Expr>()))
-    e.type_args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern(type_name), List.new<TypeRef>())))
+    var e = Expr.new(Span.none(), ExprKind.Intrinsic(intrinsic, List.new<Expr>()))
+    e.type_args.push(TypeRef.new(Span.none(), TypeRefKind.Named(intern(type_name), List.new<TypeRef>())))
     return e
 }
 
@@ -239,7 +241,7 @@ fun intrinsic_on(intrinsic: Intrinsic, type_name: str): Expr {
 // The shape of a folded intrinsic is an ordinary call: qualification produces
 // it for a free function in a crate named `alloc`.
 @test fun a_crate_qualified_name_is_not_an_intrinsic(): void {
-    val e = Expr.new(no_span(), ExprKind.Call(intern("alloc__trivial"), List.new<Expr>()))
+    val e = Expr.new(Span.none(), ExprKind.Call(intern("alloc__trivial"), List.new<Expr>()))
     val c = e.emit_expr()
     assert_eq(c.as_str(), "alloc__trivial()", "a call is an ordinary call")
 }
@@ -250,17 +252,17 @@ fun intrinsic_on(intrinsic: Intrinsic, type_name: str): Expr {
 }
 
 fun pt_var_ptr(name: str): Ptr<Expr> {
-    var v = Expr.new(no_span(), ExprKind.Variable(intern(name)))
-    v.ty = Type { kind: TypeKind.Struct(intern("Pt")), provenance: Provenance.Inferred(no_span()) }
+    var v = Expr.new(Span.none(), ExprKind.Variable(intern(name)))
+    v.ty = Type { kind: TypeKind.Struct(intern("Pt")), provenance: Provenance.Inferred(Span.none()) }
     return expr_ptr(v)
 }
 
 // `break` lowers to `goto <loop-label>`, which escapes a switch.
 @test fun while_with_break_lowers_to_goto(): void {
     var body = List.new<Stmt>()
-    body.push(Stmt.new(no_span(), StmtKind.Break))
-    val cond = expr_ptr(Expr.new(no_span(), ExprKind.LitBool(true)))
-    val whl = Stmt.new(no_span(), StmtKind.While(cond, body))
+    body.push(Stmt.new(Span.none(), StmtKind.Break))
+    val cond = expr_ptr(Expr.new(Span.none(), ExprKind.LitBool(true)))
+    val whl = Stmt.new(Span.none(), StmtKind.While(cond, body))
     var env = new_local_env()
     val c = emit_stmt(whl, 0, &var env)
     assert_eq(int_has_sub(c.as_str(), "goto __brk_0;"), true, "break → goto __brk_0;")
@@ -268,48 +270,48 @@ fun pt_var_ptr(name: str): Ptr<Expr> {
 }
 
 @test fun while_without_break_has_no_label(): void {
-    val nv = expr_ptr(Expr.new(no_span(), ExprKind.Variable(intern("n"))))
-    val one = expr_ptr(Expr.new(no_span(), ExprKind.LitInt(1)))
-    val plus = expr_ptr(Expr.new(no_span(), ExprKind.Binary(nv, BinOp.Add, one)))
+    val nv = expr_ptr(Expr.new(Span.none(), ExprKind.Variable(intern("n"))))
+    val one = expr_ptr(Expr.new(Span.none(), ExprKind.LitInt(1)))
+    val plus = expr_ptr(Expr.new(Span.none(), ExprKind.Binary(nv, BinOp.Add, one)))
     var body = List.new<Stmt>()
-    body.push(Stmt.new(no_span(), StmtKind.Assign(intern("n"), plus)))
-    val cond = expr_ptr(Expr.new(no_span(), ExprKind.LitBool(true)))
-    val whl = Stmt.new(no_span(), StmtKind.While(cond, body))
+    body.push(Stmt.new(Span.none(), StmtKind.Assign(intern("n"), plus)))
+    val cond = expr_ptr(Expr.new(Span.none(), ExprKind.LitBool(true)))
+    val whl = Stmt.new(Span.none(), StmtKind.While(cond, body))
     var env = new_local_env()
     val c = emit_stmt(whl, 0, &var env)
     assert_eq(int_has_sub(c.as_str(), "__brk"), false, "no label when loop has no break")
 }
 
 @test fun addr_of_lvalue_takes_plain_address(): void {
-    var e = Expr.new(no_span(), ExprKind.Variable(intern("x")))
-    e.ty = Type.new_int32(no_span())
-    e.coerce = coerce_addr_of()
+    var e = Expr.new(Span.none(), ExprKind.Variable(intern("x")))
+    e.ty = Type.new_int32(Span.none())
+    e.coerce = Coercion.AddrOf
     val c = e.emit_expr()
     assert_eq(c.as_str(), "(&__x)", "lvalue borrow emits (&x)")
 }
 
 // An rvalue argument cannot take `&(f())`; it becomes `((int32_t[1]){ mk() })`.
 @test fun addr_of_rvalue_materializes_compound_literal(): void {
-    var e = Expr.new(no_span(), ExprKind.Call(intern("mk"), List.new<Expr>()))
-    e.ty = Type.new_int32(no_span())
-    e.coerce = coerce_addr_of()
+    var e = Expr.new(Span.none(), ExprKind.Call(intern("mk"), List.new<Expr>()))
+    e.ty = Type.new_int32(Span.none())
+    e.coerce = Coercion.AddrOf
     val c = e.emit_expr()
     assert_eq(c.as_str(), "((int32_t[1]){ mk() })", "rvalue borrow emits array compound literal")
 }
 
 // `x.f` borrows directly; `mk().f` goes through the compound-literal temp.
 @test fun addr_of_field_of_rvalue_materializes_temp(): void {
-    val base = expr_ptr(Expr.new(no_span(), ExprKind.Call(intern("mk"), List.new<Expr>())))
-    var e = Expr.new(no_span(), ExprKind.FieldAccess(base, intern("f")))
-    e.ty = Type.new_int32(no_span())
-    e.coerce = coerce_addr_of()
+    val base = expr_ptr(Expr.new(Span.none(), ExprKind.Call(intern("mk"), List.new<Expr>())))
+    var e = Expr.new(Span.none(), ExprKind.FieldAccess(base, intern("f")))
+    e.ty = Type.new_int32(Span.none())
+    e.coerce = Coercion.AddrOf
     val c = e.emit_expr()
     assert_eq(c.as_str(), "((int32_t[1]){ (mk()).f })", "field-of-rvalue borrow goes through the temp")
 
-    val vbase = expr_ptr(Expr.new(no_span(), ExprKind.Variable(intern("x"))))
-    var e2 = Expr.new(no_span(), ExprKind.FieldAccess(vbase, intern("f")))
-    e2.ty = Type.new_int32(no_span())
-    e2.coerce = coerce_addr_of()
+    val vbase = expr_ptr(Expr.new(Span.none(), ExprKind.Variable(intern("x"))))
+    var e2 = Expr.new(Span.none(), ExprKind.FieldAccess(vbase, intern("f")))
+    e2.ty = Type.new_int32(Span.none())
+    e2.coerce = Coercion.AddrOf
     val c2 = e2.emit_expr()
     assert_eq(c2.as_str(), "(&(__x).f)", "field-of-lvalue borrows directly")
 }

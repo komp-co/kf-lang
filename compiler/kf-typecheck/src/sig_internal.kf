@@ -3,8 +3,8 @@
 
 import alloc.hash_map.*
 
-import kf_core.ast.Sym
-import kf_core.ast.CrateId
+import kf_core.intern.Sym
+import kf_core.intern.CrateId
 
 impl SigTable {
     pub mutating fun note_internal(owner_module: Sym, name: str): void {

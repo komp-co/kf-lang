@@ -3,12 +3,12 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 import kf_core.span.*
+import kf_core.intern.*
 import kf_resolve.*
 import kf_typecheck.types.can_coerce
 
@@ -23,7 +23,7 @@ pub struct LocalBinding {
     /// How many places read the binding, and the latest.
     pub var uses: uint64
     pub var last_use: Span
-    /// The use that decided an open binding's type; `no_span()` otherwise.
+    /// The use that decided an open binding's type; `Span.none()` otherwise.
     pub var decided_at: Span
     /// The first use that narrowed it without deciding: a `str` slot rules out
     /// every other type a string literal converts to.
@@ -122,7 +122,7 @@ pub fun new_type_ctx(return_ty: Type, diags: &var Diagnostics, table: Ptr<DeclTa
         table: table,
         sigs: sigs,
         fn_owner: "",
-        owner_crate: crate_id_poison(),
+        owner_crate: CrateId.new_poison(),
         owner_module: intern(""),
         owner_file: 0,
         metadata_owner: unsafe { 0 as Ptr<TopDecl> },
@@ -182,8 +182,8 @@ impl TypeCtx {
         return self.sig_table().lang_slice_mut
     }
 
-    pub fun lang_trait_name(key: str): Sym {
-        return self.sig_table().lang_trait_name(key)
+    pub fun lang_trait_name(item: LangItem): Sym {
+        return self.sig_table().lang_trait_name(item)
     }
 
     /// Clone, Drop or Equal, by key.
@@ -197,16 +197,16 @@ impl TypeCtx {
 
     // A mutable binding. Only `declare_val` sites are enforced.
     pub mutating fun declare(name: String, ty: Type): void {
-        self.locals.push(LocalBinding { name: name, ty: ty, is_var: true, flexible_init: null, uses: 0, last_use: no_span(), decided_at: no_span(), narrowed_at: no_span() })
+        self.locals.push(LocalBinding { name: name, ty: ty, is_var: true, flexible_init: null, uses: 0, last_use: Span.none(), decided_at: Span.none(), narrowed_at: Span.none() })
     }
 
     // An immutable binding: `val`, params, `self` in a non-mutating method.
     pub mutating fun declare_val(name: String, ty: Type): void {
-        self.locals.push(LocalBinding { name: name, ty: ty, is_var: false, flexible_init: null, uses: 0, last_use: no_span(), decided_at: no_span(), narrowed_at: no_span() })
+        self.locals.push(LocalBinding { name: name, ty: ty, is_var: false, flexible_init: null, uses: 0, last_use: Span.none(), decided_at: Span.none(), narrowed_at: Span.none() })
     }
 
     pub mutating fun declare_flexible(name: String, ty: Type, is_var: bool, init: Ptr<Expr>): void {
-        self.locals.push(LocalBinding { name: name, ty: ty, is_var: is_var, flexible_init: init, uses: 0, last_use: no_span(), decided_at: no_span(), narrowed_at: no_span() })
+        self.locals.push(LocalBinding { name: name, ty: ty, is_var: is_var, flexible_init: init, uses: 0, last_use: Span.none(), decided_at: Span.none(), narrowed_at: Span.none() })
     }
 
     /// A node checked again is not a second use.

@@ -1,19 +1,19 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.Sym
-import kf_core.ast.intern
-import kf_core.ast.linkage_source
+import kf_core.ast.declaration.Linkage
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
-import kf_core.ast.expression.coerce_addr_of
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.ast.expression.Coercion
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
 import kf_typecheck.types.mangle_type
 import kf_typecheck.types.display_type
 import kf_typecheck.check.place_is_mutable
 import kf_core.ast.dyn_meta.*
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_typecheck.check.borrow.borrow_place_is_stable
 import kf_typecheck.check.borrow.emit_immutable_borrow_error
 import kf_typecheck.check.borrow.emit_mutable_borrow_place_error
@@ -54,7 +54,7 @@ pub fun Type.could_dyn_coerce(expected: &Type, ctx: &var TypeCtx): bool {
         DynTraitTy(_) => return false
         _ => { }
     }
-    val trait_info = unsafe { (*ctx.sigs).find_trait_identity(dyn_trait_name(&dynamic_type)) } ?: return false
+    val trait_info = unsafe { (*ctx.sigs).find_trait_identity(dynamic_type.dyn_trait_name()) } ?: return false
     val trait_args = dynamic_type.dyn_trait_args_key()
     return unsafe { (*ctx.sigs).identity_implements(concrete.dyn_receiver_identity(), trait_info.name.as_str(), trait_args.as_str()) }
 }
@@ -70,7 +70,7 @@ pub fun try_dyn_coerce(e: &var Expr, expected: Type, ctx: &var TypeCtx): bool {
         DynTraitTy(_) => return false
         _ => { }
     }
-    val trait_info = unsafe { (*ctx.sigs).find_trait_identity(dyn_trait_name(&dynamic_type)) } ?: return false
+    val trait_info = unsafe { (*ctx.sigs).find_trait_identity(dynamic_type.dyn_trait_name()) } ?: return false
     val trait_args = dynamic_type.dyn_trait_args_key()
     val receiver_identity = source.concrete.dyn_receiver_identity()
     if !unsafe { (*ctx.sigs).identity_implements(receiver_identity, trait_info.name.as_str(), trait_args.as_str()) } {
@@ -82,7 +82,7 @@ pub fun try_dyn_coerce(e: &var Expr, expected: Type, ctx: &var TypeCtx): bool {
     register_dyn_coercion_vtable(&source.concrete, receiver_identity, symbol, &layout, ctx)
 
     var inner = *e
-    if source.needs_borrow { inner.coerce = coerce_addr_of() }
+    if source.needs_borrow { inner.coerce = Coercion.AddrOf }
     val inner_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *inner_ptr = inner }
     var replacement = Expr.new(e.span, ExprKind.DynCoerce(inner_ptr, symbol))
@@ -114,8 +114,10 @@ fun Expr.dyn_coerce_source(target_mutable: bool, ctx: &var TypeCtx): DynCoerceSo
     when (self.ty.kind) {
         RefTo(source_mutable, inner) => {
             if target_mutable && !source_mutable {
-                val label = new_label(self.span, String.from("cannot convert a shared concrete borrow to a mutable trait object"))
-                ctx.emit(new_diagnostic(Severity.Error, label))
+                val label = Label.new(
+                    self.span, String.from("cannot convert a shared concrete borrow to a mutable trait object")
+                )
+                ctx.emit(Diagnostic.new(Severity.Error, label))
                 return invalid_dyn_source()
             }
             return DynCoerceSource { valid: true, concrete: unsafe { inner.clone() }, needs_borrow: false }
@@ -139,7 +141,7 @@ fun invalid_dyn_source(): DynCoerceSource {
 }
 
 fun Type.dyn_trait_args_key(): String {
-    val args = dyn_trait_args(self)
+    val args = self.dyn_trait_args()
     if unsafe { args as uint64 } == 0 { return "" }
     var result = ""
     var i = 0
@@ -162,7 +164,7 @@ fun Type.dyn_receiver_identity(): Sym {
 
 fun Type.emit_missing_dyn_impl(dynamic_type: &Type, span: Span, ctx: &var TypeCtx): void {
     val message = "cannot convert `${self.display_type(ctx)}` to `&${dynamic_type.display_type(ctx)}`: no exact trait implementation exists"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
 }
 
 fun register_dyn_coercion_vtable(receiver: &Type, receiver_identity: Sym, symbol: Sym, layout: &DynTraitLayout, ctx: &var TypeCtx): void {
@@ -174,7 +176,7 @@ fun register_dyn_coercion_vtable(receiver: &Type, receiver_identity: Sym, symbol
         if existing.layout.id == layout.identity.id && existing.receiver_identity.id == receiver_identity.id { return }
         i = i + 1
     }
-    var linkage = linkage_source()
+    var linkage = Linkage.Source
     if unsafe { owner.linkage.is_imported() } { linkage = unsafe { owner.linkage } }
     unsafe { owner.dyn_vtables.push(DynVTableInstance {
         layout: layout.identity,

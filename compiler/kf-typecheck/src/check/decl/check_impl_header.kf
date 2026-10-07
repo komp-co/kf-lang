@@ -12,12 +12,12 @@
 import alloc.list.*
 
 import kf_core.ast.Module
-import kf_core.ast.Sym
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TypeParam
 import kf_core.diagnostic.*
 import kf_core.span.*
+import kf_core.intern.Sym
 import kf_typecheck.*
 
 /// Before anything reads an impl as a fact about its target.
@@ -184,7 +184,7 @@ fun TopDecl.report_header(diags: &var Diagnostics, message: String): void {
 }
 
 fun report_at(at: Span, diags: &var Diagnostics, message: String): void {
-    diags.emit(new_diagnostic(Severity.Error, new_label(at, message)))
+    diags.emit(Diagnostic.new(Severity.Error, Label.new(at, message)))
 }
 
 /// `N` in `impl<T, N: uint64> From<T[N]> for List<T>`: the parameters only

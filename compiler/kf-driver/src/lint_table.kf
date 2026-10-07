@@ -11,13 +11,13 @@ import kf_core.diagnostic.*
 /// and, when configuration changed that, its default, then what it reports;
 /// under it, a row for each option it takes, alike.
 pub fun lint_table(cfg: &LintConfig): String {
-    val all = lint_registry()
+    val all = LintInfo.all()
     var width: uint64 = 0
     while info in &all {
         if info.name.byte_len() > width { width = info.name.byte_len() }
     }
     var out = String.from("")
-    val groups = lint_groups()
+    val groups = LintInfo.groups()
     while group in &groups {
         var heading = false
         while info in &all {
@@ -27,8 +27,8 @@ pub fun lint_table(cfg: &LintConfig): String {
                 out.append("${group}\n")
                 heading = true
             }
-            val level = lint_level_name(cfg.configured_level(info.name.as_str()))
-            val default = lint_level_name(info.default)
+            val level = (cfg.configured_level(info.name.as_str())).name()
+            val default = info.default.name()
             var cell = String.from(level)
             if level != default { cell.append(" (default ${default})") }
             out.append("  ")

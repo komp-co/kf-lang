@@ -8,15 +8,15 @@ import kf_core.span.Span
 import kf_core.ast.Module
 import kf_core.ast.types.Type
 import kf_core.ast.declaration.*
-import kf_core.ast.annotation.annotation_is_known
-import kf_core.ast.annotation.known_annotations_summary
 import kf_core.diagnostic.*
+import kf_core.lang.AnnotationInfo
+import kf_core.ast.annotation.*
 import kf_typecheck.*
 
 pub fun unknown_annotation(kind: str, at: Span): Diagnostic {
-    val built_in = known_annotations_summary()
+    val built_in = AnnotationInfo.expected()
     val message = "unknown annotation `@${kind}`: declare it with `annotation ${kind}`, or use ${built_in.as_str()}"
-    return new_diagnostic(Severity.Error, new_label(at, message))
+    return Diagnostic.new(Severity.Error, Label.new(at, message))
 }
 
 /// `decls` reports a target naming an unknown type; a dependency's
@@ -29,11 +29,11 @@ pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: &var Di
         when (td.kind) {
             AnnotationDecl(own_params, own_target, is_pub) => {
                 val own = td.crate.raw == self.crate.raw
-                val reserved = annotation_is_known(td.name.as_str())
+                val reserved = AnnotationInfo.is_known(td.name.as_str())
                 if reserved {
                     if own {
                         val message = "`@${td.name.as_str()}` is a built-in annotation and cannot be declared"
-                        found.push(new_diagnostic(Severity.Error, new_label(td.decl_name_span(), message)))
+                        found.push(Diagnostic.new(Severity.Error, Label.new(td.decl_name_span(), message)))
                     }
                 } else {
                     if own {
@@ -62,7 +62,7 @@ pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: &var Di
         while annotation in &td.annotations {
             val kind = annotation.name.as_str()
             if kind.equals("") { continue }
-            if annotation_is_known(kind) { continue }
+            if AnnotationInfo.is_known(kind) { continue }
             td.register_annotation_use(annotation, &top_level_owner(), sigs, diags, table, &var found)
         }
         td.register_member_annotations(sigs, diags, table, &var found)
@@ -126,7 +126,7 @@ fun Module.argument_struct_params(annotation: &TopDecl): List<Param> {
         when (other.kind) {
             Struct(fields, _pub) => {
                 while field in &fields {
-                    params.push(new_param(field.span, field.name.as_string(), Box.new((*field.ty).clone())))
+                    params.push(Param.new(field.span, field.name.as_string(), Box.new((*field.ty).clone())))
                 }
                 return params
             }

@@ -26,7 +26,7 @@ pub mutating fun Module.expand_annotation_structs(table: &var DeclTable, diags: 
                 } else if self.names_another_declaration(&td) {
                     val why = "an annotation's name is also the type of its arguments"
                     val message = "`${td.name.as_str()}` is already declared in this crate, and ${why}"
-                    diags.push(new_diagnostic(Severity.Error, new_label(td.decl_name_span(), message)))
+                    diags.push(Diagnostic.new(Severity.Error, Label.new(td.decl_name_span(), message)))
                 } else {
                     synth.push(td.argument_struct(&params, is_pub))
                 }
@@ -62,9 +62,9 @@ fun TopDecl.argument_struct(params: &List<Param>, is_pub: bool): TopDecl {
     var borrows = false
     while param in &params {
         if (*param.ty).names_str() { borrows = true }
-        fields.push(new_field(param.span, param.name.as_string(), Box.new((*param.ty).clone()), false, is_pub))
+        fields.push(Field.new(param.span, param.name.as_string(), Box.new((*param.ty).clone()), false, is_pub))
     }
-    var decl = new_top_decl(self.span, self.name.as_string(), TopDeclKind.Struct(fields, is_pub))
+    var decl = TopDecl.new(self.span, self.name.as_string(), TopDeclKind.Struct(fields, is_pub))
     decl.is_view = borrows
     decl.crate = self.crate
     decl.module_path = self.module_path

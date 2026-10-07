@@ -96,7 +96,7 @@ fun Module.target_declaration(names: &List<NameSpan>, target: &NameSpan): Span {
         while n in &names {
             if n.is_decl && n.same_target(target) { return n.span }
         }
-        return no_span()
+        return Span.none()
     }
     return self.declaration_span(decl)
 }
@@ -135,7 +135,7 @@ fun Span.name_covers(file_id: uint32, offset: uint32): bool {
 
 /// The declaration's name when recorded, else its full span.
 pub fun Module.declaration_span(decl: DeclId): Span {
-    var found = no_span()
+    var found = Span.none()
     while i in 0..self.decls.size() {
         val td = self.decls.at(i)
         val td_decl = td.decl ?: {

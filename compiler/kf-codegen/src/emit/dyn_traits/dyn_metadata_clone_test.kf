@@ -1,23 +1,23 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.intern
-import kf_core.ast.new_crate_id
+import kf_core.span.Span
 import kf_core.ast.types.Type
 import kf_core.ast.declaration.TopDeclKind
-import kf_core.ast.declaration.new_top_decl
+import kf_core.ast.declaration.TopDecl
+import kf_core.intern.intern
+import kf_core.intern.CrateId
 import kf_codegen.emit.glue.deep_clone_top_decl
 import testing.test
 
 @test fun dyn_metadata_top_decl_clone_is_independent(): void {
-    var source = new_top_decl(no_span(), String.from("show"), TopDeclKind.Poison)
+    var source = TopDecl.new(Span.none(), String.from("show"), TopDeclKind.Poison)
     source.dyn_layouts.push(DynTraitLayout {
         identity: intern("sample::Show"),
         principal: intern("sample::Show"),
         args: List.new<Type>(),
         methods: List.new<DynMethodSlot>(),
-        owner: new_crate_id("sample"),
+        owner: CrateId.new("sample"),
         imported: false
     })
     var copied = source.deep_clone_top_decl()
@@ -26,7 +26,7 @@ import testing.test
         principal: intern("sample::Debug"),
         args: List.new<Type>(),
         methods: List.new<DynMethodSlot>(),
-        owner: new_crate_id("sample"),
+        owner: CrateId.new("sample"),
         imported: false
     })
     assert_eq(source.dyn_layouts.size(), 1, "declaration clones do not alias dynamic layout metadata")

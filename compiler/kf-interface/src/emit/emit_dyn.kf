@@ -4,6 +4,8 @@ import kf_core.ast.*
 import kf_core.ast.types.*
 import json.writer.*
 import kf_core.ast.dyn_meta.*
+import kf_core.intern.*
+import kf_core.ast.declaration.*
 
 pub fun Module.emit_interface_dyn_traits(crate: CrateId): String {
     val layouts = self.collect_interface_dyn_traits(crate)
@@ -103,8 +105,8 @@ pub fun Type.dyn_type_to_source(): String {
 
 fun Type.dyn_trait_type_source(): String {
     var result = String.from("dyn ")
-    result.append(type_identity_display(dyn_trait_name(self)).as_str())
-    val args = dyn_trait_args(self)
+    result.append(type_identity_display(self.dyn_trait_name()).as_str())
+    val args = self.dyn_trait_args()
     if unsafe { args as uint64 } == 0 || unsafe { args.size() } == 0 { return result }
     result.append("<")
     var i = 0
@@ -145,7 +147,7 @@ fun Module.collect_interface_dyn_traits(crate: CrateId): List<DynTraitLayout> {
         while j in 0..declaration.dyn_layouts.size() {
             val layout = declaration.dyn_layouts.at(j)
             if self.interface_dyn_layout_required(crate, layout.identity, layout.owner) && !dyn_layout_emitted(&result, layout.identity) {
-                result.push(clone_dyn_trait_layout(layout))
+                result.push(layout.clone())
             }
         }
     }
@@ -211,13 +213,13 @@ fun merge_interface_dyn_vtable(result: &var List<DynVTableInstance>, table: &Dyn
         val existing = result.at(i)
         if existing.layout.id == table.layout.id && existing.receiver_identity.id == table.receiver_identity.id {
             if existing.adapters.size() == 0 && table.adapters.size() > 0 {
-                result.set(i, clone_dyn_vtable_instance(table))
+                result.set(i, table.clone())
             }
             return
         }
         i = i + 1
     }
-    result.push(clone_dyn_vtable_instance(table))
+    result.push(table.clone())
 }
 
 fun dyn_layout_emitted(layouts: &List<DynTraitLayout>, identity: Sym): bool {

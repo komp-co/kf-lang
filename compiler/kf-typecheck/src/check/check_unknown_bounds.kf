@@ -16,7 +16,7 @@ pub fun unknown_bound_diags(sigs: Ptr<SigTable>): List<Diagnostic> {
         b.note_bound_as_an_import_use(sigs)
         if b.bound_names_no_trait(sigs) {
             val m = "no trait named `${b.trait_name.as_str()}` — a bound must name a declared trait"
-            out.push(new_diagnostic(Severity.Error, new_label(b.span, m)))
+            out.push(Diagnostic.new(Severity.Error, Label.new(b.span, m)))
         } else {
             // Wrong argument count: reported at the declaration too.
             when (unsafe { sigs.find_trait(b.trait_name.as_str()) }) {
@@ -25,7 +25,7 @@ pub fun unknown_bound_diags(sigs: Ptr<SigTable>): List<Diagnostic> {
                         val expect = info.type_params.size()
                         val found = b.arg_names.size()
                         val m = "trait `${b.trait_name.as_str()}` expects ${expect} argument(s), found ${found}"
-                        out.push(new_diagnostic(Severity.Error, new_label(b.span, m)))
+                        out.push(Diagnostic.new(Severity.Error, Label.new(b.span, m)))
                     }
                 }
                 None => { }

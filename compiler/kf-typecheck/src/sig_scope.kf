@@ -2,7 +2,6 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
 import kf_core.ast.declaration.DeclId
 import kf_resolve.DeclTable
 import kf_typecheck.types.runtime_prelude_declares

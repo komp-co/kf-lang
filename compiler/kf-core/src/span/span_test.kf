@@ -33,7 +33,7 @@ import testing.test
 }
 
 @test fun no_span_reports_none(): void {
-    val s = no_span()
+    val s = Span.none()
     assert_eq(s.file_id, 0, "no_span file_id is 0")
     assert_eq(s.is_none(), true, "no_span is none")
 }
@@ -44,26 +44,26 @@ import testing.test
 }
 
 @test fun source_file_constructed(): void {
-    val sf = new_source_file(String.from("foo.kf"), String.from("hello"))
+    val sf = SourceFile.new("foo.kf", "hello")
     assert_eq(sf.path.as_str(), "foo.kf", "path round-trip")
     assert_eq(sf.content.as_str(), "hello", "content round-trip")
 }
 
 @test fun source_map_starts_empty(): void {
-    val sm = new_source_map()
+    val sm = SourceMap.new()
     assert_eq(sm.files.size(), 0, "no files initially")
 }
 
 @test fun source_map_add_file_returns_id_1(): void {
-    var sm = new_source_map()
-    val sf = new_source_file(String.from("a.kf"), String.from("content"))
+    var sm = SourceMap.new()
+    val sf = SourceFile.new("a.kf", "content")
     val id = sm.add_file(sf)
     assert_eq(id, 1, "first id is 1, not 0")
     assert_eq(sm.files.size(), 1, "size is 1")
 }
 
 @test fun source_map_get_file_zero_returns_none(): void {
-    val sm = new_source_map()
+    val sm = SourceMap.new()
     when (sm.get_file(0)) {
         Some(_) => fail("file_id 0 must be None")
         None => assert(true, "ok")
@@ -71,7 +71,7 @@ import testing.test
 }
 
 @test fun source_map_get_file_out_of_range_returns_none(): void {
-    val sm = new_source_map()
+    val sm = SourceMap.new()
     when (sm.get_file(99)) {
         Some(_) => fail("missing file must be None")
         None => assert(true, "ok")
@@ -79,8 +79,8 @@ import testing.test
 }
 
 @test fun source_map_span_to_location_first_line(): void {
-    var sm = new_source_map()
-    val sf = new_source_file(String.from("x.kf"), String.from("abcdef"))
+    var sm = SourceMap.new()
+    val sf = SourceFile.new("x.kf", "abcdef")
     val id = sm.add_file(sf)
     val s = Span { file_id: id, start: 3, end: 4 }
     when (sm.span_to_location(s)) {
@@ -90,7 +90,7 @@ import testing.test
 }
 
 @test fun source_map_span_to_location_unknown_file(): void {
-    val sm = new_source_map()
+    val sm = SourceMap.new()
     val s = Span { file_id: 42, start: 0, end: 1 }
     when (sm.span_to_location(s)) {
         Some(_) => fail("unknown file must be None")
@@ -104,9 +104,9 @@ fun check_loc(loc: Location, expected_line: uint32, expected_col: uint32): void 
 }
 
 fun three_line_map(): SourceMap {
-    var sm = new_source_map()
+    var sm = SourceMap.new()
     // "one\ntwo\nthree\n" — lines start at 0, 4, 8; the file is 14 bytes.
-    val _id = sm.add_file(new_source_file(String.from("m.kf"), String.from("one\ntwo\nthree\n")))
+    val _id = sm.add_file(SourceFile.new("m.kf", "one\ntwo\nthree\n"))
     return sm
 }
 
@@ -161,9 +161,9 @@ fun three_line_map(): SourceMap {
 }
 
 @test fun each_file_indexes_its_own_lines(): void {
-    var sm = new_source_map()
-    val _a = sm.add_file(new_source_file(String.from("a.kf"), String.from("aaaa\nbbbb\n")))
-    val b = sm.add_file(new_source_file(String.from("b.kf"), String.from("x\ny\nz\n")))
+    var sm = SourceMap.new()
+    val _a = sm.add_file(SourceFile.new("a.kf", "aaaa\nbbbb\n"))
+    val b = sm.add_file(SourceFile.new("b.kf", "x\ny\nz\n"))
     assert_eq(b, 2, "the second file is id 2")
     // byte 4 in b.kf is `z` — line 3, column 1. In a.kf it would be line 1.
     when (sm.span_to_location(Span { file_id: b, start: 4, end: 5 })) {
@@ -175,8 +175,8 @@ fun three_line_map(): SourceMap {
 }
 
 @test fun a_file_with_no_newlines_is_one_line(): void {
-    var sm = new_source_map()
-    val id = sm.add_file(new_source_file(String.from("one.kf"), String.from("abcdef")))
+    var sm = SourceMap.new()
+    val id = sm.add_file(SourceFile.new("one.kf", "abcdef"))
     when (sm.span_to_location(Span { file_id: id, start: 5, end: 6 })) {
         Some(loc) => check_loc(loc, 1, 6)
         None => fail("expected a location")
@@ -184,8 +184,8 @@ fun three_line_map(): SourceMap {
 }
 
 @test fun an_empty_file_still_answers_for_offset_zero(): void {
-    var sm = new_source_map()
-    val id = sm.add_file(new_source_file(String.from("e.kf"), ""))
+    var sm = SourceMap.new()
+    val id = sm.add_file(SourceFile.new("e.kf", ""))
     when (sm.span_to_location(Span { file_id: id, start: 0, end: 0 })) {
         Some(loc) => check_loc(loc, 1, 1)
         None => fail("an empty file has a line 1")

@@ -66,7 +66,7 @@ fun projection_owner_key(owner: &TypeRef, self_name: str): String {
         Named(n, args) => {
             // `Self` names the impl target, known only through `self_name`.
             if n.as_str().equals("Self") { return String.from(self_name) }
-            return monomorphized_type_name(n.as_string(), &args)
+            return monomorphized_type_name(n.as_string(), &args).display()
         }
         _ => return ""
     }

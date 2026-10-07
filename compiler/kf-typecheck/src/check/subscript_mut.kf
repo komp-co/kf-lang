@@ -2,13 +2,13 @@
 // `mutating` method, `&var`), it becomes `index_mut` and is checked again,
 // and so does each subscript it is taken through.
 
-import kf_core.ast.intern
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.span.Span
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
+import kf_core.intern.intern
 import kf_typecheck.check.borrow.check_deref
 
 /// Only the root counts: `xs[i].f` writes into `xs[i]`.
@@ -51,7 +51,7 @@ fun Expr.emit_immutable_container(span: Span, ctx: &var TypeCtx): void {
     val subject = if root.as_str().equals("") { String.from("the self") } else { "`${root.as_str()}`" }
     val fix = "declare it with `var` (or borrow it with `&var`)"
     val message = "cannot borrow an element of ${subject.as_str()} mutably; ${fix}"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
 }
 
 /// Borrowing a root subscript through `IndexMut` when that makes it writable.

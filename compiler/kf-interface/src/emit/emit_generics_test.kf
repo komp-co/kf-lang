@@ -5,7 +5,7 @@ import kf_core.span.*
 import kf_core.ast.*
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TopDeclKind
-import kf_core.ast.declaration.new_top_decl
+import kf_core.intern.*
 import kf_parse.lexer.tokenize
 import kf_parse.parser.new_parser
 import kf_interface.parse.*
@@ -13,17 +13,17 @@ import testing.test
 
 fun generics_source_map(): Ptr<SourceMap> {
     val smap: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
-    unsafe { *smap = new_source_map() }
+    unsafe { *smap = SourceMap.new() }
     return smap
 }
 
 // Templates can only be sliced from a file registered in the SourceMap.
 fun mapped_module(src: str, crate_name: str, smap: Ptr<SourceMap>): Module {
-    val fid = unsafe { smap.add_file(new_source_file(String.from("lib.kf"), String.from(src))) }
+    val fid = unsafe { smap.add_file(SourceFile.new(String.from("lib.kf"), String.from(src))) }
     val tokens = tokenize(src, fid)
     var p = new_parser(tokens)
     val parsed = p.parse_module(List.new<String>())
-    val crate = new_crate_id(crate_name)
+    val crate = CrateId.new(crate_name)
     var decls = List.new<TopDecl>()
     while i in 0..parsed.decls.size() {
         var td = *parsed.decls.at(i)
@@ -109,7 +109,7 @@ fun InterfaceLoad.find_decl(name: str): TopDecl {
             if td.name.as_str() == name { return td.clone() }
         }
     }
-    return new_top_decl(no_span(), "", TopDeclKind.Poison)
+    return TopDecl.new(Span.none(), "", TopDeclKind.Poison)
 }
 
 @test

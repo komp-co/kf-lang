@@ -3,17 +3,17 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.Sym
 import kf_core.ast.types.Type
 import kf_core.ast.expression.*
 import kf_core.diagnostic.*
+import kf_core.intern.Sym
 
-// Flags a move out of a borrow when: no explicit borrow (coerce != addr_of),
+// Flags a move out of a borrow when: no explicit borrow (coerce is not `AddrOf`),
 // the value is move-only, it is reached through a borrow path or borrowed
 // local, and the parameter is a known move-sink. Unknown callees and
 // borrow-sink params are left alone.
 mutating fun Expr.check_consumed_arg(callee: String, idx: uint64, ctx: &var MoveCtx): void {
-    if self.coerce == coerce_addr_of() { return }
+    if self.coerce == Coercion.AddrOf { return }
     if !self.ty.mc_is_move_only(ctx.move_only_names) { return }
     val borrowed_read = is_borrow_path(unsafe { &*self }) ||
         expr_is_borrowed_local(unsafe { &*self }, ctx)
@@ -34,8 +34,8 @@ mutating fun Expr.check_consumed_arg(callee: String, idx: uint64, ctx: &var Move
 // Marks the node for an auto-clone and warns. A node already carrying a
 // coercion only warns.
 mutating fun Expr.mark_auto_clone(callee: String, idx: uint64, ctx: &var MoveCtx): void {
-    if self.coerce == coerce_none() {
-        self.coerce = coerce_clone()
+    if self.coerce == Coercion.Identity {
+        self.coerce = Coercion.Clone
     }
     // The copy happens either way; permission only picks the diagnostic.
     val w = ctx.warn
@@ -57,7 +57,7 @@ fun reject_auto_clone(span: Span, ty: &Type, callee: String, idx: uint64, ctx: &
         String.from("` here to fill arg ") + idx_s +
         String.from(" of `") + callee.clone() +
         String.from("`, but it does not implement `Clone`") + ty.clone_repair()
-    ctx.record_lint(lint_at("unauthorized_copy", span, m))
+    ctx.record_lint(Diagnostic.lint_at("unauthorized_copy", span, m))
 }
 
 fun Type.clone_repair(): String {
@@ -105,7 +105,7 @@ mutating fun Expr.check_consumed_field(ctx: &var MoveCtx): void {
 
 // Shared by every unconditional move-sink.
 mutating fun Expr.check_consumed_sink(what: String, ctx: &var MoveCtx): void {
-    if self.coerce == coerce_addr_of() { return }
+    if self.coerce == Coercion.AddrOf { return }
     if !self.ty.mc_is_move_only(ctx.move_only_names) { return }
     val borrowed_read = is_borrow_path(unsafe { &*self }) ||
         expr_is_borrowed_local(unsafe { &*self }, ctx)
@@ -115,7 +115,7 @@ mutating fun Expr.check_consumed_sink(what: String, ctx: &var MoveCtx): void {
 
 // A return always takes ownership.
 mutating fun Expr.check_consumed_return(ctx: &var MoveCtx): void {
-    if self.coerce == coerce_addr_of() { return }
+    if self.coerce == Coercion.AddrOf { return }
     if !self.ty.mc_is_move_only(ctx.move_only_names) { return }
     val borrowed_read = is_borrow_path(unsafe { &*self }) ||
         expr_is_borrowed_local(unsafe { &*self }, ctx)
@@ -127,7 +127,7 @@ mutating fun Expr.check_consumed_return(ctx: &var MoveCtx): void {
 // consume. Gated like check_consumed_arg: a coerced argument, a borrow-sink
 // param or an unknown callee does not consume.
 pub mutating fun Expr.consume_bare_var_arg(callee: String, idx: uint64, ctx: &var MoveCtx): void {
-    if self.coerce != coerce_none() { return }
+    if self.coerce != Coercion.Identity { return }
     if !self.ty.mc_is_move_only(ctx.move_only_names) { return }
     val pl = param_lookup(unsafe { &*ctx.ptable }, callee, idx)
     if !pl.found { return }
@@ -189,7 +189,7 @@ fun warn_auto_clone(span: Span, callee: String, idx: uint64, ctx: &var MoveCtx):
         String.from("` (arg ") + idx_s +
         String.from(" of `") + callee.clone() +
         String.from("`); borrow with `&` to avoid the copy")
-    ctx.record_lint(lint_at("implicit_copy", span, m))
+    ctx.record_lint(Diagnostic.lint_at("implicit_copy", span, m))
 }
 
 // Collected on the module-scoped WarnState so the driver resolves each
@@ -206,7 +206,7 @@ fun warn_use_after_move(span: Span, name: String, ctx: &var MoveCtx): void {
     val m = String.from("cloned `") + name.clone() +
         String.from("` to keep it live after a move in `") + ctx.cur_fn.clone() +
         String.from("`; restructure to move once and avoid the copy")
-    ctx.record_lint(lint_at("copy_after_move", span, m))
+    ctx.record_lint(Diagnostic.lint_at("copy_after_move", span, m))
 }
 
 // A use of an already-moved name: clones the pending consume, warns, and

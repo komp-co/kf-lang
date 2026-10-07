@@ -1,0 +1,199 @@
+// Lang items: library types and traits the language builds on, marked
+// `@lang("key")`. The compiler asks for them by key and gets back the name
+// the library chose.
+
+import alloc.list.*
+
+import kf_core.ast.types.*
+import kf_core.ast.declaration.*
+import kf_core.ast.expression.*
+import kf_core.span.*
+import kf_core.intern.*
+import kf_core.diagnostic.alternatives
+import kf_core.ast.annotation.*
+
+/// One lang item. Declaration order is the order of the "expected" list in
+/// the unknown-key error.
+@derive(Copy, Equal)
+pub enum LangItem {
+    String
+    Iterable
+    Display
+    Compare
+    Equal
+    Clone
+    Copy
+    Drop
+    Hash
+    Default
+    Add
+    Sub
+    Mul
+    Div
+    Option
+    List
+    Array
+    Slice
+    SliceMut
+    Deref
+    DerefMut
+}
+
+impl LangItem {
+    /// The word a library writes in `@lang("...")`.
+    pub fun key(): str {
+        return when (self) {
+            String => "string"
+            Iterable => "iterable"
+            Display => "display"
+            Compare => "compare"
+            Equal => "equal"
+            Clone => "clone"
+            Copy => "copy"
+            Drop => "drop"
+            Hash => "hash"
+            Default => "default"
+            Add => "add"
+            Sub => "sub"
+            Mul => "mul"
+            Div => "div"
+            Option => "option"
+            List => "list"
+            Array => "array"
+            Slice => "slice"
+            SliceMut => "slice_mut"
+            Deref => "deref"
+            DerefMut => "deref_mut"
+        }
+    }
+
+    /// Every item the compiler consumes.
+    static fun all(): List<LangItem> {
+        return [
+            LangItem.String, LangItem.Iterable, LangItem.Display, LangItem.Compare,
+            LangItem.Equal, LangItem.Clone, LangItem.Copy, LangItem.Drop,
+            LangItem.Hash, LangItem.Default, LangItem.Add, LangItem.Sub,
+            LangItem.Mul, LangItem.Div, LangItem.Option, LangItem.List,
+            LangItem.Array, LangItem.Slice, LangItem.SliceMut, LangItem.Deref,
+            LangItem.DerefMut
+        ]
+    }
+
+    /// None for a key the compiler does not know, so a typo cannot silently
+    /// leave a type unmarked.
+    pub static fun from_key(key: str): LangItem? {
+        while item in LangItem.all() {
+            if item.key() == key { return item }
+        }
+        return null
+    }
+
+    /// Every key as `@lang("...")`, for the unknown-key error.
+    pub static fun expected_keys(): String {
+        val written = LangItem.all().map(|item: LangItem| "`@lang(\"${item.key()}\")`")
+        return alternatives(&written)
+    }
+}
+
+/// `@lang("key")`, for a declaration read back from an interface.
+pub fun lang_annotation(key: str): Annotation {
+    var args = []
+    val literal = Expr.new(Span.none(), ExprKind.LitStr(String.from(key)))
+    args.push(AnnotationArg { name: intern(""), value: Box.new(literal) })
+    return Annotation { name: intern("lang"), args: args, has_parens: true, span: Span.none() }
+}
+
+impl TopDecl {
+    /// The key of this declaration's `@lang(...)`, or "".
+    pub fun lang_key_of(): String {
+        val words = self.annotation_words("lang")
+        if words.size() == 0 { return "" }
+        return words.at(0).clone()
+    }
+}
+
+impl Module {
+    /// The struct or enum marked `@lang(key)`, or the empty name. Includes
+    /// dependencies' declarations.
+    pub fun lang_type_name(item: LangItem): Sym {
+        while td in &self.decls {
+            if td.annotations.is_empty() { continue }
+            var is_type = false
+            when (td.kind) {
+                Struct(_fields, _is_pub) => { is_type = true }
+                EnumDecl(_variants, _is_pub) => { is_type = true }
+                _ => {}
+            }
+            if is_type && td.lang_key_of().as_str() == item.key() { return td.name }
+        }
+        return intern("")
+    }
+
+    /// The trait marked `@lang(key)`, or the empty name.
+    pub fun lang_trait_name(item: LangItem): Sym {
+        while td in &self.decls {
+            if td.annotations.is_empty() { continue }
+            var is_trait = false
+            when (td.kind) {
+                TraitDecl(_members, _is_pub, _supers) => { is_trait = true }
+                _ => {}
+            }
+            if is_trait && td.lang_key_of().as_str() == item.key() { return td.name }
+        }
+        return intern("")
+    }
+
+    /// Clone, Drop or Equal, by `@lang` key: traits whose impl methods carry
+    /// no dispatch suffix.
+    pub fun is_auto_trait(name: str): bool {
+        if name == self.lang_trait_name(LangItem.Clone).as_str() { return true }
+        if name == self.lang_trait_name(LangItem.Drop).as_str() { return true }
+        if name == self.lang_trait_name(LangItem.Equal).as_str() { return true }
+        return false
+    }
+}
+
+/// What the lexer writes where interpolation needs the string type. `::` is
+/// not part of an identifier, so no source can spell it.
+pub fun lang_placeholder(item: LangItem): Sym {
+    var text = "lang::"
+    text.append(item.key())
+    return intern(text.as_str())
+}
+
+impl Sym {
+    /// The lang key this placeholder stands for, or "".
+    pub fun lang_placeholder_key(): String {
+        val text = self.as_str()
+        val n = text.byte_len()
+        if n <= 6 { return "" }
+        val head = text.substring(0, 6)
+        if head.as_str() != "lang::" { return "" }
+        return text.substring(6, n)
+    }
+
+    pub fun lang_struct_ty(span: Span): Type {
+        return Type { kind: TypeKind.Struct(self), provenance: Provenance.Inferred(span) }
+    }
+}
+
+/// The empty name means no crate declares the item, and matches nothing.
+pub fun is_lang_name(name: str, lang: Sym): bool {
+    if lang.as_str() == "" { return false }
+    return name == lang.as_str()
+}
+
+/// `@lang("list")` or `@lang("option")`. The empty name matches nothing.
+pub fun is_container_type_name(name: str, list_name: Sym, option_name: Sym): bool {
+    return is_lang_name(name, list_name) || is_lang_name(name, option_name)
+}
+
+impl Type {
+    /// The empty name matches nothing.
+    pub fun is_lang_struct(name: Sym): bool {
+        return when (self.kind) {
+            Struct(identity) => is_lang_name(type_identity_display(identity).as_str(), name)
+            _ => false
+        }
+    }
+}

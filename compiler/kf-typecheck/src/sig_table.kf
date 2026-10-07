@@ -12,6 +12,8 @@ import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.*
 import kf_resolve.DeclTable
+import kf_core.intern.*
+import kf_core.ast.annotation.*
 
 @derive(Clone)
 pub struct FnSignature {
@@ -417,10 +419,10 @@ pub fun new_sig_table(): SigTable {
 
 impl SigTable {
     /// The empty name, meaning nothing is marked, is a miss.
-    pub fun lang_trait_name(key: str): Sym {
+    pub fun lang_trait_name(item: LangItem): Sym {
         var i = 0
         while i < self.lang_trait_keys.size() {
-            if self.lang_trait_keys.at(i).as_str().equals(key) {
+            if self.lang_trait_keys.at(i).as_str().equals(item.key()) {
                 return self.lang_trait_names.get(i)
             }
             i = i + 1
@@ -430,9 +432,9 @@ impl SigTable {
 
     /// Clone, Drop or Equal, by key.
     pub fun is_auto_trait(name: str): bool {
-        if name.equals(self.lang_trait_name(lang_clone_key()).as_str()) { return true }
-        if name.equals(self.lang_trait_name(lang_drop_key()).as_str()) { return true }
-        if name.equals(self.lang_trait_name(lang_equal_key()).as_str()) { return true }
+        if name.equals(self.lang_trait_name(LangItem.Clone).as_str()) { return true }
+        if name.equals(self.lang_trait_name(LangItem.Drop).as_str()) { return true }
+        if name.equals(self.lang_trait_name(LangItem.Equal).as_str()) { return true }
         return false
     }
 

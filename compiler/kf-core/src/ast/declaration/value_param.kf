@@ -1,0 +1,31 @@
+import alloc.list.*
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.TypeParam
+
+/// The integer types a value parameter may be of.
+val INTEGER_TYPE_NAMES: str[] = ["int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64"]
+
+impl TypeParam {
+    /// The type a value parameter holds, or None for a type parameter. A value
+    /// parameter's one bound names a type rather than a trait: a primitive
+    /// integer (`N: uint64`) or another of its declaration's parameters (`M: I`).
+    pub fun value_type(siblings: &List<TypeParam>): TypeRef? {
+        if self.bounds.size() != 1 { return null }
+        val bound = self.bounds.at(0)
+        val name = when (bound.kind) {
+            Named(n, args) => if args.size() == 0 { n.as_string() } else { "" }
+            _ => ""
+        }
+        if is_integer_type_name(name.as_str()) { return bound.clone() }
+        while sibling in &siblings {
+            if sibling.name.as_str() == name.as_str() && sibling.name.as_str() != self.name.as_str() {
+                return bound.clone()
+            }
+        }
+        return null
+    }
+}
+
+pub fun is_integer_type_name(name: str): bool {
+    return INTEGER_TYPE_NAMES.contains(&name)
+}

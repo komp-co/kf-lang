@@ -2,12 +2,12 @@
 // order for codegen.
 
 import kf_core.span.*
-import kf_core.ast.intern
 import kf_core.ast.types.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.FieldInit
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
+import kf_core.intern.intern
 import kf_typecheck.types.resolve_type_ref
 import kf_typecheck.types.display_type
 import kf_typecheck.note_import_use
@@ -60,7 +60,7 @@ fun check_struct_lit(struct_name: str, fields: &var List<FieldInit>, span: Span,
                 if !expect_or_reject(unsafe { &var *v_ptr }, lf.ty, ctx) {
                     val actual = unsafe { (*v_ptr).ty }
                     val msg = "wrong type for field `${fi.name.as_str()}` of `${struct_name}`: expected `${lf.ty.display_type(ctx)}`, found `${actual.display_type(ctx)}`"
-                    ctx.emit(new_diagnostic(Severity.Error, new_label(fi.span, msg)))
+                    ctx.emit(Diagnostic.new(Severity.Error, Label.new(fi.span, msg)))
                     saw_error = true
                 }
                 found = true
@@ -73,7 +73,7 @@ fun check_struct_lit(struct_name: str, fields: &var List<FieldInit>, span: Span,
             val v_ptr: Ptr<Expr> = fi.value
             if !prechecked { check_expr(unsafe { &var *v_ptr }, ctx) }
             val msg = "struct `${struct_name}` has no field `${fi.name.as_str()}`"
-            ctx.emit(new_diagnostic(Severity.Error, new_label(fi.span, msg)))
+            ctx.emit(Diagnostic.new(Severity.Error, Label.new(fi.span, msg)))
             saw_error = true
         }
     }
@@ -88,14 +88,14 @@ fun check_struct_lit(struct_name: str, fields: &var List<FieldInit>, span: Span,
         }
         if !initialized {
             val msg = "struct literal for `${struct_name}` is missing field `${lf.name.as_str()}`"
-            ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+            ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
             saw_error = true
         }
         // A field initialised twice is an error; it would also defeat the
         // reorder below.
         if seen > 1 {
             val dmsg = "struct literal for `${struct_name}` initialises field `${lf.name.as_str()}` more than once"
-            ctx.emit(new_diagnostic(Severity.Error, new_label(span, dmsg)))
+            ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, dmsg)))
             saw_error = true
         }
     }

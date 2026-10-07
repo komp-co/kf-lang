@@ -13,20 +13,20 @@ pub fun lint_list_json(cfg: &LintConfig): String {
     var writer = JsonWriter.object()
     writer.key("groups")
     writer.begin_array()
-    val groups = lint_groups()
+    val groups = LintInfo.groups()
     while group in &groups { writer.write_string(group.as_str()) }
     writer.end_array()
     writer.key("lints")
     writer.begin_array()
-    val all = lint_registry()
+    val all = LintInfo.all()
     while group in &groups {
         while info in &all {
             if info.group.as_str() != group.as_str() { continue }
             writer.begin_object()
             writer.field_string("name", info.name.as_str())
             writer.field_string("group", info.group.as_str())
-            writer.field_string("level", lint_level_name(cfg.configured_level(info.name.as_str())))
-            writer.field_string("default", lint_level_name(info.default))
+            writer.field_string("level", (cfg.configured_level(info.name.as_str())).name())
+            writer.field_string("default", info.default.name())
             writer.field_string("description", info.description.as_str())
             writer.key("options")
             writer.begin_array()

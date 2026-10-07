@@ -4,20 +4,20 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.intern
+import kf_core.span.Span
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import testing.test
+import kf_core.intern.intern
 
 fun key_test_named(name: str): TypeRef {
-    return TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
+    return TypeRef.new(Span.none(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
 }
 
 fun key_test_ref(inner: TypeRef, mutable: bool): TypeRef {
     val p: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *p = inner }
-    return TypeRef.new(no_span(), TypeRefKind.Reference(mutable, p))
+    return TypeRef.new(Span.none(), TypeRefKind.Reference(mutable, p))
 }
 
 @test fun a_borrow_keys_with_the_reserved_borrow_marker(): void {
@@ -30,7 +30,7 @@ fun key_test_ref(inner: TypeRef, mutable: bool): TypeRef {
     val borrowed = (&key_test_ref(key_test_named("String"), false)).tref_name_key()
     var args = List.new<TypeRef>()
     args.push(key_test_named("String"))
-    val declared = (&TypeRef.new(no_span(), TypeRefKind.Named(intern("Ref"), args))).tref_name_key()
+    val declared = (&TypeRef.new(Span.none(), TypeRefKind.Named(intern("Ref"), args))).tref_name_key()
     assert_eq(borrowed.as_str().equals(declared.as_str()), false, "`&String` and `Ref<String>` are different keys")
 }
 
@@ -81,7 +81,7 @@ fun key_test_ref(inner: TypeRef, mutable: bool): TypeRef {
 @test fun a_value_argument_keys_as_its_value(): void {
     var args = List.new<TypeRef>()
     args.push(key_test_named("T"))
-    args.push(TypeRef.new(no_span(), TypeRefKind.Value(2)))
-    val key = (&TypeRef.new(no_span(), TypeRefKind.Named(intern("Array"), args))).tref_name_key()
+    args.push(TypeRef.new(Span.none(), TypeRefKind.Value(2)))
+    val key = (&TypeRef.new(Span.none(), TypeRefKind.Named(intern("Array"), args))).tref_name_key()
     assert_eq(key.as_str(), "Array__T__2", "`Array<T, 2>` keys its length")
 }

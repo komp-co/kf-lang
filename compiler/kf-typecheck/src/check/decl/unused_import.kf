@@ -8,6 +8,7 @@ import alloc.list.*
 import kf_core.span.*
 import kf_core.ast.*
 import kf_core.diagnostic.*
+import kf_core.intern.*
 import kf_typecheck.import_was_used
 
 /// The first `m.imports.size()` entries of `caller_files` and
@@ -30,7 +31,7 @@ pub fun Module.unused_import_diags(sp: Ptr<SigTable>): List<Diagnostic> {
         // used by whoever imports its module.
         val lintable = target.id != 0 && !imp.is_pub && contains_file(&own, file)
         if lintable && !self.import_reaches_a_use(sp, &targets, file, target) {
-            if import_is_written(imp) && !duplicate_span(&out, imp.span) {
+            if imp.is_written() && !duplicate_span(&out, imp.span) {
                 out.push(imp.unused_import_warning())
             }
         }
@@ -107,7 +108,7 @@ fun Import.unused_import_warning(): Diagnostic {
     if self.wildcard { msg.append(".*") }
     if self.alias.as_str() != "" { msg.append(" as ${self.alias.as_str()}") }
     msg.append("`: nothing in this file names anything it declares")
-    val d = lint_at("unused_import", self.span, msg)
+    val d = Diagnostic.lint_at("unused_import", self.span, msg)
     return with_fix_applic(d, delete_line_span(self.span), "",
         String.from("remove this import"), Applicability.MaybeIncorrect)
 }

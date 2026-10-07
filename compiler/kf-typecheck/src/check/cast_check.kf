@@ -1,7 +1,7 @@
 import kf_core.span.*
 import kf_core.ast.types.Type
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
 import kf_typecheck.types.TAG_PTR
 import kf_typecheck.types.kind_tag
 import kf_typecheck.types.mangle_type
@@ -17,7 +17,7 @@ fun reject_enum_to_number_cast(from: Type, to: Type, span: Span, ctx: &var TypeC
     if !from.type_is_enum_layout(ctx) { return }
     val msg = "`${mangle_type(from).as_str()}` is an enum and cannot be cast to a number — " +
         "test it with `.is_some()` / `.is_none()`, or match it"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
 }
 
 /// An integer becomes an address only from `uint64`, the width of one; a
@@ -32,5 +32,5 @@ fun reject_integer_to_pointer_cast(from: &Type, to: &Type, span: Span, ctx: &var
     if pointer_wide { return }
     val msg = "only a `uint64` casts to a pointer, and this is `${from.display_type(ctx)}`; " +
         "to take an address, write `(&x) as Ptr<T>`"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
 }

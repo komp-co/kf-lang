@@ -6,8 +6,9 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*
-import kf_core.ast.declaration.Annotation
+import kf_core.ast.annotation.Annotation
 import kf_core.ast.declaration.TopDecl
+import kf_core.intern.*
 
 /// Each declared annotation's own name, and each use of one.
 pub fun Module.annotation_name_spans(): List<NameSpan> {

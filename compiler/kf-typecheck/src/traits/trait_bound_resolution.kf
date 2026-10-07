@@ -1,7 +1,7 @@
-import kf_core.span.no_span
-import kf_core.ast.intern
-import kf_core.ast.value_frag
+import kf_core.span.Span
 import kf_core.ast.types.*
+import kf_core.intern.intern
+import kf_core.names.Frag
 import kf_typecheck.types.*
 import kf_typecheck.check.ty_base_name
 import kf_typecheck.check.mangle_base_name
@@ -150,7 +150,7 @@ fun Type.ty_arg_key(): String {
         Struct(n) => type_identity_display(n)
         EnumTy(n) => type_identity_display(n)
         // A length, as an instance name spells it.
-        Value(v) => value_frag(v)
+        Value(v) => Frag.value(v)
         _ => self.ty_base_name()
     }
 }
@@ -195,14 +195,14 @@ fun named_or_generic_ty(name: str, ctx: &var TypeCtx): Type {
     val borrowed = ref_key_inner(name)
     if !borrowed.as_str().equals("") {
         val inner = type_node(named_or_generic_ty(borrowed.as_str(), ctx))
-        return Type { kind: TypeKind.RefTo(ref_key_is_mut(name), inner), provenance: Provenance.Inferred(no_span()) }
+        return Type { kind: TypeKind.RefTo(ref_key_is_mut(name), inner), provenance: Provenance.Inferred(Span.none()) }
     }
     while generic in &ctx.generics {
         if generic.as_str().equals(name) {
-            return Type.new_generic(String.from(name), no_span())
+            return Type.new_generic(String.from(name), Span.none())
         }
     }
-    val tr = TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
+    val tr = TypeRef.new(Span.none(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
     return tr.resolve_type_ref(ctx)
 }
 
@@ -316,5 +316,5 @@ pub fun trait_method_in(trait_name: str, method_name: String, args: &List<String
 }
 
 fun not_found_req(): TraitMethodReq {
-    return TraitMethodReq { name: "", span: no_span(), arity: ARITY_NOT_FOUND(), has_default: false, has_method_generics: false, is_static: false, params: List.new<Type>(), ret: Type.new_poison(), is_mutating: false }
+    return TraitMethodReq { name: "", span: Span.none(), arity: ARITY_NOT_FOUND(), has_default: false, has_method_generics: false, is_static: false, params: List.new<Type>(), ret: Type.new_poison(), is_mutating: false }
 }

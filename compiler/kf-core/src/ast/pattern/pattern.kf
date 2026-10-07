@@ -1,0 +1,91 @@
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.declaration.MemberLoop
+import kf_core.ast.expression.*
+import kf_core.ast.statement.*
+import kf_core.intern.*
+
+@derive(Clone)
+pub struct Pattern {
+    pub val span: Span
+    pub var kind: PatternKind
+}
+
+impl Pattern {
+    pub static fun new(span: Span, kind: PatternKind): Pattern {
+        return Pattern { span: span, kind: kind }
+    }
+
+    pub static fun new_poison(span: Span): Pattern {
+        return Pattern.new(span, PatternKind.Poison)
+    }
+}
+
+pub enum PatternKind {
+    /// `_` — matches anything, binds nothing.
+    Wildcard
+    /// 5, "abc", true.
+    LitInt(int64)
+    LitStr(String)
+    LitBool(bool)
+    /// A code point. There is no float pattern: float equality is a trap.
+    LitChar(uint32)
+    /// `name`: binds the scrutinee. In a template, `..a` among a variant's
+    /// payloads is `..a` here: expansion writes one binder per payload.
+    Identifier(Sym)
+    /// `Foo`, `Some(x)`, `Result.Ok(0)`.
+    Variant(Sym, List<Pattern>)
+    /// `Point { x, y: 5 }`: field names and patterns matched by index.
+    StructPat(Sym, List<Sym>, List<Pattern>)
+    /// `1 | 2 | 3`. No alternative binds a name.
+    Or(List<Pattern>)
+    /// `0..32`, `'a'..='z'`: both bounds inclusive once parsed; the flag
+    /// marks a char range.
+    Range(int64, int64, bool)
+    /// An error.
+    Poison
+}
+
+/// A `when` arm: pattern, optional guard, body.
+pub struct Arm {
+    pub val span: Span
+    pub val pattern: Box<Pattern>
+    pub var guard: Box<Expr>?
+    pub var body: List<Stmt>
+    /// Binders the body writes through, over a place subject: each is a
+    /// reference to its payload rather than a copy. Set by TypeCheck.
+    pub var ref_binders: List<Sym>
+    /// The member loop the arm is written in, in a template.
+    pub var member_loop: MemberLoop?
+}
+
+impl Arm {
+    pub static fun new(span: Span, pattern: Box<Pattern>, guard: Box<Expr>?, body: List<Stmt>): Arm {
+        return Arm { span: span, pattern: pattern, guard: guard, body: body, ref_binders: [], member_loop: null }
+    }
+
+    /// The same arm with a new pattern, guard and body; its span and reference
+    /// binders carry over.
+    pub fun rebuilt(pattern: Box<Pattern>, guard: Box<Expr>?, body: List<Stmt>): Arm {
+        return Arm {
+            span: self.span, pattern: pattern, guard: guard, body: body, ref_binders: self.ref_binders.clone(),
+            member_loop: self.member_loop.clone()
+        }
+    }
+
+    /// The value a `when`-expression arm yields: its body's last statement, if
+    /// that is an expression. Earlier statements are the arm's steps. None for an
+    /// empty body or one ending in a non-expression.
+    pub fun value_expr(): Ptr<Expr>? {
+        val n: uint64 = self.body.size()
+        if n == 0 { return null }
+        // CONSTRAINT: `at` keeps the body in receiver position, where it stays self
+        // borrow. Passing it to self function makes the arm own it and free it.
+        val s = self.body.at(n - 1)
+        return when (s.kind) {
+            Expression(e_ptr) => e_ptr
+            _ => null
+        }
+    }
+}

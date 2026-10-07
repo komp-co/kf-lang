@@ -1,11 +1,12 @@
 // Place mutability and trait-bound helpers.
 
 import kf_core.span.*
-import kf_core.ast.*
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
+import kf_core.intern.*
+import kf_core.names.MangledProjection
 import kf_typecheck.traits.trait_method_in
 import kf_typecheck.traits.subst_trait_args
 import kf_typecheck.types.display_type
@@ -143,29 +144,29 @@ fun emit_immutable_recv_err(method_name: String, recv: &Expr, span: Span, ctx: &
     // A `val` field first: neither `var` nor `mutating` would fix it.
     val field = recv.immutable_val_field(ctx)
     if !field.as_str().equals("") {
-        val lab = new_label(span, "mutating method `${method_name}"
+        val lab = Label.new(span, "mutating method `${method_name}"
             + String.from("` needs a mutable receiver, and field `") + field.clone()
             + String.from("` is declared `val`; declare it `var`"))
-        ctx.emit(new_diagnostic(Severity.Error, lab))
+        ctx.emit(Diagnostic.new(Severity.Error, lab))
         return
     }
     val root = recv.place_root_name()
     // `self` before the parameter branch: its fix is `mutating`.
     if root.as_str().equals("self") {
-        val lab = new_label(span, "cannot call mutating method `${method_name}` on `self` here; mark the enclosing method `mutating`")
-        ctx.emit(new_diagnostic(Severity.Error, lab))
+        val lab = Label.new(span, "cannot call mutating method `${method_name}` on `self` here; mark the enclosing method `mutating`")
+        ctx.emit(Diagnostic.new(Severity.Error, lab))
         return
     }
     // A parameter's fix is in its type, not `var`.
     if ctx.is_param(root.as_str()) {
-        val plab = new_label(span, "mutating method `${method_name}"
+        val plab = Label.new(span, "mutating method `${method_name}"
             + String.from("` needs a mutable receiver, and `") + root.clone()
             + String.from("` is a by-value parameter; take it as `&var`"))
-        ctx.emit(new_diagnostic(Severity.Error, plab))
+        ctx.emit(Diagnostic.new(Severity.Error, plab))
         return
     }
-    val lab = new_label(span, "mutating method `${method_name}` needs a mutable receiver; declare `${root}` with `var` (or borrow with `&var`)")
-    ctx.emit(new_diagnostic(Severity.Error, lab))
+    val lab = Label.new(span, "mutating method `${method_name}` needs a mutable receiver; declare `${root}` with `var` (or borrow with `&var`)")
+    ctx.emit(Diagnostic.new(Severity.Error, lab))
 }
 
 // Mirrors check_method_call's dispatch; false when unresolvable, since the
@@ -271,7 +272,7 @@ fun check_generic_bounds_env(owner: String, param: String, bound_ty: &Type, gnam
     // A type with no base name cannot be judged by name, so only Copy — which
     // answers for the builtin wrappers itself — is checked on one.
     val unjudged = base.as_str().equals("") && gbind.as_str().equals("")
-    val copy_name = ctx.lang_trait_name(lang_copy_key())
+    val copy_name = ctx.lang_trait_name(LangItem.Copy)
     val sp = ctx.sigs
     val nb = unsafe { sp.bounds.size() }
     var i = 0
@@ -281,8 +282,8 @@ fun check_generic_bounds_env(owner: String, param: String, bound_ty: &Type, gnam
             if b.param.as_str().equals(param.as_str()) {
                 if !gbind.as_str().equals("") {
                     if !owner_has_bound(ctx.fn_owner.clone(), gbind.clone(), b.trait_name.clone(), ctx) {
-                        val lab = new_label(span, String.from("type parameter `") + gbind.clone() + String.from("` does not carry bound `") + b.trait_name.clone() + String.from("` (required by `") + param.clone() + String.from(": ") + b.trait_name.clone() + String.from("` on `") + unsafe { (*sp).surface_name(owner.as_str()) } + String.from("`); add it: `") + gbind.clone() + String.from(": ") + b.trait_name.clone() + String.from("`"))
-                        ctx.emit(new_diagnostic(Severity.Error, lab))
+                        val lab = Label.new(span, String.from("type parameter `") + gbind.clone() + String.from("` does not carry bound `") + b.trait_name.clone() + String.from("` (required by `") + param.clone() + String.from(": ") + b.trait_name.clone() + String.from("` on `") + unsafe { (*sp).surface_name(owner.as_str()) } + String.from("`); add it: `") + gbind.clone() + String.from(": ") + b.trait_name.clone() + String.from("`"))
+                        ctx.emit(Diagnostic.new(Severity.Error, lab))
                     }
                 } else if unjudged && !b.trait_name.as_str().equals(copy_name.as_str()) {
                 } else if !bound_type_implements_here(bound_ty, b.trait_name.as_str(), subst_trait_args(b.trait_args.as_str(), gnames, bound_tys, false), gnames, span, ctx) {
@@ -293,10 +294,10 @@ fun check_generic_bounds_env(owner: String, param: String, bound_ty: &Type, gnam
                         // Rendered with its arguments (`From<str>`).
                         var tshow = b.trait_name.clone()
                         if !b.trait_args.as_str().equals("") {
-                            tshow = tshow + String.from("<") + projection_mangle_display(b.trait_args.as_str()) + String.from(">")
+                            tshow = tshow + String.from("<") + MangledProjection.display(b.trait_args.as_str()) + String.from(">")
                         }
-                        val lab = new_label(span, String.from("type `") + bound_ty.display_type(ctx) + String.from("` does not implement trait `") + tshow.clone() + String.from("` (required by bound `") + param.clone() + String.from(": ") + tshow.clone() + String.from("` on `") + unsafe { (*sp).surface_name(owner.as_str()) } + String.from("`)"))
-                        ctx.emit(new_diagnostic(Severity.Error, lab))
+                        val lab = Label.new(span, String.from("type `") + bound_ty.display_type(ctx) + String.from("` does not implement trait `") + tshow.clone() + String.from("` (required by bound `") + param.clone() + String.from(": ") + tshow.clone() + String.from("` on `") + unsafe { (*sp).surface_name(owner.as_str()) } + String.from("`)"))
+                        ctx.emit(Diagnostic.new(Severity.Error, lab))
                     }
                 }
             }

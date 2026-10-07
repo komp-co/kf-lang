@@ -13,16 +13,13 @@
 
 import alloc.list.*
 
-import kf_core.ast.Intrinsic
-import kf_core.ast.Sym
-import kf_core.ast.intern
 import kf_core.ast.types.type_identity_display
 import kf_core.ast.expression.Expr
-import kf_core.ast.expression.coerce_addr_of
-import kf_core.ast.expression.coerce_written_amp
-import kf_core.ast.expression.coerce_written_amp_var
+import kf_core.ast.expression.Coercion
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.SwitchArm
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_lower.ownership.names_contains
 
 /// "" for a field or deref, which is only borrowed.
@@ -92,9 +89,9 @@ fun Expr.expr_moves_out(name: str): bool {
 /// `name`, possibly under a cast or retain. An argument lent with `&` or
 /// `&var` (`f(&v)`) is not a move, agreeing with `check_consumed_arg`;
 /// the move check meets the written markers before they become
-/// `coerce_addr_of`.
+/// `Coercion.AddrOf`.
 fun Expr.expr_is_move_of(name: str): bool {
-    val lent = [coerce_addr_of(), coerce_written_amp(), coerce_written_amp_var()]
+    val lent = [Coercion.AddrOf, Coercion.WrittenAmp, Coercion.WrittenAmpVar]
     if lent.contains(&self.coerce) { return false }
     when (self.kind) {
         Variable(n) => return n.as_str().equals(name)

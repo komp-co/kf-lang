@@ -1,20 +1,20 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.intern
+import kf_core.span.Span
 import kf_core.ast.types.*
+import kf_core.intern.intern
 import kf_typecheck.check.mk_ctx
 import testing.test
 
 fun display_test_named_ref(name: str): TypeRef {
-    return TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
+    return TypeRef.new(Span.none(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
 }
 
 fun display_test_generic_ref(name: str, arg: TypeRef): TypeRef {
     var args = List.new<TypeRef>()
     args.push(arg)
-    return TypeRef.new(no_span(), TypeRefKind.Named(intern(name), args))
+    return TypeRef.new(Span.none(), TypeRefKind.Named(intern(name), args))
 }
 
 fun display_test_register_inst(mangled: str, base: str, arg: TypeRef, ctx: &var TypeCtx): void {
@@ -26,14 +26,14 @@ fun display_test_register_inst(mangled: str, base: str, arg: TypeRef, ctx: &var 
 
 fun display_test_ref_type(mutable: bool): Type {
     val inner: Ptr<Type> = unsafe { alloc<Type>() }
-    unsafe { *inner = Type.new_int32(no_span()) }
-    return Type { kind: TypeKind.RefTo(mutable, inner), provenance: Provenance.Inferred(no_span()) }
+    unsafe { *inner = Type.new_int32(Span.none()) }
+    return Type { kind: TypeKind.RefTo(mutable, inner), provenance: Provenance.Inferred(Span.none()) }
 }
 
 @test fun test_display_type_shows_generic_arguments(): void {
     var ctx = mk_ctx()
     display_test_register_inst("Option__int32", "Option", display_test_named_ref("int32"), &var ctx)
-    val ty = Type { kind: TypeKind.Struct(intern("Option__int32")), provenance: Provenance.Inferred(no_span()) }
+    val ty = Type { kind: TypeKind.Struct(intern("Option__int32")), provenance: Provenance.Inferred(Span.none()) }
     assert_eq(ty.display_type(&ctx).as_str(), "int32?", "an optional is shown as written")
 }
 
@@ -41,13 +41,13 @@ fun display_test_ref_type(mutable: bool): Type {
     var ctx = mk_ctx()
     val list_int = display_test_generic_ref("List", display_test_named_ref("int32"))
     display_test_register_inst("Option__List__int32", "Option", list_int, &var ctx)
-    val ty = Type { kind: TypeKind.Struct(intern("Option__List__int32")), provenance: Provenance.Inferred(no_span()) }
+    val ty = Type { kind: TypeKind.Struct(intern("Option__List__int32")), provenance: Provenance.Inferred(Span.none()) }
     assert_eq(ty.display_type(&ctx).as_str(), "List<int32>?", "nested generic arguments remain nested")
 }
 
 @test fun test_display_type_shows_box_syntax(): void {
     val ctx = mk_ctx()
-    val ty = Type.new_box(Type.new_int32(no_span()), no_span())
+    val ty = Type.new_box(Type.new_int32(Span.none()), Span.none())
     assert_eq(ty.display_type(&ctx).as_str(), "Box<int32>", "boxes use source syntax")
 }
 

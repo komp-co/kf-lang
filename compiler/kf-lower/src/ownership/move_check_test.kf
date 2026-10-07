@@ -2,13 +2,13 @@ import core.assert.*
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.intern
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.*
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import kf_core.diagnostic.*
+import kf_core.intern.intern
 import kf_lower.refcount.ret_op
 import kf_lower.new_reached
 import testing.test
@@ -18,34 +18,34 @@ fun null_tref(): Ptr<TypeRef> {
 }
 
 fun mk_str_var(name: String): Expr {
-    var e = Expr.new(no_span(), ExprKind.Variable(intern(name.as_str())))
-    e.ty = intern("String").lang_struct_ty(no_span())
+    var e = Expr.new(Span.none(), ExprKind.Variable(intern(name.as_str())))
+    e.ty = intern("String").lang_struct_ty(Span.none())
     return e
 }
 
 fun mk_int_var(name: String): Expr {
-    var e = Expr.new(no_span(), ExprKind.Variable(intern(name.as_str())))
-    e.ty = Type.new_int32(no_span())
+    var e = Expr.new(Span.none(), ExprKind.Variable(intern(name.as_str())))
+    e.ty = Type.new_int32(Span.none())
     return e
 }
 
 fun mk_letval(name: String, init: Expr): Stmt {
     val ip: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *ip = init }
-    return Stmt.new(no_span(), StmtKind.LetVal(intern(name.as_str()), null, ip))
+    return Stmt.new(Span.none(), StmtKind.LetVal(intern(name.as_str()), null, ip))
 }
 
 fun mk_return(expr: Expr): Stmt {
     val ep: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *ep = expr }
-    return Stmt.new(no_span(), StmtKind.Return(ret_op(ep)))
+    return Stmt.new(Span.none(), StmtKind.Return(ret_op(ep)))
 }
 
 /// A sink for a test's context to borrow, which outlives the test; leaked,
 /// as a test process is short-lived.
 fun fresh_diag_ptr(): Ptr<Diagnostics> {
     val dp: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
-    unsafe { *dp = new_diagnostics() }
+    unsafe { *dp = Diagnostics.new() }
     return dp
 }
 
@@ -59,7 +59,7 @@ fun fresh_ctx(dp: &var Diagnostics): MoveCtx {
     val mc: Ptr<MobCount> = unsafe { alloc<MobCount>() }
     unsafe { *mc = MobCount { n: 0 } }
     val sm: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
-    unsafe { *sm = new_source_map() }
+    unsafe { *sm = SourceMap.new() }
     val wp: Ptr<WarnState> = unsafe { alloc<WarnState>() }
     // No module: each test asserts one warning at a time.
     unsafe { *wp = WarnState {
@@ -97,7 +97,7 @@ fun fresh_ctx(dp: &var Diagnostics): MoveCtx {
     when (s1.kind) {
         LetVal(_n, _t, ip) => {
             val first_use = unsafe { *(ip!!) }
-            assert_eq(first_use.coerce == coerce_clone(), true, "prior consume marked coerce_clone")
+            assert_eq(first_use.coerce == Coercion.Clone, true, "prior consume marked Coercion.Clone")
         }
         _ => assert_eq(false, true, "expected LetVal")
     }
@@ -112,8 +112,8 @@ fun fresh_ctx(dp: &var Diagnostics): MoveCtx {
     var second = mk_str_var(String.from("x"))
     first.mark_var_consumed(&var ctx)
     second.mark_var_consumed(&var ctx)
-    assert_eq(first.coerce == coerce_clone(), true, "the first sibling consume copies")
-    assert_eq(second.coerce == coerce_clone(), true, "the second sibling consume copies too")
+    assert_eq(first.coerce == Coercion.Clone, true, "the first sibling consume copies")
+    assert_eq(second.coerce == Coercion.Clone, true, "the second sibling consume copies too")
     assert_eq(ctx.contains_owned(intern("x")), true, "`x` still owns its own value")
 }
 
@@ -131,14 +131,14 @@ fun fresh_ctx(dp: &var Diagnostics): MoveCtx {
     when (s1.kind) {
         LetVal(_n, _t, ip) => {
             val first_use = unsafe { *(ip!!) }
-            assert_eq(first_use.coerce == coerce_clone(), true, "the earlier statement's consume copies")
+            assert_eq(first_use.coerce == Coercion.Clone, true, "the earlier statement's consume copies")
         }
         _ => assert_eq(false, true, "expected LetVal")
     }
     when (s2.kind) {
         LetVal(_n2, _t2, ip2) => {
             val last_use = unsafe { *(ip2!!) }
-            assert_eq(last_use.coerce == coerce_none(), true, "the last consume stays a move")
+            assert_eq(last_use.coerce == Coercion.Identity, true, "the last consume stays a move")
         }
         _ => assert_eq(false, true, "expected LetVal")
     }
@@ -160,7 +160,7 @@ fun fresh_ctx(dp: &var Diagnostics): MoveCtx {
     var ctx = fresh_ctx(unsafe { &var *dp })
     val consume: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *consume = mk_str_var(String.from("x")) }
-    ctx.mark_moved(intern("x"), no_span(), consume)
+    ctx.mark_moved(intern("x"), Span.none(), consume)
 
     var e = mk_str_var(String.from("x"))
     e.move_check_expr_value(&var ctx)
@@ -170,5 +170,5 @@ fun fresh_ctx(dp: &var Diagnostics): MoveCtx {
         _ => assert_eq(true, true, "use-after-move left intact")
     }
     val prior = unsafe { *consume }
-    assert_eq(prior.coerce == coerce_clone(), true, "prior consume cloned")
+    assert_eq(prior.coerce == Coercion.Clone, true, "prior consume cloned")
 }
