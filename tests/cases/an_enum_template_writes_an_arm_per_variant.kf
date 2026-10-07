@@ -1,0 +1,56 @@
+//! run: exit 0
+//! deps: core, alloc
+// `while variant in T.variants` among a `when`'s arms writes its arms once
+// per variant. `${variant.name}(..a)` binds each payload of the variant, and
+// `variant.payloads.all(|payload| c)` joins `c` per payload with `&&`, so a
+// template's `Equal` agrees with `@derive(Equal)`.
+
+annotation same on enum
+
+template same on enum T {
+    impl Equal for T {
+        fun equals(other: &T): bool {
+            return when (self) {
+                while variant in T.variants {
+                    ${variant.name}(..a) => when (other) {
+                        ${variant.name}(..b) => variant.payloads.all(|payload| payload.of(a) == payload.of(b))
+                        _ => false
+                    }
+                }
+            }
+        }
+    }
+
+    fun T.variant_name(): String {
+        return when (self) {
+            while variant in T.variants {
+                ${variant.name}(..a) => String.from(variant.name)
+            }
+        }
+    }
+}
+
+@same
+enum Shape {
+    Circle(int32)
+    Rect(int32, String)
+    Empty
+}
+
+@derive(Equal)
+enum Derived {
+    Circle(int32)
+    Rect(int32, String)
+    Empty
+}
+
+fun main(): int32 {
+    val a = Shape.Rect(1, String.from("x"))
+    if !(a == Shape.Rect(1, String.from("x"))) { return 1 }
+    if a == Shape.Rect(1, String.from("y")) || a == Shape.Circle(1) || a == Shape.Empty { return 2 }
+    if !(Shape.Empty == Shape.Empty) { return 3 }
+    val d = Derived.Rect(1, String.from("x"))
+    if (a == Shape.Rect(2, String.from("x"))) != (d == Derived.Rect(2, String.from("x"))) { return 4 }
+    if a.variant_name() != "Rect" || Shape.Empty.variant_name() != "Empty" { return 5 }
+    return 0
+}

@@ -32,22 +32,24 @@ fun point_expansion(): Expansion { return point_expansion_with(List.new<FieldIni
 fun point_expansion_with(args: List<FieldInit>): Expansion {
     var fields = List.new<FieldFacts>()
     fields.push(FieldFacts {
-        name: intern("x"), index: 0, ty: named("int32"), annotations: List.new<Annotation>(), span: no_span()
+        name: intern("x"), index: 0, ty: named("int32"), payloads: List.new<TypeRef>(),
+        annotations: List.new<Annotation>(), span: no_span()
     })
     fields.push(FieldFacts {
-        name: intern("label"), index: 1, ty: named("String"), annotations: List.new<Annotation>(), span: no_span()
+        name: intern("label"), index: 1, ty: named("String"), payloads: List.new<TypeRef>(),
+        annotations: List.new<Annotation>(), span: no_span()
     })
     return Expansion {
-        annotation: intern("shown"), marked: intern("T"), type_name: intern("Point"), home: intern("app"),
-        fields: fields, args: args, shapes: List.new<AnnotationShape>(), bound: on_label(),
-        diags: List.new<Diagnostic>()
+        annotation: intern("shown"), marked: intern("T"), type_name: intern("Point"), on_enum: false,
+        home: intern("app"), fields: fields, args: args, shapes: List.new<AnnotationShape>(), bound: on_label(),
+        rests: List.new<Sym>(), diags: List.new<Diagnostic>()
     }
 }
 
 /// `field` standing for `label`.
 fun on_label(): List<Bound> {
     var bound = List.new<Bound>()
-    bound.push(Bound { binder: intern("field"), member: 1 })
+    bound.push(Bound { binder: intern("field"), member: 1, payload: null })
     return bound
 }
 

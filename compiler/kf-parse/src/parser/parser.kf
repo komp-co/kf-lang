@@ -44,6 +44,9 @@ pub struct Parser {
     /// The template's `T` while its declarations are parsed, empty outside
     /// one: a member loop may then stand where declarations or fields go.
     pub var template_param: Sym
+    /// What a member loop walks there: `fields` of a struct, `variants` of
+    /// an enum.
+    pub var template_members: Sym
     /// The member loop the next declaration or field is written in.
     pub var member_loop: MemberLoop?
     /// Numbers each member loop, so two side by side stay apart.
@@ -62,7 +65,7 @@ pub struct PendingTry {
 }
 
 pub fun new_parser(toks: List<Token>): Parser {
-    return Parser { toks: toks, pos: 0, no_struct_lit: false, cast_after_prefix: false, diags: List.new<Diagnostic>(), speculative: false, block_done: false, used_range: false, pending_try: List.new<PendingTry>(), try_ctr: 0, elv_ctr: 0, sc_ctr: 0, fn_ret: List.new<TypeRef>(), template_param: intern(""), member_loop: null, loop_ctr: 0, eof: new_token(TokenKind.Eof, no_span()) }
+    return Parser { toks: toks, pos: 0, no_struct_lit: false, cast_after_prefix: false, diags: List.new<Diagnostic>(), speculative: false, block_done: false, used_range: false, pending_try: List.new<PendingTry>(), try_ctr: 0, elv_ctr: 0, sc_ctr: 0, fn_ret: List.new<TypeRef>(), template_param: intern(""), template_members: intern(""), member_loop: null, loop_ctr: 0, eof: new_token(TokenKind.Eof, no_span()) }
 }
 
 /// For "found X" messages.

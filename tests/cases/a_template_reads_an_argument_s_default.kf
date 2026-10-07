@@ -1,0 +1,24 @@
+//! run: exit 0
+//! deps: core
+// A use that leaves an argument out gives the template the parameter's
+// default in `args`.
+
+annotation scaled(by: int64 = 3) on struct
+
+template scaled on struct T {
+    fun T.scale(): int64 { return args.by }
+}
+
+@scaled
+struct Plain {
+    val v: int32
+}
+
+@scaled(5)
+struct Given {
+    val v: int32
+}
+
+fun main(): int32 {
+    return (Plain { v: 0 }.scale() + Given { v: 0 }.scale() - 8) as int32
+}

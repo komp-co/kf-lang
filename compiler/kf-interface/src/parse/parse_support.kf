@@ -62,10 +62,16 @@ mutating fun JsonReader.load_generic(crate: CrateId, crate_name: str, path: str,
     if parser.diags.size() > 0 || fragment.decls.size() != 1 { return poison_decl() }
     var td = fragment.decls.at(0).clone()
     // Source-shipped: a generic template, a trait declaring an associated
-    // type, or a top-level `val`. An extension whose parameters all come from
-    // its receiver names them with `@receiver_params` or `@receiver_trait`.
+    // type, a top-level `val`, or an annotation's template. An extension
+    // whose parameters all come from its receiver names them with
+    // `@receiver_params` or `@receiver_trait`.
     val receiver_generic = (&td).has_annotation("receiver_params") || (&td).has_annotation("receiver_trait")
-    if td.generics.size() == 0 && !receiver_generic && !td.trait_declares_assoc_type() && !td.is_constant() {
+    val annotation_template = when (td.kind) {
+        Template(_kind, _marked, _body) => true
+        _ => false
+    }
+    if td.generics.size() == 0 && !receiver_generic && !td.trait_declares_assoc_type() && !td.is_constant() &&
+        !annotation_template {
         return poison_decl()
     }
     if td.name.as_str() != name.as_str() { return poison_decl() }

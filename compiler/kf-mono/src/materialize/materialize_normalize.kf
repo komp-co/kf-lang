@@ -51,6 +51,7 @@ mutating fun Module.normalize_trait_impls(): void {
                 normalized.dyn_layouts = clone_dyn_layout_list(&td.dyn_layouts)
                 normalized.dyn_vtables = clone_dyn_vtable_list(&td.dyn_vtables)
                 normalized.decl_end = td.decl_end
+                normalized.resolves_in = td.resolves_in
                 val principal = tref.trait_ref_principal()
                 normalized.implemented_lang_trait = self.lang_key_of_trait(&index, principal.as_str())
                 kept.push(normalized)

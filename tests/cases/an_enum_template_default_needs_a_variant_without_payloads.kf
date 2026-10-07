@@ -1,0 +1,23 @@
+//! build: fail
+//! deps: core
+// With no variant without payloads, the loop writes nothing, so `default`
+// does not return, which is reported with a note naming the enum.
+
+annotation zero on enum
+
+template zero on enum T {
+    impl Default for T {
+        static fun default(): T {
+            while variant in T.variants.filter(|variant| variant.payloads.size() == 0) {
+                return T.${variant.name}
+            }
+        }
+    }
+}
+
+@zero
+enum Shape {
+    Circle(int32)
+}
+
+fun main(): int32 { return 0 }

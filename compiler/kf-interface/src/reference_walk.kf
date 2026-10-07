@@ -60,6 +60,7 @@ fun TopDecl.collect_references_inner(out: &var List<String>, with_bodies: bool):
             collect_tyref_ptr_names(unsafe { trait_ref as Ptr<TypeRef> }, out)
             collect_method_names(methods, out, with_bodies)
         }
+        Template(_kind, _marked, body) => collect_method_names(body, out, with_bodies)
         _ => {}
     }
 }

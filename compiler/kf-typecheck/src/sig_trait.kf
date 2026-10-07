@@ -63,6 +63,10 @@ impl SigTable {
             var at = first
             while at != none_index() {
                 val mine = *self.sigs.at(at)
+                // A module path starts with its crate's name, so this is the
+                // caller's own module: a template's code, expanded into
+                // another crate, still reaches what its home module declares.
+                if mine.owner_module.id == caller_module.id { return Option.Some(mine) }
                 if mine.owner_crate.raw == caller_crate.raw {
                     // Own module: unrestricted. Same crate, other module: only
                     // `pub` and imported; keep scanning, since a later or

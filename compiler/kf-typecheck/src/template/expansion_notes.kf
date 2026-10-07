@@ -1,5 +1,5 @@
 // Where a template expanded, so a diagnostic in the code it added says so:
-// at a field, with a note at the template; in the template, with a note at
+// at a field or variant, with a note at the template; in the template, with a note at
 // the struct it added to.
 
 import alloc.list.*
@@ -20,7 +20,8 @@ pub struct ExpansionSite {
     val type_name: Sym
 }
 
-mutating fun List<ExpansionSite>.record(template: &TopDecl, marked: &TopDecl, fields: &List<FieldFacts>): void {
+mutating fun List<ExpansionSite>.record(template: &TopDecl, marked: &TopDecl, fields: &List<FieldFacts>,
+    word: str): void {
     val name = template.name.as_str()
     val type_name = marked.name.as_str()
     val whole = Span { file_id: template.span.file_id, start: template.span.start, end: template.decl_end }
@@ -28,7 +29,7 @@ mutating fun List<ExpansionSite>.record(template: &TopDecl, marked: &TopDecl, fi
     val at = marked.decl_name_span()
     self.push(ExpansionSite { span: whole, exact: false, note_at: at, note: note, type_name: marked.name })
     while field in &fields {
-        val note = "in what `@${name}`'s template adds for field `${type_name}.${field.name.as_str()}`"
+        val note = "in what `@${name}`'s template adds for ${word} `${type_name}.${field.name.as_str()}`"
         self.push(ExpansionSite {
             span: field.span, exact: true, note_at: template.decl_name_span(), note: note, type_name: marked.name
         })

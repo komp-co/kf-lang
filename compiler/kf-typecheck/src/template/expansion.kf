@@ -1,5 +1,6 @@
-// What a template's names stand for while it adds to one struct: `T`, the
-// use's arguments, and the field a member loop is on.
+// What a template's names stand for while it adds to one struct or enum:
+// `T`, the use's arguments, and the field or variant a member loop is on,
+// and the payload a payload loop is on.
 
 import alloc.list.*
 
@@ -12,19 +13,23 @@ import kf_core.ast.expression.FieldInit
 import kf_core.ast.declaration.Annotation
 import kf_core.diagnostic.*
 
-/// A field, as a template reads it.
+/// A field or a variant, as a template reads it. A variant has no `ty`,
+/// and a field no `payloads`.
 struct FieldFacts {
     val name: Sym
     val index: uint64
     val ty: TypeRef
+    val payloads: List<TypeRef>
     val annotations: List<Annotation>
     val span: Span
 }
 
-/// A binder standing for one field: a member loop's, or `T.build`'s.
+/// A binder standing for one field or variant: a member loop's, or
+/// `T.build`'s. One standing for a payload has the payload's index too.
 struct Bound {
     val binder: Sym
     val member: uint64
+    val payload: uint64?
 }
 
 /// An annotation's parameter names in order, for `args` and `get<A>()`.
@@ -39,6 +44,8 @@ struct Expansion {
     /// `T`.
     val marked: Sym
     val type_name: Sym
+    /// The template is on an enum: its members are variants.
+    val on_enum: bool
     /// The struct's module, which owns what the template adds.
     val home: Sym
     val fields: List<FieldFacts>
@@ -47,6 +54,8 @@ struct Expansion {
     val shapes: List<AnnotationShape>
     /// The binders standing for a field here, innermost last.
     var bound: List<Bound>
+    /// The `..a` binders an arm has bound, for `payload.of(a)`.
+    var rests: List<Sym>
     var diags: List<Diagnostic>
 }
 
@@ -56,19 +65,45 @@ impl Expansion {
     /// The field the innermost binder stands for.
     fun field(): &FieldFacts { return self.fields.at(self.bound.at(self.bound.size() - 1).member) }
 
-    /// The field `name` stands for, the innermost binder of that name; null
-    /// when none is bound here.
+    /// The field or variant `name` stands for, the innermost binder of that
+    /// name; null when none is bound here, or it stands for a payload.
     fun member_of(name: Sym): uint64? {
+        val found = self.binding(name) ?: return null
+        return if found.payload == null { found.member } else { null }
+    }
+
+    /// The innermost binder called `name`.
+    fun binding(name: Sym): Bound? {
         var i = self.bound.size()
         while i > 0 {
             i = i - 1
-            if self.bound.at(i).binder.id == name.id { return self.bound.at(i).member }
+            val at = self.bound.at(i)
+            if at.binder.id == name.id { return Bound { binder: at.binder, member: at.member, payload: at.payload } }
         }
         return null
     }
 
+    /// The variant and payload `name` stands for, or null.
+    fun payload_of(name: Sym): Bound? {
+        val found = self.binding(name) ?: return null
+        return if found.payload != null { found } else { null }
+    }
+
+    /// The variant the innermost binder is on, or null outside a variant.
+    fun variant(): uint64? {
+        if !self.on_enum || !self.in_member() { return null }
+        return self.bound.at(self.bound.size() - 1).member
+    }
+
+    /// What one member is called in messages: a field or a variant.
+    fun member_word(): str { return if self.on_enum { "variant" } else { "field" } }
+
     mutating fun bind(binder: Sym, member: uint64): void {
-        self.bound.push(Bound { binder: binder, member: member })
+        self.bound.push(Bound { binder: binder, member: member, payload: null })
+    }
+
+    mutating fun bind_payload(binder: Sym, member: uint64, payload: uint64): void {
+        self.bound.push(Bound { binder: binder, member: member, payload: Option.Some(payload) })
     }
 
     mutating fun unbind(): void { val _left = self.bound.pop() }

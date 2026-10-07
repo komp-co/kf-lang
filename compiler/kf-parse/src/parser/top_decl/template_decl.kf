@@ -39,6 +39,7 @@ impl Parser {
         val marked = self.expect_name("template parameter")
         self.advance()
         self.template_param = intern(marked.as_str())
+        self.template_members = intern(if (kind ?: MarkKind.Struct) == MarkKind.Enum { "variants" } else { "fields" })
         val body = self.parse_template_body()
         self.template_param = intern("")
         val template = TopDeclKind.Template(kind ?: MarkKind.Struct, intern(marked.as_str()), body)
