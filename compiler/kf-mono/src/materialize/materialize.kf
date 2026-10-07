@@ -72,7 +72,7 @@ pub mutating fun Module.materialize_generics(): void {
     var done = HashMap.new<String, bool>()
     var deferred = HashMap.new<String, bool>()
     // Generic declarations by name, caught up as the loop appends.
-    var templates = new_name_index()
+    var templates = NameIndex.new()
     var indexed: uint64 = 0
     var w = 0
     while w < work.size() {

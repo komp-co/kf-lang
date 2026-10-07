@@ -7,7 +7,6 @@ import alloc.list.*
 
 import kf_core.ast.Import
 import kf_core.ast.Module
-import kf_core.ast.decl_index
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.Param

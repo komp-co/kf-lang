@@ -2,7 +2,6 @@ import alloc.list.*
 
 import kf_core.ast.Module
 import kf_core.ast.NameIndex
-import kf_core.ast.decl_index
 import kf_core.intern.Sym
 import kf_core.intern.intern
 import kf_core.ast.types.TypeRef

@@ -298,8 +298,7 @@ impl SigTable {
     }
 
     pub fun find_inst(name: str): GenericInst? {
-        val at = self.inst_index.first(name)
-        if at == none_index() { return Option.None }
+        val at = self.inst_index.first(name) ?: return Option.None
         return Option.Some(*self.insts.at(at))
     }
 }

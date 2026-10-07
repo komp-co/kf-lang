@@ -28,15 +28,13 @@ impl SigTable {
 
     /// An extension's own name for its hidden one; others unchanged.
     pub fun surface_name(name: str): String {
-        val at = self.ext_by_link.first(name)
-        if at == none_index() { return String.from(name) }
+        val at = self.ext_by_link.first(name) ?: return String.from(name)
         return self.ext_names.get(at).as_string()
     }
 
     /// The parameter a trait receiver became, or "".
     pub fun receiver_trait_param(link: str): String {
-        val at = self.ext_by_link.first(link)
-        if at == none_index() { return "" }
+        val at = self.ext_by_link.first(link) ?: return ""
         return self.ext_trait_params.get(at).as_string()
     }
 }
