@@ -65,6 +65,40 @@ In each block:
 Outside a loop, `T.name` is the struct's name, `T.fields.size()` the number of
 fields, and `args` the arguments the annotation's use was written with.
 
+`T.build(|field| e)` is a literal of the marked struct, `e` written once per
+field with `field` standing for it: `T { x: e(x), y: e(y) }`. Inside a member
+loop the two binders name different fields, so a template can rebuild a value
+with one field changed:
+
+```kflat
+annotation rebuilt on struct
+
+template rebuilt on struct T {
+    impl T {
+        while field in T.fields {
+            fun with_${field.name}(value: field.type): T {
+                return T.build(|other| if other.index == field.index { value } else { other.of(self) })
+            }
+        }
+    }
+}
+
+@rebuilt
+struct Point {
+    val x: int32
+    val y: int64
+}
+
+fun main(): int32 {
+    val p = Point { x: 1, y: 2 }.with_y(40)
+    return p.x + p.y as int32 - 41
+}
+```
+
+The condition is facts alone, so for each field only one branch is written:
+`with_y` builds `Point { x: self.x, y: value }`, and the other branch, an
+`int64` where an `int32` goes, is never checked.
+
 An `if` or `when` whose condition is made of these facts alone is decided while
 the program compiles: only the branch taken is kept, so the other need not make
 sense for that field. `get<A>()` on a field without `@A` is an error, so guard it

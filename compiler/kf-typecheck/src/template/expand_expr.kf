@@ -102,6 +102,7 @@ fun Expr.expanded_kind(x: &var Expansion): Expr {
         Variable(name) => return self.expanded_name(name, x)
         FieldAccess(owner, member) => return self.expanded_access(&*owner, member, x)
         MethodCall(receiver, method, args) => {
+            if receiver.is_variable(x.marked) && method.as_str() == "build" { return self.built_struct(&args, x) }
             val fact = self.member_fact(&*receiver, method, &args, x)
             if fact != null { return fact ?: self.clone() }
             val called = x.built(method, self.span)

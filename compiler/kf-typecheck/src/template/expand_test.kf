@@ -9,6 +9,7 @@ import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.expression.FieldInit
 import kf_core.ast.declaration.Annotation
+import kf_core.ast.declaration.Param
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import testing.test
@@ -199,4 +200,24 @@ fun TypeRef.bare_type_name(): String {
     var x = point_expansion()
     val _name = x.built(intern("with_\${field.index}"), no_span())
     assert_eq(x.diags.size(), 1, "`field.index` is not text")
+}
+
+fun build_call(binder: str, value: Expr): Expr {
+    var params = List.new<Param>()
+    params.push(Param { span: no_span(), name: intern(binder), ty: Box.new(named("_")), default: null })
+    var body = List.new<Stmt>()
+    body.push(Stmt.new(no_span(), StmtKind.Expression(Box.new(value))))
+    val lambda = Expr.new(no_span(), ExprKind.Lambda(params, body))
+    return Expr.new(no_span(), ExprKind.MethodCall(Box.new(variable("T")), intern("build"), just(lambda)))
+}
+
+@test fun build_writes_one_field_init_per_field(): void {
+    var x = point_expansion()
+    x.bound = List.new<Bound>()
+    val out = build_call("f", access(variable("f"), "name")).expanded(&var x)
+    val shape = when (out.kind) {
+        StructLit(name, inits) => "${name.as_str()} ${inits.size()} ${inits.at(1).value.kind.text().as_str()}"
+        _ => String.from("")
+    }
+    assert_eq(shape.as_str(), "Point 2 \"label\"", "`Point { x: \"x\", label: \"label\" }`")
 }
