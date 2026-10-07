@@ -321,6 +321,12 @@ pub struct SigTable {
     pub var ext_names: List<Sym>
     pub var ext_links: List<Sym>
     pub var ext_trait_params: List<Sym>
+    /// The first position of each hidden name in the extension lists.
+    pub var ext_link_at: HashMap<String, uint64>
+    /// Each called name's positions in the extension lists, in order; the
+    /// name keys a list in `ext_name_lists`.
+    pub var ext_name_slots: HashMap<String, uint64>
+    pub var ext_name_lists: List<List<uint64>>
     /// Calls on untyped receivers, reported only if the check finds nothing
     /// else.
     pub var untyped_recv_spans: List<Span>
@@ -385,6 +391,9 @@ pub fun new_sig_table(): SigTable {
         ext_names: List.new<Sym>(),
         ext_links: List.new<Sym>(),
         ext_trait_params: List.new<Sym>(),
+        ext_link_at: HashMap.new<String, uint64>(),
+        ext_name_slots: HashMap.new<String, uint64>(),
+        ext_name_lists: List.new<List<uint64>>(),
         untyped_recv_spans: List.new<Span>(),
         untyped_recv_methods: List.new<Sym>(),
         fn_types: List.new<Type>(),
