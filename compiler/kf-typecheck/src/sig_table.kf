@@ -298,6 +298,8 @@ pub struct SigTable {
     pub var used_files: List<uint32>
     pub var used_modules: List<Sym>
     pub var used_names: List<Sym>
+    /// The triples already recorded, keyed `file/module/name` by id.
+    pub var used_seen: HashMap<String, bool>
     /// `@no_mangle` types, whose impls share one C namespace.
     pub var no_mangle_types: List<String>
     /// View types by declared name, dependencies' included.
@@ -369,6 +371,7 @@ pub fun new_sig_table(): SigTable {
         used_files: List.new<uint32>(),
         used_modules: List.new<Sym>(),
         used_names: List.new<Sym>(),
+        used_seen: HashMap.new<String, bool>(),
         no_mangle_types: List.new<String>(),
         views: List.new<String>(),
         lang_string: intern(""),
