@@ -191,7 +191,9 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
             saw_error = true
             continue
         }
+        ctx.slot_inferred = type_args.size() == 0 && !sig.params.at(j).type_eq(expected)
         val outcome = coerce_call_arg(args, j, expected.clone(), ctx)
+        ctx.slot_inferred = false
         // After the coercion, which may have typed an open binding; a lambda
         // still waiting on its bound stays poison.
         val at = if arg_tys.at(j).is_poison() { Type.new_poison() } else { args.at(j).ty.clone() }

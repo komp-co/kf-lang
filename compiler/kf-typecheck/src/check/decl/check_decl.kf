@@ -25,7 +25,7 @@ pub fun check_decl_module(m: &var Module,
     imported_targets: Ptr<List<Sym>>,
     imported_names: Ptr<List<Sym>>,
     smap: Ptr<SourceMap>): Box<SigTable> {
-    var sigs = sig_table_over(table)
+    var sigs = sig_table_over(table, m)
     sigs.smap = smap
     // Per-file import lists first; a null pointer leaves them empty.
     val null_files: Ptr<List<uint32>> = unsafe { 0 as Ptr<List<uint32>> }

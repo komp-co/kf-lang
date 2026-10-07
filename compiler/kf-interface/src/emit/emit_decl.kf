@@ -139,6 +139,9 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             // Every method crosses, `pub` or not: an impl's methods are the
             // trait's contract.
             o.field_raw("methods", emit_interface_methods(td, methods, true, true, interface_trait_suffix(trait_type, m), unmangled, &views).as_str())
+            // Bodies stay home, so the method a `Deref` forwards to crosses
+            // as a fact.
+            o.field_string("deref_via", td.deref_view().as_str())
             return o.finish()
         }
         AnnotationDecl(params, target, is_pub) => {

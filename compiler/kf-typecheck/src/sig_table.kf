@@ -287,6 +287,9 @@ pub struct SigTable {
     pub var imported_names: List<Sym>
     /// Whether find_imported_signature filters by the import map.
     pub var gate_visibility: bool
+    /// The method each `Deref` or `DerefMut` impl forwards to, by trait and
+    /// type name; see `TopDecl.deref_view`.
+    pub var deref_views: HashMap<String, Sym>
     /// Resolve's table, which says which declaration a name means; null
     /// when typing without one.
     pub var decls: Ptr<DeclTable>
@@ -378,6 +381,7 @@ pub fun new_sig_table(): SigTable {
         imported_targets: List.new<Sym>(),
         imported_names: List.new<Sym>(),
         gate_visibility: false,
+        deref_views: HashMap.new<String, Sym>(),
         decls: ptr_null<DeclTable>(),
         decl_sigs: List.new<uint64>(),
         synth_decls: List.new<TopDecl>(),

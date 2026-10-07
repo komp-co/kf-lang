@@ -98,6 +98,7 @@ fun Expr.visit_typed(walk: &var TypedWalk): void {
             if name.as_str() == "clone" && args.is_empty() {
                 check_clone_on_copy(self.span, receiver.ty.named(), walk)
             }
+            if self.needless_view { check_needless_deref(self.span, self.name_span, name, walk) }
             receiver.visit_typed(walk)
             while arg in &args { arg.visit_typed(walk) }
         }

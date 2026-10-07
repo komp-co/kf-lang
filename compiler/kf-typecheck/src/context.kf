@@ -93,6 +93,9 @@ pub view struct TypeCtx {
     /// The admission of the alias a call goes through, for the next
     /// `check_call`.
     pub var through_module: Sym
+    /// The slot being filled has its type from inferring this very argument,
+    /// so the argument's own type is not incidental.
+    pub var slot_inferred: bool
     /// Types uses decided after earlier uses, for the body's next check, and
     /// those a previous check decided.
     pub var decisions: List<OpenDecision>
@@ -145,6 +148,7 @@ pub fun new_type_ctx(return_ty: Type, diags: &var Diagnostics, table: Ptr<DeclTa
         qualified_callee: String.from(""),
         pinned_callee: String.from(""),
         through_module: Sym { id: 0 },
+        slot_inferred: false,
         decisions: List.new<OpenDecision>(),
         presets: List.new<OpenDecision>(),
         deferred_literals: List.new<DeferredLiteral>(),

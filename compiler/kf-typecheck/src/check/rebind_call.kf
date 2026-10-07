@@ -75,8 +75,11 @@ fun coerce_ctor_payloads(concrete: String, variant: String, args: &List<Expr>, c
         var a = args.at(i).clone()
         if i < payloads.size() {
             val ptype = *payloads.at(i)
-            // `a` is this list's own, so every expectation applies.
+            // `a` is this list's own, so every expectation applies. The
+            // payload types came from the slot, through inference.
+            ctx.slot_inferred = true
             a.apply_expected(ptype, ctx)
+            ctx.slot_inferred = false
         }
         out.push(a)
     }
@@ -170,7 +173,9 @@ mutating fun Expr.rebind_generic_call(expected: &Type, ctx: &var TypeCtx): bool 
         Call(_sym, args) => {
             while ai in 0..args.size() {
                 var a = args.at(ai).clone()
+                ctx.slot_inferred = true
                 a.apply_expected(*params.at(ai), ctx)
+                ctx.slot_inferred = false
                 rebuilt.push(a)
             }
         }

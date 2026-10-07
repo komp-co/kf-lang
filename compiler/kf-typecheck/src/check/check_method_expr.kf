@@ -142,7 +142,8 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                 while ai in 0..args.size() {
                     check_call_argument(args.at_mut(ai), ctx)
                 }
-                if e.type_args.size() == 0 {
+                val targs_written = e.type_args.size() > 0
+                if !targs_written {
                     e.type_args = static_receiver_args(rname.clone(), method_name.clone(), args, ctx)
                 }
                 var selected = tmpl.clone()
@@ -191,11 +192,16 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                             emit_static_call_arity(rname.clone(), method_name.clone(), sparams.size(), args.size(), e.span, ctx)
                             call_valid = false
                         }
+                        // The arguments chose the impl or bound its parameters, so
+                        // their own types are not incidental.
+                        val by_arguments = !targs_written || !selected.as_str().equals(tmpl.as_str())
                         while ci in 0..args.size() {
                             if ci < sparams.size() {
                                 val actual = args.at(ci)
                                 val expected = *sparams.at(ci)
+                                ctx.slot_inferred = by_arguments
                                 val outcome = coerce_call_arg(args, ci, expected.clone(), ctx)
+                                ctx.slot_inferred = false
                                 if !outcome.valid {
                                     call_valid = false
                                 } else if !outcome.coerced && !actual.ty.type_eq(expected) && !ctx.fits(actual.ty, expected) {
@@ -298,6 +304,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                 val pretyped = receiver.pin_open_receiver(method_name.as_str(), args, ctx)
                 receiver.narrow_open_text_receiver(method_name.as_str(), ctx)
                 receiver.narrow_open_array_receiver(method_name.as_str(), ctx)
+                receiver.note_view_as_receiver(method_name.as_str(), ctx)
                 receiver.lend_receiver_through_deref(method_name.as_str(), args.size(), ctx)
                 val recv = unsafe { *recv_ptr }
                 if dyn_or_extension_call(e, recv_ptr, &recv, method_name_sym, args, ctx) { return }

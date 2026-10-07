@@ -348,8 +348,12 @@ mutating fun JsonReader.load_trait_impl(crate: CrateId, path: str, hidden: bool)
     val trait_ref = parse_type_ptr(self.read_string().as_str())
     if !self.expect_key("methods") { return poison_decl() }
     val methods = self.load_method_list(crate, path, true, hidden)
+    if !self.expect_key("deref_via") { return poison_decl() }
+    val deref_via = self.read_string()
     if self.object_has_next() { return poison_decl() }
-    return stamp_imported(new_top_decl(no_span(), target, TopDeclKind.TraitImpl(trait_ref, methods)), crate, path, "", hidden)
+    var loaded = new_top_decl(no_span(), target, TopDeclKind.TraitImpl(trait_ref, methods))
+    loaded.deref_via = intern(deref_via.as_str())
+    return stamp_imported(loaded, crate, path, "", hidden)
 }
 
 mutating fun JsonReader.load_method_list(crate: CrateId, path: str, requires_link_name: bool, hidden: bool): List<TopDecl> {

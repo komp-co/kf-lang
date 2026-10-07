@@ -142,6 +142,7 @@ fun TopDecl.copied_top_decl(kind: TopDeclKind): TopDecl {
     out.is_internal = self.is_internal
     out.implemented_lang_trait = self.implemented_lang_trait
     out.member_loop = self.member_loop.clone()
+    out.deref_via = self.deref_via
     return out
 }
 

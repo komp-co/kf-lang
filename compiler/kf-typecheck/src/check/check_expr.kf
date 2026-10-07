@@ -76,9 +76,9 @@ fun check_expr_kind(e: &var Expr, ctx: &var TypeCtx): void {
                 val lhs_open = checked_lhs.operand_takes_other_type(ctx)
                 val rhs_open = checked_rhs.operand_takes_other_type(ctx)
                 if lhs_open && !rhs_open {
-                    apply_expected(unsafe { &var *lhs_ptr }, checked_rhs.ty.clone(), ctx)
+                    apply_operand_type(unsafe { &var *lhs_ptr }, checked_rhs.ty.clone(), ctx)
                 } else if !lhs_open || !rhs_open {
-                    apply_expected(unsafe { &var *rhs_ptr }, checked_lhs.ty.clone(), ctx)
+                    apply_operand_type(unsafe { &var *rhs_ptr }, checked_lhs.ty.clone(), ctx)
                 }
             }
             e.ty = op.check_binary_operands(lhs_ptr, rhs_ptr, e.span, ctx)

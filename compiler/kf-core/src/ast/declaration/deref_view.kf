@@ -1,0 +1,70 @@
+// Which method a `Deref` or `DerefMut` impl forwards to: `as_str` for
+// `String`'s `fun deref(): str { return self.as_str() }`. A call to it where
+// the deref would happen anyway says nothing the compiler does not.
+
+import alloc.list.*
+
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.expression.Expr
+import kf_core.ast.statement.Stmt
+
+impl TopDecl {
+    /// For a trait impl whose `deref` or `deref_mut` only returns
+    /// `self.m()`, that `m`; empty otherwise. An impl loaded from an
+    /// interface has no bodies, and answers what its crate recorded.
+    pub fun deref_view(): Sym {
+        if self.deref_via.as_str() != "" { return self.deref_via }
+        when (self.kind) {
+            TraitImpl(_trait_ref, methods) => {
+                while method in &methods {
+                    val name = method.name.as_str()
+                    if name == "deref" || name == "deref_mut" {
+                        val forwarded = method.forwarded_method()
+                        if forwarded.as_str() != "" { return forwarded }
+                    }
+                }
+            }
+            _ => { }
+        }
+        return intern("")
+    }
+
+    /// `m` when the body is exactly `return self.m()`.
+    fun forwarded_method(): Sym {
+        when (self.kind) {
+            Function(_params, _ret, body, _pub, _unsafe, _mutating, _static) => {
+                if body.size() != 1 { return intern("") }
+                return body.at(0).returned_self_call()
+            }
+            _ => return intern("")
+        }
+    }
+}
+
+fun Stmt.returned_self_call(): Sym {
+    when (self.kind) {
+        Return(value) => {
+            val returned = value ?: return intern("")
+            return returned.self_call_name()
+        }
+        _ => return intern("")
+    }
+}
+
+/// `m` for `self.m()` with no arguments.
+fun Expr.self_call_name(): Sym {
+    when (self.kind) {
+        MethodCall(receiver, name, args) => {
+            if args.size() != 0 { return intern("") }
+            when (receiver.kind) {
+                Variable(written) => {
+                    if written.as_str() == "self" { return name }
+                }
+                _ => { }
+            }
+        }
+        _ => { }
+    }
+    return intern("")
+}

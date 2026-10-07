@@ -1,10 +1,12 @@
 // The checks the typed walk makes: a `Result` or `Option` dropped on the
 // floor, a clone of a value whose type derives `Copy`, a cast to the type a
-// value already has, and floats compared for equality.
+// value already has, a view call its `Deref` makes needless, and floats
+// compared for equality.
 
 import alloc.list.*
 
 import kf_core.span.*
+import kf_core.ast.Sym
 import kf_core.ast.types.Type
 import kf_core.ast.expression.BinOp
 import kf_core.diagnostic.*
@@ -34,6 +36,18 @@ fun List<String>.holds_name(name: str): bool {
         if item.as_str() == name { return true }
     }
     return false
+}
+
+/// `needless_deref`: `x.m()` where `m` is what `x`'s `Deref` forwards to and
+/// the slot would take `x` itself; TypeCheck marks it. The fix drops the call.
+pub fun check_needless_deref(at: Span, name: Span, method: Sym, walk: &var TypedWalk): void {
+    if name.is_none() || name.start == 0 { return }
+    val message = "`.${method.as_str()}()` adds nothing here: the value reaches this slot through its `Deref`"
+    // From the `.` before the name, which the parser writes right before it;
+    // the receiver's own span can stop short of its closing brace.
+    val call = Span { file_id: at.file_id, start: name.start - 1, end: at.end }
+    walk.found.push(with_fix(lint_at("needless_deref", at, message), call, String.from(""),
+        "remove `.${method.as_str()}()`"))
 }
 
 /// `redundant_cast`: `x as T` where `x` is a `T` already.
