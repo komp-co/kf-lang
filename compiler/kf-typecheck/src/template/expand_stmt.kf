@@ -7,7 +7,6 @@ import alloc.list.*
 
 import kf_core.span.Span
 import kf_core.ast.Sym
-import kf_core.ast.intern
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
@@ -84,10 +83,9 @@ fun Stmt.unroll(binder: Sym, body: &List<Stmt>, x: &var Expansion, out: &var Lis
         return
     }
     while i in 0..x.fields.size() {
-        x.binder = binder
-        x.member = i
+        x.bind(binder, i)
         val copy = expand_stmts(body, x)
-        x.binder = intern("")
+        x.unbind()
         out.push(self.scope(copy))
     }
 }
