@@ -7,7 +7,7 @@
 # look.
 1 compiler/kf-assemble/src/assemble.kf
 5 compiler/kf-codegen/src/emit/dyn_traits/dyn_trait.kf
-1 compiler/kf-codegen/src/emit/emit_local_env.kf
+2 compiler/kf-codegen/src/emit/emit_local_env.kf
 6 compiler/kf-codegen/src/emit/expr/expr.kf
 2 compiler/kf-codegen/src/emit/expr/expr_binop.kf
 1 compiler/kf-codegen/src/emit/expr/expr_intrinsics.kf
@@ -25,7 +25,7 @@
 3 compiler/kf-codegen/src/emit/symbols/qualify.kf
 20 compiler/kf-codegen/src/emit/symbols/qualify_body.kf
 14 compiler/kf-codegen/src/emit/symbols/qualify_helpers.kf
-6 compiler/kf-codegen/src/emit/types.kf
+5 compiler/kf-codegen/src/emit/types.kf
 4 compiler/kf-codegen/src/emit/unit/header.kf
 5 compiler/kf-core/src/ast/borrow.kf
 6 compiler/kf-core/src/ast/dyn_meta/dyn_trait.kf

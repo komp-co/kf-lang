@@ -272,7 +272,7 @@ fun emit_enum_arm(a: SwitchArm, ename: String, through_ref: bool, by_address: bo
                     // Records the binder's release function, since the C type
                     // is only known to C. A reference owns nothing.
                     var rel = String.from("")
-                    if !by_ref { rel = env.arm_payloads.arm_payload_release(ename.as_str(), name.as_str(), bi) }
+                    if !by_ref { rel = env.payload_release(ename.as_str(), name.as_str(), bi) }
                     env.env_bind(b.as_string(), rel)
                 }
             }

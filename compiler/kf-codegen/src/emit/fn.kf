@@ -288,7 +288,7 @@ fun emit_main_fn(td: TopDecl, payloads: &ArmPayloads): String {
 // exit; borrowed params are pointers and need none.
 fun build_param_env(td: TopDecl, payloads: &ArmPayloads): LocalEnv {
     var env = new_local_env()
-    env.arm_payloads = payloads.clone_arm_payloads()
+    env.arm_payloads = Option.Some(payloads)
     val tdk = td.kind
     when (tdk) {
         Function(params, ret_p, _b, _p, _u, _m, is_static) => {
