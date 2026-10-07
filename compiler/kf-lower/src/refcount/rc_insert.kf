@@ -126,7 +126,7 @@ fun Expr.collect_moved_names(mode: BorrowMode, out: &var List<String>): void {
     }
 }
 
-fun collect_moved_names_list(args: List<Expr>, mode: BorrowMode, out: &var List<String>): void {
+fun collect_moved_names_list(args: &List<Expr>, mode: BorrowMode, out: &var List<String>): void {
     while item in &args {
         item.collect_moved_names(mode, out)
     }
@@ -184,7 +184,7 @@ fun Expr.collect_var_names_in_expr(out: &var List<String>): void {
     }
 }
 
-fun collect_var_names_in_list(args: List<Expr>, out: &var List<String>): void {
+fun collect_var_names_in_list(args: &List<Expr>, out: &var List<String>): void {
     while item in &args {
         item.collect_var_names_in_expr(out)
     }

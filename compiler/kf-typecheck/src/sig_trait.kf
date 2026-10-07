@@ -31,8 +31,7 @@ impl SigTable {
 
     /// The registered signature of that name, if any.
     pub fun find_signature(name: str): FnSignature? {
-        val key = String.from(name)
-        when (self.sig_index.get(&key)) {
+        when (self.sig_index.get(&String.from_literal(name))) {
             Some(at) => { return Option.Some(*self.sigs.at(*at)) }
             None => { return Option.None }
         }

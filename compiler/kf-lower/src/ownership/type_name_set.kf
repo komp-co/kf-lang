@@ -16,6 +16,6 @@ impl TypeNameSet {
     }
 
     pub fun contains(name: str): bool {
-        return self.index.contains(&String.from(name))
+        return self.index.contains(&String.from_literal(name))
     }
 }

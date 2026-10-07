@@ -46,7 +46,7 @@ fun expected_trait_type(declared: Type, tname: str, targs: &List<String>, target
 }
 
 /// Normalised the same way: an impl may write `ListIter<T>` or `Self.Iter`.
-fun impl_written_type(tr: TypeRef, target: str, ctx: &var TypeCtx): Type {
+fun impl_written_type(tr: &TypeRef, target: str, ctx: &var TypeCtx): Type {
     val resolved = tr.resolve_type_ref(ctx)
     return resolved.resolve_impl_projection(target, ctx)
 }
