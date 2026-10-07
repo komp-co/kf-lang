@@ -37,6 +37,12 @@ pub fun render_completion_json(path: str, offset: uint32, crate: &TypedCrate): S
     // The byte before the dot; for `foo().bar` that is the `)`, whose
     // narrowest covering expression is the call.
     val hit = crate.module.innermost_expr_at(crate.file_id, dot - 1)
+    val bound = crate.template_binder_type(word_at(src, dot - 1).as_str(), dot)
+    if bound.byte_len() > 0 && (!hit.found || hit.ty.is_poison()) {
+        out.field_string("receiver_type", bound.as_str())
+        out.field_raw("items", crate.members_json(bound.as_str(), &Type.new_poison()).as_str())
+        return out.finish()
+    }
     if !hit.found || hit.ty.is_poison() {
         out.field_null("receiver_type")
         out.field_raw("items", "[]")

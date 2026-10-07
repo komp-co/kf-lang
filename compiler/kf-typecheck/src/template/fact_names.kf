@@ -1,0 +1,75 @@
+// The facts a template's binders have, as `core.template` declares them:
+// `TemplateField`, `TemplateVariant`, `TemplatePayload` and `TemplateSite`.
+// Messages name them from here, and a test checks these lists against the
+// declarations, so the two cannot drift apart.
+
+import alloc.list.*
+
+/// One declared struct's facts: its fields, then its methods.
+pub struct DeclaredFacts {
+    pub val type_name: String
+    pub val values: List<String>
+    pub val methods: List<String>
+}
+
+pub fun declared_facts(): List<DeclaredFacts> {
+    var out = List.new<DeclaredFacts>()
+    out.push(facts("TemplateField", "name index line", "has get of"))
+    out.push(facts("TemplateVariant", "name index line payloads", "has get build"))
+    out.push(facts("TemplatePayload", "index", "of"))
+    out.push(facts("TemplateSite", "file line column", ""))
+    return out
+}
+
+fun facts(type_name: str, values: str, methods: str): DeclaredFacts {
+    return DeclaredFacts { type_name: String.from(type_name), values: words(values), methods: words(methods) }
+}
+
+fun words(text: str): List<String> {
+    var out = List.new<String>()
+    var from: uint64 = 0
+    while from < text.byte_len() {
+        val space = text.index_of_from(" ", from) ?: text.byte_len()
+        out.push(text.substring(from, space))
+        from = space + 1
+    }
+    return out
+}
+
+/// The facts of the declared struct `type_name`, as a message lists them:
+/// "`name`, `index`, `line`, `has<A>()`, `get<A>()` and `of(x)`". A field's
+/// and a payload's `type`, which no signature declares, goes last.
+fun listed_facts(type_name: str): String {
+    var shown = List.new<String>()
+    while declared in &declared_facts() {
+        if declared.type_name.as_str() != type_name { continue }
+        while value in &declared.values {
+            shown.push("`${value.as_str()}`")
+        }
+        while method in &declared.methods {
+            shown.push("`${method_shown(method.as_str())}`")
+        }
+    }
+    if type_name == "TemplateField" || type_name == "TemplatePayload" { shown.push(String.from("`type` in a type")) }
+    var out = String.from("")
+    while i in 0..shown.size() {
+        if i > 0 { out.append(if i + 1 == shown.size() { " and " } else { ", " }) }
+        out.append(shown.at(i).as_str())
+    }
+    return out
+}
+
+fun method_shown(method: str): str {
+    return when method {
+        "has" => "has<A>()"
+        "get" => "get<A>()"
+        "build" => "build(|payload| e)"
+        _ => "of(x)"
+    }
+}
+
+/// The declared struct a binder of this expansion stands for.
+fun Expansion.binder_type(payload: bool): str {
+    if payload { return "TemplatePayload" }
+    return if self.on_enum { "TemplateVariant" } else { "TemplateField" }
+}
