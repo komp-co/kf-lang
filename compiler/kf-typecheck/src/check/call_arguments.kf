@@ -212,13 +212,16 @@ pub mutating fun Expr.check_named_call(ctx: &var TypeCtx): bool {
 
 /// The names of a call's written arguments, by position, if any is named.
 pub fun Expr.argument_names(): List<Sym> {
-    var names = List.new<Sym>()
-    val args = when (self.kind) {
-        Call(_name, args) => args
-        MethodCall(_receiver, _name, args) => args
-        CallValue(_callee, args) => args
-        _ => return names
+    return when (self.kind) {
+        Call(_name, args) => names_of_arguments(&args)
+        MethodCall(_receiver, _name, args) => names_of_arguments(&args)
+        CallValue(_callee, args) => names_of_arguments(&args)
+        _ => List.new<Sym>()
     }
+}
+
+fun names_of_arguments(args: &List<Expr>): List<Sym> {
+    var names = List.new<Sym>()
     var any = false
     while argument in &args {
         if argument.arg_name.as_str().byte_len() > 0 { any = true }
