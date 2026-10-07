@@ -37,9 +37,10 @@ hand beside the struct. It is then checked like any other code.
 ## Declaring one
 
 `template NAME on struct T { declarations }` belongs to the annotation `NAME`,
-which must be declared in the same crate and mark structs. An annotation has at
-most one template on `struct`. `T` names the marked struct inside the template.
-`on enum T` is the same for enums, as [below](#enums) says.
+which must be declared in the same crate and mark structs. `T` names the
+marked struct inside the template. `on enum T` is the same for enums, as
+[below](#enums) says. An annotation marking both may have one template of each,
+but at most one per kind.
 
 The template holds ordinary declarations: trait impls, `impl T` blocks, and
 extension functions such as `fun T.describe()`. `template`, like `annotation`,
@@ -59,12 +60,35 @@ In each block:
 | `field.of(self)` | the field read from `self`, `self.x` |
 | `field.name` | its name as a string, `"x"` |
 | `field.index` | its position, `0` |
+| `field.line` | the line it is written on |
 | `field.type` (in a type) | its type, `int32` |
 | `field.has<A>()` | whether the field carries `@A` |
 | `field.get<A>()` | `@A`'s arguments on the field, as `A`'s argument struct |
 
 Outside a loop, `T.name` is the struct's name, `T.fields.size()` the number of
 fields, and `args` the arguments the annotation's use was written with.
+`site.file`, `site.line` and `site.column` are where the struct's name is
+written, the file relative to the crate root as an `annotated<A>()` entry gives
+it, `src/user.kf`. They are literals, so generated code can say where the
+struct is without anything computed when it runs:
+
+```kflat
+annotation located on struct
+
+template located on struct T {
+    fun T.where(): String { return "${T.name} at ${site.file}:${site.line}" }
+}
+
+@located
+struct User {
+    val id: int64
+}
+
+fun main(): int32 {
+    val user = User { id: 1 }
+    return if user.where() == "User at src/main.kf:8" { 0 } else { 1 }
+}
+```
 
 `T.build(|field| e)` is a literal of the marked struct, `e` written once per
 field with `field` standing for it: `T { x: e(x), y: e(y) }`. Inside a member
@@ -307,7 +331,7 @@ fun main(): int32 {
 }
 ```
 
-A variant has the facts `name`, `index`, `has<A>()` and `get<A>()`, and a
+A variant has the facts `name`, `index`, `line`, `has<A>()` and `get<A>()`, and a
 payload `index`, and `type` where a type goes. `variant.build(|payload| e)`
 makes the variant with `e` per payload, `T.Rect(e(0), e(1))`, and
 `T.${variant.name}` names one without payloads. A `return` the facts decide

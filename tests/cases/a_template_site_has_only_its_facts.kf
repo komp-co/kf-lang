@@ -1,0 +1,17 @@
+//! build: fail
+//! deps: core, alloc
+// `site` has `file`, `line` and `column`; anything else is an error naming
+// them.
+
+annotation located on struct
+
+template located on struct T {
+    fun T.where(): String { return String.from(site.function) }
+}
+
+@located
+struct User {
+    val id: int64
+}
+
+fun main(): int32 { return 0 }

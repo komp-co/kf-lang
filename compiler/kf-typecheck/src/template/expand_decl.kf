@@ -5,15 +5,18 @@
 import alloc.list.*
 
 import kf_core.span.Span
+import kf_core.span.Location
+import kf_core.span.SourceMap
 
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.FieldInit
 import kf_core.ast.declaration.*
 import kf_core.diagnostic.*
+import kf_typecheck.place_in
 
 fun Module.expand_for(template: &TopDecl, marked: &TopDecl, annotation: uint64, diags: &var List<Diagnostic>,
-    sites: &var List<ExpansionSite>): List<TopDecl> {
+    sites: &var List<ExpansionSite>, smap: Ptr<SourceMap>): List<TopDecl> {
     var out = List.new<TopDecl>()
     val name = template.name.as_str()
     if marked.generics.size() > 0 {
@@ -28,7 +31,8 @@ fun Module.expand_for(template: &TopDecl, marked: &TopDecl, annotation: uint64, 
         type_name: marked.name,
         on_enum: template.template_kind() == MarkKind.Enum,
         home: marked.module_path,
-        fields: marked.field_facts(),
+        site: place_in(smap, marked.decl_name_span(), marked.module_path),
+        fields: marked.field_facts(smap),
         args: self.use_arguments(marked, annotation),
         shapes: self.annotation_shapes(),
         bound: List.new<Bound>(),
@@ -58,7 +62,7 @@ fun TopDecl.template_param(): Sym {
     }
 }
 
-fun TopDecl.field_facts(): List<FieldFacts> {
+fun TopDecl.field_facts(smap: Ptr<SourceMap>): List<FieldFacts> {
     var out = List.new<FieldFacts>()
     when (self.kind) {
         Struct(fields, _pub) => {
@@ -66,7 +70,8 @@ fun TopDecl.field_facts(): List<FieldFacts> {
                 val field = fields.at(i)
                 out.push(FieldFacts {
                     name: field.name, index: i, ty: (*field.ty).clone(), payloads: List.new<TypeRef>(),
-                    annotations: field.annotations.clone(), span: field.span
+                    annotations: field.annotations.clone(), span: field.span,
+                    line: place_in(smap, field.span, self.module_path).line
                 })
             }
         }
@@ -75,7 +80,8 @@ fun TopDecl.field_facts(): List<FieldFacts> {
                 val variant = variants.at(i)
                 out.push(FieldFacts {
                     name: variant.name, index: i, ty: TypeRef.new_poison(variant.span),
-                    payloads: variant.payloads.clone(), annotations: variant.annotations.clone(), span: variant.span
+                    payloads: variant.payloads.clone(), annotations: variant.annotations.clone(), span: variant.span,
+                    line: place_in(smap, variant.span, self.module_path).line
                 })
             }
         }
