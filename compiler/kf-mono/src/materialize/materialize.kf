@@ -6,6 +6,7 @@ import alloc.list.*
 import alloc.hash_map.*
 
 import kf_core.ast.*
+import kf_core.span.no_span
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
@@ -150,63 +151,68 @@ fun TopDecl.answers_to(base: str): bool {
 /// `strip_impl_method_templates` removes them.
 mutating fun Module.materialize_impl_method(inst: &Inst, mangled: String, gps: &List<String>, marities: &List<MethodArity>, work: &var List<Inst>, proj_sigs: Ptr<SigTable>): void {
     if self.materialize_trait_arg_impl(inst, gps, marities, work, proj_sigs) { return }
-    var kept = List.new<TopDecl>()
-    while td in &self.decls {
-        var rebuilt_owner = false
-        if td.name.as_str().equals(inst.owner.as_str()) {
-            when (td.kind) {
-                ImplBlock(methods) => {
-                    // One pass, so each element is copied only once.
-                    var nm = List.new<TopDecl>()
-                    var tmpl_idx: uint64 = 0
-                    var found = false
-                    var already = false
-                    while mi in 0..methods.size() {
-                        val mth = *methods.at(mi)
-                        if mth.name.as_str().equals(mangled.as_str()) { already = true }
-                        if !found {
-                            if mth.generics.size() > 0 {
-                                if mth.name.as_str().equals(inst.base.as_str()) {
-                                    tmpl_idx = mi
-                                    found = true
-                                }
-                            }
-                        }
-                        nm.push(mth)
-                    }
-                    if found && !already {
-                        var spec = clone_subst_decl(nm.at(tmpl_idx), inst.args, mangled.clone())
-                        if !is_poison_decl(spec) {
-                            if !self.crate.is_poison() {
-                                spec.linkage = Linkage.GenericTemplate
-                            }
-                            // Scanned before the push consumes it.
-                            subst_projections_in_decl(&var spec, proj_sigs)
-                            val queued = work.size()
-                            spec.collect_insts_in_decl(gps, marities, work)
-                            val template = mangle_base_name(inst.owner.clone())
-                            work.own_self_calls(queued, template.as_str(), inst.owner.as_str())
-                            nm.push(spec)
-                        }
-                    }
-                    var rebuilt = new_top_decl(td.span, td.name.as_string(), TopDeclKind.ImplBlock(nm))
-                    rebuilt.crate = td.crate
-                    rebuilt.module_path = td.module_path
-                    rebuilt.decl = td.decl
-                    rebuilt.generics = td.generics
-                    rebuilt.annotations = td.annotations.clone()
-                    rebuilt.linkage = td.linkage
-                    rebuilt.link_name = td.link_name
-                    rebuilt.decl_end = td.decl_end
-                    kept.push(rebuilt)
-                    rebuilt_owner = true
-                }
-                _ => { }
-            }
+    val crate = self.crate
+    while i in 0..self.decls.size() {
+        if self.decls.at(i).name.as_str().equals(inst.owner.as_str()) {
+            self.decls.at_mut(i).add_method_instance(inst, mangled.as_str(), gps, marities, work, proj_sigs, crate)
         }
-        if !rebuilt_owner { kept.push(td) }
     }
-    self.decls = kept
+}
+
+/// On an impl block of `inst`'s owner: appends its template specialized as
+/// `mangled`, unless the block already holds it.
+mutating fun TopDecl.add_method_instance(inst: &Inst, mangled: str, gps: &List<String>, marities: &List<MethodArity>,
+    work: &var List<Inst>, proj_sigs: Ptr<SigTable>, crate: CrateId): void {
+    when (self.kind) {
+        ImplBlock(methods) => {
+            var tmpl_idx: uint64 = 0
+            var found = false
+            var already = false
+            while mi in 0..methods.size() {
+                val mth = methods.at(mi)
+                if mth.name.as_str().equals(mangled) { already = true }
+                if !found && mth.generics.size() > 0 && mth.name.as_str().equals(inst.base.as_str()) {
+                    tmpl_idx = mi
+                    found = true
+                }
+            }
+            if found && !already {
+                var spec = clone_subst_decl(methods.at(tmpl_idx), inst.args, String.from(mangled))
+                if !is_poison_decl(&spec) {
+                    if !crate.is_poison() {
+                        spec.linkage = Linkage.GenericTemplate
+                    }
+                    // Scanned before the push consumes it.
+                    subst_projections_in_decl(&var spec, proj_sigs)
+                    val queued = work.size()
+                    spec.collect_insts_in_decl(gps, marities, work)
+                    val template = mangle_base_name(inst.owner.clone())
+                    work.own_self_calls(queued, template.as_str(), inst.owner.as_str())
+                    methods.push(spec)
+                    // CONSTRAINT: a binder is a copy of the payload, so the
+                    // grown list is moved back into place.
+                    self.kind = TopDeclKind.ImplBlock(take<List<TopDecl>>(methods))
+                }
+            }
+            self.keep_rebuilt_block_fields()
+        }
+        _ => { }
+    }
+}
+
+/// The owner's impl blocks were rebuilt from these fields alone; the rest
+/// return to `new_top_decl`'s defaults, which the emitted C depends on.
+mutating fun TopDecl.keep_rebuilt_block_fields(): void {
+    self.from_trait_impl = false
+    self.dyn_layouts = List.new<DynTraitLayout>()
+    self.dyn_vtables = List.new<DynVTableInstance>()
+    self.name_span = no_span()
+    self.ext_name = intern("")
+    self.resolves_in = intern("")
+    self.is_sealed = false
+    self.is_view = false
+    self.implemented_lang_trait = intern("")
+    self.is_internal = false
 }
 
 /// `from<N>` in `impl<T, N: uint64> From<T[N]> for List<T>`: `N` came from
@@ -291,11 +297,16 @@ mutating fun Module.strip_impl_method_templates(): void {
 mutating fun TopDecl.drop_method_templates(): void {
     when (self.kind) {
         TraitImpl(tref, methods) => {
-            var kept = List.new<TopDecl>()
+            var keep = List.new<bool>()
+            var dropped = false
             while mth in &methods {
-                if mth.generics.size() == 0 { kept.push(mth.clone()) }
+                keep.push(mth.generics.size() == 0)
+                if mth.generics.size() > 0 { dropped = true }
             }
-            if kept.size() != methods.size() { self.kind = TopDeclKind.TraitImpl(tref, kept) }
+            if dropped {
+                methods.keep_flagged(&keep)
+                self.kind = TopDeclKind.TraitImpl(tref, take<List<TopDecl>>(methods))
+            }
         }
         ImplBlock(methods) => {
             var i: uint64 = 0
