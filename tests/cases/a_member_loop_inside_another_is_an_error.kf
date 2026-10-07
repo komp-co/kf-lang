@@ -1,0 +1,23 @@
+//! build: fail
+//! deps: core
+// A member loop's items are written once per field, so one inside another
+// has no field to stand for.
+
+annotation nested on struct
+
+template nested on struct T {
+    while field in T.fields {
+        impl T {
+            while other in T.fields {
+                fun pair_${field.name}_${other.name}(): int32 { return 0 }
+            }
+        }
+    }
+}
+
+@nested
+struct Point {
+    val x: int32
+}
+
+fun main(): int32 { return 0 }

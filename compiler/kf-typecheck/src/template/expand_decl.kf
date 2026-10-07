@@ -33,11 +33,7 @@ fun Module.expand_for(template: &TopDecl, marked: &TopDecl, annotation: uint64, 
         diags: List.new<Diagnostic>()
     }
     when (template.kind) {
-        Template(_kind, _param, body) => {
-            while decl in &body {
-                out.push(decl.expanded_decl(&var x))
-            }
-        }
+        Template(_kind, _param, body) => out = expanded_decls(&body, &var x)
         _ => {}
     }
     while diag in &x.diags {
@@ -116,6 +112,7 @@ fun TopDecl.expanded_decl(x: &var Expansion): TopDecl {
     out.name = if self.name.id == x.marked.id { x.type_name } else { x.built(self.name, self.decl_name_span()) }
     out.module_path = x.home
     out.resolves_in = self.module_path
+    out.member_loop = null
     when (self.kind) {
         Function(params, ret, body, is_pub, is_unsafe, is_mutating, is_static) => {
             val expanded = expanded_params(&params, x)
@@ -131,26 +128,8 @@ fun TopDecl.expanded_decl(x: &var Expansion): TopDecl {
         TraitImpl(trait_ref, methods) => {
             out.kind = TopDeclKind.TraitImpl(Box.new(trait_ref.expanded_type(x)), expanded_decls(&methods, x))
         }
-        Struct(fields, is_pub) => {
-            var expanded = List.new<Field>()
-            while field in &fields {
-                expanded.push(Field {
-                    span: field.span, name: x.built(field.name, field.span), ty: Box.new(field.ty.expanded_type(x)),
-                    is_var: field.is_var, is_pub: field.is_pub, is_internal: field.is_internal,
-                    annotations: field.annotations.clone()
-                })
-            }
-            out.kind = TopDeclKind.Struct(expanded, is_pub)
-        }
+        Struct(fields, is_pub) => out.kind = TopDeclKind.Struct(expanded_fields(&fields, x), is_pub)
         _ => {}
-    }
-    return out
-}
-
-fun expanded_decls(decls: &List<TopDecl>, x: &var Expansion): List<TopDecl> {
-    var out = List.new<TopDecl>()
-    while decl in &decls {
-        out.push(decl.expanded_decl(x))
     }
     return out
 }

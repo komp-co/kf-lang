@@ -116,6 +116,47 @@ assigns to `out`'s field.
 A member loop is written out once per field rather than run, so `break` and
 `continue` cannot leave it. A loop of their own inside it still can.
 
+### Where a member loop goes
+
+A member loop may also stand where declarations go, among a template's
+declarations or an `impl`'s methods, and among the fields of a struct the
+template adds. What it holds is then written once per field:
+
+```kflat
+annotation accessors on struct
+
+template accessors on struct T {
+    struct ${T.name}Parts {
+        while field in T.fields {
+            val ${field.name}: field.type
+        }
+    }
+
+    impl T {
+        while field in T.fields {
+            fun get_${field.name}(): field.type { return field.of(self) }
+        }
+    }
+}
+
+@accessors
+struct Point {
+    val x: int32
+    val y: int32
+}
+
+fun main(): int32 {
+    val p = Point { x: 3, y: 4 }
+    val parts = PointParts { x: p.get_x(), y: p.get_y() }
+    return parts.x + parts.y - 7
+}
+```
+
+`Point` gets `get_x` and `get_y`, and `PointParts` a field for each of
+`Point`'s. A name written out per field is built from `field.name`, as
+[below](#names-built-from-facts) says, or every copy would have the same one.
+A member loop inside another is an error, wherever either stands.
+
 ## Where the code lives
 
 What a template adds belongs to the marked struct's module: an extension
@@ -189,7 +230,6 @@ naming the struct it was adding to.
 ## Limits
 
 Templates add to structs of their own crate only, and not to a generic struct.
-A member loop is written only where statements go, so a template cannot yet
-add one declaration or one struct field per field. A `pub` extension function
-a template adds cannot be imported by another module. [Limitations](../limitations.md#templates)
+A `pub` extension function a template adds cannot be imported by another
+module. [Limitations](../limitations.md#templates)
 lists each with its issue.

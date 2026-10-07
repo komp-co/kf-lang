@@ -125,9 +125,6 @@ on a struct holding one ([#299]). Compare or print the elements instead.
   come with the variant loop ([#289]).
 - A template adds to its own crate's structs only ([#290]), and not to a
   generic struct ([#296]).
-- A member loop is written only where statements go, not among an `impl`'s
-  methods or a struct's fields, so a template cannot add one declaration per
-  field ([#288]).
 - `break` and `continue` cannot leave a template's member loop ([#288]).
 - A `pub` extension function a template adds cannot be imported by another
   module: imports are checked before templates expand ([#297]).
