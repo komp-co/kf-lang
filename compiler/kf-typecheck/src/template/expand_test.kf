@@ -9,6 +9,7 @@ import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.expression.FieldInit
 import kf_core.ast.declaration.Annotation
+import kf_core.ast.declaration.Param
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import testing.test
@@ -38,9 +39,16 @@ fun point_expansion_with(args: List<FieldInit>): Expansion {
     })
     return Expansion {
         annotation: intern("shown"), marked: intern("T"), type_name: intern("Point"), home: intern("app"),
-        fields: fields, args: args, shapes: List.new<AnnotationShape>(), binder: intern("field"),
-        member: 1, diags: List.new<Diagnostic>()
+        fields: fields, args: args, shapes: List.new<AnnotationShape>(), bound: on_label(),
+        diags: List.new<Diagnostic>()
     }
+}
+
+/// `field` standing for `label`.
+fun on_label(): List<Bound> {
+    var bound = List.new<Bound>()
+    bound.push(Bound { binder: intern("field"), member: 1 })
+    return bound
 }
 
 fun ExprKind.text(): String {
@@ -115,7 +123,7 @@ fun just(e: Expr): List<Expr> {
 
 @test fun a_member_loop_unrolls_once_per_field(): void {
     var x = point_expansion()
-    x.binder = intern("")
+    x.bound = List.new<Bound>()
     var body = List.new<Stmt>()
     body.push(Stmt.new(no_span(), StmtKind.Expression(Box.new(access(variable("field"), "name")))))
     var stmts = List.new<Stmt>()
@@ -145,20 +153,35 @@ fun TypeRef.bare_type_name(): String {
     }
 }
 
-@test fun a_break_in_a_member_loop_is_reported(): void {
-    var x = point_expansion()
-    x.binder = intern("")
-    var body = List.new<Stmt>()
-    body.push(Stmt.new(no_span(), StmtKind.Break))
+fun member_loop(body: List<Stmt>): List<Stmt> {
     var stmts = List.new<Stmt>()
     stmts.push(Stmt.new(no_span(), StmtKind.ForEach(intern("field"), Box.new(access(variable("T"), "fields")), body)))
-    val _out = expand_stmts(&stmts, &var x)
-    assert_eq(x.diags.size(), 1, "the loop is written out, so `break` has nowhere to go")
+    return stmts
+}
+
+@test fun a_decided_break_ends_the_copies(): void {
+    var x = point_expansion()
+    x.bound = List.new<Bound>()
+    var body = List.new<Stmt>()
+    body.push(Stmt.new(no_span(), StmtKind.Break))
+    val out = expand_stmts(&member_loop(body), &var x)
+    assert_eq(out.size(), 1, "the first copy, cut at its `break`, and no second")
+}
+
+@test fun a_run_time_break_is_a_flag_and_a_pass_per_copy(): void {
+    var x = point_expansion()
+    x.bound = List.new<Bound>()
+    var jump = List.new<Stmt>()
+    jump.push(Stmt.new(no_span(), StmtKind.Break))
+    var body = List.new<Stmt>()
+    body.push(Stmt.new(no_span(), StmtKind.If(Box.new(variable("c")), jump, List.new<Stmt>())))
+    val out = expand_stmts(&member_loop(body), &var x)
+    assert_eq(out.size(), 3, "the flag, then a guarded pass for each of the two fields")
 }
 
 @test fun a_break_in_an_inner_loop_stays(): void {
     var x = point_expansion()
-    x.binder = intern("")
+    x.bound = List.new<Bound>()
     var inner = List.new<Stmt>()
     inner.push(Stmt.new(no_span(), StmtKind.Break))
     var body = List.new<Stmt>()
@@ -192,4 +215,24 @@ fun TypeRef.bare_type_name(): String {
     var x = point_expansion()
     val _name = x.built(intern("with_\${field.index}"), no_span())
     assert_eq(x.diags.size(), 1, "`field.index` is not text")
+}
+
+fun build_call(binder: str, value: Expr): Expr {
+    var params = List.new<Param>()
+    params.push(Param { span: no_span(), name: intern(binder), ty: Box.new(named("_")), default: null })
+    var body = List.new<Stmt>()
+    body.push(Stmt.new(no_span(), StmtKind.Expression(Box.new(value))))
+    val lambda = Expr.new(no_span(), ExprKind.Lambda(params, body))
+    return Expr.new(no_span(), ExprKind.MethodCall(Box.new(variable("T")), intern("build"), just(lambda)))
+}
+
+@test fun build_writes_one_field_init_per_field(): void {
+    var x = point_expansion()
+    x.bound = List.new<Bound>()
+    val out = build_call("f", access(variable("f"), "name")).expanded(&var x)
+    val shape = when (out.kind) {
+        StructLit(name, inits) => "${name.as_str()} ${inits.size()} ${inits.at(1).value.kind.text().as_str()}"
+        _ => String.from("")
+    }
+    assert_eq(shape.as_str(), "Point 2 \"label\"", "`Point { x: \"x\", label: \"label\" }`")
 }

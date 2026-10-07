@@ -99,7 +99,7 @@ fun annotated_params(params: &List<Param>, expected: &List<TypeRef>, span: Span)
     var out = List.new<Param>()
     while i in 0..params.size() {
         val p = *params.at(i)
-        if unsafe { (p.ty as uint64) == 0 } {
+        if !p.is_typed() {
             if i < expected.size() {
                 val slot: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
                 unsafe { *slot = clone_type_ref(expected.at(i)) }

@@ -1,0 +1,63 @@
+//! run: exit 0
+//! deps: core
+// `break` and `continue` in a member loop act as in any loop: a jump the facts
+// decide ends the copies there, and one decided at run time skips the rest of
+// the copies, or of this one.
+
+annotation hidden on field
+annotation walked on struct
+
+template walked on struct T {
+    fun T.first_name(): str {
+        var out = ""
+        while field in T.fields {
+            out = field.name
+            break
+        }
+        return out
+    }
+
+    fun T.shown_count(): int64 {
+        var count: int64 = 0
+        while field in T.fields {
+            if field.has<hidden>() { continue }
+            count = count + 1
+        }
+        return count
+    }
+
+    fun T.sum_until_zero(): int64 {
+        var total: int64 = 0
+        while field in T.fields {
+            if field.of(self) == 0 { break }
+            total = total + field.of(self) as int64
+        }
+        return total
+    }
+
+    fun T.sum_skipping_ones(): int64 {
+        var total: int64 = 0
+        while field in T.fields {
+            if field.of(self) == 1 { continue }
+            total = total + field.of(self) as int64
+        }
+        return total
+    }
+}
+
+@walked
+struct Row {
+    val a: int32
+    @hidden
+    val b: int32
+    val c: int32
+}
+
+fun main(): int32 {
+    val r = Row { a: 1, b: 0, c: 5 }
+    if r.first_name() != "a" { return 1 }
+    if r.shown_count() != 2 { return 2 }
+    if r.sum_until_zero() != 1 { return 3 }
+    if r.sum_skipping_ones() != 5 { return 4 }
+    return 0
+}

@@ -28,8 +28,7 @@ fun Module.expand_for(template: &TopDecl, marked: &TopDecl, annotation: uint64, 
         fields: marked.field_facts(),
         args: self.use_arguments(marked, annotation),
         shapes: self.annotation_shapes(),
-        binder: intern(""),
-        member: 0,
+        bound: List.new<Bound>(),
         diags: List.new<Diagnostic>()
     }
     when (template.kind) {

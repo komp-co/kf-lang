@@ -1,0 +1,19 @@
+//! build: fail
+//! deps: core
+// `filter` keeps fields while the program compiles, so a condition on a
+// field's value is an error.
+
+annotation counted on struct
+
+template counted on struct T {
+    fun T.nonzero(): int64 {
+        return T.fields.filter(|field| field.of(self) != 0).size()
+    }
+}
+
+@counted
+struct Point {
+    val x: int32
+}
+
+fun main(): int32 { return 0 }

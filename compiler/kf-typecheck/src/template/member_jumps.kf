@@ -1,0 +1,155 @@
+// `break` and `continue` in a member loop, whose copies stand one after
+// another. A jump the facts decide ends the copies there; one decided at run
+// time is lowered: each copy is a loop of one pass, `continue` leaves it, and
+// `break` also sets a flag the later copies test.
+
+import alloc.list.*
+
+import kf_core.span.Span
+import kf_core.ast.Arm
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.rebuilt
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.UnaryOp
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
+
+@derive(Equal)
+enum Jump {
+    Neither
+    Continued
+    Broke
+}
+
+/// A copy's statements up to the first jump every run reaches, and which.
+struct CutCopy {
+    val kept: List<Stmt>
+    val jump: Jump
+}
+
+/// `stmts` cut at a `break` or `continue` reached whatever the program does:
+/// one standing in the copy, or in a block a decided `if` left.
+fun cut_at_jump(stmts: &List<Stmt>): CutCopy {
+    var kept = List.new<Stmt>()
+    while stmt in &stmts {
+        when (stmt.kind) {
+            Break => return CutCopy { kept: kept, jump: Jump.Broke }
+            Continue => return CutCopy { kept: kept, jump: Jump.Continued }
+            If(condition, body, other) => {
+                if condition.is_true_literal() && other.size() == 0 {
+                    val inner = cut_at_jump(&body)
+                    kept.push(stmt.rekinded(StmtKind.If(Box.new((*condition).clone()), inner.kept, other.clone())))
+                    if inner.jump != Jump.Neither { return CutCopy { kept: kept, jump: inner.jump } }
+                } else {
+                    kept.push(stmt.clone())
+                }
+            }
+            _ => kept.push(stmt.clone())
+        }
+    }
+    return CutCopy { kept: kept, jump: Jump.Neither }
+}
+
+fun Expr.is_true_literal(): bool {
+    return when (self.kind) {
+        LitBool(b) => b
+        _ => false
+    }
+}
+
+/// The copies as statements: blocks one after another, or, when a jump in
+/// them is decided at run time, loops of one pass behind a `break` flag.
+fun Stmt.joined_copies(copies: &List<List<Stmt>>, out: &var List<Stmt>): void {
+    var continues = false
+    var breaks = false
+    while copy in &copies {
+        if stray_jump_of(copy, false) != null { continues = true }
+        if stray_jump_of(copy, true) != null { breaks = true }
+    }
+    if !continues && !breaks {
+        while copy in &copies {
+            out.push(self.scope(copy.clone()))
+        }
+        return
+    }
+    val flag = intern("__left_${self.span.start}")
+    if breaks {
+        val unset = Box.new(Expr.new(self.span, ExprKind.LitBool(false)))
+        out.push(self.rekinded(StmtKind.LetVar(flag, null, Option.Some(unset))))
+    }
+    while copy in &copies {
+        var pass = self.with_jumps_left(copy, flag)
+        pass.push(self.rekinded(StmtKind.Break))
+        val always = Box.new(Expr.new(self.span, ExprKind.LitBool(true)))
+        val once = self.rekinded(StmtKind.While(always, pass))
+        if breaks {
+            val variable = Box.new(Expr.new(self.span, ExprKind.Variable(flag)))
+            val still = Box.new(Expr.new(self.span, ExprKind.Unary(UnaryOp.Not, variable)))
+            var guarded = List.new<Stmt>()
+            guarded.push(once)
+            out.push(self.rekinded(StmtKind.If(still, guarded, List.new<Stmt>())))
+        } else {
+            out.push(once)
+        }
+    }
+}
+
+/// `stmts` with each jump that leaves the member loop rewritten for a pass of
+/// one: `continue` leaves the pass, and `break` sets `flag` first.
+fun Stmt.with_jumps_left(stmts: &List<Stmt>, flag: Sym): List<Stmt> {
+    var out = List.new<Stmt>()
+    while stmt in &stmts {
+        when (stmt.kind) {
+            Continue => out.push(stmt.rekinded(StmtKind.Break))
+            Break => {
+                val set = Box.new(Expr.new(stmt.span, ExprKind.LitBool(true)))
+                out.push(stmt.rekinded(StmtKind.Assign(flag, set)))
+                out.push(stmt.rekinded(StmtKind.Break))
+            }
+            If(condition, body, other) => {
+                val then_left = self.with_jumps_left(&body, flag)
+                val else_left = self.with_jumps_left(&other, flag)
+                out.push(stmt.rekinded(StmtKind.If(Box.new((*condition).clone()), then_left, else_left)))
+            }
+            When(subject, arms) => {
+                var left = List.new<Arm>()
+                while arm in &arms {
+                    left.push(arm.rebuilt(Box.new((*arm.pattern).clone()), arm.guard.clone(),
+                        self.with_jumps_left(&arm.body, flag)))
+                }
+                out.push(stmt.rekinded(StmtKind.When(Box.new((*subject).clone()), left)))
+            }
+            _ => out.push(stmt.clone())
+        }
+    }
+    return out
+}
+
+/// A `break` (or, with `breaks` false, a `continue`) that would leave the
+/// member loop: one not inside a loop of its own.
+fun stray_jump_of(stmts: &List<Stmt>, breaks: bool): Span? {
+    while stmt in &stmts {
+        val found: Span? = when (stmt.kind) {
+            Break => if breaks { Option.Some(stmt.span) } else { null }
+            Continue => if breaks { null } else { Option.Some(stmt.span) }
+            If(_condition, body, other) => {
+                val in_then: Span? = stray_jump_of(&body, breaks)
+                if in_then != null { in_then } else { stray_jump_of(&other, breaks) }
+            }
+            When(_subject, arms) => stray_jump_in_arms(&arms, breaks)
+            _ => null
+        }
+        if found != null { return found }
+    }
+    return null
+}
+
+fun stray_jump_in_arms(arms: &List<Arm>, breaks: bool): Span? {
+    while arm in &arms {
+        val found = stray_jump_of(&arm.body, breaks)
+        if found != null { return found }
+    }
+    return null
+}

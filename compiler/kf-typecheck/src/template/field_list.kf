@@ -1,0 +1,82 @@
+// `T.fields` with `filter(|field| c)` and `map(|field| e)`: a filter keeps the
+// fields its facts-only condition holds for, and `map` writes `e` out once per
+// field kept, into an array literal the library's adapters take.
+
+import alloc.list.*
+
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+
+/// The fields `self` selects, as indices: all of `T.fields`, or what a chain
+/// of `filter`s keeps; null when `self` is no field list.
+fun Expr.selected_fields(x: &var Expansion): List<uint64>? {
+    when (self.kind) {
+        FieldAccess(owner, member) => {
+            if !owner.is_variable(x.marked) || member.as_str() != "fields" { return null }
+            var all = List.new<uint64>()
+            while i in 0..x.fields.size() {
+                all.push(i)
+            }
+            return all
+        }
+        MethodCall(receiver, method, args) => {
+            if method.as_str() != "filter" { return null }
+            val kept = receiver.selected_fields(x) ?: return null
+            return self.filtered(&kept, &args, x)
+        }
+        _ => return null
+    }
+}
+
+/// The fields of `kept` the filter's condition holds for. A condition that
+/// is not facts alone is reported, and keeps none.
+fun Expr.filtered(kept: &List<uint64>, args: &List<Expr>, x: &var Expansion): List<uint64> {
+    var out = List.new<uint64>()
+    val lambda: FieldLambda? = if args.size() == 1 { args.at(0).field_lambda() } else { null }
+    if lambda == null {
+        x.report(self.span, String.from("`filter` takes `|field| c`: one parameter, and a condition"))
+        return out
+    }
+    val written = lambda ?: return out
+    while member in &kept {
+        x.bind(written.binder, member)
+        val decided = written.value.expanded(x).decided_bool()
+        x.unbind()
+        if decided == null {
+            val facts = "facts alone: `has<A>()`, `name` and `index`"
+            x.report(self.span, "`filter` keeps fields while the program compiles, so its condition is ${facts}")
+            return List.new<uint64>()
+        }
+        if decided ?: false { out.push(member) }
+    }
+    return out
+}
+
+/// `map(|field| e)` over `kept`: `[e(a), e(b)]`.
+fun Expr.mapped(kept: &List<uint64>, args: &List<Expr>, x: &var Expansion): Expr {
+    val lambda: FieldLambda? = if args.size() == 1 { args.at(0).field_lambda() } else { null }
+    if lambda == null {
+        x.report(self.span, String.from("`map` takes `|field| e`: one parameter, and one expression per field"))
+        return self.fact(ExprKind.Poison)
+    }
+    val written = lambda ?: return self.fact(ExprKind.Poison)
+    var elements = List.new<Expr>()
+    while member in &kept {
+        x.bind(written.binder, member)
+        elements.push(written.value.expanded(x))
+        x.unbind()
+    }
+    return Expr.new_list_literal(self.span, &elements)
+}
+
+/// A method called on a field list: `map`, `size()`, or an error naming
+/// what the list is for; null when `receiver` is no field list.
+fun Expr.field_list_call(receiver: &Expr, method: str, args: &List<Expr>, x: &var Expansion): Expr? {
+    if method == "filter" { return null }
+    val kept = receiver.selected_fields(x) ?: return null
+    if method == "map" { return self.mapped(&kept, args, x) }
+    if method == "size" { return self.fact(ExprKind.LitInt(kept.size() as int64)) }
+    val uses = "loop over it, or `map`, `filter` or `size()` it"
+    x.report(self.span, "a field list is known only while the program compiles: ${uses}")
+    return self.fact(ExprKind.Poison)
+}

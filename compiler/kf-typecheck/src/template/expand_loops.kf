@@ -3,7 +3,6 @@
 
 import alloc.list.*
 
-import kf_core.ast.intern
 import kf_core.ast.declaration.*
 
 /// Each declaration expanded in order, a member loop's once per field.
@@ -20,8 +19,8 @@ fun expanded_decls(decls: &List<TopDecl>, x: &var Expansion): List<TopDecl> {
             while i in start..end {
                 out.push(decls.at(i).expanded_decl(x))
             }
+            x.leave_member(&group)
         }
-        x.leave_member(&group)
         start = end
     }
     return out
@@ -42,8 +41,8 @@ fun expanded_fields(fields: &List<Field>, x: &var Expansion): List<Field> {
             while i in start..end {
                 out.push(fields.at(i).expanded_field(x))
             }
+            x.leave_member(&group)
         }
-        x.leave_member(&group)
         start = end
     }
     return out
@@ -86,15 +85,12 @@ impl Expansion {
 
     mutating fun enter_member(group: &MemberLoop?, member: uint64): void {
         when (group) {
-            Some(written) => {
-                self.binder = written.binder
-                self.member = member
-            }
+            Some(written) => self.bind(written.binder, member)
             None => {}
         }
     }
 
     mutating fun leave_member(group: &MemberLoop?): void {
-        if group != null { self.binder = intern("") }
+        if group != null { self.unbind() }
     }
 }

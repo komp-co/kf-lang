@@ -42,6 +42,10 @@ impl Param {
     pub fun retyped(ty: Ptr<TypeRef>): Param {
         return Param { span: self.span, name: self.name, ty: ty, default: self.default.clone() }
     }
+
+    /// False for a lambda's parameter written without a type, whose `ty` is
+    /// null until its `Call` bound gives it one.
+    pub fun is_typed(): bool { return unsafe { (self.ty as uint64) != 0 } }
 }
 
 /// `while field in T.fields { ... }` written where declarations or fields

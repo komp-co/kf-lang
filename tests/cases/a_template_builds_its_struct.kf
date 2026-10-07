@@ -1,0 +1,33 @@
+//! run: exit 0
+//! deps: core
+// `T.build(|field| e)` is a literal of the marked struct with `e` written once
+// per field: a copy, and inside a member loop a copy with one field changed.
+
+annotation rebuilt on struct
+
+template rebuilt on struct T {
+    fun T.copied(): T {
+        return T.build(|field| field.of(self))
+    }
+
+    impl T {
+        while field in T.fields {
+            fun with_${field.name}(value: field.type): T {
+                return T.build(|other| if other.index == field.index { value } else { other.of(self) })
+            }
+        }
+    }
+}
+
+@rebuilt
+struct Point {
+    val x: int32
+    val y: int64
+}
+
+fun main(): int32 {
+    val p = Point { x: 1, y: 2 }
+    val q = p.with_y(40).with_x(2)
+    val c = q.copied()
+    return c.x + c.y as int32 - 42
+}

@@ -1,0 +1,46 @@
+// `T.build(|field| e)`: a literal of the marked struct, `T { a: e(a), b: e(b) }`,
+// with `e` written out once per field and the binder standing for it there.
+
+import alloc.list.*
+
+import kf_core.ast.Sym
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.FieldInit
+
+/// The binder and the one expression of `|field| e`.
+struct FieldLambda {
+    val binder: Sym
+    val value: Expr
+}
+
+fun Expr.built_struct(args: &List<Expr>, x: &var Expansion): Expr {
+    val lambda: FieldLambda? = if args.size() == 1 { args.at(0).field_lambda() } else { null }
+    if lambda == null {
+        x.report(self.span, String.from("`T.build` takes `|field| e`: one parameter, and one expression per field"))
+        return self.fact(ExprKind.Poison)
+    }
+    val written = lambda ?: return self.fact(ExprKind.Poison)
+    var inits = List.new<FieldInit>()
+    while member in 0..x.fields.size() {
+        x.bind(written.binder, member)
+        val value = written.value.expanded(x)
+        x.unbind()
+        inits.push(FieldInit { span: self.span, name: x.fields.at(member).name, value: Box.new(value) })
+    }
+    return self.fact(ExprKind.StructLit(x.type_name, inits))
+}
+
+/// `|field| e`, or null for any other argument.
+fun Expr.field_lambda(): FieldLambda? {
+    when (self.kind) {
+        Lambda(params, body) => {
+            if params.size() != 1 || body.size() != 1 { return null }
+            return when (body.at(0).kind) {
+                Expression(value) => Option.Some(FieldLambda { binder: params.at(0).name, value: (*value).clone() })
+                _ => null
+            }
+        }
+        _ => return null
+    }
+}
