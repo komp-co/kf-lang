@@ -123,39 +123,46 @@ fun empty_module(): Module {
     decls.push(string_drop_impl())
     val imports = List.new<Import>()
     val m = Module { crate: new_crate_id("sample"), path: List.new<String>(), decls: decls, imports: imports }
-    assert_eq(ty_needs_drop(named("String"), &m), true, "String needs drop because it declares one")
+    val facts = TypeFacts.of(&m)
+    assert_eq(ty_needs_drop(named("String"), &facts), true, "String needs drop because it declares one")
 }
 
 @test fun needs_drop_string_without_a_drop_impl_false(): void {
     val m = empty_module()
-    assert_eq(ty_needs_drop(named("String"), &m), false, "the spelling String alone owns nothing")
+    val facts = TypeFacts.of(&m)
+    assert_eq(ty_needs_drop(named("String"), &facts), false, "the spelling String alone owns nothing")
 }
 
 @test fun needs_drop_int32_false(): void {
     val m = empty_module()
-    assert_eq(ty_needs_drop(named("int32"), &m), false, "int32 value type")
+    val facts = TypeFacts.of(&m)
+    assert_eq(ty_needs_drop(named("int32"), &facts), false, "int32 value type")
 }
 
 @test fun needs_drop_list_int32_true(): void {
     val m = empty_module()
-    assert_eq(ty_needs_drop(named("List_int32"), &m), true, "mangled List<T> needs drop")
+    val facts = TypeFacts.of(&m)
+    assert_eq(ty_needs_drop(named("List_int32"), &facts), true, "mangled List<T> needs drop")
 }
 
 @test fun needs_drop_unknown_user_type_false(): void {
     val m = empty_module()
-    assert_eq(ty_needs_drop(named("Foo"), &m), false, "unknown user type has no available glue")
+    val facts = TypeFacts.of(&m)
+    assert_eq(ty_needs_drop(named("Foo"), &facts), false, "unknown user type has no available glue")
 }
 
 @test fun needs_drop_deep_empty_user_struct_false(): void {
     var decls = List.new<TopDecl>()
     decls.push(new_top_decl(no_span(), String.from("Foo"), TopDeclKind.Struct(List.new<Field>(), true)))
     val m = Module { crate: new_crate_id("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
-    assert_eq(ty_needs_drop_deep(named("Foo"), &m), false, "empty user struct owns no nested value")
+    val facts = TypeFacts.of(&m)
+    assert_eq(ty_needs_drop_deep(named("Foo"), &facts), false, "empty user struct owns no nested value")
 }
 
 @test fun needs_drop_deep_owned_user_struct_true(): void {
     val m = string_field_struct_module()
-    assert_eq(ty_needs_drop_deep(named("Foo"), &m), true, "user struct with an owned field needs its glue called")
+    val facts = TypeFacts.of(&m)
+    assert_eq(ty_needs_drop_deep(named("Foo"), &facts), true, "user struct with an owned field needs its glue called")
 }
 
 @test fun needs_drop_deep_looks_past_an_impl_named_like_the_struct(): void {
@@ -168,13 +175,15 @@ fun empty_module(): Module {
     val m = Module {
         crate: new_crate_id("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>()
     }
-    assert_eq(ty_needs_drop_deep(named("Foo"), &m), true, "the struct's own fields decide, not its impl block")
+    val facts = TypeFacts.of(&m)
+    assert_eq(ty_needs_drop_deep(named("Foo"), &facts), true, "the struct's own fields decide, not its impl block")
 }
 
 @test fun needs_drop_owned_user_struct_stays_shallow_false(): void {
     // Unity emission keeps the shallow classification.
     val m = string_field_struct_module()
-    assert_eq(ty_needs_drop(named("Foo"), &m), false, "shallow classification ignores nested ownership")
+    val facts = TypeFacts.of(&m)
+    assert_eq(ty_needs_drop(named("Foo"), &facts), false, "shallow classification ignores nested ownership")
 }
 
 @test fun needs_drop_deep_boxed_field_struct_true(): void {
@@ -187,7 +196,8 @@ fun empty_module(): Module {
     var decls = List.new<TopDecl>()
     decls.push(new_top_decl(no_span(), String.from("Foo"), TopDeclKind.Struct(fields, true)))
     val m = Module { crate: new_crate_id("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
-    assert_eq(ty_needs_drop_deep(named("Foo"), &m), true, "Box field owns its allocation")
+    val facts = TypeFacts.of(&m)
+    assert_eq(ty_needs_drop_deep(named("Foo"), &facts), true, "Box field owns its allocation")
 }
 
 @test fun needs_drop_deep_nested_owner_struct_true(): void {
@@ -204,7 +214,8 @@ fun empty_module(): Module {
     decls.push(new_top_decl(no_span(), String.from("Outer"), TopDeclKind.Struct(outer_fields, true)))
     decls.push(string_drop_impl())
     val m = Module { crate: new_crate_id("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
-    assert_eq(ty_needs_drop_deep(named("Outer"), &m), true, "ownership classification follows by-value embedding")
+    val facts = TypeFacts.of(&m)
+    assert_eq(ty_needs_drop_deep(named("Outer"), &facts), true, "ownership classification follows by-value embedding")
 }
 
 fun string_field_struct_module(): Module {

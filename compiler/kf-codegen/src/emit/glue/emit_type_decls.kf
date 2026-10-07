@@ -10,8 +10,7 @@ import kf_core.ast.types.TypeRef
 
 import kf_codegen.concat_all
 import kf_codegen.emit.mangle_named
-import kf_codegen.emit.type_has_user_drop
-import kf_codegen.emit.type_has_user_clone
+import kf_codegen.emit.TypeFacts
 
 pub fun Module.emit_type_forward_decls(): String {
     var parts = List.new<String>()
@@ -174,18 +173,19 @@ fun guard_generic_layout(name: String, body: String): String {
 // order.
 pub fun Module.emit_type_op_protos(): String {
     var parts = List.new<String>()
+    val facts = TypeFacts.of(self)
     val decls = self.decls
     while td in &decls {
         val k = td.kind
         when (k) {
             Struct(_f, _p) => {
                 parts.push(op_protos_for(td.name.as_string()))
-                if type_has_user_drop(td.name.as_string(), self) { parts.push(user_drop_proto(td.name.as_string())) }
-                if type_has_user_clone(td.name.as_string(), self) { parts.push(user_clone_proto(td.name.as_string())) }
+                if facts.has_user_drop(td.name.as_str()) { parts.push(user_drop_proto(td.name.as_string())) }
+                if facts.has_user_clone(td.name.as_str()) { parts.push(user_clone_proto(td.name.as_string())) }
             }
             EnumDecl(_v, _p) => {
                 parts.push(op_protos_for(td.name.as_string()))
-                if type_has_user_drop(td.name.as_string(), self) { parts.push(user_drop_proto(td.name.as_string())) }
+                if facts.has_user_drop(td.name.as_str()) { parts.push(user_drop_proto(td.name.as_string())) }
             }
             _ => {}
         }

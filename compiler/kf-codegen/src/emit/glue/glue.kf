@@ -4,7 +4,7 @@ import kf_core.ast.Module
 import kf_core.ast.type_retain_fn
 
 import kf_codegen.concat_all
-import kf_codegen.emit.type_has_user_clone
+import kf_codegen.emit.TypeFacts
 import kf_codegen.emit.unit.header_type_view
 
 pub fun Module.emit_public_glue_declarations(): String {
@@ -59,17 +59,18 @@ fun append_glue_symbols(name: String, out: &var List<String>): void {
 
 fun Module.emit_synthesized_clone_method_declarations(): String {
     var out = ""
+    val facts = TypeFacts.of(self)
     while td in &self.decls {
         when (td.kind) {
             Struct(_fields, _is_pub) => {
-                if !type_has_user_clone(td.name.as_string(), self) {
+                if !facts.has_user_clone(td.name.as_str()) {
                     out.append(synthesized_clone_declaration(td.name.as_string()).as_str())
                 }
             }
             // A consumer calling an enum's default `clone` through a bound has
             // only this declaration.
             EnumDecl(_variants, _is_pub) => {
-                if !type_has_user_clone(td.name.as_string(), self) {
+                if !facts.has_user_clone(td.name.as_str()) {
                     out.append(synthesized_clone_declaration(td.name.as_string()).as_str())
                 }
             }
