@@ -1,0 +1,19 @@
+// Filtering a declaration list in place.
+
+import alloc.list.*
+
+/// Keeps the declarations whose flag in `keep` is set, in order, by moving
+/// them forward; the rest are dropped. Nothing is copied. True when any was
+/// dropped.
+pub mutating fun List<TopDecl>.keep_flagged(keep: &List<bool>): bool {
+    var kept: uint64 = 0
+    while i in 0..self.size() {
+        if keep.get(i) {
+            self.swap(kept, i)
+            kept = kept + 1
+        }
+    }
+    val dropped = self.size() > kept
+    while self.size() > kept { self.pop() }
+    return dropped
+}

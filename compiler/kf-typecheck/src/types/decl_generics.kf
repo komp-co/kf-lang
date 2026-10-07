@@ -86,7 +86,7 @@ pub fun assoc_bound_reqs(bounds: &List<TypeRef>): List<AssocBoundReq> {
     return out
 }
 
-pub fun trait_method_suffix(trait_ref: TypeRef, sigs: Ptr<SigTable>): String {
+pub fun trait_method_suffix(trait_ref: &TypeRef, sigs: Ptr<SigTable>): String {
     when (trait_ref.kind) {
         Named(name, args) => {
             if args.size() == 0 && unsafe { (*sigs).is_auto_trait(name.as_str()) } { return "" }

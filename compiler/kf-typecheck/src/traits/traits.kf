@@ -179,7 +179,7 @@ fun mapped_args_key(arg_names: &List<String>, trait_params: &List<String>, trait
     return out
 }
 
-fun trait_ref_arg_names(trait_ref: TypeRef): List<String> {
+fun trait_ref_arg_names(trait_ref: &TypeRef): List<String> {
     when (trait_ref.kind) {
         Named(_n, args) => {
             var out = List.new<String>()

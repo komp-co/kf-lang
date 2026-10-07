@@ -10,7 +10,7 @@ import kf_typecheck.types.display_type
 import kf_typecheck.check.promote_subscript_to_mut
 
 /// Raw pointer, box or borrow only. Poison propagates silently.
-pub fun check_deref(inner: Expr, span: Span, ctx: &var TypeCtx): Type {
+pub fun check_deref(inner: &Expr, span: Span, ctx: &var TypeCtx): Type {
     if inner.ty.is_poison() { return Type.new_poison() }
     when (inner.ty.kind) {
         PtrTo(inner_ptr) => return unsafe { *inner_ptr }

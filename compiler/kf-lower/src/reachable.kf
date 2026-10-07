@@ -18,6 +18,7 @@ import kf_core.ast.expression.Expr
 import kf_core.ast.expression.binop_method
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TopDeclKind
+import kf_core.ast.declaration.keep_flagged
 import kf_core.ast.statement.Stmt
 
 /// Indexed by Sym id, which the interner hands out densely.
@@ -392,27 +393,27 @@ mutating fun Module.prune_module(reached: &Reached): void {
     while i in 0..self.decls.size() {
         prune_impl_methods(self.decls.at_mut(i), reached)
     }
-    var kept = List.new<TopDecl>()
+    var keep = List.new<bool>()
     while d in &self.decls {
-        var keep = true
+        var kept = true
         when (d.kind) {
-            Function(_p, _r, _b, _pu, _u, _mu, _s) => { keep = reached.name_is_reached(d.name) }
+            Function(_p, _r, _b, _pu, _u, _mu, _s) => { kept = reached.name_is_reached(d.name) }
             _ => { }
         }
-        if keep { kept.push(d) }
+        keep.push(kept)
     }
-    self.decls = kept
+    val _dropped = self.decls.keep_flagged(&keep)
 }
 
 /// The block stays even when empty: codegen reads impls for more than bodies.
 mutating fun TopDecl.prune_impl_methods(reached: &Reached): void {
     when (self.kind) {
         ImplBlock(methods) => {
-            var keep_methods = List.new<TopDecl>()
-            while method in &methods {
-                if reached.name_is_reached(method.name) { keep_methods.push(method) }
-            }
-            self.kind = TopDeclKind.ImplBlock(keep_methods)
+            var keep = List.new<bool>()
+            while method in &methods { keep.push(reached.name_is_reached(method.name)) }
+            // CONSTRAINT: a binder is a copy of the payload, so a shrunk list
+            // is moved back into place.
+            if methods.keep_flagged(&keep) { self.kind = TopDeclKind.ImplBlock(take<List<TopDecl>>(methods)) }
         }
         _ => return
     }

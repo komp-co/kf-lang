@@ -99,7 +99,7 @@ pub fun by_value_type_deps(name: String, m: &Module, index: &NameIndex): List<St
 // A by-value field adds an edge to the user type it names, or to a generic
 // instance's mangled name (`List__Label`). `Ptr<T>`/`Box<T>` mangle to no
 // user decl and add none.
-fun add_byval_dep(deps: &var List<String>, tr: TypeRef, m: &Module, index: &NameIndex): void {
+fun add_byval_dep(deps: &var List<String>, tr: &TypeRef, m: &Module, index: &NameIndex): void {
     when (tr.kind) {
         Named(n, args) => {
             if args.size() == 0 {
@@ -263,7 +263,7 @@ pub fun named_type_deps(name: String, m: &Module, index: &NameIndex): List<Strin
 }
 
 // Arguments first, so an inner layout is declared before what points at it.
-fun add_named_dep(deps: &var List<String>, tr: TypeRef, m: &Module, index: &NameIndex): void {
+fun add_named_dep(deps: &var List<String>, tr: &TypeRef, m: &Module, index: &NameIndex): void {
     when (tr.kind) {
         Named(n, args) => {
             while arg in &args {

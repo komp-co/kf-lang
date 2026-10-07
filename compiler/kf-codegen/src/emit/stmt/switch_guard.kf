@@ -13,7 +13,7 @@ import kf_codegen.emit.*
 import kf_codegen.emit.expr.emit_expr
 import kf_core.ast.c_local_name
 
-pub fun arms_have_guard(arms: List<SwitchArm>): bool {
+pub fun arms_have_guard(arms: &List<SwitchArm>): bool {
     while arm in &arms {
         if arm.has_guard() { return true }
     }
@@ -21,7 +21,7 @@ pub fun arms_have_guard(arms: List<SwitchArm>): bool {
 }
 
 /// `ename` is unused for a scalar subject. `by_address`: see ref_binders.kf.
-pub fun emit_guarded_chain(subj: Expr, ename: String, arms: List<SwitchArm>, is_enum: bool, by_address: bool,
+pub fun emit_guarded_chain(subj: &Expr, ename: String, arms: &List<SwitchArm>, is_enum: bool, by_address: bool,
     indent: uint64, env: &var LocalEnv): String {
     val through_ref = ty_is_borrow(subj.ty) || by_address
     var parts = List.new<String>()
@@ -87,7 +87,7 @@ fun chain_guard_test(a: SwitchArm, through_ref: bool, by_address: bool, indent: 
 
 /// One `__auto_type __x = <read of __when_subj>;` per binder; `_` declares
 /// nothing.
-fun chain_binder_decls(a: SwitchArm, through_ref: bool, by_address: bool): List<String> {
+fun chain_binder_decls(a: &SwitchArm, through_ref: bool, by_address: bool): List<String> {
     var out = List.new<String>()
     while i in 0..a.binders.size() {
         val b = a.binders.get(i)

@@ -248,18 +248,14 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
     return ret
 }
 
-/// The enum's name when `kind` names a registered enum and no local, or "".
-fun try_get_enum_recv_name(kind: ExprKind, ctx: &var TypeCtx): String {
-    when (kind) {
-        Variable(written) => {
-            if ctx.is_declared(written.as_str()) { return "" }
-            val n = written.receiver_type_name(ctx)
-            val ep = unsafe { (*ctx.sigs).find_enum(n.as_str(), ctx.owner_crate) }
-            if ep.is_none() { return "" }
-            return n.as_string()
-        }
-        _ => return ""
-    }
+/// The enum's name when the bare-name receiver `written` names a registered
+/// enum and no local, or "".
+fun try_get_enum_recv_name(written: Sym, ctx: &var TypeCtx): String {
+    if written.as_str() == "" || ctx.is_declared(written.as_str()) { return "" }
+    val n = written.receiver_type_name(ctx)
+    val ep = unsafe { (*ctx.sigs).find_enum(n.as_str(), ctx.owner_crate) }
+    if ep.is_none() { return "" }
+    return n.as_string()
 }
 
 fun check_variant_construction(enum_name: String, type_args: &var List<TypeRef>, variant_name: String, args: &var List<Expr>, span: Span, ctx: &var TypeCtx): Type {

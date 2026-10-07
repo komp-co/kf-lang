@@ -63,16 +63,16 @@ impl TypeFacts {
     }
 
     pub fun has_user_drop(name: str): bool {
-        return self.user_drop.contains(&String.from(name))
+        return self.user_drop.contains(&String.from_literal(name))
     }
 
     pub fun has_user_clone(name: str): bool {
-        return self.user_clone.contains(&String.from(name))
+        return self.user_clone.contains(&String.from_literal(name))
     }
 
     /// False for a name the module declares no struct or enum under.
     pub fun declared_owns_heap(name: str): bool {
-        return self.owns_heap.contains(&String.from(name))
+        return self.owns_heap.contains(&String.from_literal(name))
     }
 
     fun members_own_heap(td: &TopDecl): bool {
@@ -97,7 +97,7 @@ impl TypeFacts {
     }
 
     // A Box owns its allocation even when its pointee owns no heap.
-    fun member_owns_heap(t: TypeRef): bool {
+    fun member_owns_heap(t: &TypeRef): bool {
         when (t.kind) {
             Named(name, args) => {
                 if name.as_str() == "Box" && args.size() == 1 { return true }

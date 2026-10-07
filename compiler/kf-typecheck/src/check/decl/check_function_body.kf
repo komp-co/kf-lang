@@ -25,7 +25,7 @@ import kf_typecheck.check.value_params_of
 /// uses saw its provisional type, each time with every decision so far.
 fun check_fn_body(metadata_owner: Ptr<TopDecl>, owner: String, owner_crate: CrateId, owner_module: Sym,
     owner_file: uint32, self_name: String, impl_target: String, impl_trait: String, impl_trait_args: String,
-    impl_method: String, self_mutable: bool, generics: List<String>, params: List<Param>, ret_ptr: Ptr<TypeRef>,
+    impl_method: String, self_mutable: bool, generics: List<String>, params: &List<Param>, ret_ptr: Ptr<TypeRef>,
     body: &var List<Stmt>, diags: &var Diagnostics, sigs: Ptr<SigTable>): void {
     var no_names = List.new<String>()
     var no_types = List.new<TypeRef>()
@@ -164,7 +164,7 @@ fun Stmt.all_paths_return_stmt(ctx: &var TypeCtx): bool {
 }
 
 // Typed Never, or a call to a function that cannot return.
-fun tail_expr_diverges(e: Expr, ctx: &var TypeCtx): bool {
+fun tail_expr_diverges(e: &Expr, ctx: &var TypeCtx): bool {
     when (e.ty.kind) {
         Never => return true
         _ => { }

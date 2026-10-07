@@ -24,7 +24,7 @@ fun is_integer_literal(e: &Expr): bool {
     }
 }
 
-fun negative_integer_literal_magnitude(e: Expr): int64 {
+fun negative_integer_literal_magnitude(e: &Expr): int64 {
     when (e.kind) {
         Unary(op, inner) => {
             when (op) {
