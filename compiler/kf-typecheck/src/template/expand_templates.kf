@@ -1,7 +1,7 @@
 // `template NAME on struct T { ... }`: its declarations, expanded for each
-// struct of this crate marked `@NAME`, join the module and the decl table,
-// and the template leaves it. Runs before anything registers, so what it
-// adds is checked like code written by hand.
+// struct of this crate marked `@NAME`, join the module and the decl table. A
+// template stays, for the interface to carry. Runs before anything
+// registers, so what it adds is checked like code written by hand.
 
 import alloc.list.*
 
@@ -39,10 +39,7 @@ pub mutating fun Module.expand_templates(table: &var DeclTable, diags: &var List
             }
         }
     }
-    var kept = List.new<TopDecl>()
-    while td in &self.decls {
-        if !td.is_template() { kept.push(td.clone()) }
-    }
+    var kept = self.decls.clone()
     while item in &added {
         var joined = item.clone()
         if joined.should_register_decl() { joined.decl = table.insert(joined.name.as_string()) }
@@ -84,6 +81,12 @@ fun Module.checked_templates(diags: &var List<Diagnostic>): List<TemplateAt> {
             }
         }
         if !duplicate && td.body_is_expandable(diags) { out.push(TemplateAt { template: i, annotation: annotation }) }
+    }
+    while i in 0..self.decls.size() {
+        val td = self.decls.at(i)
+        if td.crate.raw == self.crate.raw || !td.is_template() { continue }
+        val annotation = self.imported_annotation(td) ?: continue
+        out.push(TemplateAt { template: i, annotation: annotation })
     }
     return out
 }
@@ -183,6 +186,7 @@ fun Module.is_marked_by(td: &TopDecl, annotation: uint64): bool {
     if !is_struct { return false }
     val declared = self.decls.at(annotation)
     if !td.has_annotation(declared.name.as_str()) { return false }
-    val resolved = self.own_annotation(declared.name, td.module_path) ?: return false
-    return resolved == annotation
+    val resolved = self.own_annotation(declared.name, td.module_path)
+    if declared.crate.raw == self.crate.raw { return resolved == annotation }
+    return resolved == null && self.file_imports(td.span.file_id, declared.module_path, declared.name)
 }

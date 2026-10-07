@@ -253,6 +253,51 @@ function it adds is called there without an import. Names in the template
 resolve where the template is written, so it can call its own module's
 private helpers, and a user of the annotation imports only the annotation.
 
+A template is written in the crate declaring its annotation and travels in
+that crate's interface, so every crate importing the annotation expands it for
+its own structs:
+
+```kflat
+// in a library crate named `weigh`
+pub trait Weighed {
+    fun weight(): int64
+}
+
+pub annotation weighed(scale: int64 = 1) on struct
+pub annotation skip on field
+
+fun scaled(n: int64, scale: int64): int64 { return n * scale }
+
+template weighed on struct T {
+    impl Weighed for T {
+        fun weight(): int64 {
+            val kept = T.fields.filter(|field| !field.has<skip>()).map(|field| field.of(self) as int64)
+            return scaled(kept.fold(0 as int64, |sum: int64, x: int64| sum + x), args.scale)
+        }
+    }
+}
+
+// in a crate depending on it
+import weigh.Weighed
+import weigh.skip
+import weigh.weighed
+
+@weighed(10)
+struct Parcel {
+    val a: int32
+    @skip
+    val b: int32
+    val c: int64
+}
+```
+
+`Parcel` gets an `impl Weighed` whose `weight()` is 30. The template calls
+`scaled`, private to `weigh`, as code written in `weigh` would, and the crate
+using it still cannot: its own names are its own. What the template asks of
+the program is about the crate it expands into, so `annotated<A>()` in its
+code lists that crate's uses. An error in the code it adds for a field is
+reported at the field, with a note showing the template's source.
+
 ## Names built from facts
 
 `${...}` inside a name builds it from facts, as it does inside a string
@@ -318,7 +363,6 @@ naming the struct it was adding to.
 
 ## Limits
 
-Templates add to structs of their own crate only, and not to a generic struct.
-A `pub` extension function a template adds cannot be imported by another
-module. [Limitations](../limitations.md#templates)
+A template does not add to a generic struct. A `pub` extension function a
+template adds cannot be imported by another module. [Limitations](../limitations.md#templates)
 lists each with its issue.

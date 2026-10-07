@@ -50,6 +50,7 @@ fun Module.names_another_declaration(annotation: &TopDecl): bool {
             AnnotationDecl(_params, _target, _is_pub) => {}
             ImplBlock(_methods) => {}
             TraitImpl(_trait, _methods) => {}
+            Template(_kind, _marked, _body) => {}
             _ => return true
         }
     }

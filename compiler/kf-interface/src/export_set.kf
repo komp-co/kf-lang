@@ -47,6 +47,26 @@ pub fun decl_is_exported_template(td: &TopDecl): bool {
     }
 }
 
+/// A template whose annotation is public, which travels as source so the
+/// crates importing the annotation expand it for their own structs.
+pub fun Module.exports_template(td: &TopDecl, crate: CrateId): bool {
+    if td.crate.raw != crate.raw || td.decl_end == 0 as uint32 { return false }
+    val is_template = when (td.kind) {
+        Template(_kind, _marked, _body) => true
+        _ => false
+    }
+    if !is_template { return false }
+    while other in &self.decls {
+        if other.crate.raw != crate.raw || other.module_path.id != td.module_path.id { continue }
+        if other.name.id != td.name.id { continue }
+        when (other.kind) {
+            AnnotationDecl(_params, _target, is_pub) => return is_pub
+            _ => {}
+        }
+    }
+    return false
+}
+
 /// A top-level `val`, which travels as source: its uses are its literal.
 pub fun TopDecl.is_constant(): bool {
     return when (self.kind) {
@@ -121,6 +141,7 @@ pub fun Module.collect_hidden_support(crate: CrateId): List<String> {
                     td.collect_decl_references(&var queue)
                 }
             }
+            if self.exports_template(td, crate) { td.collect_decl_references(&var queue) }
         }
     }
     var hidden = List.new<String>()

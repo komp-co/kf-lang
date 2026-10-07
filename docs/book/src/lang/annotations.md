@@ -382,7 +382,8 @@ fun parse_a_file(): void { }
 
 The query only reaches the crate it is written in. A `measure` function
 calling `annotated<bench>()` sees `measure`'s functions, not the ones of the
-crate that imported `bench`.
+crate that imported `bench`. A [template's](templates.md#where-the-code-lives)
+code is written into each crate it expands in, so there it sees that crate's.
 
 The name of a built-in annotation cannot be declared. `annotation`, `on`
 and `any` are not reserved words; they are read this way only in an

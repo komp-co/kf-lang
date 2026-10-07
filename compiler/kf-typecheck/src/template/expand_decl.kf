@@ -4,6 +4,8 @@
 
 import alloc.list.*
 
+import kf_core.span.Span
+
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.FieldInit
@@ -32,7 +34,12 @@ fun Module.expand_for(template: &TopDecl, marked: &TopDecl, annotation: uint64, 
         diags: List.new<Diagnostic>()
     }
     when (template.kind) {
-        Template(_kind, _param, body) => out = expanded_decls(&body, &var x)
+        Template(_kind, _param, body) => {
+            val written = expanded_decls(&body, &var x)
+            while item in &written {
+                out.push(item.adopted(marked.crate, marked.module_path))
+            }
+        }
         _ => {}
     }
     while diag in &x.diags {
@@ -66,14 +73,38 @@ fun TopDecl.field_facts(): List<FieldFacts> {
     return out
 }
 
-/// `@NAME(...)`'s values on `marked`, by parameter.
+/// `@NAME(...)`'s values on `marked`, by parameter, each one left out
+/// taking its default.
 fun Module.use_arguments(marked: &TopDecl, annotation: uint64): List<FieldInit> {
     val declared = self.decls.at(annotation)
-    val params = declared.param_names()
+    val params = self.annotation_params(annotation)
     while use in &marked.annotations {
-        if use.name.id == declared.name.id { return arguments_by_name(use, &params, use.span) }
+        if use.name.id == declared.name.id {
+            var given = arguments_by_name(use, &params, use.span)
+            declared.add_defaults(&var given, use.span)
+            return given
+        }
     }
     return List.new<FieldInit>()
+}
+
+/// The default of each parameter `given` leaves out. A dependency's
+/// annotation keeps only its defaulted parameters.
+fun TopDecl.add_defaults(given: &var List<FieldInit>, span: Span): void {
+    when (self.kind) {
+        AnnotationDecl(params, _target, _pub) => {
+            while param in &params {
+                var written = false
+                while arg in &given {
+                    if arg.name.id == param.name.id { written = true }
+                }
+                val default = param.default ?: continue
+                if written { continue }
+                given.push(FieldInit { span: span, name: param.name, value: Box.new((*default).clone()) })
+            }
+        }
+        _ => {}
+    }
 }
 
 fun TopDecl.param_names(): List<Sym> {
@@ -93,14 +124,16 @@ fun TopDecl.param_names(): List<Sym> {
 /// the one a use in this crate means.
 fun Module.annotation_shapes(): List<AnnotationShape> {
     var shapes = List.new<AnnotationShape>()
-    while td in &self.decls {
+    while i in 0..self.decls.size() {
+        val td = self.decls.at(i)
         if td.crate.raw == self.crate.raw && td.is_annotation() {
-            shapes.push(AnnotationShape { name: td.name, params: td.param_names() })
+            shapes.push(AnnotationShape { name: td.name, params: self.annotation_params(i) })
         }
     }
-    while td in &self.decls {
+    while i in 0..self.decls.size() {
+        val td = self.decls.at(i)
         if td.crate.raw != self.crate.raw && td.is_annotation() {
-            shapes.push(AnnotationShape { name: td.name, params: td.param_names() })
+            shapes.push(AnnotationShape { name: td.name, params: self.annotation_params(i) })
         }
     }
     return shapes
