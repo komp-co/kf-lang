@@ -123,6 +123,52 @@ function it adds is called there without an import. Names in the template
 resolve where the template is written, so it can call its own module's
 private helpers, and a user of the annotation imports only the annotation.
 
+## Names built from facts
+
+`${...}` inside a name builds it from facts, as it does inside a string
+literal: `${T.name}Summary` is `PointSummary` for `Point`. So what a template
+adds can be named after the struct it marks, and two marked structs do not
+collide:
+
+```kflat
+annotation summarized(verb: str) on struct
+
+template summarized on struct T {
+    struct ${T.name}Summary {
+        val count: int64
+    }
+
+    fun T.${args.verb}_summary(): ${T.name}Summary {
+        return ${T.name}Summary { count: T.fields.size() as int64 }
+    }
+}
+
+@summarized("make")
+struct Point {
+    val x: int32
+    val y: int32
+}
+
+@summarized("take")
+struct Size {
+    val width: int32
+    val height: int32
+}
+
+fun main(): int32 {
+    val p: PointSummary = Point { x: 1, y: 2 }.make_summary()
+    val s: SizeSummary = Size { width: 3, height: 4 }.take_summary()
+    return (p.count + s.count - 4) as int32
+}
+```
+
+A name is built from `T.name`, a member loop's `field.name`, and text in
+`args`; nothing else, and no casing or other change to them. Any name in a
+template may be built: a declaration, a parameter or a field, a variable, and
+a name that refers to one of them, in a type too. A type is never built from a
+field: `field.type` is the field's type. Outside a template a built name is an
+error, since nothing writes it out.
+
 ## Errors
 
 An error in code a loop added for one field is reported at that field, with a
@@ -143,8 +189,7 @@ naming the struct it was adding to.
 ## Limits
 
 Templates add to structs of their own crate only, and not to a generic struct.
-A name a template adds cannot be spliced (`with_$field`), so a free function or
-a type in a template is added once per marked struct under one name, and
-collides when two structs are marked. A `pub` extension function a template
-adds cannot be imported by another module. [Limitations](../limitations.md#templates)
+A member loop is written only where statements go, so a template cannot yet
+add one declaration or one struct field per field. A `pub` extension function
+a template adds cannot be imported by another module. [Limitations](../limitations.md#templates)
 lists each with its issue.

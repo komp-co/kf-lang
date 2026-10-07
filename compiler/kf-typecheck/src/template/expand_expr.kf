@@ -20,7 +20,7 @@ fun TypeRef.expanded_type(x: &var Expansion): TypeRef {
             if name.id == x.marked.id && args.size() == 0 {
                 return TypeRef.new(self.span, TypeRefKind.Named(x.type_name, List.new<TypeRef>()))
             }
-            return TypeRef.new(self.span, TypeRefKind.Named(name, expanded_types(&args, x)))
+            return TypeRef.new(self.span, TypeRefKind.Named(x.built(name, self.span), expanded_types(&args, x)))
         }
         Projection(owner, member) => {
             if x.in_member() && member.as_str() == "type" && owner.names(x.binder) { return x.field().ty.clone() }
@@ -103,14 +103,15 @@ fun Expr.expanded_kind(x: &var Expansion): Expr {
         MethodCall(receiver, method, args) => {
             val fact = self.member_fact(&*receiver, method, &args, x)
             if fact != null { return fact ?: self.clone() }
-            return self.rekinded(ExprKind.MethodCall(Box.new(receiver.expanded(x)), method, expanded_exprs(&args, x)))
+            val called = x.built(method, self.span)
+            return self.rekinded(ExprKind.MethodCall(Box.new(receiver.expanded(x)), called, expanded_exprs(&args, x)))
         }
         Binary(left, op, right) => {
             return self.rekinded(ExprKind.Binary(Box.new(left.expanded(x)), op, Box.new(right.expanded(x))))
         }
         Unary(op, inner) => return self.rekinded(ExprKind.Unary(op, Box.new(inner.expanded(x))))
         Deref(inner) => return self.rekinded(ExprKind.Deref(Box.new(inner.expanded(x))))
-        Call(name, args) => return self.rekinded(ExprKind.Call(name, expanded_exprs(&args, x)))
+        Call(name, args) => return self.rekinded(ExprKind.Call(x.built(name, self.span), expanded_exprs(&args, x)))
         Intrinsic(intrinsic, args) => return self.rekinded(ExprKind.Intrinsic(intrinsic, expanded_exprs(&args, x)))
         CallValue(callee, args) => {
             return self.rekinded(ExprKind.CallValue(Box.new(callee.expanded(x)), expanded_exprs(&args, x)))
@@ -135,10 +136,11 @@ fun Expr.expanded_kind(x: &var Expansion): Expr {
             return self.rekinded(ExprKind.WhenExpr(Box.new(decided), expanded_arms(&arms, x)))
         }
         StructLit(name, inits) => {
-            val written = if name.id == x.marked.id { x.type_name } else { name }
+            val written = if name.id == x.marked.id { x.type_name } else { x.built(name, self.span) }
             var out = List.new<FieldInit>()
             while init in &inits {
-                out.push(FieldInit { span: init.span, name: init.name, value: Box.new(init.value.expanded(x)) })
+                val field = x.built(init.name, init.span)
+                out.push(FieldInit { span: init.span, name: field, value: Box.new(init.value.expanded(x)) })
             }
             return self.rekinded(ExprKind.StructLit(written, out))
         }
@@ -160,7 +162,7 @@ fun Expr.expanded_name(name: Sym, x: &var Expansion): Expr {
         x.report(self.span, "`${name.as_str()}` is a field only at compile time: use ${facts}, or read it with ${read}")
         return self.fact(ExprKind.Poison)
     }
-    return self.clone()
+    return self.rekinded(ExprKind.Variable(x.built(name, self.span)))
 }
 
 fun Expr.expanded_access(owner: &Expr, member: Sym, x: &var Expansion): Expr {
@@ -184,7 +186,7 @@ fun Expr.expanded_access(owner: &Expr, member: Sym, x: &var Expansion): Expr {
         x.report(self.span, "`@${x.annotation.as_str()}` has no parameter `${member.as_str()}`")
         return self.fact(ExprKind.Poison)
     }
-    return self.rekinded(ExprKind.FieldAccess(Box.new(owner.expanded(x)), member))
+    return self.rekinded(ExprKind.FieldAccess(Box.new(owner.expanded(x)), x.built(member, self.span)))
 }
 
 /// `T.fields.size()`, `field.has<A>()` or `field.get<A>()` as a literal,
@@ -250,7 +252,9 @@ fun expanded_exprs(exprs: &List<Expr>, x: &var Expansion): List<Expr> {
 fun expanded_params(params: &List<Param>, x: &var Expansion): List<Param> {
     var out = List.new<Param>()
     while param in &params {
-        out.push(param.retyped(Box.new(param.ty.expanded_type(x))))
+        val ty = Box.new(param.ty.expanded_type(x))
+        val name = x.built(param.name, param.span)
+        out.push(Param { span: param.span, name: name, ty: ty, default: param.default.clone() })
     }
     return out
 }

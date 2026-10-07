@@ -125,9 +125,9 @@ on a struct holding one ([#299]). Compare or print the elements instead.
   come with the variant loop ([#289]).
 - A template adds to its own crate's structs only ([#290]), and not to a
   generic struct ([#296]).
-- A name a template adds cannot be spliced from the field or the struct
-  (`with_$field`, `${T}Builder`), so a free function or a type in a template
-  collides when two structs are marked ([#288]).
+- A member loop is written only where statements go, not among an `impl`'s
+  methods or a struct's fields, so a template cannot add one declaration per
+  field ([#288]).
 - `break` and `continue` cannot leave a template's member loop ([#288]).
 - A `pub` extension function a template adds cannot be imported by another
   module: imports are checked before templates expand ([#297]).

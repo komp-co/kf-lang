@@ -23,6 +23,9 @@ struct TemplateAt {
 
 pub mutating fun Module.expand_templates(table: &var DeclTable, diags: &var List<Diagnostic>): List<ExpansionSite> {
     var sites = List.new<ExpansionSite>()
+    while td in &self.decls {
+        if td.crate.raw == self.crate.raw && !td.is_template() { td.report_built_names(diags) }
+    }
     if !self.has_templates() { return sites }
     var added = List.new<TopDecl>()
     val templates = self.checked_templates(diags)

@@ -82,7 +82,7 @@ impl Lexer {
             return new_token(TokenKind.Newline, nl_span)
         }
 
-        if is_ident_start(b) {
+        if is_ident_start(b) || self.at_built_part() {
             return self.read_ident_or_keyword(start)
         }
 
@@ -106,8 +106,14 @@ impl Lexer {
 
     mutating fun read_ident_or_keyword(start: uint32): Token {
         val fid: uint32 = self.file_id
-        while !(self.at_end()) && is_ident_continue(self.peek()) {
-            unsafe { self.advance() }
+        while !(self.at_end()) {
+            if is_ident_continue(self.peek()) {
+                unsafe { self.advance() }
+            } else if self.at_built_part() {
+                self.skip_built_part()
+            } else {
+                break
+            }
         }
         val end: uint32 = self.pos as uint32
         val lex_str = slice_to_string(self.src.as_str(), start, end)

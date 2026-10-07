@@ -113,15 +113,16 @@ fun Module.annotation_shapes(): List<AnnotationShape> {
 
 fun TopDecl.expanded_decl(x: &var Expansion): TopDecl {
     var out = self.clone()
-    if self.name.id == x.marked.id { out.name = x.type_name }
+    out.name = if self.name.id == x.marked.id { x.type_name } else { x.built(self.name, self.decl_name_span()) }
     out.module_path = x.home
     out.resolves_in = self.module_path
     when (self.kind) {
         Function(params, ret, body, is_pub, is_unsafe, is_mutating, is_static) => {
             val expanded = expanded_params(&params, x)
             if self.ext_name.as_str().byte_len() > 0 && expanded.size() > 0 {
+                out.ext_name = x.built(self.ext_name, self.decl_name_span())
                 val receiver = expanded.at(0).ty.through_reference()
-                out.name = intern(extension_link_name(self.ext_name.as_str(), &receiver).as_str())
+                out.name = intern(extension_link_name(out.ext_name.as_str(), &receiver).as_str())
             }
             out.kind = TopDeclKind.Function(expanded, Box.new(ret.expanded_type(x)), expand_stmts(&body, x), is_pub,
                 is_unsafe, is_mutating, is_static)
@@ -134,8 +135,9 @@ fun TopDecl.expanded_decl(x: &var Expansion): TopDecl {
             var expanded = List.new<Field>()
             while field in &fields {
                 expanded.push(Field {
-                    span: field.span, name: field.name, ty: Box.new(field.ty.expanded_type(x)), is_var: field.is_var,
-                    is_pub: field.is_pub, is_internal: field.is_internal, annotations: field.annotations.clone()
+                    span: field.span, name: x.built(field.name, field.span), ty: Box.new(field.ty.expanded_type(x)),
+                    is_var: field.is_var, is_pub: field.is_pub, is_internal: field.is_internal,
+                    annotations: field.annotations.clone()
                 })
             }
             out.kind = TopDeclKind.Struct(expanded, is_pub)
