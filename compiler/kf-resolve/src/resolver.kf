@@ -1,5 +1,4 @@
 import kf_core.ast.Module
-import kf_core.ast.declaration.DeclId
 import kf_core.ast.declaration.TopDecl
 
 /// Register every top-level declaration, then stamp each name in each body
@@ -13,17 +12,16 @@ pub fun resolve_module(m: &var Module, table: &var DeclTable): void {
     }
 
     while j in 0..m.decls.size() {
-        resolve_decl_body(m.decls.at_mut(j), table)
+        val td = m.decls.at_mut(j)
+        table.stand_in(td.span.file_id, td.crate, td.module_path)
+        resolve_decl_body(td, table)
     }
 }
 
 fun register_decl(decls: &var List<TopDecl>, idx: uint64, table: &var DeclTable): void {
-    val td = decls.at_mut(idx)
-    if should_register_decl(unsafe { &*td }) {
-        val name_for_table: String = String.from(td.name.as_str())
-        val new_id: DeclId = table.insert(name_for_table)
-        td.decl = new_id
-    }
+    if !decls.at(idx).should_register_decl() { return }
+    val id = table.register(decls.at(idx))
+    decls.at_mut(idx).decl = id
 }
 
 /// Impls, traits and associated types are reached through the type or trait

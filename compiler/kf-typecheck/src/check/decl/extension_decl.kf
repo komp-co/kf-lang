@@ -35,7 +35,9 @@ pub fun insert_fn_sig(sigs: Ptr<SigTable>, owner: Ptr<TopDecl>, sig: FnSignature
             }
         }
     }
+    val at = unsafe { (*sigs).sigs.size() }
     unsafe { sigs.insert(sig) }
+    if (owner as uint64) != 0 { unsafe { (*sigs).note_decl_sig(owner.decl, at) } }
 }
 
 pub mutating fun Module.prepare_extensions(diags: &var Diagnostics): void {

@@ -36,7 +36,7 @@ pub mutating fun Module.expand_annotation_structs(table: &var DeclTable, diags: 
     }
     while item in &synth {
         var registered = item
-        registered.decl = table.insert(registered.name.as_string())
+        registered.decl = table.register(&registered)
         self.decls.push(registered)
     }
 }

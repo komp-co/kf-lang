@@ -5,6 +5,7 @@ import kf_core.ast.*
 import kf_core.ast.types.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.DeclId
 import kf_core.diagnostic.new_label
 import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.*
@@ -52,7 +53,9 @@ fun Intrinsic.call_type(args: &var List<Expr>, type_args: &var List<TypeRef>, sp
     }
 }
 
-fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef>, span: Span, ctx: &var TypeCtx): Type {
+/// `written` is the declaration Resolve stamped on the call, if any.
+fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef>, span: Span, written: DeclId?,
+    ctx: &var TypeCtx): Type {
     // Taken before the arguments, whose own calls are not through the alias.
     val through = ctx.through_module
     ctx.through_module = Sym { id: 0 }
@@ -78,7 +81,8 @@ fun check_call(name: String, args: &var List<Expr>, type_args: &var List<TypeRef
         }
         return rt
     }
-    val found_sig = unsafe { (*ctx.sigs).lookup_callee(name.as_str(), through, ctx.owner_file, ctx.owner_crate, ctx.owner_module) }
+    val found_sig = unsafe { (*ctx.sigs).lookup_callee(name.as_str(), through, written, ctx.owner_file, ctx.owner_crate,
+        ctx.owner_module) }
     if found_sig.is_none() {
         if through.id != 0 {
             report_not_in_module(name.as_str(), through, false, span, ctx)
