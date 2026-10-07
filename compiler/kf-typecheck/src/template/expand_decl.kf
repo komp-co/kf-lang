@@ -133,10 +133,10 @@ fun TopDecl.expanded_decl(x: &var Expansion): TopDecl {
         Struct(fields, is_pub) => {
             var expanded = List.new<Field>()
             while field in &fields {
-                val ty = Box.new(field.ty.expanded_type(x))
-                var copy = new_field(field.span, field.name.as_string(), ty, field.is_var, field.is_pub)
-                copy.annotations = field.annotations.clone()
-                expanded.push(copy)
+                expanded.push(Field {
+                    span: field.span, name: field.name, ty: Box.new(field.ty.expanded_type(x)), is_var: field.is_var,
+                    is_pub: field.is_pub, is_internal: field.is_internal, annotations: field.annotations.clone()
+                })
             }
             out.kind = TopDeclKind.Struct(expanded, is_pub)
         }

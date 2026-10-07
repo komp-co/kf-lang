@@ -1,0 +1,27 @@
+//! run: exit 0
+//! deps: core
+// A struct a template adds owns its fields' types, so a declaration added
+// after it cannot take their place.
+
+annotation summarized on struct
+
+template summarized on struct T {
+    struct Summary {
+        val count: int64
+    }
+
+    fun T.summary(): int64 {
+        val summary = Summary { count: T.fields.size() as int64 }
+        return summary.count
+    }
+}
+
+@summarized
+struct Point {
+    val x: int32
+    val y: int32
+}
+
+fun main(): int32 {
+    return Point { x: 1, y: 2 }.summary() as int32 - 2
+}
