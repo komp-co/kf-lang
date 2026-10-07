@@ -508,9 +508,11 @@ fun type_has_method_of(owner: str, wanted: str, ctx: &var TypeCtx): bool {
     val pn = prefix.byte_len()
     val wn = wanted.byte_len()
     if wn == 0 { return false }
-    val sigs = unsafe { (*ctx.sigs).sigs }
-    while sig in &sigs {
-        if names_method(sig.name.as_str(), prefix.as_str(), pn, wanted, wn) { return true }
+    val table = unsafe { &*ctx.sigs }
+    val positions = table.headed("${prefix}${wanted}".as_str())
+    while k in 0..positions.size() {
+        val name = table.sigs.at(positions.get(k)).name
+        if names_method(name.as_str(), prefix.as_str(), pn, wanted, wn) { return true }
     }
     return false
 }

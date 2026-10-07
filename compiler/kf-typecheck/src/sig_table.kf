@@ -255,6 +255,11 @@ pub struct SigTable {
     pub var sig_next: List<uint64>
     /// The last position registered under each name, where its chain grows.
     pub var sig_last: HashMap<String, uint64>
+    /// Positions by head: a signature's whole name, and each prefix of it
+    /// ending where a `__` starts. Only signatures under `OWNER_NAME` can
+    /// read as method NAME of OWNER. Each head names a list in `head_lists`.
+    pub var head_slots: HashMap<String, uint64>
+    pub var head_lists: List<List<uint64>>
     pub var structs: List<StructLayout>
     pub var enums: List<EnumLayout>
     pub var generic_infos: List<GenericInfo>
@@ -337,6 +342,8 @@ pub fun new_sig_table(): SigTable {
         sig_index: HashMap.new<String, uint64>(),
         sig_next: List.new<uint64>(),
         sig_last: HashMap.new<String, uint64>(),
+        head_slots: HashMap.new<String, uint64>(),
+        head_lists: List.new<List<uint64>>(),
         structs: List.new<StructLayout>(),
         enums: List.new<EnumLayout>(),
         generic_infos: List.new<GenericInfo>(),

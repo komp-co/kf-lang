@@ -9,6 +9,7 @@ import kf_core.ast.types.TypeIdentity
 import kf_core.ast.types.TypeRef
 import kf_typecheck.types.runtime_prelude_declares
 import kf_core.span.no_span
+import core.text.byte_at_in
 import kf_core.ast.subst.clone_type_ref
 
 /// The trait fields are optional filters: an empty `trait_name` means any
@@ -41,7 +42,41 @@ impl SigTable {
         }
         self.sig_last.insert(key, at)
         self.sig_next.push(none_index())
+        val name = sig.name.as_str()
+        val n = name.byte_len()
+        var j: uint64 = 0
+        while j + 1 < n {
+            if name.byte_at_in(n, j) == 95 && name.byte_at_in(n, j + 1) == 95 {
+                self.add_head(name.substring(0, j), at)
+            }
+            j = j + 1
+        }
+        self.add_head(String.from(name), at)
         self.sigs.push(sig)
+    }
+
+    mutating fun add_head(head: String, at: uint64): void {
+        var slot = none_index()
+        when (self.head_slots.get(&head)) {
+            Some(found) => slot = *found
+            None => {}
+        }
+        if slot == none_index() {
+            self.head_slots.insert(head, self.head_lists.size())
+            var positions = List.new<uint64>()
+            positions.push(at)
+            self.head_lists.push(positions)
+        } else {
+            self.head_lists[slot].push(at)
+        }
+    }
+
+    /// The positions registered under `head`, in registration order.
+    pub fun headed(head: str): List<uint64> {
+        when (self.head_slots.get(&String.from(head))) {
+            Some(slot) => return self.head_lists.at(*slot).clone()
+            None => return List.new<uint64>()
+        }
     }
 
     /// The first position registered under `name`, or `none_index()`; the
