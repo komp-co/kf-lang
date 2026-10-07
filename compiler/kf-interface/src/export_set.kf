@@ -56,6 +56,7 @@ pub fun Module.exports_template(td: &TopDecl, crate: CrateId): bool {
         _ => false
     }
     if !is_template { return false }
+    if td.template_key.as_str().byte_len() > 0 { return self.exports_key(td, crate) }
     while other in &self.decls {
         if other.crate.raw != crate.raw || other.module_path.id != td.module_path.id { continue }
         if other.name.id != td.name.id { continue }
@@ -63,6 +64,16 @@ pub fun Module.exports_template(td: &TopDecl, crate: CrateId): bool {
             AnnotationDecl(_params, _target, is_pub) => return is_pub
             _ => {}
         }
+    }
+    return false
+}
+
+/// A keyed template crosses with its key: when this crate's declaration of
+/// that name is `pub`, wherever its annotation is declared.
+fun Module.exports_key(td: &TopDecl, crate: CrateId): bool {
+    while other in &self.decls {
+        if other.crate.raw != crate.raw || other.name.id != td.template_key.id { continue }
+        if decl_is_exported(other) || decl_is_exported_template(other) { return true }
     }
     return false
 }

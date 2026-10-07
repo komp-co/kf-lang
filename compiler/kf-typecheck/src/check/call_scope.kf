@@ -1,0 +1,27 @@
+// A call that resolves where its name was written rather than where its
+// declaration's body does: a function an annotation's argument names, called
+// in what a template adds. Its arguments, the template's code, are checked
+// there too.
+
+import kf_core.ast.Sym
+import kf_core.ast.expression.Expr
+
+/// Where names resolved before a scoped call.
+struct OuterScope {
+    val module: Sym
+    val file: uint32
+}
+
+mutating fun TypeCtx.enter_call_scope(e: &Expr): OuterScope {
+    val outer = OuterScope { module: self.owner_module, file: self.owner_file }
+    if e.scope_module.as_str().byte_len() > 0 {
+        self.owner_module = e.scope_module
+        self.owner_file = e.scope_file
+    }
+    return outer
+}
+
+mutating fun TypeCtx.leave_call_scope(outer: OuterScope): void {
+    self.owner_module = outer.module
+    self.owner_file = outer.file
+}

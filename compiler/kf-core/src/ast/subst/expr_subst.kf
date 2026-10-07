@@ -60,7 +60,9 @@ fun Expr.rebuild_expr(new_kind: ExprKind, names: &var List<String>, repls: &var 
         is_variant_ctor: self.is_variant_ctor,
         derefs_at_call: self.derefs_at_call,
         constant: self.constant,
-        arg_name: self.arg_name
+        arg_name: self.arg_name,
+        scope_module: self.scope_module,
+        scope_file: self.scope_file
     }
 }
 

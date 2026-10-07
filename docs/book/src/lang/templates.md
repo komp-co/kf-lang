@@ -40,7 +40,7 @@ hand beside the struct. It is then checked like any other code.
 which must be declared in the same crate and mark structs. `T` names the
 marked struct inside the template. `on enum T` is the same for enums, as
 [below](#enums) says. An annotation marking both may have one template of each,
-but at most one per kind.
+but at most one per kind, or per kind and [key](#keyed-templates).
 
 The template holds ordinary declarations: trait impls, `impl T` blocks, and
 extension functions such as `fun T.describe()`. `template`, like `annotation`,
@@ -363,6 +363,100 @@ fun main(): int32 { return if Shape.default() == Shape.Empty { 0 } else { 1 } }
 
 An enum with no such variant gets a `default` that does not return, which is
 reported with a note naming the enum.
+
+## Arguments as code
+
+`args.p` is the value the annotation's use gave `p`. A parameter taking a
+[name](annotations.md#names-and-the-rest) gives code: `args.by(x)` calls the
+function it names, `args.with` in a type is the type, and `${args.t}` writes
+the name where one goes, so `impl ${args.t} for T` implements the trait. A
+variadic argument is a list, and a loop over it is written out once per value,
+like a member loop, with the binder standing for that value:
+
+```kflat
+annotation checked(rules: fun..) on struct
+
+fun positive(n: int64): bool { return n > 0 }
+fun small(n: int64): bool { return n < 100 }
+
+template checked on struct T {
+    fun T.valid(): bool {
+        while field in T.fields {
+            while rule in args.rules {
+                if !rule(field.of(self)) { return false }
+            }
+        }
+        return true
+    }
+}
+
+@checked(positive, small)
+struct Reading {
+    val level: int64
+}
+
+fun main(): int32 {
+    val ok = Reading { level: 5 }
+    val high = Reading { level: 500 }
+    return if ok.valid() && !high.valid() { 0 } else { 1 }
+}
+```
+
+`rule(field.of(self))` becomes `positive(self.level)`, then `small(self.level)`.
+A function an argument names is called as the use wrote it, so a private one in
+the user's module is reached, wherever the template is written. A loop over an
+argument goes where statements go; to add declarations for each name, a
+template is [keyed](#keyed-templates) on it.
+
+## Keyed templates
+
+An annotation with one parameter taking a declaration's name may have a
+template for each name a use can give, written with the name as its key:
+
+```kflat
+annotation deriving(traits: trait..) on <struct, enum>
+
+trait Counted {
+    fun count(): int64
+}
+
+trait Named {
+    fun label(): String
+}
+
+template deriving(Counted) on struct T {
+    impl Counted for T {
+        fun count(): int64 { return T.fields.size() }
+    }
+}
+
+template deriving(Named) on struct T {
+    impl Named for T {
+        fun label(): String { return String.from(T.name) }
+    }
+}
+
+@deriving(Counted, Named)
+struct Point {
+    val x: int32
+    val y: int32
+}
+
+fun main(): int32 {
+    val p = Point { x: 1, y: 2 }
+    return if p.count() == 2 && p.label() == "Point" { 0 } else { 1 }
+}
+```
+
+A use expands the keyed template of each name it lists. A keyed template
+lives in the crate declaring its key, as an impl lives with its trait, not
+necessarily beside its annotation: a crate declaring a trait can add its own
+template for another crate's `deriving`, and a use reaches it through that
+crate. Once an annotation has keyed templates, a name a use lists without one
+for the kind it marks is an error at the name, "`Named` has no `deriving`
+template on `enum`". A template is worth keying when what it adds differs in
+shape per name, such as the trait it implements; when only what it calls
+differs, one unkeyed template calls the name from `args`.
 
 ## Where the code lives
 

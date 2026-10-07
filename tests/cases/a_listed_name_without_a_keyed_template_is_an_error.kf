@@ -1,0 +1,27 @@
+//! build: fail
+//! deps: core
+// When an annotation has keyed templates, each name a use lists needs one
+// on the kind it marks: the error is at the name.
+
+annotation deriving(traits: trait..) on <struct, enum>
+
+trait Counted {
+    fun count(): int64
+}
+
+trait Named {
+    fun label(): int64
+}
+
+template deriving(Counted) on struct T {
+    impl Counted for T {
+        fun count(): int64 { return T.fields.size() }
+    }
+}
+
+@deriving(Counted, Named)
+struct Point {
+    val x: int32
+}
+
+fun main(): int32 { return 0 }

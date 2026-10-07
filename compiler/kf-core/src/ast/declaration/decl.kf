@@ -198,6 +198,9 @@ pub struct TopDecl {
     pub var is_internal: bool
     /// The member loop the declaration is written in, in a template.
     pub var member_loop: MemberLoop?
+    /// `Equal` in `template derive(Equal) on struct T`: the name a keyed
+    /// template is for. Empty otherwise.
+    pub var template_key: Sym
 }
 
 pub enum TopDeclKind {
@@ -283,7 +286,7 @@ pub fun new_top_decl(span: Span, name: String, kind: TopDeclKind): TopDecl {
         link_name: intern(""), dyn_layouts: List.new<DynTraitLayout>(),
         dyn_vtables: List.new<DynVTableInstance>(), decl_end: 0, name_span: no_span(), ext_name: intern(""),
         resolves_in: intern(""), is_sealed: false, is_view: false, implemented_lang_trait: intern(""),
-        is_internal: false, member_loop: null
+        is_internal: false, member_loop: null, template_key: intern("")
     }
 }
 

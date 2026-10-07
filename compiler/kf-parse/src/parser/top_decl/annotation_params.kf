@@ -1,0 +1,75 @@
+// An annotation's parameters: a function's, but a type may also be one of
+// the kind words `trait`, `struct`, `enum` and `fun`, taking a declaration's
+// name, and the last may be variadic, `T..`.
+
+import alloc.list.*
+
+import kf_core.ast.declaration.*
+import kf_core.ast.annotation.name_param_type
+import kf_core.ast.annotation.variadic_param_type
+import kf_parse.parser.*
+
+impl Parser {
+    mutating fun parse_annotation_params(): List<Param> {
+        var params = List.new<Param>()
+        self.advance() // consume `(`
+        while true {
+            self.skip_newlines()
+            if is_op(self.peek(), Operator.RParen) { break }
+            params.push(self.parse_annotation_param())
+            self.skip_newlines()
+            if !self.take_op(Operator.Comma) { break }
+        }
+        self.skip_newlines()
+        val _close = self.expect_op(Operator.RParen, "to close the parameter list")
+        return params
+    }
+
+    mutating fun parse_annotation_param(): Param {
+        val at = self.peek().span
+        val name = self.expect_name("parameter")
+        self.advance()
+        if !self.take_op(Operator.Colon) {
+            self.parse_err(self.peek().span, String.from("expected `:` and a type after the parameter name"))
+            return new_param(at, name, poison_type_ref_at(at))
+        }
+        val kind = self.peek_name_kind()
+        var ty = when (kind) {
+            Some(named) => {
+                val kind_at = self.peek().span
+                self.advance()
+                name_param_type(kind_at, named)
+            }
+            None => self.parse_type_ref()
+        }
+        if is_op(self.peek(), Operator.DotDot) {
+            self.advance()
+            ty = variadic_param_type(ty.span, ty)
+        }
+        var param = new_param(at, name, Box.new(ty))
+        if self.take_op(Operator.Eq) { param.default = Box.new(self.parse_expr()) }
+        return param
+    }
+
+    /// `..` after a function's parameter type: reported, and skipped.
+    mutating fun reject_variadic(): void {
+        if !is_op(self.peek(), Operator.DotDot) { return }
+        val why = "take a list instead, `List<T>` or `&T[]`; only an annotation's may be"
+        self.parse_err(self.peek().span, "a function's parameter cannot be variadic: ${why}")
+        self.advance()
+    }
+
+    /// `trait`, `struct`, `enum` or `fun` as a parameter type.
+    fun peek_name_kind(): MarkKind? {
+        return when (self.peek().kind) {
+            KeywordTok(k) => when (k) {
+                Fun => MarkKind.Function
+                Struct => MarkKind.Struct
+                Enum => MarkKind.Enum
+                Trait => MarkKind.Trait
+                _ => null
+            }
+            _ => null
+        }
+    }
+}

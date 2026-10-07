@@ -1,0 +1,14 @@
+//! build: fail
+//! deps: core
+// A template is keyed on a value of its annotation's one parameter taking a
+// declaration's name; an annotation without one has nothing to key on.
+
+annotation plain on struct
+
+trait Counted {
+    fun count(): int64
+}
+
+template plain(Counted) on struct T { }
+
+fun main(): int32 { return 0 }

@@ -1,0 +1,8 @@
+//! build: fail
+//! deps: core
+// Only an annotation's last parameter may be variadic: the positional
+// arguments left over have nowhere else to go.
+
+annotation tagged(names: str.., level: int32) on struct
+
+fun main(): int32 { return 0 }

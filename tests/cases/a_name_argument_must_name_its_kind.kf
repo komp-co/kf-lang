@@ -1,0 +1,15 @@
+//! build: fail
+//! deps: core
+// A parameter of type `fun` takes a function's name: a struct's is an error
+// naming the kind it wants.
+
+annotation checked(rules: fun..) on struct
+
+fun positive(n: int64): bool { return n > 0 }
+
+@checked(positive, Point)
+struct Point {
+    val x: int32
+}
+
+fun main(): int32 { return 0 }

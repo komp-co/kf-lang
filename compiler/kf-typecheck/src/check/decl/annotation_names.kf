@@ -1,0 +1,43 @@
+// An argument naming a declaration, for a parameter of type `trait`,
+// `struct`, `enum` or `fun`: `Equal`, or `geo.Point` through a module.
+
+import kf_core.ast.CrateId
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.MarkKind
+import kf_typecheck.*
+
+/// Whether `self` names a declaration of `kind` the table holds.
+fun Expr.names_declaration(kind: MarkKind, table: &SigTable, crate: CrateId): bool {
+    if self.written_name() == null { return false }
+    val name = when (self.kind) {
+        FieldAccess(_owner, member) => member.as_string()
+        Variable(written) => written.as_string()
+        _ => String.from("")
+    }
+    return when (kind) {
+        Trait => table.find_trait(name.as_str()) != null
+        Struct => table.find_struct(name.as_str(), crate) != null
+        Enum => table.find_enum(name.as_str(), crate) != null
+        Function => table.find_signature(name.as_str()) != null
+        _ => false
+    }
+}
+
+/// `Equal` or `geo.Point` as written; null for anything but a name.
+pub fun Expr.written_name(): String? {
+    return when (self.kind) {
+        Variable(name) => Option.Some(name.as_string())
+        FieldAccess(owner, member) => {
+            val path = owner.written_name() ?: return null
+            Option.Some("${path.as_str()}.${member.as_str()}")
+        }
+        _ => null
+    }
+}
+
+/// A name argument as an `annotated<A>()` entry holds it: its text.
+pub fun Expr.name_text(): Expr {
+    val written = self.written_name() ?: String.from("")
+    return Expr.new(self.span, ExprKind.LitStr(written))
+}

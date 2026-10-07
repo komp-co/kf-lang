@@ -6,19 +6,14 @@ import kf_core.ast.declaration.*
 import kf_parse.parser.*
 
 impl Parser {
-    /// `template` is a keyword only at the head of `template NAME on`, so it
-    /// stays usable as an identifier everywhere else.
+    /// `template` is a keyword only at the head of `template NAME on` or
+    /// `template NAME(Key) on`, so it stays usable as an identifier
+    /// everywhere else.
     fun at_template_decl(): bool {
-        if !self.at_word("template") { return false }
-        val named = when (self.peek_at(1).kind) {
-            Identifier(_) => true
-            _ => false
-        }
-        if !named { return false }
-        return when (self.peek_at(2).kind) {
-            Identifier(word) => word.as_str() == "on"
-            _ => false
-        }
+        if !self.at_word("template") || !self.peek_at(1).is_identifier() { return false }
+        if self.peek_at(2).is_word("on") { return true }
+        if !is_op(self.peek_at(2), Operator.LParen) || !self.peek_at(3).is_identifier() { return false }
+        return is_op(self.peek_at(4), Operator.RParen) && self.peek_at(5).is_word("on")
     }
 
     /// `template NAME on KIND T { declarations }`, consuming `template`.
@@ -27,6 +22,12 @@ impl Parser {
         val name_at = self.peek().span
         val name = self.expect_name("template")
         self.advance()
+        var key = intern("")
+        if self.take_op(Operator.LParen) {
+            key = intern(self.expect_name("template key").as_str())
+            self.advance()
+            self.advance() // consume `)`
+        }
         self.advance() // consume `on`
         val kind_at = self.peek().span
         val kind = self.peek_mark_kind()
@@ -45,6 +46,7 @@ impl Parser {
         val template = TopDeclKind.Template(kind ?: MarkKind.Struct, intern(marked.as_str()), body)
         var td = new_top_decl(span, name, template)
         td.name_span = name_at
+        td.template_key = key
         return td
     }
 

@@ -1,5 +1,7 @@
 // An annotation's arguments: which types a parameter may have, and matching
-// a use's arguments, positional then named, to the parameters in order.
+// a use's arguments, positional then named, to the parameters in order. A
+// variadic last parameter takes the positional arguments left over, as a
+// list literal.
 
 import alloc.list.*
 
@@ -8,6 +10,8 @@ import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.Annotation
 import kf_core.ast.declaration.Param
+import kf_core.ast.declaration.MarkKind
+import kf_core.ast.annotation.*
 import kf_core.diagnostic.*
 import kf_typecheck.*
 import kf_typecheck.types.display_type_ref
@@ -23,10 +27,20 @@ enum ParamKind {
     Text
     /// An enum whose variants carry nothing: `Level.High`.
     Enum
+    /// The name of a declaration of this kind: `Equal` for `trait`.
+    Name(MarkKind)
     Unsupported
 }
 
+/// What one argument of a parameter of this type admits: of `T..`, a `T`.
 fun TypeRef.param_kind(table: &SigTable, crate: CrateId): ParamKind {
+    val element = self.variadic_element()
+    if element != null {
+        val one = element ?: return ParamKind.Unsupported
+        return one.param_kind(table, crate)
+    }
+    val named = self.named_kind()
+    if named != null { return ParamKind.Name(named ?: MarkKind.Trait) }
     val name = when (self.kind) {
         Named(name, args) => if args.size() == 0 { name.as_string() } else { String.from("") }
         _ => String.from("")
@@ -65,12 +79,24 @@ fun SigTable.is_plain_enum(name: str, crate: CrateId): bool {
 /// written for.
 pub fun check_annotation_params(params: &List<Param>, table: &SigTable, crate: CrateId,
     diags: &var List<Diagnostic>): void {
-    while param in &params {
+    while i in 0..params.size() {
+        val param = params.at(i)
+        val variadic = (*param.ty).variadic_element() != null
+        if variadic && i + 1 < params.size() {
+            val message = "only the last parameter may be variadic: `${param.name.as_str()}` is followed by others"
+            diags.push(error_at(param.span, message))
+        }
+        val takes_default = !variadic && (*param.ty).named_kind() == null
+        if !takes_default && param.default != null {
+            val what = if variadic { "a variadic parameter" } else { "a parameter taking a name" }
+            diags.push(error_at(param.span, "${what} takes no default: `${param.name.as_str()}`"))
+        }
         val kind = (*param.ty).param_kind(table, crate)
         when (kind) {
             Unsupported => {
-                val allowed = "a number, `bool`, `char`, `str`, `String` or an enum whose variants carry nothing"
-                val message = "annotation parameter `${param.name.as_str()}` must be ${allowed}"
+                val allowed = "a number, `bool`, `char`, `str`, `String`, an enum whose variants carry nothing"
+                val names = "or `trait`, `struct`, `enum` or `fun` for a declaration's name"
+                val message = "annotation parameter `${param.name.as_str()}` must be ${allowed}, ${names}"
                 diags.push(new_diagnostic(Severity.Error, new_label(param.span, message)))
             }
             _ => {
@@ -99,14 +125,20 @@ pub fun Annotation.arguments_in_order(params: &List<Param>, table: &SigTable, cr
     diags: &var List<Diagnostic>): OrderedArguments {
     val kind = self.name.as_str()
     var slots = List.new<uint64>()
+    var rest = List.new<uint64>()
+    val variadic = params.size() > 0 && (*params.at(params.size() - 1).ty).variadic_element() != null
+    val single = if variadic { params.size() - 1 } else { params.size() }
     var named_seen = false
     var ok = true
-    while arg in &self.args {
+    while i in 0..self.args.size() {
+        val arg = self.args.at(i)
         val at = arg.value.span
         if arg.name.as_str().equals("") {
             if named_seen {
                 diags.push(error_at(at, "a positional argument of `@${kind}` cannot follow a named one"))
                 ok = false
+            } else if slots.size() >= single && variadic {
+                rest.push(i)
             } else if slots.size() >= params.size() {
                 val counts = "takes ${params.size()}, found ${self.args.size()}"
                 diags.push(error_at(at, "too many arguments to `@${kind}`: it ${counts}"))
@@ -118,7 +150,11 @@ pub fun Annotation.arguments_in_order(params: &List<Param>, table: &SigTable, cr
         }
         named_seen = true
         val index = params.position_of(arg.name.as_str())
-        if index >= params.size() {
+        if variadic && index == single {
+            val how = "give its values positionally, after the others"
+            diags.push(error_at(at, "`${arg.name.as_str()}` of `@${kind}` is variadic: ${how}"))
+            ok = false
+        } else if index >= params.size() {
             diags.push(error_at(at, "`@${kind}` has no parameter `${arg.name.as_str()}`"))
             ok = false
         } else if slots.contains(&index) {
@@ -129,7 +165,41 @@ pub fun Annotation.arguments_in_order(params: &List<Param>, table: &SigTable, cr
         }
     }
     if !ok { return OrderedArguments { ok: false, values: List.new<Expr>() } }
-    return self.values_for(&slots, params, table, crate, diags)
+    var ordered = self.values_for(&slots, params, table, crate, diags)
+    if variadic && ordered.ok { ordered = self.with_rest(ordered, &rest, params.at(single), table, crate, diags) }
+    return ordered
+}
+
+/// The variadic parameter's value, a list literal of the arguments `rest`
+/// indexes, each a literal of its element type.
+fun Annotation.with_rest(ordered: OrderedArguments, rest: &List<uint64>, param: &Param, table: &SigTable,
+    crate: CrateId, diags: &var List<Diagnostic>): OrderedArguments {
+    val element = (*param.ty).argument_type()
+    val kind = element.param_kind(table, crate)
+    var values = List.new<Expr>()
+    var ok = true
+    while at in &rest {
+        val value = &*self.args.at(at).value
+        if !value.fits_param(kind, &element, table, crate) {
+            diags.push(error_at(value.span, self.mismatch(param, &element, kind)))
+            ok = false
+            continue
+        }
+        values.push(value.clone())
+    }
+    if !ok { return OrderedArguments { ok: false, values: List.new<Expr>() } }
+    var out = ordered.values.clone()
+    out.push(Expr.new_list_literal(self.span, &values))
+    return OrderedArguments { ok: true, values: out }
+}
+
+/// Why `param`'s argument does not fit: it needs a literal, or a name.
+fun Annotation.mismatch(param: &Param, ty: &TypeRef, kind: ParamKind): String {
+    val wanted = when (kind) {
+        Name(named) => "the name of a `${named.word()}`"
+        _ => "a literal of type `${ty.display_type_ref().as_str()}`"
+    }
+    return "`${param.name.as_str()}` of `@${self.name.as_str()}` must be ${wanted}"
 }
 
 /// Each parameter's value, once every slot is filled with a literal of its
@@ -141,6 +211,7 @@ fun Annotation.values_for(slots: &List<uint64>, params: &List<Param>, table: &Si
     var values = List.new<Expr>()
     while p in 0..params.size() {
         val param = params.at(p)
+        if (*param.ty).variadic_element() != null { continue }
         val found = slots.index_of(&p)
         if found == null {
             val default = param.default
@@ -155,9 +226,9 @@ fun Annotation.values_for(slots: &List<uint64>, params: &List<Param>, table: &Si
         }
         val at = found ?: continue
         val value = &*self.args.at(at).value
-        if !value.fits_param((*param.ty).param_kind(table, crate), &*param.ty, table, crate) {
-            val wanted = "a literal of type `${(*param.ty).display_type_ref().as_str()}`"
-            diags.push(error_at(value.span, "`${param.name.as_str()}` of `@${kind}` must be ${wanted}"))
+        val admits = (*param.ty).param_kind(table, crate)
+        if !value.fits_param(admits, &*param.ty, table, crate) {
+            diags.push(error_at(value.span, self.mismatch(param, &*param.ty, admits)))
             ok = false
             continue
         }
@@ -185,6 +256,7 @@ fun Expr.fits_param(kind: ParamKind, ty: &TypeRef, table: &SigTable, crate: Crat
             _ => false
         }
         Enum => self.names_variant_of(ty, table, crate)
+        Name(named) => self.names_declaration(named, table, crate)
         Unsupported => false
     }
 }
