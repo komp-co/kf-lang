@@ -44,6 +44,8 @@ fun TypedCrate.hover_member_at(offset: uint32): HoverDecl {
     // Tried as a declared type first: `Point` in `Point.new` is not an
     // expression, and reaches only static members.
     val recv = word_at(src, start - 2)
+    val bound = self.template_binder_type(recv.as_str(), start)
+    if bound.byte_len() > 0 { return self.member_named(bound.as_str(), name.as_str(), &Type.new_poison()) }
     if recv.as_str() != "" && self.module.names_a_type(recv.as_str()) {
         return self.member_named(recv.as_str(), name.as_str(), &Type.new_poison())
     }
