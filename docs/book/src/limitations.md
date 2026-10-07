@@ -125,7 +125,6 @@ on a struct holding one ([#299]). Compare or print the elements instead.
   come with the variant loop ([#289]).
 - A template adds to its own crate's structs only ([#290]), and not to a
   generic struct ([#296]).
-- `break` and `continue` cannot leave a template's member loop ([#288]).
 - A `pub` extension function a template adds cannot be imported by another
   module: imports are checked before templates expand ([#297]).
 
@@ -214,7 +213,6 @@ not agree with it in every case.
 [#190]: https://github.com/komp-co/komp/issues/190
 [#194]: https://github.com/komp-co/komp/issues/194
 [#216]: https://github.com/komp-co/komp/issues/216
-[#288]: https://github.com/komp-co/komp/issues/288
 [#289]: https://github.com/komp-co/komp/issues/289
 [#290]: https://github.com/komp-co/komp/issues/290
 [#296]: https://github.com/komp-co/komp/issues/296

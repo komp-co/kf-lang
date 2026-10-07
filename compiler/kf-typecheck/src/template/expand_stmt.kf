@@ -5,7 +5,6 @@
 
 import alloc.list.*
 
-import kf_core.span.Span
 import kf_core.ast.Sym
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
@@ -77,48 +76,15 @@ fun Stmt.unroll(binder: Sym, kept: &List<uint64>, body: &List<Stmt>, x: &var Exp
         x.report(self.span, String.from("a member loop cannot be inside another"))
         return
     }
-    val jump = stray_jump(body)
-    if jump != null {
-        val at = jump ?: self.span
-        x.report(at, String.from("a member loop is written out once per field, so it has no loop to leave"))
-        return
-    }
+    var copies = List.new<List<Stmt>>()
     while i in &kept {
         x.bind(binder, i)
-        val copy = expand_stmts(body, x)
+        val copy = cut_at_jump(&expand_stmts(body, x))
         x.unbind()
-        out.push(self.scope(copy))
+        copies.push(copy.kept)
+        if copy.jump == Jump.Broke { break }
     }
-}
-
-/// A `break` or `continue` that would leave the member loop: one not inside
-/// a loop of its own.
-fun stray_jump(stmts: &List<Stmt>): Span? {
-    while stmt in &stmts {
-        val found = stmt.stray_jump_in()
-        if found != null { return found }
-    }
-    return null
-}
-
-fun Stmt.stray_jump_in(): Span? {
-    when (self.kind) {
-        Break => return self.span
-        Continue => return self.span
-        If(_condition, then_body, else_body) => {
-            val found = stray_jump(&then_body)
-            if found != null { return found }
-            return stray_jump(&else_body)
-        }
-        When(_subject, arms) => {
-            while arm in &arms {
-                val found = stray_jump(&arm.body)
-                if found != null { return found }
-            }
-            return null
-        }
-        _ => return null
-    }
+    self.joined_copies(&copies, out)
 }
 
 /// `if true { body }`: a block with its own scope.

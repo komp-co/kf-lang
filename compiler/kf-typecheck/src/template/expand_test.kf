@@ -153,15 +153,30 @@ fun TypeRef.bare_type_name(): String {
     }
 }
 
-@test fun a_break_in_a_member_loop_is_reported(): void {
+fun member_loop(body: List<Stmt>): List<Stmt> {
+    var stmts = List.new<Stmt>()
+    stmts.push(Stmt.new(no_span(), StmtKind.ForEach(intern("field"), Box.new(access(variable("T"), "fields")), body)))
+    return stmts
+}
+
+@test fun a_decided_break_ends_the_copies(): void {
     var x = point_expansion()
     x.bound = List.new<Bound>()
     var body = List.new<Stmt>()
     body.push(Stmt.new(no_span(), StmtKind.Break))
-    var stmts = List.new<Stmt>()
-    stmts.push(Stmt.new(no_span(), StmtKind.ForEach(intern("field"), Box.new(access(variable("T"), "fields")), body)))
-    val _out = expand_stmts(&stmts, &var x)
-    assert_eq(x.diags.size(), 1, "the loop is written out, so `break` has nowhere to go")
+    val out = expand_stmts(&member_loop(body), &var x)
+    assert_eq(out.size(), 1, "the first copy, cut at its `break`, and no second")
+}
+
+@test fun a_run_time_break_is_a_flag_and_a_pass_per_copy(): void {
+    var x = point_expansion()
+    x.bound = List.new<Bound>()
+    var jump = List.new<Stmt>()
+    jump.push(Stmt.new(no_span(), StmtKind.Break))
+    var body = List.new<Stmt>()
+    body.push(Stmt.new(no_span(), StmtKind.If(Box.new(variable("c")), jump, List.new<Stmt>())))
+    val out = expand_stmts(&member_loop(body), &var x)
+    assert_eq(out.size(), 3, "the flag, then a guarded pass for each of the two fields")
 }
 
 @test fun a_break_in_an_inner_loop_stays(): void {

@@ -197,8 +197,13 @@ runs. `field` itself is not a value: use one of its facts, or read it with
 `field.of(x)`. That is a place as well as a value, so `field.of(out) = value`
 assigns to `out`'s field.
 
-A member loop is written out once per field rather than run, so `break` and
-`continue` cannot leave it. A loop of their own inside it still can.
+A member loop is written out once per field rather than run, but `break` and
+`continue` act as in any loop. One the facts decide, such as
+`if field.has<last>() { break }`, ends the copies there, and nothing of it is
+left in the program. One decided while the program runs,
+`if field.of(self) == 0 { break }`, skips the copies after it, or, for
+`continue`, the rest of this one. A `break` or `continue` in a loop of its own
+inside the member loop belongs to that loop.
 
 ### Where a member loop goes
 
