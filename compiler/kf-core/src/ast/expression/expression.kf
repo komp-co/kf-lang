@@ -57,6 +57,12 @@ pub struct Expr {
     /// `x.as_str()` where `x` would reach the same slot through its `Deref`
     /// anyway. Set by TypeCheck; the `needless_deref` lint reports it.
     pub var needless_view: bool
+    /// A call whose name resolves where it was written rather than where
+    /// its declaration's body does: a function an annotation's argument
+    /// names, called in what a template adds. The module, and the file for
+    /// its imports; empty for any other call.
+    pub var scope_module: Sym
+    pub var scope_file: uint32
 }
 
 impl Expr {
@@ -66,7 +72,8 @@ impl Expr {
             mangled_callee: intern(""), coerce: 0, type_args: List.new<TypeRef>(), type_args_written: false,
             is_static_call: false, is_dynamic_call: false, dynamic_slot: 0, dynamic_layout: intern(""),
             is_safe_call_value: false, is_variant_ctor: false, derefs_at_call: false,
-            constant: intern(""), arg_name: intern(""), needless_view: false
+            constant: intern(""), arg_name: intern(""), needless_view: false, scope_module: intern(""),
+            scope_file: 0
         }
     }
 

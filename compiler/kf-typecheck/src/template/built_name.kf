@@ -1,5 +1,6 @@
 // Names built from facts: `with_${field.name}` or `${T.name}Builder`, each
-// `${...}` replaced by the text of `T.name`, `field.name` or a string `args`.
+// `${...}` replaced by the text of `T.name`, `field.name`, or an `args`
+// value that is a string or a name.
 
 import alloc.list.*
 
@@ -50,7 +51,9 @@ mutating fun Expansion.name_fact(fact: str, at: Span): String {
             val given = value ?: return String.from("")
             val text = given.text_literal()
             if text != null { return text ?: String.from("") }
-            self.report(at, "`args.${member.as_str()}` is not text, so it cannot be part of a name")
+            val declared = given.declared_name()
+            if declared != null { return (declared ?: intern("")).as_string() }
+            self.report(at, "`args.${member.as_str()}` is neither text nor a name, so it cannot be part of a name")
             return String.from("")
         }
     }

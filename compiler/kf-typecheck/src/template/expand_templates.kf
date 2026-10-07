@@ -41,6 +41,7 @@ pub mutating fun Module.expand_templates(table: &var DeclTable, diags: &var List
             }
         }
     }
+    self.report_missing_keys(&templates, diags)
     var kept = self.decls.clone()
     while item in &added {
         var joined = item.clone()
@@ -73,12 +74,15 @@ fun Module.checked_templates(diags: &var List<Diagnostic>): List<TemplateAt> {
         if td.crate.raw != self.crate.raw || !td.is_template() { continue }
         val at = td.decl_name_span()
         val annotation = self.template_annotation(td, diags) ?: continue
+        if td.is_keyed() && !self.key_is_owned(td, annotation, diags) { continue }
         var duplicate = false
         while earlier in &out {
-            val same_kind = self.decls.at(earlier.template).template_kind() == td.template_kind()
-            if earlier.annotation == annotation && same_kind {
+            val first = self.decls.at(earlier.template)
+            val same_kind = first.template_kind() == td.template_kind()
+            if earlier.annotation == annotation && same_kind && first.template_key.id == td.template_key.id {
                 val kind = td.template_kind().word()
-                var diag = error_at(at, "`@${td.name.as_str()}` already has a template on `${kind}`")
+                val keyed = if td.is_keyed() { "(${td.template_key.as_str()})" } else { "" }
+                var diag = error_at(at, "`@${td.name.as_str()}${keyed}` already has a template on `${kind}`")
                 diag.secondary.push(new_label(self.decls.at(earlier.template).decl_name_span(), "the first"))
                 diags.push(diag)
                 duplicate = true
@@ -89,7 +93,8 @@ fun Module.checked_templates(diags: &var List<Diagnostic>): List<TemplateAt> {
     while i in 0..self.decls.size() {
         val td = self.decls.at(i)
         if td.crate.raw == self.crate.raw || !td.is_template() { continue }
-        val annotation = self.imported_annotation(td) ?: continue
+        val found = if td.is_keyed() { self.keyed_annotation(td) } else { self.imported_annotation(td) }
+        val annotation = found ?: continue
         out.push(TemplateAt { template: i, annotation: annotation })
     }
     return out
@@ -105,7 +110,8 @@ fun Module.template_annotation(template: &TopDecl, diags: &var List<Diagnostic>)
         diags.push(error_at(at, "a template cannot add to `${kind.word()}`: it adds to a `struct` or an `enum`"))
         return null
     }
-    val found = self.own_annotation(template.name, template.module_path)
+    var found = self.own_annotation(template.name, template.module_path)
+    if found == null && template.is_keyed() { found = self.keyed_annotation(template) }
     if found == null {
         diags.push(error_at(at, "no annotation `${name}` in this crate: a template belongs to one"))
         return null
@@ -191,6 +197,14 @@ fun Module.is_marked_by(td: &TopDecl, template: &TopDecl, annotation: uint64): b
         _ => MarkKind.Function
     }
     if kind != template.template_kind() { return false }
+    if template.is_keyed() && !self.lists_key(td, annotation, template.template_key) { return false }
+    return self.is_marked_by_any(td, annotation)
+}
+
+/// Whether `td`, a declaration of this crate, carries `@NAME` for this
+/// annotation, as its file names it.
+fun Module.is_marked_by_any(td: &TopDecl, annotation: uint64): bool {
+    if td.crate.raw != self.crate.raw { return false }
     val declared = self.decls.at(annotation)
     if !td.has_annotation(declared.name.as_str()) { return false }
     val resolved = self.own_annotation(declared.name, td.module_path)

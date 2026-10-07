@@ -61,7 +61,9 @@ fun Expr.rebuild_expr(new_kind: ExprKind, names: &var List<String>, repls: &var 
         derefs_at_call: self.derefs_at_call,
         constant: self.constant,
         arg_name: self.arg_name,
-        needless_view: self.needless_view
+        needless_view: self.needless_view,
+        scope_module: self.scope_module,
+        scope_file: self.scope_file
     }
 }
 

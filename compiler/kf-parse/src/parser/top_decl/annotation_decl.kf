@@ -27,7 +27,8 @@ impl Parser {
         val name_at = self.peek().span
         val name = self.expect_name("annotation")
         unsafe { self.advance() }
-        val params = if is_op(self.peek(), Operator.LParen) { self.parse_param_list() } else { List.new<Param>() }
+        val has_params = is_op(self.peek(), Operator.LParen)
+        val params = if has_params { self.parse_annotation_params() } else { List.new<Param>() }
         val target = if self.at_word("on") { self.parse_mark_target() } else { default_mark_target(name_at) }
         var td = new_top_decl(span, name, TopDeclKind.AnnotationDecl(params, target, is_pub))
         td.name_span = name_at

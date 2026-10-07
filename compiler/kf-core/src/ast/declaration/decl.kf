@@ -201,6 +201,9 @@ pub struct TopDecl {
     /// The method a `Deref` or `DerefMut` impl forwards to, as an interface
     /// records it; read through `deref_view`. Empty otherwise.
     pub var deref_via: Sym
+    /// `Equal` in `template derive(Equal) on struct T`: the name a keyed
+    /// template is for. Empty otherwise.
+    pub var template_key: Sym
 }
 
 pub enum TopDeclKind {
@@ -286,7 +289,7 @@ pub fun new_top_decl(span: Span, name: String, kind: TopDeclKind): TopDecl {
         link_name: intern(""), dyn_layouts: List.new<DynTraitLayout>(),
         dyn_vtables: List.new<DynVTableInstance>(), decl_end: 0, name_span: no_span(), ext_name: intern(""),
         resolves_in: intern(""), is_sealed: false, is_view: false, implemented_lang_trait: intern(""),
-        is_internal: false, member_loop: null, deref_via: intern("")
+        is_internal: false, member_loop: null, deref_via: intern(""), template_key: intern("")
     }
 }
 

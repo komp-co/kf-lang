@@ -112,6 +112,7 @@ fun check_expr_kind(e: &var Expr, ctx: &var TypeCtx): void {
             e.kind = ExprKind.CallValue(callee_ptr, args)
         }
         Call(callee_name, args) => {
+            val outer = ctx.enter_call_scope(e)
             val through_alias = ctx.through_module.id != 0
             if !through_alias && callee_name.local_is_function_value(ctx) {
                 e.kind = ExprKind.CallValue(Box.new(Expr.new(e.span, ExprKind.Variable(callee_name))), args)
@@ -133,11 +134,10 @@ fun check_expr_kind(e: &var Expr, ctx: &var TypeCtx): void {
                     ctx.pinned_callee = String.from("")
                 }
             }
+            ctx.leave_call_scope(outer)
         }
         Intrinsic(intrinsic, args) => e.check_intrinsic(intrinsic, args, ctx)
-        MethodCall(recv_ptr, method_name_sym, args) => {
-            check_method_expr(e, recv_ptr, method_name_sym, &var args, ctx)
-        }
+        MethodCall(recv_ptr, method_name_sym, args) => check_method_expr(e, recv_ptr, method_name_sym, &var args, ctx)
         FieldAccess(obj_ptr, field_name_sym) => {
             val field_name = field_name_sym.as_string()
             // `EnumName.Variant` parses as a FieldAccess; checked before the

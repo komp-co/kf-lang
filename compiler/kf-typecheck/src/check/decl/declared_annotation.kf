@@ -10,6 +10,7 @@ import kf_core.ast.types.Type
 import kf_core.ast.declaration.*
 import kf_core.ast.annotation.annotation_is_known
 import kf_core.ast.annotation.known_annotations_summary
+import kf_core.ast.annotation.*
 import kf_core.diagnostic.*
 import kf_typecheck.*
 
@@ -103,15 +104,22 @@ fun TopDecl.register_annotation_use(annotation: &Annotation, owner: &MethodOwner
 }
 
 /// A dependency's annotation parameters, each with the default `written`
-/// records under its name.
+/// records under its name, the type of one taking a name, which its field
+/// holds as a `str`, and the variadic last one, which has no field.
 fun List<Param>.with_defaults_of(written: &List<Param>): List<Param> {
     var out = List.new<Param>()
     while param in &self {
         var copied = param.clone()
         while other in written {
-            if other.name.id == param.name.id { copied.default = other.default.clone() }
+            if other.name.id != param.name.id { continue }
+            copied.default = other.default.clone()
+            if (*other.ty).named_kind() == null { continue }
+            copied = Param { span: param.span, name: param.name, ty: Box.new((*other.ty).clone()), default: null }
         }
         out.push(copied)
+    }
+    while other in written {
+        if (*other.ty).variadic_element() != null { out.push(other.clone()) }
     }
     return out
 }
