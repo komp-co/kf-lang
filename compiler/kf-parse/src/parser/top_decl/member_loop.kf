@@ -16,22 +16,22 @@ impl Parser {
     /// to the loop.
     mutating fun open_member_loop(): void {
         val at = self.peek().span
-        unsafe { self.advance() } // consume `while`
+        self.advance() // consume `while`
         if self.member_loop != null {
             self.parse_err(at, String.from("a member loop cannot be inside another"))
         }
         val binder = self.expect_name("member loop binder")
-        unsafe { self.advance() }
+        self.advance()
         val list = "`${self.template_param.as_str()}.fields`"
         if !self.take_keyword(Keyword.In) {
             self.parse_err(self.peek().span, "expected `in ${list}` after the member loop's binder")
         }
         val owner = self.expect_name("member list")
-        unsafe { self.advance() }
+        self.advance()
         val _dot = self.expect_op(Operator.Dot, "between the template's type and `fields`")
         val member_at = self.peek().span
         val member = self.expect_name("member list")
-        unsafe { self.advance() }
+        self.advance()
         if owner.as_str() != self.template_param.as_str() || member.as_str() != "fields" {
             self.parse_err(member_at, "a member loop walks ${list}, the marked struct's fields")
         }
@@ -44,7 +44,7 @@ impl Parser {
     /// than the list.
     mutating fun closes_member_loop(): bool {
         if self.member_loop == null { return false }
-        unsafe { self.advance() }
+        self.advance()
         self.member_loop = null
         return true
     }

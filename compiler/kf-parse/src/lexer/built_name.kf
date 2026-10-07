@@ -9,7 +9,7 @@ impl Lexer {
     mutating fun skip_built_part(): void {
         while !(self.at_end()) && self.peek() != 10 {
             val closing = self.peek() == 125
-            unsafe { self.advance() }
+            self.advance()
             if closing { return }
         }
     }
