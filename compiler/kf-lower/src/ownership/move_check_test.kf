@@ -54,8 +54,8 @@ fun fresh_diag_ptr(): Ptr<Diagnostics> {
 fun fresh_ctx(dp: &var Diagnostics): MoveCtx {
     var names = List.new<String>()
     names.push(String.from("String"))
-    val pt: Ptr<List<ParamEntry>> = unsafe { alloc<List<ParamEntry>>() }
-    unsafe { *pt = List.new<ParamEntry>() }
+    val pt: Ptr<ParamTable> = unsafe { alloc<ParamTable>() }
+    unsafe { *pt = new_param_table() }
     val mc: Ptr<MobCount> = unsafe { alloc<MobCount>() }
     unsafe { *mc = MobCount { n: 0 } }
     val sm: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }

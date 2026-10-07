@@ -12,7 +12,8 @@ import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TopDeclKind
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
-import kf_lower.ownership.*
+import kf_lower.ownership.build_param_table
+import kf_lower.ownership.compute_move_only_names
 pub mutating fun Module.rc_insert_module(list_name: Sym): void {
     var param_table = self.build_param_table()
     var payloads = self.variant_payloads_of()

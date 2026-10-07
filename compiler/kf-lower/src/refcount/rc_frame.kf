@@ -32,7 +32,7 @@ pub struct RcCtx {
     // Decides per callee whether a by-value String argument transfers
     // ownership (a komp function drops it) or is only lent (an extern keeps
     // the caller's drop).
-    pub var ptable: Ptr<List<ParamEntry>>
+    pub var ptable: Ptr<ParamTable>
     // Which payloads of each variant own something. By pointer: built once.
     pub var variants: Ptr<VariantPayloads>
     // The graph's `@lang("string")` type, or the empty name.
@@ -40,8 +40,8 @@ pub struct RcCtx {
 }
 
 pub fun new_rc_ctx(fn_name: String): RcCtx {
-    val tp: Ptr<List<ParamEntry>> = unsafe { alloc<List<ParamEntry>>() }
-    unsafe { *tp = List.new<ParamEntry>() }
+    val tp: Ptr<ParamTable> = unsafe { alloc<ParamTable>() }
+    unsafe { *tp = new_param_table() }
     val vp: Ptr<VariantPayloads> = unsafe { alloc<VariantPayloads>() }
     unsafe { *vp = no_variant_payloads() }
     return RcCtx {
@@ -57,7 +57,7 @@ pub fun new_rc_ctx(fn_name: String): RcCtx {
 }
 
 /// The module's parameter table and variant payloads, for every function.
-pub mutating fun RcCtx.use_tables(params: Ptr<List<ParamEntry>>, variants: Ptr<VariantPayloads>): void {
+pub mutating fun RcCtx.use_tables(params: Ptr<ParamTable>, variants: Ptr<VariantPayloads>): void {
     self.ptable = params
     self.variants = variants
 }

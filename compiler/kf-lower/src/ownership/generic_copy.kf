@@ -140,7 +140,7 @@ fun decl_is_template(td: &TopDecl): bool {
 
 /// `outer` is the enclosing impl block's parameters, bounds included.
 fun check_template(td: &TopDecl, outer: &List<TypeParam>, bounds: &TemplateBounds, diags: &var Diagnostics,
-    table: Ptr<List<ParamEntry>>, mob: Ptr<MobCount>, smap: Ptr<SourceMap>,
+    table: Ptr<ParamTable>, mob: Ptr<MobCount>, smap: Ptr<SourceMap>,
     warn: Ptr<WarnState>): void {
     when (td.kind) {
         Function(params, _, body, _, _, _, _) => {

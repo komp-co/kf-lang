@@ -1,4 +1,5 @@
 import alloc.list.*
+import alloc.hash_map.*
 
 import kf_core.span.*
 import kf_core.ast.*
@@ -35,7 +36,7 @@ pub view struct MoveCtx {
     // Locals and binders bound from a borrow path; they own nothing.
     pub var borrowed: List<Sym>
     // Shared by pointer: it holds move-only lists.
-    pub val ptable: Ptr<List<ParamEntry>>
+    pub val ptable: Ptr<ParamTable>
     // Counts move-out-of-borrow errors. A count, not a list: a pushed message
     // String was read back dangling under the seed.
     pub val mob_count: Ptr<MobCount>
@@ -68,7 +69,7 @@ pub struct MobCount {
     pub var n: uint64
 }
 
-pub fun new_move_ctx(diags: &var Diagnostics, move_only_names: List<String>, ptable: Ptr<List<ParamEntry>>, mob_count: Ptr<MobCount>, cur_fn: String, smap: Ptr<SourceMap>, warn: Ptr<WarnState>): MoveCtx {
+pub fun new_move_ctx(diags: &var Diagnostics, move_only_names: List<String>, ptable: Ptr<ParamTable>, mob_count: Ptr<MobCount>, cur_fn: String, smap: Ptr<SourceMap>, warn: Ptr<WarnState>): MoveCtx {
     return MoveCtx { owned: List.new<Sym>(), moved: List.new<MovedEntry>(), diags: diags, move_only_names: move_only_names, borrowed: List.new<Sym>(), ptable: ptable, mob_count: mob_count, self_owner: "", cur_fn: cur_fn, smap: smap, warn: warn, consumed_here: List.new<Sym>(), copy_names: List.new<String>() }
 }
 
@@ -97,8 +98,26 @@ pub struct ParamEntry {
     pub val is_extern: bool
 }
 
-pub fun Module.build_param_table(): List<ParamEntry> {
-    var out = List.new<ParamEntry>()
+/// The entries, and each callee's first one by name, which is the one a lookup
+/// answers with.
+pub struct ParamTable {
+    var entries: List<ParamEntry>
+    var first: HashMap<String, uint64>
+}
+
+pub fun new_param_table(): ParamTable {
+    return ParamTable { entries: List.new<ParamEntry>(), first: HashMap.new<String, uint64>() }
+}
+
+impl ParamTable {
+    pub mutating fun push(entry: ParamEntry): void {
+        if !self.first.contains(&entry.name) { self.first.insert(entry.name.clone(), self.entries.size()) }
+        self.entries.push(entry)
+    }
+}
+
+pub fun Module.build_param_table(): ParamTable {
+    var out = new_param_table()
     while decl in &self.decls {
         decl.collect_param_entries(&var out)
     }
@@ -129,7 +148,7 @@ fun param_muts_of(params: &List<Param>): List<bool> {
     return ps
 }
 
-fun TopDecl.collect_param_entries(out: &var List<ParamEntry>): void {
+fun TopDecl.collect_param_entries(out: &var ParamTable): void {
     when (self.kind) {
         Function(params, _r, _b, _p, _u, _m, _s) => {
             out.push(ParamEntry { name: self.name.as_string(), sinks: param_sinks_of(params), muts: param_muts_of(params), lends: param_lends_of(params), is_extern: false })
@@ -143,7 +162,7 @@ fun TopDecl.collect_param_entries(out: &var List<ParamEntry>): void {
     }
 }
 
-fun collect_impl_entries(struct_name: String, methods: &List<TopDecl>, out: &var List<ParamEntry>): void {
+fun collect_impl_entries(struct_name: String, methods: &List<TopDecl>, out: &var ParamTable): void {
     while meth in &methods {
         when (meth.kind) {
             Function(params, _r, _b, _p, _u, _m, _s) => {
@@ -185,14 +204,18 @@ pub struct ParamLookup {
     val is_extern: bool
 }
 
-pub fun param_lookup(table: &List<ParamEntry>, callee: String, idx: uint64): ParamLookup {
-    while e in &table {
-        if e.name.as_str().equals(callee.as_str()) {
+pub fun param_lookup(table: &ParamTable, callee: String, idx: uint64): ParamLookup {
+    when (table.first.get(&callee)) {
+        Some(at) => {
+            val e = table.entries.at(*at)
             if idx < e.sinks.size() {
-                return ParamLookup { found: true, is_borrow_sink: e.sinks.get(idx), is_mut_sink: e.muts.get(idx), is_lend: e.lends.get(idx), is_extern: e.is_extern }
+                return ParamLookup {
+                    found: true, is_borrow_sink: e.sinks.get(idx), is_mut_sink: e.muts.get(idx),
+                    is_lend: e.lends.get(idx), is_extern: e.is_extern
+                }
             }
-            return ParamLookup { found: false, is_borrow_sink: false, is_mut_sink: false, is_lend: false, is_extern: false }
         }
+        None => {}
     }
     return ParamLookup { found: false, is_borrow_sink: false, is_mut_sink: false, is_lend: false, is_extern: false }
 }
