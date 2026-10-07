@@ -509,7 +509,7 @@ fun type_has_method_of(owner: str, wanted: str, ctx: &var TypeCtx): bool {
     val wn = wanted.byte_len()
     if wn == 0 { return false }
     val table = unsafe { &*ctx.sigs }
-    val positions = table.headed("${prefix}${wanted}".as_str())
+    val positions = table.sig_heads.positions("${prefix}${wanted}".as_str())
     while k in 0..positions.size() {
         if names_method(table.sigs.at(positions.get(k)).name.as_str(), prefix.as_str(), pn, wanted, wn) { return true }
     }

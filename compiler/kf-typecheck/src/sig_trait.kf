@@ -25,6 +25,7 @@ fun AssocBindingInfo.assoc_binding_matches(type_name: str, assoc_name: str, trai
 
 impl SigTable {
     pub mutating fun insert_struct(s: StructLayout): void {
+        self.struct_index.add(s.name.clone(), self.structs.size())
         self.structs.push(s)
     }
 
@@ -152,29 +153,23 @@ impl SigTable {
     // language decision, not a filter here.
 
     pub mutating fun insert_type_identity(identity: TypeIdentity): void {
+        self.identity_index.add(identity.name.as_string(), self.type_identities.size())
         self.type_identities.push(identity)
     }
 
     pub fun lookup_type_identity(name: str, crate: CrateId, module: Sym): TypeIdentity {
-        while identity in &self.type_identities {
-            if identity.name.as_str().equals(name) {
-                if identity.crate.raw == crate.raw && identity.module.id == module.id { return identity }
-            }
+        val positions = self.identity_index.positions(name)
+        while k in 0..positions.size() {
+            val identity = *self.type_identities.at(positions.get(k))
+            if identity.crate.raw == crate.raw && identity.module.id == module.id { return identity }
         }
         return TypeIdentity.new_poison()
     }
 
     /// Only when exactly one declaration exports the name.
     pub fun lookup_unique_type_identity(name: str): TypeIdentity {
-        var found = TypeIdentity.new_poison()
-        var count: uint64 = 0
-        while identity in &self.type_identities {
-            if identity.name.as_str().equals(name) {
-                found = identity
-                count = count + 1
-            }
-        }
-        if count == 1 { return found }
+        val positions = self.identity_index.positions(name)
+        if positions.size() == 1 { return *self.type_identities.at(positions.get(0)) }
         return TypeIdentity.new_poison()
     }
 
@@ -183,8 +178,9 @@ impl SigTable {
     /// program's plain `Range` must hide core's before either is laid out.
     fun crate_declares_type(name: str, crate: CrateId): bool {
         if crate.is_poison() { return false }
-        while identity in &self.type_identities {
-            if identity.crate.raw == crate.raw && identity.name.as_str().equals(name) { return true }
+        val positions = self.identity_index.positions(name)
+        while k in 0..positions.size() {
+            if self.type_identities.at(positions.get(k)).crate.raw == crate.raw { return true }
         }
         return false
     }
@@ -192,10 +188,10 @@ impl SigTable {
     /// As `caller` sees it.
     pub fun find_struct(name: str, caller: CrateId): StructLayout? {
         val own_only = self.crate_declares_type(name, caller)
-        while s in &self.structs {
-            if s.name.as_str().equals(name) && (!own_only || s.owner_crate.raw == caller.raw) {
-                return Option.Some(s)
-            }
+        val positions = self.struct_index.positions(name)
+        while k in 0..positions.size() {
+            val s = *self.structs.at(positions.get(k))
+            if !own_only || s.owner_crate.raw == caller.raw { return Option.Some(s) }
         }
         return Option.None
     }
@@ -362,15 +358,13 @@ impl SigTable {
     }
 
     pub mutating fun insert_inst(gi: GenericInst): void {
+        self.inst_index.add(gi.mangled.clone(), self.insts.size())
         self.insts.push(gi)
     }
 
     pub fun find_inst(name: str): GenericInst? {
-        while g in &self.insts {
-            if g.mangled.as_str().equals(name) {
-                return Option.Some(g)
-            }
-        }
-        return Option.None
+        val at = self.inst_index.first(name)
+        if at == none_index() { return Option.None }
+        return Option.Some(*self.insts.at(at))
     }
 }

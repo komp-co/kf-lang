@@ -13,47 +13,30 @@ impl SigTable {
         self.ext_names.push(name)
         self.ext_links.push(link)
         self.ext_trait_params.push(trait_param)
-        if !self.ext_link_at.contains(&link.as_string()) { self.ext_link_at.insert(link.as_string(), at) }
-        var slot = none_index()
-        when (self.ext_name_slots.get(&name.as_string())) {
-            Some(found) => slot = *found
-            None => {}
-        }
-        if slot == none_index() {
-            self.ext_name_slots.insert(name.as_string(), self.ext_name_lists.size())
-            var positions = List.new<uint64>()
-            positions.push(at)
-            self.ext_name_lists.push(positions)
-        } else {
-            self.ext_name_lists[slot].push(at)
-        }
+        self.ext_by_link.add(link.as_string(), at)
+        self.ext_by_name.add(name.as_string(), at)
     }
 
     pub fun has_extension(name: str): bool {
-        return self.ext_name_slots.contains(&String.from(name))
+        return self.ext_by_name.has(name)
     }
 
     /// The positions of the extensions called `name`, in registration order.
     pub fun extensions_named(name: str): List<uint64> {
-        when (self.ext_name_slots.get(&String.from(name))) {
-            Some(slot) => return self.ext_name_lists.at(*slot).clone()
-            None => return List.new<uint64>()
-        }
+        return self.ext_by_name.positions(name)
     }
 
     /// An extension's own name for its hidden one; others unchanged.
     pub fun surface_name(name: str): String {
-        when (self.ext_link_at.get(&String.from(name))) {
-            Some(at) => return self.ext_names.get(*at).as_string()
-            None => return String.from(name)
-        }
+        val at = self.ext_by_link.first(name)
+        if at == none_index() { return String.from(name) }
+        return self.ext_names.get(at).as_string()
     }
 
     /// The parameter a trait receiver became, or "".
     pub fun receiver_trait_param(link: str): String {
-        when (self.ext_link_at.get(&String.from(link))) {
-            Some(at) => return self.ext_trait_params.get(*at).as_string()
-            None => return ""
-        }
+        val at = self.ext_by_link.first(link)
+        if at == none_index() { return "" }
+        return self.ext_trait_params.get(at).as_string()
     }
 }

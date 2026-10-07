@@ -1,0 +1,53 @@
+// Positions in an append-only list, by name: each name's in the order they
+// were added, so a lookup reads only the entries that can match.
+
+import alloc.list.*
+import alloc.hash_map.*
+
+pub struct NameIndex {
+    /// Each name's list in `lists`.
+    var slots: HashMap<String, uint64>
+    var lists: List<List<uint64>>
+}
+
+pub fun new_name_index(): NameIndex {
+    return NameIndex { slots: HashMap.new<String, uint64>(), lists: List.new<List<uint64>>() }
+}
+
+impl NameIndex {
+    pub mutating fun add(name: String, at: uint64): void {
+        var slot = none_index()
+        when (self.slots.get(&name)) {
+            Some(found) => slot = *found
+            None => {}
+        }
+        if slot == none_index() {
+            self.slots.insert(name, self.lists.size())
+            var positions = List.new<uint64>()
+            positions.push(at)
+            self.lists.push(positions)
+        } else {
+            self.lists[slot].push(at)
+        }
+    }
+
+    pub fun has(name: str): bool {
+        return self.slots.contains(&String.from(name))
+    }
+
+    /// The positions added under `name`, in order.
+    pub fun positions(name: str): List<uint64> {
+        when (self.slots.get(&String.from(name))) {
+            Some(slot) => return self.lists.at(*slot).clone()
+            None => return List.new<uint64>()
+        }
+    }
+
+    /// The first position added under `name`, or `none_index()`.
+    pub fun first(name: str): uint64 {
+        when (self.slots.get(&String.from(name))) {
+            Some(slot) => return self.lists.at(*slot).get(0)
+            None => return none_index()
+        }
+    }
+}
