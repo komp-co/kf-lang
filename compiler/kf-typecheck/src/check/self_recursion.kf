@@ -6,6 +6,7 @@
 import alloc.list.*
 
 import kf_core.span.*
+import kf_core.ast.Sym
 import kf_core.ast.lang_display_key
 import kf_core.ast.expression.Expr
 import kf_core.diagnostic.new_label
@@ -64,10 +65,10 @@ fun emit_self_recursive_operator(op: str, method_name: str, instead: str, span: 
 
 /// `${self}` lowers to `<lang string>.of(&(...))`, reaching `display` through
 /// the trait object, which the method-call check cannot see.
-fun reject_self_recursive_render(recv: &Expr, method_name: &String, args: &List<Expr>, span: Span, ctx: &var TypeCtx): bool {
+fun reject_self_recursive_render(recv_written: Sym, method_name: &String, args: &List<Expr>, span: Span, ctx: &var TypeCtx): bool {
     if !ctx.defining_trait_method(ctx.lang_trait_name(lang_display_key()).as_str(), "display") { return false }
     if !method_name.as_str().equals("of") { return false }
-    if !recv.bare_variable_name().as_str().equals(ctx.string_name().as_str()) { return false }
+    if !recv_written.as_str().equals(ctx.string_name().as_str()) { return false }
     if args.size() != 1 { return false }
     if !is_bare_self(args.at(0)) { return false }
     emit_self_recursive_operator("\${self}", "display", "render the fields", span, ctx)

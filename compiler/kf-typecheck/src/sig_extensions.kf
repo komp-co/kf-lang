@@ -1,25 +1,42 @@
 // Which registered names are extensions, and what each is called.
 
 import alloc.list.*
+import alloc.hash_map.*
+
+import kf_core.ast.Sym
 
 impl SigTable {
+    /// Records an extension called `name`, registered as `link`, whose trait
+    /// receiver became `trait_param` (or the empty name).
+    pub mutating fun insert_extension(name: Sym, link: Sym, trait_param: Sym): void {
+        val at = self.ext_names.size()
+        self.ext_names.push(name)
+        self.ext_links.push(link)
+        self.ext_trait_params.push(trait_param)
+        self.ext_by_link.add(link.as_string(), at)
+        self.ext_by_name.add(name.as_string(), at)
+    }
+
+    pub fun has_extension(name: str): bool {
+        return self.ext_by_name.has(name)
+    }
+
+    /// The positions of the extensions called `name`, in registration order.
+    pub fun extensions_named(name: str): List<uint64> {
+        return self.ext_by_name.positions(name)
+    }
+
     /// An extension's own name for its hidden one; others unchanged.
     pub fun surface_name(name: str): String {
-        var i: uint64 = 0
-        while i < self.ext_links.size() {
-            if self.ext_links.get(i).as_str().equals(name) { return self.ext_names.get(i).as_string() }
-            i = i + 1
-        }
-        return String.from(name)
+        val at = self.ext_by_link.first(name)
+        if at == none_index() { return String.from(name) }
+        return self.ext_names.get(at).as_string()
     }
 
     /// The parameter a trait receiver became, or "".
     pub fun receiver_trait_param(link: str): String {
-        var i: uint64 = 0
-        while i < self.ext_links.size() {
-            if self.ext_links.get(i).as_str().equals(link) { return self.ext_trait_params.get(i).as_string() }
-            i = i + 1
-        }
-        return ""
+        val at = self.ext_by_link.first(link)
+        if at == none_index() { return "" }
+        return self.ext_trait_params.get(at).as_string()
     }
 }

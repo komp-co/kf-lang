@@ -13,34 +13,34 @@ import kf_typecheck.types.*
 import kf_typecheck.traits.str_list_has
 import kf_core.runtime.runtime_function_returns
 
-fun is_box_new_recv(recv_kind: ExprKind, method_name: String): bool {
-    val is_new = method_name.as_str().equals("new")
-    if !is_new { return false }
-    return when (recv_kind) {
-        Variable(vn) => vn.as_str().equals("Box")
-        _ => false
+/// The name a receiver written as a bare name writes, or the empty name.
+/// The receiver helpers below take it rather than the receiver, which would
+/// be copied.
+fun Expr.written_receiver(): Sym {
+    return when (self.kind) {
+        Variable(name) => name
+        _ => intern("")
     }
 }
 
-// The type a Variable receiver names, or "": the sign of `Type.method(...)`.
-fun static_recv_type_name(recv_kind: ExprKind, ctx: &var TypeCtx): String {
-    when (recv_kind) {
-        Variable(written) => {
-            // A local shadows a type of its name.
-            if ctx.is_declared(written.as_str()) { return "" }
-            val n = written.receiver_type_name(ctx)
-            val sp = ctx.sigs
-            val sptr = unsafe { sp.find_struct(n.as_str(), ctx.owner_crate) }
-            if sptr.is_some() { return n.as_string() }
-            val eptr = unsafe { sp.find_enum(n.as_str(), ctx.owner_crate) }
-            if eptr.is_some() { return n.as_string() }
-            // A primitive (`int32.max_value()`) is in neither registry.
-            if is_runtime_type_name(n.as_str()) { return n.as_string() }
-            if is_container_type_name(n.as_str(), ctx.list_name(), ctx.option_name()) { return n.as_string() }
-            return ""
-        }
-        _ => return ""
-    }
+fun is_box_new_recv(written: Sym, method_name: str): bool {
+    return method_name.equals("new") && written.as_str().equals("Box")
+}
+
+// The type a bare-name receiver names, or "": the sign of `Type.method(...)`.
+fun static_recv_type_name(written: Sym, ctx: &var TypeCtx): String {
+    // A local shadows a type of its name.
+    if written.as_str() == "" || ctx.is_declared(written.as_str()) { return "" }
+    val n = written.receiver_type_name(ctx)
+    val sp = ctx.sigs
+    val sptr = unsafe { sp.find_struct(n.as_str(), ctx.owner_crate) }
+    if sptr.is_some() { return n.as_string() }
+    val eptr = unsafe { sp.find_enum(n.as_str(), ctx.owner_crate) }
+    if eptr.is_some() { return n.as_string() }
+    // A primitive (`int32.max_value()`) is in neither registry.
+    if is_runtime_type_name(n.as_str()) { return n.as_string() }
+    if is_container_type_name(n.as_str(), ctx.list_name(), ctx.option_name()) { return n.as_string() }
+    return ""
 }
 
 /// `Self` inside an impl names the impl's type; any other name names itself.
@@ -55,28 +55,18 @@ fun Sym.receiver_type_name(ctx: &var TypeCtx): Sym {
 
 /// `Trait.method(value, ...)`: trait-qualified dispatch, looked up among
 /// traits.
-fun trait_recv_name(recv_kind: ExprKind, ctx: &var TypeCtx): String {
-    when (recv_kind) {
-        Variable(n) => {
-            if ctx.is_declared(n.as_str()) { return "" }
-            val tp = unsafe { (*ctx.sigs).find_trait(n.as_str()) }
-            if tp.is_some() { return n.as_string() }
-            return ""
-        }
-        _ => return ""
-    }
+fun trait_recv_name(written: Sym, ctx: &var TypeCtx): String {
+    if written.as_str() == "" || ctx.is_declared(written.as_str()) { return "" }
+    val tp = unsafe { (*ctx.sigs).find_trait(written.as_str()) }
+    if tp.is_some() { return written.as_string() }
+    return ""
 }
 
 // A generic parameter in scope as a static receiver (`T.from(v)`): marked
 // static with a placeholder callee Mono rewrites once `T` is known.
-fun generic_static_recv_name(recv_kind: ExprKind, ctx: &var TypeCtx): String {
-    when (recv_kind) {
-        Variable(n) => {
-            if str_list_has(&ctx.generics, n.as_str()) { return n.as_string() }
-            return ""
-        }
-        _ => return ""
-    }
+fun generic_static_recv_name(written: Sym, ctx: &var TypeCtx): String {
+    if written.as_str() != "" && str_list_has(&ctx.generics, written.as_str()) { return written.as_string() }
+    return ""
 }
 
 // `Enum.method(...)` naming a variant is a constructor, not a static call.
@@ -162,7 +152,7 @@ pub fun ty_from_mangle_frag(frag: String, span: Span, string_name: Sym): Type {
     return Type { kind: TypeKind.Struct(intern(frag.as_str())), provenance: Provenance.Inferred(span) }
 }
 
-fun expr_is_lit_str(e: Expr): bool {
+fun expr_is_lit_str(e: &Expr): bool {
     return when (e.kind) {
         LitStr(_) => true
         _ => false

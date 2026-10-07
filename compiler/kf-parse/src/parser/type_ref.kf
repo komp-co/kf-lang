@@ -295,7 +295,7 @@ fun TypeRef.unsized_array_element(): TypeRef? {
     }
 }
 
-fun tyref_is_poison(tr: TypeRef): bool {
+fun tyref_is_poison(tr: &TypeRef): bool {
     return when (tr.kind) {
         Named(_n, _a) => false
         DynTrait(_n, _a) => false

@@ -11,20 +11,21 @@ pub fun note_import_use(sp: Ptr<SigTable>, file: uint32, module: Sym): void {
     note_import_use_named(sp, file, module, Sym { id: 0 })
 }
 
-/// One entry per distinct (file, module, name). Scanned backwards, since a
-/// file's uses repeat in runs.
+/// A name a file resolved through an import of a module, by id.
+@derive(Copy, Equal, Hash)
+pub struct ImportUse {
+    val file: uint32
+    val module: uint32
+    val name: uint32
+}
+
+/// One entry per distinct (file, module, name).
 pub fun note_import_use_named(sp: Ptr<SigTable>, file: uint32, module: Sym, name: Sym): void {
     if file == 0 { return }
     if module.id == 0 { return }
-    var i = unsafe { sp.used_files.size() }
-    while i > 0 {
-        i = i - 1
-        if unsafe { sp.used_files.get(i) } == file {
-            if unsafe { sp.used_modules.get(i).id } == module.id {
-                if unsafe { sp.used_names.get(i).id } == name.id { return }
-            }
-        }
-    }
+    val key = ImportUse { file: file, module: module.id, name: name.id }
+    if unsafe { sp.used_seen.contains(&key) } { return }
+    unsafe { sp.used_seen.insert(key, true) }
     unsafe { sp.used_files.push(file) }
     unsafe { sp.used_modules.push(module) }
     unsafe { sp.used_names.push(name) }

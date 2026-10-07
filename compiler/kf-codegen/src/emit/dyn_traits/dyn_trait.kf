@@ -169,7 +169,7 @@ pub fun Expr.emit_dyn_coerce(inner: Ptr<Expr>, vtable: Sym): String {
     return concat_all(parts)
 }
 
-pub fun Expr.emit_dyn_call(receiver: Ptr<Expr>, method: Sym, args: List<Expr>): String {
+pub fun Expr.emit_dyn_call(receiver: Ptr<Expr>, method: Sym, args: &List<Expr>): String {
     var parts = List.new<String>()
     parts.push("Dyn__${self.dynamic_layout.dyn_codegen_identity()}__${method.as_string()}(")
     parts.push(emit_expr(unsafe { &*receiver }))

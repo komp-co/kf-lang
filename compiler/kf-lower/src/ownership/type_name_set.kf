@@ -1,0 +1,21 @@
+// A set of type names whose membership test does not walk them.
+
+import alloc.hash_map.*
+
+pub struct TypeNameSet {
+    var index: HashMap<String, bool>
+}
+
+pub fun new_type_name_set(): TypeNameSet {
+    return TypeNameSet { index: HashMap.new<String, bool>() }
+}
+
+impl TypeNameSet {
+    pub mutating fun add(name: String): void {
+        if !self.index.contains(&name) { self.index.insert(name, true) }
+    }
+
+    pub fun contains(name: str): bool {
+        return self.index.contains(&String.from_literal(name))
+    }
+}

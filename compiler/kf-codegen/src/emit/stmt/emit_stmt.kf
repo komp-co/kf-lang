@@ -27,7 +27,7 @@ pub fun emit_block(stmts: &List<Stmt>, indent: uint64, env: &var LocalEnv): Stri
     return concat_all(parts)
 }
 
-pub fun emit_stmt(s: Stmt, indent: uint64, env: &var LocalEnv): String {
+pub fun emit_stmt(s: &Stmt, indent: uint64, env: &var LocalEnv): String {
     return when (s.kind) {
         LetVal(name, ty_p, init_p) => emit_let(name.as_string(), ty_p.view(), init_p.view(), indent, env)
         LetVar(name, ty_p, init_p) => emit_let(name.as_string(), ty_p.view(), init_p.view(), indent, env)
@@ -49,7 +49,7 @@ pub fun emit_stmt(s: Stmt, indent: uint64, env: &var LocalEnv): String {
     }
 }
 
-fun emit_if(cp: Ptr<Expr>, then_body: List<Stmt>, else_body: List<Stmt>, indent: uint64, env: &var LocalEnv): String {
+fun emit_if(cp: Ptr<Expr>, then_body: &List<Stmt>, else_body: &List<Stmt>, indent: uint64, env: &var LocalEnv): String {
     val cond = unsafe { *cp }
     var parts = List.new<String>()
     parts.push(emit_indent(indent))
@@ -67,7 +67,7 @@ fun emit_if(cp: Ptr<Expr>, then_body: List<Stmt>, else_body: List<Stmt>, indent:
     return concat_all(parts)
 }
 
-fun emit_while(cp: Ptr<Expr>, body: List<Stmt>, indent: uint64, env: &var LocalEnv): String {
+fun emit_while(cp: Ptr<Expr>, body: &List<Stmt>, indent: uint64, env: &var LocalEnv): String {
     val cond = unsafe { *cp }
     // A targeting `break` lowers to `goto <label>` to escape a `switch`; the
     // label is emitted only when the body breaks.
@@ -170,7 +170,7 @@ mutating fun LocalEnv.emit_break(indent: uint64): String {
 
 // An enum subject switches on its tag; any other subject is a plain value
 // switch.
-fun emit_switch(sp: Ptr<Expr>, arms: List<SwitchArm>, indent: uint64, env: &var LocalEnv): String {
+fun emit_switch(sp: Ptr<Expr>, arms: &List<SwitchArm>, indent: uint64, env: &var LocalEnv): String {
     val subj = unsafe { *sp }
     val ename = when_subject_enum_name(subj.ty)
     val enl = ename.as_str().byte_len()
@@ -196,7 +196,7 @@ fun emit_switch(sp: Ptr<Expr>, arms: List<SwitchArm>, indent: uint64, env: &var 
 
 // A whole-subject binder gets the block-scoped `__when_subj`; otherwise a bare
 // `switch (<subject>)`.
-fun emit_scalar_switch(subj: Expr, arms: List<SwitchArm>, indent: uint64, env: &var LocalEnv): String {
+fun emit_scalar_switch(subj: &Expr, arms: &List<SwitchArm>, indent: uint64, env: &var LocalEnv): String {
     val binds = arms_have_binders(arms)
     var parts = List.new<String>()
     var body_indent = indent
@@ -229,7 +229,7 @@ fun emit_scalar_switch(subj: Expr, arms: List<SwitchArm>, indent: uint64, env: &
 
 // The subject is bound once to a block-scoped `__when_subj`, then each arm is
 // `case kf__tag__<Enum>__<Variant>:` plus its payload binds.
-fun emit_enum_switch(subj: Expr, ename: String, arms: List<SwitchArm>, through_ref: bool, by_address: bool,
+fun emit_enum_switch(subj: &Expr, ename: String, arms: &List<SwitchArm>, through_ref: bool, by_address: bool,
     indent: uint64, env: &var LocalEnv): String {
     var parts = List.new<String>()
     parts.push(emit_indent(indent))
@@ -248,7 +248,7 @@ fun emit_enum_switch(subj: Expr, ename: String, arms: List<SwitchArm>, through_r
     return concat_all(parts)
 }
 
-fun emit_enum_arm(a: SwitchArm, ename: String, through_ref: bool, by_address: bool, indent: uint64,
+fun emit_enum_arm(a: &SwitchArm, ename: String, through_ref: bool, by_address: bool, indent: uint64,
     env: &var LocalEnv): String {
     var parts = List.new<String>()
     parts.push(emit_indent(indent))
@@ -272,7 +272,7 @@ fun emit_enum_arm(a: SwitchArm, ename: String, through_ref: bool, by_address: bo
                     // Records the binder's release function, since the C type
                     // is only known to C. A reference owns nothing.
                     var rel = String.from("")
-                    if !by_ref { rel = env.arm_payloads.arm_payload_release(ename.as_str(), name.as_str(), bi) }
+                    if !by_ref { rel = env.payload_release(ename.as_str(), name.as_str(), bi) }
                     env.env_bind(b.as_string(), rel)
                 }
             }
@@ -309,7 +309,7 @@ fun emit_subject_binders(a: &SwitchArm, by_address: bool, indent: uint64): Strin
     return concat_all(parts)
 }
 
-fun arms_have_binders(arms: List<SwitchArm>): bool {
+fun arms_have_binders(arms: &List<SwitchArm>): bool {
     while arm in &arms {
         if arm.binders.size() > 0 { return true }
     }
@@ -345,7 +345,7 @@ pub fun enum_name_of_type(t: Type): String {
     }
 }
 
-fun arms_have_variant(arms: List<SwitchArm>): bool {
+fun arms_have_variant(arms: &List<SwitchArm>): bool {
     while item in &arms {
         val tag = item.tag
         when (tag) {

@@ -46,18 +46,16 @@ fun blocked_extension_owner(name: str, recv: &Type, ctx: &var TypeCtx): String {
 }
 
 fun bound_blocked_signature(name: str, recv: &Type, ctx: &var TypeCtx): FnSignature? {
-    val names = unsafe { (*ctx.sigs).ext_names }
     val links = unsafe { (*ctx.sigs).ext_links }
+    val positions = unsafe { (*ctx.sigs).extensions_named(name) }
     val have = autoderef_ty(recv.clone())
-    while i in 0..names.size() {
-        if names.get(i).as_str().equals(name) {
-            when (unsafe { (*ctx.sigs).find_signature(links.get(i).as_str()) }) {
-                Some(sig) => {
-                    val blocked = sig.first_unmet_bound(&have, ctx).byte_len() > 0
-                    if blocked && sig.extension_visible(ctx) { return sig }
-                }
-                None => { }
+    while k in 0..positions.size() {
+        when (unsafe { (*ctx.sigs).find_signature(links.get(positions.get(k)).as_str()) }) {
+            Some(sig) => {
+                val blocked = sig.first_unmet_bound(&have, ctx).byte_len() > 0
+                if blocked && sig.extension_visible(ctx) { return sig }
             }
+            None => { }
         }
     }
     return null

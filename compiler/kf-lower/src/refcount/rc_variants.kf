@@ -1,10 +1,13 @@
 // Which payloads of each enum variant own something. An arm's binders carry
 // no type, and releasing an `int32` would call `int32_drop`, which does not
-// exist. One row per payload, in flat parallel lists.
+// exist. One row per payload, in flat parallel lists, indexed by
+// `owner/variant` and by owner.
 
 import alloc.list.*
 
 import kf_core.ast.Module
+import kf_core.ast.NameIndex
+import kf_core.ast.new_name_index
 import kf_core.ast.types.TypeRef
 
 pub struct VariantPayloads {
@@ -12,6 +15,8 @@ pub struct VariantPayloads {
     var variants: List<String>
     var indices: List<uint64>
     var tynames: List<String>
+    var by_variant: NameIndex
+    var by_owner: NameIndex
 }
 
 pub fun no_variant_payloads(): VariantPayloads {
@@ -19,7 +24,9 @@ pub fun no_variant_payloads(): VariantPayloads {
         owners: List.new<String>(),
         variants: List.new<String>(),
         indices: List.new<uint64>(),
-        tynames: List.new<String>()
+        tynames: List.new<String>(),
+        by_variant: new_name_index(),
+        by_owner: new_name_index()
     }
 }
 
@@ -41,6 +48,9 @@ pub fun Module.variant_payloads_of(): VariantPayloads {
                     val v = *variants.at(vi)
                     var pi = 0
                     while pi < v.payloads.size() {
+                        val row = out.owners.size()
+                        out.by_variant.add("${td.name.as_str()}/${v.name.as_str()}", row)
+                        out.by_owner.add(td.name.as_string(), row)
                         out.owners.push(td.name.as_string())
                         out.variants.push(v.name.as_string())
                         out.indices.push(pi)
@@ -59,32 +69,19 @@ pub fun Module.variant_payloads_of(): VariantPayloads {
 /// 0 for no payloads and for an unknown variant alike; ask
 /// `variant_payloads_knows` when the difference matters.
 pub fun VariantPayloads.variant_payload_count(owner: str, variant: str): uint64 {
-    var n: uint64 = 0
-    var i = 0
-    while i < self.owners.size() {
-        if self.owners.at(i).as_str().equals(owner) && self.variants.at(i).as_str().equals(variant) {
-            n = n + 1
-        }
-        i = i + 1
-    }
-    return n
+    return self.by_variant.positions("${owner}/${variant}".as_str()).size()
 }
 
 pub fun VariantPayloads.variant_payload_type(owner: str, variant: str, idx: uint64): String {
-    var i = 0
-    while i < self.owners.size() {
-        if self.owners.at(i).as_str().equals(owner) && self.variants.at(i).as_str().equals(variant) {
-            if self.indices.get(i) == idx { return self.tynames.at(i).clone() }
-        }
-        i = i + 1
+    val rows = self.by_variant.positions("${owner}/${variant}".as_str())
+    while k in 0..rows.size() {
+        val row = rows.get(k)
+        if self.indices.get(row) == idx { return self.tynames.at(row).clone() }
     }
     return ""
 }
 
 /// "No payloads anywhere" and "never seen" must not be conflated.
 pub fun VariantPayloads.variant_payloads_knows(name: str): bool {
-    while owner in &self.owners {
-        if owner.as_str().equals(name) { return true }
-    }
-    return false
+    return self.by_owner.has(name)
 }

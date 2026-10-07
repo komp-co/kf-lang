@@ -101,18 +101,26 @@ impl String {
     }
 
     pub mutating fun append(s: str): void {
-        // Owned, so `text.append(text.as_str())` is safe across a realloc.
-        val suffix = String.from(s)
-        val add_len: uint64 = suffix.len
+        val add_len: uint64 = unsafe { kf_str_byte_len(s) }
         val combined: uint64 = self.len + add_len
         if combined < self.len { panic_with(Fault.CapacityOverflow) }
-        self.reserve_total(combined + 1)
-        var i = 0
-        while i < add_len {
-            unsafe { *(self.data + self.len + i) = *(suffix.data + i) }
-            i = i + 1
+        if combined + 1 > self.cap && self.holds(s) {
+            // Copied first, so `text.append(text.as_str())` is safe across the
+            // realloc.
+            val suffix = String.from(s)
+            self.reserve_total(combined + 1)
+            while i in 0..add_len {
+                unsafe { *(self.data + self.len + i) = *(suffix.data + i) }
+            }
+        } else {
+            // Within capacity, a suffix inside this buffer lies before `len`,
+            // where nothing is written.
+            self.reserve_total(combined + 1)
+            while i in 0..add_len {
+                unsafe { *(self.data + self.len + i) = kf_str_byte_at(s, i) }
+            }
         }
-        self.len = self.len + add_len
+        self.len = combined
         unsafe { *(self.data + self.len) = 0 as uint8 }
     }
 
@@ -139,6 +147,14 @@ impl String {
 
     /// The borrowed bytes copied into a buffer of `cap` bytes, at least the
     /// text and its terminator.
+    /// Whether `s` points into this string's own buffer.
+    fun holds(s: str): bool {
+        if self.cap == 0 { return false }
+        val at = unsafe { s as Ptr<uint8> as uint64 }
+        val start = unsafe { self.data as uint64 }
+        return at >= start && at < start + self.cap
+    }
+
     mutating fun own_bytes(cap: uint64): void {
         val data = unsafe { alloc_array<uint8>(cap) }
         while i in 0..self.len {

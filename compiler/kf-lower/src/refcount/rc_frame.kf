@@ -26,13 +26,13 @@ pub struct RcCtx {
     pub var fn_name: String
     pub var frame_stack: List<RcFrame>
     pub var block_counter: uint64
-    pub var move_only_names: List<String>
+    pub var move_only_names: TypeNameSet
     /// Types whose values cannot hold a borrow; see rc_borrow_free.kf.
-    pub var borrow_free: List<String>
+    pub var borrow_free: TypeNameSet
     // Decides per callee whether a by-value String argument transfers
     // ownership (a komp function drops it) or is only lent (an extern keeps
     // the caller's drop).
-    pub var ptable: Ptr<List<ParamEntry>>
+    pub var ptable: Ptr<ParamTable>
     // Which payloads of each variant own something. By pointer: built once.
     pub var variants: Ptr<VariantPayloads>
     // The graph's `@lang("string")` type, or the empty name.
@@ -40,16 +40,16 @@ pub struct RcCtx {
 }
 
 pub fun new_rc_ctx(fn_name: String): RcCtx {
-    val tp: Ptr<List<ParamEntry>> = unsafe { alloc<List<ParamEntry>>() }
-    unsafe { *tp = List.new<ParamEntry>() }
+    val tp: Ptr<ParamTable> = unsafe { alloc<ParamTable>() }
+    unsafe { *tp = new_param_table() }
     val vp: Ptr<VariantPayloads> = unsafe { alloc<VariantPayloads>() }
     unsafe { *vp = no_variant_payloads() }
     return RcCtx {
         fn_name: fn_name,
         frame_stack: List.new<RcFrame>(),
         block_counter: 0,
-        move_only_names: List.new<String>(),
-        borrow_free: List.new<String>(),
+        move_only_names: new_type_name_set(),
+        borrow_free: new_type_name_set(),
         ptable: tp,
         variants: vp,
         string_name: intern("")
@@ -57,7 +57,7 @@ pub fun new_rc_ctx(fn_name: String): RcCtx {
 }
 
 /// The module's parameter table and variant payloads, for every function.
-pub mutating fun RcCtx.use_tables(params: Ptr<List<ParamEntry>>, variants: Ptr<VariantPayloads>): void {
+pub mutating fun RcCtx.use_tables(params: Ptr<ParamTable>, variants: Ptr<VariantPayloads>): void {
     self.ptable = params
     self.variants = variants
 }
@@ -247,7 +247,7 @@ fun is_heap_ty_rc(ty: Type): bool {
 
 /// Already owned, needing no retain: a `from(...)`, `List.new<T>()`, a heap
 /// struct literal, a Retain.
-fun is_fresh_alloc(e: Expr): bool {
+fun is_fresh_alloc(e: &Expr): bool {
     when (e.kind) {
         Call(name, _) => {
             val s = name.as_str()

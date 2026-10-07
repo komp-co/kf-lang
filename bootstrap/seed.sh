@@ -5,8 +5,9 @@
 #   seed_build DIR    leaves DIR/komp0, the driver, and DIR/kflatc, the seed
 #
 # The driver is the seed's own komp.c when it ships one, as the releases made
-# before komp had a repository of its own do; otherwise the komp binary that
-# `komp_url` names, checked against `komp_sha256`.
+# before komp had a repository of its own do; otherwise the archive that
+# `komp_url` names, checked against `komp_sha256`: a komp release's
+# bin/komp, or an older seed's komp.c.
 #
 # The pinned release is fetched once into the cache and verified against its
 # sha256 on every use. `KFLAT_SEED=<path to a seed tarball>` uses that one
@@ -89,9 +90,8 @@ seed_build() {
     (cd "$1/seed" && "${CC:-cc}" ${CFLAGS:--O2} -c -o kflatc.o kflatc.c) || return 1
     "${CC:-cc}" ${CFLAGS:--O2} -o "$1/kflatc" "$1/seed/kflatc.o" || return 1
     if [ -f "$1/seed/komp.c" ]; then
-        (cd "$1/seed" && "${CC:-cc}" ${CFLAGS:--O2} -c -o komp.o komp.c) || return 1
-        "${CC:-cc}" ${CFLAGS:--O2} -o "$1/komp0" "$1/seed/komp.o" || return 1
-        return 0
+        komp_from_c "$1/seed" "$1/komp0"
+        return
     fi
     komp_url="$(seed_field komp_url)"
     [ -n "$komp_url" ] || { echo "FAIL: the seed ships no komp.c and stage0.toml names no komp_url" >&2; return 1; }
@@ -99,5 +99,19 @@ seed_build() {
     fetch_verified "$komp_url" "$komp_archive" "$(seed_field komp_sha256)" || return 1
     mkdir -p "$1/driver"
     tar -xzf "$komp_archive" -C "$1/driver" --strip-components=1 || return 1
-    cp "$1/driver/bin/komp" "$1/komp0" || { echo "FAIL: $komp_url holds no bin/komp" >&2; return 1; }
+    # A komp release holds bin/komp; an older seed, which also serves, komp.c.
+    if [ -f "$1/driver/bin/komp" ]; then
+        cp "$1/driver/bin/komp" "$1/komp0"
+    elif [ -f "$1/driver/komp.c" ]; then
+        komp_from_c "$1/driver" "$1/komp0"
+    else
+        echo "FAIL: $komp_url holds neither bin/komp nor komp.c" >&2
+        return 1
+    fi
+}
+
+# komp_from_c DIR OUT — compiles DIR/komp.c into the driver OUT.
+komp_from_c() {
+    (cd "$1" && "${CC:-cc}" ${CFLAGS:--O2} -c -o komp.o komp.c) || return 1
+    "${CC:-cc}" ${CFLAGS:--O2} -o "$2" "$1/komp.o" || return 1
 }

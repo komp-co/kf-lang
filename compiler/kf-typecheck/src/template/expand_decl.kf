@@ -28,16 +28,11 @@ fun Module.expand_for(template: &TopDecl, marked: &TopDecl, annotation: uint64, 
         fields: marked.field_facts(),
         args: self.use_arguments(marked, annotation),
         shapes: self.annotation_shapes(),
-        binder: intern(""),
-        member: 0,
+        bound: List.new<Bound>(),
         diags: List.new<Diagnostic>()
     }
     when (template.kind) {
-        Template(_kind, _param, body) => {
-            while decl in &body {
-                out.push(decl.expanded_decl(&var x))
-            }
-        }
+        Template(_kind, _param, body) => out = expanded_decls(&body, &var x)
         _ => {}
     }
     while diag in &x.diags {
@@ -113,15 +108,17 @@ fun Module.annotation_shapes(): List<AnnotationShape> {
 
 fun TopDecl.expanded_decl(x: &var Expansion): TopDecl {
     var out = self.clone()
-    if self.name.id == x.marked.id { out.name = x.type_name }
+    out.name = if self.name.id == x.marked.id { x.type_name } else { x.built(self.name, self.decl_name_span()) }
     out.module_path = x.home
     out.resolves_in = self.module_path
+    out.member_loop = null
     when (self.kind) {
         Function(params, ret, body, is_pub, is_unsafe, is_mutating, is_static) => {
             val expanded = expanded_params(&params, x)
             if self.ext_name.as_str().byte_len() > 0 && expanded.size() > 0 {
+                out.ext_name = x.built(self.ext_name, self.decl_name_span())
                 val receiver = expanded.at(0).ty.through_reference()
-                out.name = intern(extension_link_name(self.ext_name.as_str(), &receiver).as_str())
+                out.name = intern(extension_link_name(out.ext_name.as_str(), &receiver).as_str())
             }
             out.kind = TopDeclKind.Function(expanded, Box.new(ret.expanded_type(x)), expand_stmts(&body, x), is_pub,
                 is_unsafe, is_mutating, is_static)
@@ -130,25 +127,8 @@ fun TopDecl.expanded_decl(x: &var Expansion): TopDecl {
         TraitImpl(trait_ref, methods) => {
             out.kind = TopDeclKind.TraitImpl(Box.new(trait_ref.expanded_type(x)), expanded_decls(&methods, x))
         }
-        Struct(fields, is_pub) => {
-            var expanded = List.new<Field>()
-            while field in &fields {
-                val ty = Box.new(field.ty.expanded_type(x))
-                var copy = new_field(field.span, field.name.as_string(), ty, field.is_var, field.is_pub)
-                copy.annotations = field.annotations.clone()
-                expanded.push(copy)
-            }
-            out.kind = TopDeclKind.Struct(expanded, is_pub)
-        }
+        Struct(fields, is_pub) => out.kind = TopDeclKind.Struct(expanded_fields(&fields, x), is_pub)
         _ => {}
-    }
-    return out
-}
-
-fun expanded_decls(decls: &List<TopDecl>, x: &var Expansion): List<TopDecl> {
-    var out = List.new<TopDecl>()
-    while decl in &decls {
-        out.push(decl.expanded_decl(x))
     }
     return out
 }

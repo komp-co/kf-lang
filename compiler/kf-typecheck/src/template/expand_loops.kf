@@ -1,0 +1,96 @@
+// A member loop where declarations or fields go: the items one loop holds,
+// written out once per field with its binder standing for that field.
+
+import alloc.list.*
+
+import kf_core.ast.declaration.*
+
+/// Each declaration expanded in order, a member loop's once per field.
+fun expanded_decls(decls: &List<TopDecl>, x: &var Expansion): List<TopDecl> {
+    var out = List.new<TopDecl>()
+    var start: uint64 = 0
+    while start < decls.size() {
+        val group = decls.at(start).member_loop.clone()
+        var end = start + 1
+        while end < decls.size() && same_loop(&group, &decls.at(end).member_loop) { end = end + 1 }
+        val members = x.loop_members(&group)
+        while member in 0..members {
+            x.enter_member(&group, member)
+            while i in start..end {
+                out.push(decls.at(i).expanded_decl(x))
+            }
+            x.leave_member(&group)
+        }
+        start = end
+    }
+    return out
+}
+
+/// Each field of a struct a template adds, a member loop's once per field
+/// of the marked struct.
+fun expanded_fields(fields: &List<Field>, x: &var Expansion): List<Field> {
+    var out = List.new<Field>()
+    var start: uint64 = 0
+    while start < fields.size() {
+        val group = fields.at(start).member_loop.clone()
+        var end = start + 1
+        while end < fields.size() && same_loop(&group, &fields.at(end).member_loop) { end = end + 1 }
+        val members = x.loop_members(&group)
+        while member in 0..members {
+            x.enter_member(&group, member)
+            while i in start..end {
+                out.push(fields.at(i).expanded_field(x))
+            }
+            x.leave_member(&group)
+        }
+        start = end
+    }
+    return out
+}
+
+fun Field.expanded_field(x: &var Expansion): Field {
+    return Field {
+        span: self.span, name: x.built(self.name, self.span), ty: Box.new(self.ty.expanded_type(x)),
+        is_var: self.is_var, is_pub: self.is_pub, is_internal: self.is_internal,
+        annotations: self.annotations.clone(), member_loop: null
+    }
+}
+
+/// Whether two items are written in one loop, or both outside any.
+fun same_loop(a: &MemberLoop?, b: &MemberLoop?): bool {
+    return when (a) {
+        Some(left) => when (b) {
+            Some(right) => left.group == right.group
+            None => false
+        }
+        None => false
+    }
+}
+
+impl Expansion {
+    /// How many copies a run of items gets: one per field in a loop, one
+    /// outside, none for a loop inside another, which is reported.
+    mutating fun loop_members(group: &MemberLoop?): uint64 {
+        return when (group) {
+            Some(written) => {
+                if self.in_member() {
+                    self.report(written.span, String.from("a member loop cannot be inside another"))
+                    return 0
+                }
+                self.fields.size()
+            }
+            None => 1
+        }
+    }
+
+    mutating fun enter_member(group: &MemberLoop?, member: uint64): void {
+        when (group) {
+            Some(written) => self.bind(written.binder, member)
+            None => {}
+        }
+    }
+
+    mutating fun leave_member(group: &MemberLoop?): void {
+        if group != null { self.unbind() }
+    }
+}

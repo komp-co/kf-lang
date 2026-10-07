@@ -10,24 +10,25 @@ import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.type_identity_display
 import kf_core.ast.declaration.TopDecl
-import kf_lower.ownership.names_contains
+import kf_lower.ownership.TypeNameSet
+import kf_lower.ownership.new_type_name_set
 
 /// Every struct and enum whose fields, transitively, are scalars, the lang
 /// string, a `Box` of such, or such types. The lang string owns its buffer,
 /// and a lang list the elements behind its pointer.
-pub fun Module.borrow_free_names(string_name: Sym, list_name: Sym): List<String> {
-    var free = List.new<String>()
+pub fun Module.borrow_free_names(string_name: Sym, list_name: Sym): TypeNameSet {
+    var free = new_type_name_set()
     while td in &self.decls {
-        if td.is_struct_or_enum() { free.push(td.name.as_string()) }
+        if td.is_struct_or_enum() { free.add(td.name.as_string()) }
     }
     var changed = true
     while changed {
         changed = false
-        var kept = List.new<String>()
+        var kept = new_type_name_set()
         while td in &self.decls {
-            if td.is_struct_or_enum() && names_contains(&free, td.name.as_str()) {
+            if td.is_struct_or_enum() && free.contains(td.name.as_str()) {
                 if td.name == string_name || td.fields_hold_no_borrow(&free, string_name, list_name) {
-                    kept.push(td.name.as_string())
+                    kept.add(td.name.as_string())
                 } else {
                     changed = true
                 }
@@ -46,7 +47,7 @@ fun TopDecl.is_struct_or_enum(): bool {
     }
 }
 
-fun TopDecl.fields_hold_no_borrow(free: &List<String>, string_name: Sym, list_name: Sym): bool {
+fun TopDecl.fields_hold_no_borrow(free: &TypeNameSet, string_name: Sym, list_name: Sym): bool {
     val owns_pointees = self.lang_key_of().as_str().equals(lang_list_key())
     when (self.kind) {
         Struct(fields, _p) => {
@@ -68,7 +69,7 @@ fun TopDecl.fields_hold_no_borrow(free: &List<String>, string_name: Sym, list_na
 }
 
 /// `owns_pointees`: a `Ptr` here owns what it points at, as a list's does.
-fun TypeRef.holds_no_borrow(free: &List<String>, string_name: Sym, list_name: Sym, owns_pointees: bool): bool {
+fun TypeRef.holds_no_borrow(free: &TypeNameSet, string_name: Sym, list_name: Sym, owns_pointees: bool): bool {
     when (self.kind) {
         Named(n, args) => {
             if is_scalar_type_name(n.as_str()) || n == string_name { return true }
@@ -79,7 +80,7 @@ fun TypeRef.holds_no_borrow(free: &List<String>, string_name: Sym, list_name: Sy
                 }
                 return true
             }
-            return args.size() == 0 && names_contains(free, n.as_str())
+            return args.size() == 0 && free.contains(n.as_str())
         }
         _ => return false
     }
@@ -120,8 +121,8 @@ fun Type.holds_no_borrow(ctx: &RcCtx): bool {
         Bool => true
         Char => true
         Void => true
-        Struct(n) => names_contains(&ctx.borrow_free, type_identity_display(n).as_str())
-        EnumTy(n) => names_contains(&ctx.borrow_free, type_identity_display(n).as_str())
+        Struct(n) => ctx.borrow_free.contains(type_identity_display(n).as_str())
+        EnumTy(n) => ctx.borrow_free.contains(type_identity_display(n).as_str())
         _ => false
     }
 }

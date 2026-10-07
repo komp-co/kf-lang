@@ -57,7 +57,7 @@ fun list_returns(stmts: &List<Stmt>, name: str, views: &List<String>): bool {
 
 /// Hands `origin` to a consuming parameter or returns it. A borrowing
 /// parameter, or an argument already marked for auto-clone, does not count.
-fun Stmt.stmt_moves(origin: str, ptable: Ptr<List<ParamEntry>>): bool {
+fun Stmt.stmt_moves(origin: str, ptable: Ptr<ParamTable>): bool {
     when (self.kind) {
         Expression(e) => return expr_moves(unsafe { &*e }, origin, ptable)
         LetVal(_n, _t, init) => return init_moves(init.view(), origin, ptable)
@@ -73,12 +73,12 @@ fun Stmt.stmt_moves(origin: str, ptable: Ptr<List<ParamEntry>>): bool {
     }
 }
 
-fun init_moves(init_opt: Ptr<Expr>?, origin: str, ptable: Ptr<List<ParamEntry>>): bool {
+fun init_moves(init_opt: Ptr<Expr>?, origin: str, ptable: Ptr<ParamTable>): bool {
     val init = init_opt ?: return false
     return expr_moves(unsafe { &*init }, origin, ptable)
 }
 
-fun expr_moves(e: &Expr, origin: str, ptable: Ptr<List<ParamEntry>>): bool {
+fun expr_moves(e: &Expr, origin: str, ptable: Ptr<ParamTable>): bool {
     when (e.kind) {
         Call(name, args) => return args_move(&args, origin, name.as_string(), 0, ptable)
         Intrinsic(_i, args) => return args_move(&args, origin, String.from(""), 0, ptable)
@@ -98,7 +98,7 @@ fun expr_moves(e: &Expr, origin: str, ptable: Ptr<List<ParamEntry>>): bool {
     }
 }
 
-fun args_move(args: &List<Expr>, origin: str, callee: String, base: uint64, ptable: Ptr<List<ParamEntry>>): bool {
+fun args_move(args: &List<Expr>, origin: str, callee: String, base: uint64, ptable: Ptr<ParamTable>): bool {
     while i in 0..args.size() {
         val a = args.at(i)
         if a.arg_is_moved_origin(origin, callee.clone(), base + i, ptable) { return true }
@@ -107,7 +107,7 @@ fun args_move(args: &List<Expr>, origin: str, callee: String, base: uint64, ptab
     return false
 }
 
-fun Expr.arg_is_moved_origin(origin: str, callee: String, idx: uint64, ptable: Ptr<List<ParamEntry>>): bool {
+fun Expr.arg_is_moved_origin(origin: str, callee: String, idx: uint64, ptable: Ptr<ParamTable>): bool {
     when (self.kind) {
         Variable(n) => {
             if n.as_str() != origin { return false }

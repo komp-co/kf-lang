@@ -82,14 +82,8 @@ impl Lexer {
             return new_token(TokenKind.Newline, nl_span)
         }
 
-        if is_ident_start(b) {
+        if is_ident_start(b) || self.at_built_part() {
             return self.read_ident_or_keyword(start)
-        }
-
-        // `$field`: a template's splice, one identifier with its `$`.
-        if b == 36 && is_ident_start(self.peek_at(1)) {
-            val _dollar = self.advance()
-            return self.read_splice(start)
         }
 
         if is_digit(b) {
@@ -112,8 +106,14 @@ impl Lexer {
 
     mutating fun read_ident_or_keyword(start: uint32): Token {
         val fid: uint32 = self.file_id
-        while !(self.at_end()) && is_ident_continue(self.peek()) {
-            unsafe { self.advance() }
+        while !(self.at_end()) {
+            if is_ident_continue(self.peek()) {
+                unsafe { self.advance() }
+            } else if self.at_built_part() {
+                self.skip_built_part()
+            } else {
+                break
+            }
         }
         val end: uint32 = self.pos as uint32
         val lex_str = slice_to_string(self.src.as_str(), start, end)
@@ -125,16 +125,6 @@ impl Lexer {
             None => TokenKind.Identifier(intern(lex_str.as_str()))
         }
         return new_token(kind, span)
-    }
-
-    mutating fun read_splice(start: uint32): Token {
-        while !(self.at_end()) && is_ident_continue(self.peek()) {
-            val _byte = self.advance()
-        }
-        val end: uint32 = self.pos as uint32
-        val name = slice_to_string(self.src.as_str(), start, end)
-        val span = Span { file_id: self.file_id, start: start, end: end }
-        return new_token(TokenKind.Identifier(intern(name.as_str())), span)
     }
 
     mutating fun read_number(start: uint32): Token {

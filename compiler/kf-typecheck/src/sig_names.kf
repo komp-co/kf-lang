@@ -1,0 +1,48 @@
+// The signature list and its indexes by name: each name's registrations in
+// order, and the heads a method lookup asks for.
+
+import alloc.list.*
+import alloc.hash_map.*
+
+import core.text.byte_at_in
+
+impl SigTable {
+    pub mutating fun insert(sig: FnSignature): void {
+        // A name's first registration is indexed; each later one is linked
+        // from the one before it.
+        val key = String.from(sig.name.as_str())
+        val at = self.sigs.size()
+        var last = none_index()
+        when (self.sig_last.get(&key)) {
+            Some(previous) => last = *previous
+            None => {}
+        }
+        if last == none_index() {
+            self.sig_index.insert(key.clone(), at)
+        } else {
+            self.sig_next[last] = at
+        }
+        self.sig_last.insert(key, at)
+        self.sig_next.push(none_index())
+        val name = sig.name.as_str()
+        val n = name.byte_len()
+        var j: uint64 = 0
+        while j + 1 < n {
+            if name.byte_at_in(n, j) == 95 && name.byte_at_in(n, j + 1) == 95 {
+                self.sig_heads.add(name.substring(0, j), at)
+            }
+            j = j + 1
+        }
+        self.sig_heads.add(String.from(name), at)
+        self.sigs.push(sig)
+    }
+
+    /// The first position registered under `name`, or `none_index()`; the
+    /// rest follow through `sig_next`.
+    pub fun first_named(name: str): uint64 {
+        when (self.sig_index.get(&String.from_literal(name))) {
+            Some(at) => return *at
+            None => return none_index()
+        }
+    }
+}

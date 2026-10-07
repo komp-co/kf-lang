@@ -11,7 +11,7 @@ template fields_equal on struct T {
     impl Equal for T {
         fun equals(other: &T): bool {
             while field in T.fields {
-                if self.$field != other.$field { return false }
+                if field.of(self) != field.of(other) { return false }
             }
             return true
         }
@@ -55,7 +55,7 @@ In each block:
 
 | Written | Becomes |
 |---|---|
-| `self.$field` | the field, `self.x` |
+| `field.of(self)` | the field read from `self`, `self.x` |
 | `field.name` | its name as a string, `"x"` |
 | `field.index` | its position, `0` |
 | `field.type` (in a type) | its type, `int32` |
@@ -64,6 +64,90 @@ In each block:
 
 Outside a loop, `T.name` is the struct's name, `T.fields.size()` the number of
 fields, and `args` the arguments the annotation's use was written with.
+
+`T.build(|field| e)` is a literal of the marked struct, `e` written once per
+field with `field` standing for it: `T { x: e(x), y: e(y) }`. Inside a member
+loop the two binders name different fields, so a template can rebuild a value
+with one field changed:
+
+```kflat
+annotation rebuilt on struct
+
+template rebuilt on struct T {
+    impl T {
+        while field in T.fields {
+            fun with_${field.name}(value: field.type): T {
+                return T.build(|other| if other.index == field.index { value } else { other.of(self) })
+            }
+        }
+    }
+}
+
+@rebuilt
+struct Point {
+    val x: int32
+    val y: int64
+}
+
+fun main(): int32 {
+    val p = Point { x: 1, y: 2 }.with_y(40)
+    return p.x + p.y as int32 - 41
+}
+```
+
+The condition is facts alone, so for each field only one branch is written:
+`with_y` builds `Point { x: self.x, y: value }`, and the other branch, an
+`int64` where an `int32` goes, is never checked.
+
+### Mapping and filtering the fields
+
+`T.fields.map(|field| e)` writes `e` once per field into an array literal,
+`[e(x), e(y)]`. An array is `Iterable`, so `all`, `any`, `count` and `fold`
+take it, and nothing is allocated, in a crate on `core` alone too.
+`T.fields.filter(|field| c)` keeps the fields `c` holds for, and `size()`
+counts them:
+
+```kflat
+annotation hidden on field
+annotation compared on struct
+
+template compared on struct T {
+    impl Equal for T {
+        fun equals(other: &T): bool {
+            return T.fields.map(|field| field.of(self) == field.of(other)).all(|same: bool| same)
+        }
+    }
+
+    fun T.shown_total(): int64 {
+        val shown = T.fields.filter(|field| !field.has<hidden>()).map(|field| field.of(self) as int64)
+        return shown.fold(0 as int64, |sum: int64, x: int64| sum + x)
+    }
+}
+
+@compared
+struct Point {
+    val x: int32
+    @hidden
+    val secret: int32
+    val y: int64
+}
+
+fun main(): int32 {
+    val a = Point { x: 1, secret: 99, y: 2 }
+    if !(a == a) { return 1 }
+    return (a.shown_total() - 3) as int32
+}
+```
+
+Each copy of `e` is checked on its own, so `field.of(self)` may have a
+different type for each field, but the copies must share one type: they are
+one array's elements. Every element is evaluated before an adapter sees any,
+so each field is compared even when an earlier one already made `all` false;
+a member loop that returns early is the choice when that matters.
+
+`filter` decides which fields are kept while the program compiles, so its
+condition is facts alone: `has<A>()`, `name` and `index`. A member loop may
+walk a filter too, `while field in T.fields.filter(|field| !field.has<hidden>())`.
 
 An `if` or `when` whose condition is made of these facts alone is decided while
 the program compiles: only the branch taken is kept, so the other need not make
@@ -109,10 +193,58 @@ user User with 3 fields: 0=id 1=login
 ```
 
 Any other variable in a template is an ordinary one, living while the program
-runs. `field` itself is not a value: use one of its facts, or `$field`.
+runs. `field` itself is not a value: use one of its facts, or read it with
+`field.of(x)`. That is a place as well as a value, so `field.of(out) = value`
+assigns to `out`'s field.
 
-A member loop is written out once per field rather than run, so `break` and
-`continue` cannot leave it. A loop of their own inside it still can.
+A member loop is written out once per field rather than run, but `break` and
+`continue` act as in any loop. One the facts decide, such as
+`if field.has<last>() { break }`, ends the copies there, and nothing of it is
+left in the program. One decided while the program runs,
+`if field.of(self) == 0 { break }`, skips the copies after it, or, for
+`continue`, the rest of this one. A `break` or `continue` in a loop of its own
+inside the member loop belongs to that loop.
+
+### Where a member loop goes
+
+A member loop may also stand where declarations go, among a template's
+declarations or an `impl`'s methods, and among the fields of a struct the
+template adds. What it holds is then written once per field:
+
+```kflat
+annotation accessors on struct
+
+template accessors on struct T {
+    struct ${T.name}Parts {
+        while field in T.fields {
+            val ${field.name}: field.type
+        }
+    }
+
+    impl T {
+        while field in T.fields {
+            fun get_${field.name}(): field.type { return field.of(self) }
+        }
+    }
+}
+
+@accessors
+struct Point {
+    val x: int32
+    val y: int32
+}
+
+fun main(): int32 {
+    val p = Point { x: 3, y: 4 }
+    val parts = PointParts { x: p.get_x(), y: p.get_y() }
+    return parts.x + parts.y - 7
+}
+```
+
+`Point` gets `get_x` and `get_y`, and `PointParts` a field for each of
+`Point`'s. A name written out per field is built from `field.name`, as
+[below](#names-built-from-facts) says, or every copy would have the same one.
+A member loop inside another is an error, wherever either stands.
 
 ## Where the code lives
 
@@ -120,6 +252,52 @@ What a template adds belongs to the marked struct's module: an extension
 function it adds is called there without an import. Names in the template
 resolve where the template is written, so it can call its own module's
 private helpers, and a user of the annotation imports only the annotation.
+
+## Names built from facts
+
+`${...}` inside a name builds it from facts, as it does inside a string
+literal: `${T.name}Summary` is `PointSummary` for `Point`. So what a template
+adds can be named after the struct it marks, and two marked structs do not
+collide:
+
+```kflat
+annotation summarized(verb: str) on struct
+
+template summarized on struct T {
+    struct ${T.name}Summary {
+        val count: int64
+    }
+
+    fun T.${args.verb}_summary(): ${T.name}Summary {
+        return ${T.name}Summary { count: T.fields.size() as int64 }
+    }
+}
+
+@summarized("make")
+struct Point {
+    val x: int32
+    val y: int32
+}
+
+@summarized("take")
+struct Size {
+    val width: int32
+    val height: int32
+}
+
+fun main(): int32 {
+    val p: PointSummary = Point { x: 1, y: 2 }.make_summary()
+    val s: SizeSummary = Size { width: 3, height: 4 }.take_summary()
+    return (p.count + s.count - 4) as int32
+}
+```
+
+A name is built from `T.name`, a member loop's `field.name`, and text in
+`args`; nothing else, and no casing or other change to them. Any name in a
+template may be built: a declaration, a parameter or a field, a variable, and
+a name that refers to one of them, in a type too. A type is never built from a
+field: `field.type` is the field's type. Outside a template a built name is an
+error, since nothing writes it out.
 
 ## Errors
 
@@ -141,8 +319,6 @@ naming the struct it was adding to.
 ## Limits
 
 Templates add to structs of their own crate only, and not to a generic struct.
-A name a template adds cannot be spliced (`with_$field`), so a free function or
-a type in a template is added once per marked struct under one name, and
-collides when two structs are marked. A `pub` extension function a template
-adds cannot be imported by another module. [Limitations](../limitations.md#templates)
+A `pub` extension function a template adds cannot be imported by another
+module. [Limitations](../limitations.md#templates)
 lists each with its issue.

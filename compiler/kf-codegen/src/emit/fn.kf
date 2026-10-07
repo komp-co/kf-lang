@@ -142,7 +142,7 @@ mutating fun Stmt.deref_self_stmt(owner: str): void {
 }
 
 /// `<ret> <name>(<params>)`, with no `;` or body.
-pub fun emit_fn_proto(td: TopDecl): String {
+pub fun emit_fn_proto(td: &TopDecl): String {
     val tdk = td.kind
     when (tdk) {
         Function(params, ret, _b, _p, _u, _m, is_static) => {
@@ -157,7 +157,7 @@ pub fun emit_fn_proto(td: TopDecl): String {
     }
 }
 
-fun emit_params(params: List<Param>): String {
+fun emit_params(params: &List<Param>): String {
     if params.size() == 0 { return String.from("void") }
     var parts = List.new<String>()
     while i in 0..params.size() {
@@ -172,13 +172,13 @@ fun emit_params(params: List<Param>): String {
     return concat_all(parts)
 }
 
-pub fun emit_fn_forward(td: TopDecl): String {
+pub fun emit_fn_forward(td: &TopDecl): String {
     return "${emit_fn_proto(td)};\n"
 }
 
 // `ret Struct_m(Struct* __self, args)`: the mangled name call sites use, with
 // the receiver prepended.
-pub fun emit_method_proto(struct_name: String, td: TopDecl): String {
+pub fun emit_method_proto(struct_name: String, td: &TopDecl): String {
     val tdk = td.kind
     when (tdk) {
         Function(params, ret, _b, _p, _u, _m, is_static) => {
@@ -194,12 +194,12 @@ pub fun emit_method_proto(struct_name: String, td: TopDecl): String {
 
 /// For a parameter: a `void` parameter is a unit the caller still passes, so
 /// it needs storage. In return position `void` stays erased.
-fun emit_method_value_type(struct_name: String, tref: TypeRef): String {
+fun emit_method_value_type(struct_name: String, tref: &TypeRef): String {
     if tref.is_void() { return String.from("kf_unit") }
     return emit_method_type(struct_name, tref)
 }
 
-fun emit_method_type(struct_name: String, tref: TypeRef): String {
+fun emit_method_type(struct_name: String, tref: &TypeRef): String {
     when (tref.kind) {
         Named(name, args) => {
             if name.as_str().equals("Self") && args.size() == 0 { return c_type_name(struct_name) }
@@ -209,7 +209,7 @@ fun emit_method_type(struct_name: String, tref: TypeRef): String {
     return tref.c_type()
 }
 
-fun fn_is_static(td: TopDecl): bool {
+fun fn_is_static(td: &TopDecl): bool {
     return when (td.kind) {
         Function(_p, _r, _b, _pub, _u, _m, is_static) => is_static
         _ => false
@@ -218,7 +218,7 @@ fun fn_is_static(td: TopDecl): bool {
 
 // An instance method takes `Struct* __self`; a `static fun` takes only its
 // declared params, `(void)` when there are none.
-fun emit_method_params(struct_name: String, params: List<Param>, is_static: bool): String {
+fun emit_method_params(struct_name: String, params: &List<Param>, is_static: bool): String {
     var parts = List.new<String>()
     var first: bool = true
     if !is_static {
@@ -238,11 +238,11 @@ fun emit_method_params(struct_name: String, params: List<Param>, is_static: bool
     return concat_all(parts)
 }
 
-pub fun emit_method_forward(struct_name: String, td: TopDecl): String {
+pub fun emit_method_forward(struct_name: String, td: &TopDecl): String {
     return "${emit_method_proto(struct_name, td)};\n"
 }
 
-pub fun emit_method(struct_name: String, td: TopDecl, payloads: &ArmPayloads): String {
+pub fun emit_method(struct_name: String, td: &TopDecl, payloads: &ArmPayloads): String {
     var body = td.extract_body()
     if !fn_is_static(td) {
         deref_self_stmt_list(&var body, struct_name.as_str())
@@ -255,7 +255,7 @@ pub fun emit_method(struct_name: String, td: TopDecl, payloads: &ArmPayloads): S
     return concat_all(parts)
 }
 
-pub fun emit_fn(td: TopDecl, payloads: &ArmPayloads): String {
+pub fun emit_fn(td: &TopDecl, payloads: &ArmPayloads): String {
     val is_main = td.name.as_str() == "main"
     if is_main {
         return emit_main_fn(td, payloads)
@@ -269,7 +269,7 @@ pub fun emit_fn(td: TopDecl, payloads: &ArmPayloads): String {
     return concat_all(parts)
 }
 
-fun emit_main_fn(td: TopDecl, payloads: &ArmPayloads): String {
+fun emit_main_fn(td: &TopDecl, payloads: &ArmPayloads): String {
     val body = td.extract_body()
     val ends_with_return = body_ends_with_return(body)
     var env = build_param_env(td, payloads)
@@ -286,9 +286,9 @@ fun emit_main_fn(td: TopDecl, payloads: &ArmPayloads): String {
 
 // Parameters seed the env, so a by-value heap param is released at scope
 // exit; borrowed params are pointers and need none.
-fun build_param_env(td: TopDecl, payloads: &ArmPayloads): LocalEnv {
+fun build_param_env(td: &TopDecl, payloads: &ArmPayloads): LocalEnv {
     var env = new_local_env()
-    env.arm_payloads = payloads.clone_arm_payloads()
+    env.arm_payloads = Option.Some(payloads)
     val tdk = td.kind
     when (tdk) {
         Function(params, ret_p, _b, _p, _u, _m, is_static) => {
@@ -330,7 +330,7 @@ fun TopDecl.extract_body(): List<Stmt> {
     }
 }
 
-fun body_ends_with_return(body: List<Stmt>): bool {
+fun body_ends_with_return(body: &List<Stmt>): bool {
     if body.size() == 0 { return false }
     val last = *body.at(body.size() - 1)
     val lk = last.kind

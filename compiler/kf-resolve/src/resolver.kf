@@ -28,7 +28,7 @@ fun register_decl(decls: &var List<TopDecl>, idx: uint64, table: &var DeclTable)
 
 /// Impls, traits and associated types are reached through the type or trait
 /// they belong to, never by a bare name, so they take no table entry.
-fun TopDecl.should_register_decl(): bool {
+pub fun TopDecl.should_register_decl(): bool {
     return when (self.kind) {
         Function(_, _, _, _, _, _, _) => true
         Struct(_, _) => true

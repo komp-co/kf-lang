@@ -10,7 +10,6 @@ import kf_core.ast.expression.ExprKind
 import kf_core.ast.expression.coerce_clone
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
-import kf_lower.ownership.names_contains
 
 /// A hand-written `.clone()` is fresh whatever its receiver.
 fun Expr.expr_is_clone_call(): bool {
@@ -20,7 +19,7 @@ fun Expr.expr_is_clone_call(): bool {
     }
 }
 
-fun is_fresh_owned_producer(rev: Expr, ctx: &var RcCtx): bool {
+fun is_fresh_owned_producer(rev: &Expr, ctx: &var RcCtx): bool {
     // The auto-clone coerce is fresh too.
     if rev.coerce == coerce_clone() { return true }
     if rev.expr_is_clone_call() { return true }
@@ -132,7 +131,7 @@ mutating fun Stmt.rc_insert_in_list(before: &var List<Stmt>, after: &var List<St
 
 // `val x = y` on a heap type: ownership moves, with no retain and no release
 // of the source. "" if not a bare variable.
-fun move_source_name(init: Expr): String {
+fun move_source_name(init: &Expr): String {
     return when (init.kind) {
         Variable(n) => n.as_string()
         _ => ""
@@ -140,7 +139,7 @@ fun move_source_name(init: Expr): String {
 }
 
 // `val v = *ptr` binds a borrow: no retain, no scope-exit drop.
-fun is_deref_init(init: Expr): bool {
+fun is_deref_init(init: &Expr): bool {
     return when (init.kind) {
         Deref(_) => true
         _ => false
@@ -150,7 +149,7 @@ fun is_deref_init(init: Expr): bool {
 enum BindingMode { OwnedFresh, OwnedRetain, Moved, Borrowed }
 
 // A call returning a move-only value by value hands off ownership.
-fun is_move_only_call_result(init: Expr, ctx: &var RcCtx): bool {
+fun is_move_only_call_result(init: &Expr, ctx: &var RcCtx): bool {
     return when (init.kind) {
         Call(_, _) => init.ty.is_move_only(ctx)
         Intrinsic(_, _) => init.ty.is_move_only(ctx)
@@ -162,7 +161,7 @@ fun is_move_only_call_result(init: Expr, ctx: &var RcCtx): bool {
 
 // A binary producing a move-only value is fresh: concat borrows its operands
 // and a struct operator returns a new value.
-fun is_fresh_binary(init: Expr, ctx: &var RcCtx): bool {
+fun is_fresh_binary(init: &Expr, ctx: &var RcCtx): bool {
     return when (init.kind) {
         Binary(_, _, _) => init.ty.is_move_only(ctx)
         _ => false
@@ -182,7 +181,7 @@ fun if_branch_is_owned(bp: Ptr<Expr>, ctx: &var RcCtx): bool {
 }
 
 /// Every branch must be fresh; `if c { *xs.at(i) } else { fresh }` is not.
-fun is_move_only_if_expr(init: Expr, ctx: &var RcCtx): bool {
+fun is_move_only_if_expr(init: &Expr, ctx: &var RcCtx): bool {
     when (init.kind) {
         IfExpr(_c, t_ptr, e_ptr) => {
             if !init.ty.is_move_only(ctx) { return false }
@@ -193,7 +192,7 @@ fun is_move_only_if_expr(init: Expr, ctx: &var RcCtx): bool {
     }
 }
 
-fun classify_binding(init: Expr, ctx: &var RcCtx): BindingMode {
+fun classify_binding(init: &Expr, ctx: &var RcCtx): BindingMode {
     // Must come first: an auto-cloned init owns a fresh copy and must not mark
     // its source moved.
     if init.coerce == coerce_clone() { return BindingMode.OwnedFresh }
@@ -253,9 +252,9 @@ fun Type.is_move_only(ctx: &var RcCtx): bool {
         BoxOf(_) => return true
         Struct(n) => {
             val name = type_identity_display(n)
-            return names_contains(ctx.move_only_names, name.as_str())
+            return ctx.move_only_names.contains(name.as_str())
         }
-        EnumTy(n) => return names_contains(ctx.move_only_names, type_identity_display(n).as_str())
+        EnumTy(n) => return ctx.move_only_names.contains(type_identity_display(n).as_str())
         _ => return false
     }
 }

@@ -1,0 +1,60 @@
+// `while field in T.fields { ... }` where a template's declarations, an
+// impl's methods or a struct's fields go: each item inside is marked with the
+// loop, which expansion writes out once per field.
+
+import kf_core.ast.intern
+import kf_core.ast.declaration.MemberLoop
+import kf_parse.parser.*
+
+impl Parser {
+    /// At `while` where a list's next item goes, inside a template.
+    fun at_member_loop(): bool {
+        return self.template_param.as_str().byte_len() > 0 && is_keyword(self.peek(), Keyword.While)
+    }
+
+    /// `while NAME in T.fields {`, consumed: the items up to its `}` belong
+    /// to the loop.
+    mutating fun open_member_loop(): void {
+        val at = self.peek().span
+        self.advance() // consume `while`
+        if self.member_loop != null {
+            self.parse_err(at, String.from("a member loop cannot be inside another"))
+        }
+        val binder = self.expect_name("member loop binder")
+        self.advance()
+        val list = "`${self.template_param.as_str()}.fields`"
+        if !self.take_keyword(Keyword.In) {
+            self.parse_err(self.peek().span, "expected `in ${list}` after the member loop's binder")
+        }
+        val owner = self.expect_name("member list")
+        self.advance()
+        val _dot = self.expect_op(Operator.Dot, "between the template's type and `fields`")
+        val member_at = self.peek().span
+        val member = self.expect_name("member list")
+        self.advance()
+        if owner.as_str() != self.template_param.as_str() || member.as_str() != "fields" {
+            self.parse_err(member_at, "a member loop walks ${list}, the marked struct's fields")
+        }
+        val _open = self.expect_op(Operator.LBrace, "to open the member loop")
+        self.loop_ctr = self.loop_ctr + 1
+        self.member_loop = MemberLoop { span: at, binder: intern(binder.as_str()), group: self.loop_ctr }
+    }
+
+    /// At a list's `}`: whether it closes a member loop, consumed, rather
+    /// than the list.
+    mutating fun closes_member_loop(): bool {
+        if self.member_loop == null { return false }
+        self.advance()
+        self.member_loop = null
+        return true
+    }
+
+    /// A list opening inside a member loop starts outside it: its items
+    /// belong to the declaration that holds them. The loop is handed back for
+    /// `self.member_loop` once the list closes.
+    mutating fun set_member_loop_aside(): MemberLoop? {
+        val outer = self.member_loop.clone()
+        self.member_loop = null
+        return outer
+    }
+}

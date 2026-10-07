@@ -54,11 +54,11 @@ fun Module.impl_target_is_pub(name: str): bool {
     return false
 }
 
-fun Module.method_is_header_export(target: str, method: TopDecl): bool {
+fun Module.method_is_header_export(target: str, method: &TopDecl): bool {
     return method.method_emits_code() && self.impl_target_is_pub(target) && (method_is_pub(method) || method.from_trait_impl)
 }
 
-pub fun method_is_pub(method: TopDecl): bool {
+pub fun method_is_pub(method: &TopDecl): bool {
     return when (method.kind) {
         Function(_p, _r, _b, is_pub, _u, _mut, _st) => is_pub
         _ => false

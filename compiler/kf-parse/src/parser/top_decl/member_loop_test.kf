@@ -1,0 +1,80 @@
+import core.assert.assert_eq
+
+import kf_core.ast.declaration.MemberLoop
+import kf_core.ast.declaration.TopDecl
+import kf_parse.parser.parser_for
+import testing.test
+
+fun looped_template(): str {
+    return """template parts on struct T {
+    struct Parts {
+        val first: int32
+        while field in T.fields {
+            val f: field.type
+        }
+    }
+    impl T {
+        while field in T.fields {
+            fun a(): void { }
+            fun b(): void { }
+        }
+        fun c(): void { }
+    }
+    while field in T.fields {
+        fun T.d(): void { }
+    }
+}"""
+}
+
+/// `name:group` for each item of the template, its fields and its methods.
+fun TopDecl.loop_marks(): String {
+    var out = String.from("")
+    when (self.kind) {
+        Template(_kind, _marked, body) => {
+            while item in &body {
+                out.append(" ${item.name.as_str()}:${mark_of(&item.member_loop)}")
+                when (item.kind) {
+                    Struct(fields, _pub) => {
+                        while field in &fields {
+                            out.append(" ${field.name.as_str()}:${mark_of(&field.member_loop)}")
+                        }
+                    }
+                    ImplBlock(methods) => {
+                        while method in &methods {
+                            out.append(" ${method.name.as_str()}:${mark_of(&method.member_loop)}")
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        _ => {}
+    }
+    return out
+}
+
+fun mark_of(mark: &MemberLoop?): String {
+    return when (mark) {
+        Some(written) => "${written.binder.as_str()}${written.group}"
+        None => String.from("-")
+    }
+}
+
+@test fun a_member_loop_marks_what_it_holds(): void {
+    var p = parser_for(looped_template())
+    val td = p.parse_top_decl()
+    assert_eq(p.diags.size(), 0, "no errors")
+    assert_eq(td.loop_marks().as_str(), " Parts:- first:- f:field1 T:- a:field2 b:field2 c:- d_ext_T:field3", "marks")
+}
+
+@test fun a_member_loop_outside_a_template_is_not_one(): void {
+    var p = parser_for("struct P {\n    while field in T.fields { }\n}")
+    val _td = p.parse_top_decl()
+    assert_eq(p.diags.size() > 0, true, "`while` is no field of a struct")
+}
+
+@test fun a_member_loop_walks_the_marked_fields(): void {
+    var p = parser_for("template t on struct T {\n    while field in U.fields { }\n}")
+    val _td = p.parse_top_decl()
+    assert_eq(p.diags.size(), 1, "`U` is not the template's struct")
+}

@@ -11,9 +11,10 @@ sh bootstrap/build.sh
 
 `stage0.toml` pins the seed: a release version, the URL of its
 `kflat-seed-<version>.tar.gz`, and that file's sha256. It pins the driver too,
-as `komp_url` and `komp_sha256`, a released komp archive holding `bin/komp`;
-a seed that ships its own `komp.c`, as the releases made before komp had a
-repository of its own do, needs neither. `seed.sh` fetches both once into
+as `komp_url` and `komp_sha256`: a released komp archive holding `bin/komp`,
+or an older seed holding `komp.c`, which `seed.sh` compiles. A seed that ships
+its own `komp.c`, as the releases made before komp had a repository of its own
+do, needs neither. `seed.sh` fetches both once into
 `~/.cache/kflat/seeds` and verifies them on every use; `KFLAT_SEED=<tarball>`
 uses a local seed instead.
 

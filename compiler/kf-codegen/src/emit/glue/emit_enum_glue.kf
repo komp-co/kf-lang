@@ -24,7 +24,7 @@ pub fun Module.emit_enum_tags(): String {
     return concat_all(parts)
 }
 
-fun emit_enum_tag(name: String, variants: List<Variant>): String {
+fun emit_enum_tag(name: String, variants: &List<Variant>): String {
     var parts = List.new<String>()
     // An enum with no variants is uninhabited; C has no empty enum, so the tag
     // gets some nameable type. The field stays for `<E>_drop` to switch on.
@@ -47,7 +47,7 @@ fun emit_enum_tag(name: String, variants: List<Variant>): String {
     return concat_all(parts)
 }
 
-fun emit_enum_body(name: String, variants: List<Variant>): String {
+fun emit_enum_body(name: String, variants: &List<Variant>): String {
     var parts = List.new<String>()
     val tag_type = enum_tag_type(name.as_str())
     // Nor an empty union; a switch with no cases is valid.
@@ -74,21 +74,22 @@ fun emit_enum_body(name: String, variants: List<Variant>): String {
 
 pub fun Module.emit_enum_drops(lookup: &Module): String {
     var parts = List.new<String>()
+    val facts = TypeFacts.of(lookup)
     val decls = self.decls
     while td in &decls {
         val k = td.kind
         when (k) {
-            EnumDecl(variants, _p) => parts.push(emit_enum_drop(td.name.as_string(), variants, lookup))
+            EnumDecl(variants, _p) => parts.push(emit_enum_drop(td.name.as_string(), variants, &facts))
             _ => {}
         }
     }
     return concat_all(parts)
 }
 
-fun emit_enum_drop(name: String, variants: List<Variant>, m: &Module): String {
+fun emit_enum_drop(name: String, variants: &List<Variant>, facts: &TypeFacts): String {
     var parts = List.new<String>()
     parts.push("static inline void ${name}__glue_drop(${name} v) {\n")
-    if type_has_user_drop(name, m) {
+    if facts.has_user_drop(name.as_str()) {
         parts.push("    ${name}_drop(&v);\n")
     }
     parts.push(String.from("    switch (v.tag) {\n"))
@@ -111,7 +112,7 @@ fun emit_enum_drop(name: String, variants: List<Variant>, m: &Module): String {
             } else {
                 // A Box one level down (`Opt(Box<T>?)`) is dropped on the shallow
                 // walk too.
-                val needs = ty_needs_drop_deep(pt, m) || tref_wraps_box(pt)
+                val needs = ty_needs_drop_deep(pt, facts) || tref_wraps_box(pt)
                 if needs {
                     val drop_fn = release_fn_for_ctype(pt.c_type().as_str())
                     parts.push("            ${drop_fn}(${lval});\n")
@@ -129,18 +130,19 @@ fun emit_enum_drop(name: String, variants: List<Variant>, m: &Module): String {
 // `<Enum>_retain`.
 pub fun Module.emit_enum_retains(lookup: &Module): String {
     var parts = List.new<String>()
+    val facts = TypeFacts.of(lookup)
     val decls = self.decls
     while td in &decls {
         val k = td.kind
         when (k) {
-            EnumDecl(variants, _p) => parts.push(emit_enum_retain(td.name.as_string(), variants, lookup))
+            EnumDecl(variants, _p) => parts.push(emit_enum_retain(td.name.as_string(), variants, &facts))
             _ => {}
         }
     }
     return concat_all(parts)
 }
 
-fun emit_enum_retain(name: String, variants: List<Variant>, m: &Module): String {
+fun emit_enum_retain(name: String, variants: &List<Variant>, facts: &TypeFacts): String {
     var parts = List.new<String>()
     parts.push(String.from("static inline "))
     parts.push(name.clone())
@@ -156,7 +158,7 @@ fun emit_enum_retain(name: String, variants: List<Variant>, m: &Module): String 
         var j = 0
         while j < v.payloads.size() {
             val pt = *v.payloads.at(j)
-            val needs = ty_needs_drop_deep(pt, m)
+            val needs = ty_needs_drop_deep(pt, facts)
             if needs {
                 val jstr = "${j}"
                 val ct = pt.c_type()
@@ -184,18 +186,19 @@ fun emit_enum_retain(name: String, variants: List<Variant>, m: &Module): String 
 // allocation holding a clone of the pointee.
 pub fun Module.emit_enum_clones(): String {
     var parts = List.new<String>()
+    val facts = TypeFacts.of(self)
     val decls = self.decls
     while td in &decls {
         val k = td.kind
         when (k) {
-            EnumDecl(variants, _p) => parts.push(emit_enum_clone(td.name.as_string(), variants, self))
+            EnumDecl(variants, _p) => parts.push(emit_enum_clone(td.name.as_string(), variants, &facts))
             _ => {}
         }
     }
     return concat_all(parts)
 }
 
-fun emit_enum_clone(name: String, variants: List<Variant>, m: &Module): String {
+fun emit_enum_clone(name: String, variants: &List<Variant>, facts: &TypeFacts): String {
     var parts = List.new<String>()
     parts.push(String.from("static inline "))
     parts.push(name.clone())
@@ -261,7 +264,7 @@ fun emit_enum_clone(name: String, variants: List<Variant>, m: &Module): String {
     parts.push(String.from("    }\n    return v;\n}\n\n"))
     // The default by-pointer `<E>_clone`, which a `T: Clone` bound calls.
     // Skipped when the enum writes its own `clone`.
-    if !type_has_user_clone(name.clone(), m) {
+    if !facts.has_user_clone(name.as_str()) {
         parts.push("static inline ${name} ${name}_clone(${name}* __self) { return ${name}__glue_clone(*__self); }\n\n")
     }
     return concat_all(parts)

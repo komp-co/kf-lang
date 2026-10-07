@@ -42,6 +42,20 @@ impl Param {
     pub fun retyped(ty: Ptr<TypeRef>): Param {
         return Param { span: self.span, name: self.name, ty: ty, default: self.default.clone() }
     }
+
+    /// False for a lambda's parameter written without a type, whose `ty` is
+    /// null until its `Call` bound gives it one.
+    pub fun is_typed(): bool { return unsafe { (self.ty as uint64) != 0 } }
+}
+
+/// `while field in T.fields { ... }` written where declarations or fields
+/// go in a template: what it holds is written out once per field. The items
+/// one loop holds share its `group`, so two loops side by side stay apart.
+@derive(Clone)
+pub struct MemberLoop {
+    pub val span: Span
+    pub val binder: Sym
+    pub val group: uint32
 }
 
 pub struct Field {
@@ -54,12 +68,14 @@ pub struct Field {
     pub var is_internal: bool
     /// The `@...` run above the field.
     pub var annotations: List<Annotation>
+    /// The member loop the field is written in, in a template.
+    pub var member_loop: MemberLoop?
 }
 
 pub fun new_field(span: Span, name: String, ty: Ptr<TypeRef>, is_var: bool, is_pub: bool): Field {
     return Field {
         span: span, name: intern(name.as_str()), ty: ty, is_var: is_var, is_pub: is_pub, is_internal: false,
-        annotations: List.new<Annotation>()
+        annotations: List.new<Annotation>(), member_loop: null
     }
 }
 
@@ -180,6 +196,8 @@ pub struct TopDecl {
     /// Written `internal`: visible to every module of its crate, and not
     /// exported. Its kind's `is_pub` is false.
     pub var is_internal: bool
+    /// The member loop the declaration is written in, in a template.
+    pub var member_loop: MemberLoop?
 }
 
 pub enum TopDeclKind {
@@ -265,7 +283,7 @@ pub fun new_top_decl(span: Span, name: String, kind: TopDeclKind): TopDecl {
         link_name: intern(""), dyn_layouts: List.new<DynTraitLayout>(),
         dyn_vtables: List.new<DynVTableInstance>(), decl_end: 0, name_span: no_span(), ext_name: intern(""),
         resolves_in: intern(""), is_sealed: false, is_view: false, implemented_lang_trait: intern(""),
-        is_internal: false
+        is_internal: false, member_loop: null
     }
 }
 

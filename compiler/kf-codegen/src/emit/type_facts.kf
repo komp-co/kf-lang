@@ -1,0 +1,120 @@
+// What glue asks about the types a module declares, gathered once from its
+// declarations so each question is a lookup rather than a walk of them.
+
+import alloc.list.*
+import alloc.hash_map.*
+
+import kf_core.ast.*
+import kf_core.ast.types.*
+
+pub struct TypeFacts {
+    /// Names with an impl declaring `drop`; post-mono `impl Drop for T` is a
+    /// plain ImplBlock.
+    var user_drop: HashMap<String, bool>
+    /// Names with an impl declaring a `clone` of their own, not a derived one.
+    var user_clone: HashMap<String, bool>
+    /// Each declared struct or enum that owns heap through a by-value member.
+    var owns_heap: HashMap<String, bool>
+}
+
+impl TypeFacts {
+    pub static fun of(m: &Module): TypeFacts {
+        var facts = TypeFacts {
+            user_drop: HashMap.new<String, bool>(), user_clone: HashMap.new<String, bool>(),
+            owns_heap: HashMap.new<String, bool>()
+        }
+        // CONSTRAINT: an impl block carries its type's name and may come
+        // first, so only the first struct or enum of a name answers for it.
+        var first = HashMap.new<String, uint64>()
+        while i in 0..m.decls.size() {
+            val td = m.decls.at(i)
+            val k = td.kind
+            when (k) {
+                ImplBlock(methods) => {
+                    while mth in &methods {
+                        if mth.name.as_str() == "drop" { facts.user_drop.insert(td.name.as_string(), true) }
+                        if mth.name.as_str() == "clone" && (&mth).annotation_words("derive").size() == 0 {
+                            facts.user_clone.insert(td.name.as_string(), true)
+                        }
+                    }
+                }
+                Struct(_fields, _is_pub) => first.note_first(td.name.as_string(), i)
+                EnumDecl(_variants, _is_pub) => first.note_first(td.name.as_string(), i)
+                _ => {}
+            }
+        }
+        // Ownership only grows from false to true, so this settles after as
+        // many rounds as by-value embedding is deep; it cannot cycle in a
+        // valid module.
+        var changed = true
+        while changed {
+            changed = false
+            while i in 0..m.decls.size() {
+                val td = m.decls.at(i)
+                val name = td.name.as_string()
+                if facts.owns_heap.contains(&name) || !first.is_first(&name, i) { continue }
+                if facts.members_own_heap(td) {
+                    facts.owns_heap.insert(name, true)
+                    changed = true
+                }
+            }
+        }
+        return facts
+    }
+
+    pub fun has_user_drop(name: str): bool {
+        return self.user_drop.contains(&String.from_literal(name))
+    }
+
+    pub fun has_user_clone(name: str): bool {
+        return self.user_clone.contains(&String.from_literal(name))
+    }
+
+    /// False for a name the module declares no struct or enum under.
+    pub fun declared_owns_heap(name: str): bool {
+        return self.owns_heap.contains(&String.from_literal(name))
+    }
+
+    fun members_own_heap(td: &TopDecl): bool {
+        val k = td.kind
+        when (k) {
+            Struct(fields, _is_pub) => {
+                while field in &fields {
+                    if self.member_owns_heap((*field.ty).clone()) { return true }
+                }
+            }
+            EnumDecl(variants, _is_pub) => {
+                while variant in &variants {
+                    val payloads = variant.payloads
+                    while j in 0..payloads.size() {
+                        if self.member_owns_heap(*payloads.at(j)) { return true }
+                    }
+                }
+            }
+            _ => {}
+        }
+        return false
+    }
+
+    // A Box owns its allocation even when its pointee owns no heap.
+    fun member_owns_heap(t: &TypeRef): bool {
+        when (t.kind) {
+            Named(name, args) => {
+                if name.as_str() == "Box" && args.size() == 1 { return true }
+            }
+            _ => {}
+        }
+        return ty_needs_drop_deep(t, self)
+    }
+}
+
+fun HashMap<String, uint64>.is_first(name: &String, i: uint64): bool {
+    when (self.get(name)) {
+        Some(at) => return *at == i
+        None => return false
+    }
+}
+
+mutating fun HashMap<String, uint64>.note_first(name: String, i: uint64): void {
+    if !self.contains(&name) { self.insert(name, i) }
+}

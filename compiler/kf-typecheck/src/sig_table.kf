@@ -249,7 +249,18 @@ pub struct SigTable {
     /// Positions in `sigs` by name. `sigs` is append-only and lookups want the
     /// first match; the index keeps both true while making the hot lookup fast.
     pub var sig_index: HashMap<String, uint64>
+    /// Parallel to `sigs`: the next position registered under the same name,
+    /// or `none_index()`, so a name's registrations are walked in order
+    /// without the others.
+    pub var sig_next: List<uint64>
+    /// The last position registered under each name, where its chain grows.
+    pub var sig_last: HashMap<String, uint64>
+    /// Positions by head: a signature's whole name, and each prefix of it
+    /// ending where a `__` starts. Only signatures under `OWNER_NAME` can
+    /// read as method NAME of OWNER.
+    pub var sig_heads: NameIndex
     pub var structs: List<StructLayout>
+    pub var struct_index: NameIndex
     pub var enums: List<EnumLayout>
     pub var generic_infos: List<GenericInfo>
     pub var traits: List<TraitInfo>
@@ -260,7 +271,10 @@ pub struct SigTable {
     pub var bounds: List<BoundInfo>
     pub var value_params: List<ValueParamInfo>
     pub var type_identities: List<TypeIdentity>
+    pub var identity_index: NameIndex
     pub var insts: List<GenericInst>
+    /// By mangled name.
+    pub var inst_index: NameIndex
     /// Where declarations are written, for `annotated<A>()` entries; null
     /// leaves them without a file and line.
     pub var smap: Ptr<SourceMap>
@@ -287,6 +301,8 @@ pub struct SigTable {
     pub var used_files: List<uint32>
     pub var used_modules: List<Sym>
     pub var used_names: List<Sym>
+    /// The triples already recorded.
+    pub var used_seen: HashMap<ImportUse, bool>
     /// `@no_mangle` types, whose impls share one C namespace.
     pub var no_mangle_types: List<String>
     /// View types by declared name, dependencies' included.
@@ -308,6 +324,9 @@ pub struct SigTable {
     pub var ext_names: List<Sym>
     pub var ext_links: List<Sym>
     pub var ext_trait_params: List<Sym>
+    /// Positions in the extension lists by hidden name, and by called name.
+    pub var ext_by_link: NameIndex
+    pub var ext_by_name: NameIndex
     /// Calls on untyped receivers, reported only if the check finds nothing
     /// else.
     pub var untyped_recv_spans: List<Span>
@@ -329,7 +348,11 @@ pub fun new_sig_table(): SigTable {
     return SigTable {
         sigs: List.new<FnSignature>(),
         sig_index: HashMap.new<String, uint64>(),
+        sig_next: List.new<uint64>(),
+        sig_last: HashMap.new<String, uint64>(),
+        sig_heads: new_name_index(),
         structs: List.new<StructLayout>(),
+        struct_index: new_name_index(),
         enums: List.new<EnumLayout>(),
         generic_infos: List.new<GenericInfo>(),
         traits: List.new<TraitInfo>(),
@@ -340,7 +363,9 @@ pub fun new_sig_table(): SigTable {
         bounds: List.new<BoundInfo>(),
         value_params: List.new<ValueParamInfo>(),
         type_identities: List.new<TypeIdentity>(),
+        identity_index: new_name_index(),
         insts: List.new<GenericInst>(),
+        inst_index: new_name_index(),
         smap: ptr_null<SourceMap>(),
         caller_files: List.new<uint32>(),
         imported_targets: List.new<Sym>(),
@@ -354,6 +379,7 @@ pub fun new_sig_table(): SigTable {
         used_files: List.new<uint32>(),
         used_modules: List.new<Sym>(),
         used_names: List.new<Sym>(),
+        used_seen: HashMap.new<ImportUse, bool>(),
         no_mangle_types: List.new<String>(),
         views: List.new<String>(),
         lang_string: intern(""),
@@ -367,6 +393,8 @@ pub fun new_sig_table(): SigTable {
         ext_names: List.new<Sym>(),
         ext_links: List.new<Sym>(),
         ext_trait_params: List.new<Sym>(),
+        ext_by_link: new_name_index(),
+        ext_by_name: new_name_index(),
         untyped_recv_spans: List.new<Span>(),
         untyped_recv_methods: List.new<Sym>(),
         fn_types: List.new<Type>(),

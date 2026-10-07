@@ -45,7 +45,7 @@ pub fun Expr.when_subject_enum(): String {
 /// Mirrors `is_move_only`'s Struct arm.
 /// A `Box` payload owns its pointee; it is in no move-only list by name.
 fun payload_owns(tyname: str, ctx: &var RcCtx): bool {
-    return tyname == "Box" || tyname.starts_with("Box__") || names_contains(ctx.move_only_names, tyname)
+    return tyname == "Box" || tyname.starts_with("Box__") || ctx.move_only_names.contains(tyname)
 }
 
 /// A `_` binder declines the payload, which the arm must still drop.
@@ -121,7 +121,7 @@ internal fun stmts_move_out(stmts: &List<Stmt>, name: str): bool {
     return false
 }
 
-fun stmt_moves_out(s: Stmt, name: str): bool {
+fun stmt_moves_out(s: &Stmt, name: str): bool {
     when (s.kind) {
         // `val s = <binder>` then `return Option.Some(s)`: the two-step escape
         // `?` and `?:` emit.

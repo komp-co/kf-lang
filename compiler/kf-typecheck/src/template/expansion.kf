@@ -21,6 +21,12 @@ struct FieldFacts {
     val span: Span
 }
 
+/// A binder standing for one field: a member loop's, or `T.build`'s.
+struct Bound {
+    val binder: Sym
+    val member: uint64
+}
+
 /// An annotation's parameter names in order, for `args` and `get<A>()`.
 struct AnnotationShape {
     val name: Sym
@@ -39,26 +45,43 @@ struct Expansion {
     /// `args.p`: each parameter's value at this use.
     val args: List<FieldInit>
     val shapes: List<AnnotationShape>
-    /// The member loop's binder, or "" outside one.
-    var binder: Sym
-    var member: uint64
+    /// The binders standing for a field here, innermost last.
+    var bound: List<Bound>
     var diags: List<Diagnostic>
 }
 
 impl Expansion {
-    fun in_member(): bool { return self.binder.as_str().byte_len() > 0 }
+    fun in_member(): bool { return self.bound.size() > 0 }
 
-    fun field(): &FieldFacts { return self.fields.at(self.member) }
+    /// The field the innermost binder stands for.
+    fun field(): &FieldFacts { return self.fields.at(self.bound.at(self.bound.size() - 1).member) }
+
+    /// The field `name` stands for, the innermost binder of that name; null
+    /// when none is bound here.
+    fun member_of(name: Sym): uint64? {
+        var i = self.bound.size()
+        while i > 0 {
+            i = i - 1
+            if self.bound.at(i).binder.id == name.id { return self.bound.at(i).member }
+        }
+        return null
+    }
+
+    mutating fun bind(binder: Sym, member: uint64): void {
+        self.bound.push(Bound { binder: binder, member: member })
+    }
+
+    mutating fun unbind(): void { val _left = self.bound.pop() }
 
     mutating fun report(at: Span, message: String): void {
         self.diags.push(error_at(at, message))
     }
 
-    /// `field.get<A>()`: `A`'s arguments on this field as a literal of its
+    /// `field.get<A>()`: `A`'s arguments on the field as a literal of its
     /// argument struct, or null without `@A` there.
-    fun member_arguments(annotation: Sym, span: Span): Expr? {
+    fun member_arguments(member: uint64, annotation: Sym, span: Span): Expr? {
         val params = self.params_of(annotation)
-        while use in &self.field().annotations {
+        while use in &self.fields.at(member).annotations {
             if use.name.id == annotation.id {
                 val inits = arguments_by_name(use, &params, span)
                 return Expr.new(span, ExprKind.StructLit(annotation, inits))
@@ -67,8 +90,8 @@ impl Expansion {
         return null
     }
 
-    fun has_member_annotation(annotation: Sym): bool {
-        while use in &self.field().annotations {
+    fun has_member_annotation(member: uint64, annotation: Sym): bool {
+        while use in &self.fields.at(member).annotations {
             if use.name.id == annotation.id { return true }
         }
         return false

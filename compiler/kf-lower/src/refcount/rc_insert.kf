@@ -12,7 +12,8 @@ import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TopDeclKind
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
-import kf_lower.ownership.*
+import kf_lower.ownership.build_param_table
+import kf_lower.ownership.compute_move_only_names
 pub mutating fun Module.rc_insert_module(list_name: Sym): void {
     var param_table = self.build_param_table()
     var payloads = self.variant_payloads_of()
@@ -125,7 +126,7 @@ fun Expr.collect_moved_names(mode: BorrowMode, out: &var List<String>): void {
     }
 }
 
-fun collect_moved_names_list(args: List<Expr>, mode: BorrowMode, out: &var List<String>): void {
+fun collect_moved_names_list(args: &List<Expr>, mode: BorrowMode, out: &var List<String>): void {
     while item in &args {
         item.collect_moved_names(mode, out)
     }
@@ -183,7 +184,7 @@ fun Expr.collect_var_names_in_expr(out: &var List<String>): void {
     }
 }
 
-fun collect_var_names_in_list(args: List<Expr>, out: &var List<String>): void {
+fun collect_var_names_in_list(args: &List<Expr>, out: &var List<String>): void {
     while item in &args {
         item.collect_var_names_in_expr(out)
     }

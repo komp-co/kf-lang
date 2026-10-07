@@ -12,17 +12,17 @@ import kf_core.ast.declaration.Variant
 // field, a type with a user `Drop` impl, and, transitively, anything
 // containing one. Computed to a fixpoint. Over-approximating only costs extra
 // borrows; under-approximating causes phantom drops.
-pub mutating fun Module.compute_move_only_names(list_name: Sym): List<String> {
-    var out = List.new<String>()
+pub mutating fun Module.compute_move_only_names(list_name: Sym): TypeNameSet {
+    var out = new_type_name_set()
     while td in &self.decls {
         when (td.kind) {
             Struct(fields, _p) => {
-                if struct_has_box_field(fields) { out.push(td.name.as_string()) }
+                if struct_has_box_field(fields) { out.add(td.name.as_string()) }
             }
             // A user `Drop` impl makes a type move-only. Post-mono this is an
             // ImplBlock keyed on the mangled name.
             ImplBlock(methods) => {
-                if impl_has_drop_method(methods) { out.push(td.name.as_string()) }
+                if impl_has_drop_method(methods) { out.add(td.name.as_string()) }
             }
             _ => { }
         }
@@ -32,7 +32,7 @@ pub mutating fun Module.compute_move_only_names(list_name: Sym): List<String> {
         changed = false
         while td in &self.decls {
             val nm = td.name.as_string()
-            if !names_contains(&out, nm.as_str()) {
+            if !out.contains(nm.as_str()) {
                 var hit = false
                 when (td.kind) {
                     Struct(fields, _p) => { hit = fields_infect(fields, &out, list_name) }
@@ -40,7 +40,7 @@ pub mutating fun Module.compute_move_only_names(list_name: Sym): List<String> {
                     _ => { }
                 }
                 if hit {
-                    out.push(nm)
+                    out.add(nm)
                     changed = true
                 }
             }
@@ -49,7 +49,7 @@ pub mutating fun Module.compute_move_only_names(list_name: Sym): List<String> {
     return out
 }
 
-fun fields_infect(fields: List<Field>, names: &List<String>, list_name: Sym): bool {
+fun fields_infect(fields: &List<Field>, names: &TypeNameSet, list_name: Sym): bool {
     while f in &fields {
         val tr = unsafe { *f.ty }
         if tr.tref_infects(names, list_name) { return true }
@@ -57,7 +57,7 @@ fun fields_infect(fields: List<Field>, names: &List<String>, list_name: Sym): bo
     return false
 }
 
-fun variants_infect(variants: List<Variant>, names: &List<String>, list_name: Sym): bool {
+fun variants_infect(variants: &List<Variant>, names: &TypeNameSet, list_name: Sym): bool {
     while v in &variants {
         while tr in &v.payloads {
             if tr.tref_infects(names, list_name) { return true }
@@ -69,14 +69,14 @@ fun variants_infect(variants: List<Variant>, names: &List<String>, list_name: Sy
 // Box, the lang list, an already-infected name, or a generic with an
 // infecting argument (`Option<String>`). String qualifies through its own
 // `impl Drop`. `&T`, `Ptr` and function types never own.
-fun TypeRef.tref_infects(names: &List<String>, list_name: Sym): bool {
+fun TypeRef.tref_infects(names: &TypeNameSet, list_name: Sym): bool {
     when (self.kind) {
         Named(n, args) => {
             val s = n.as_str()
             if s.equals("Box") { return true }
             if is_lang_name(s, list_name) { return true }
             if s.equals("Ptr") { return false }
-            if names_contains(names, n.as_str()) { return true }
+            if names.contains(n.as_str()) { return true }
             while a in &args {
                 if a.tref_infects(names, list_name) { return true }
             }
@@ -88,14 +88,14 @@ fun TypeRef.tref_infects(names: &List<String>, list_name: Sym): bool {
     }
 }
 
-fun impl_has_drop_method(methods: List<TopDecl>): bool {
+fun impl_has_drop_method(methods: &List<TopDecl>): bool {
     while m in &methods {
         if m.name.as_str() == "drop" { return true }
     }
     return false
 }
 
-fun struct_has_box_field(fields: List<Field>): bool {
+fun struct_has_box_field(fields: &List<Field>): bool {
     while f in &fields {
         val tr = unsafe { *f.ty }
         when (tr.kind) {

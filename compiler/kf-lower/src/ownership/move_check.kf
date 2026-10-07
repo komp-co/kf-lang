@@ -200,7 +200,7 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
             var subj_mo = subj_owner.mc_is_move_only(ctx.move_only_names)
             if !subj_mo {
                 if mc_expr_is_self(&subj) {
-                    subj_mo = mc_names_has(ctx.move_only_names, ctx.self_owner.as_str())
+                    subj_mo = ctx.self_owner.byte_len() > 0 && ctx.move_only_names.contains(ctx.self_owner.as_str())
                 }
             }
             // A fresh value is owned by nothing else, so a variant's binders
@@ -252,14 +252,6 @@ fun mc_expr_is_self(e: &Expr): bool {
         Unary(_op, inner) => mc_expr_is_self(unsafe { &*inner })
         _ => false
     }
-}
-
-fun mc_names_has(names: &List<String>, name: str): bool {
-    if name.byte_len() == 0 { return false }
-    while item in &names {
-        if item.as_str().equals(name) { return true }
-    }
-    return false
 }
 
 /// A call's result, owned by nobody but the `when` over it.

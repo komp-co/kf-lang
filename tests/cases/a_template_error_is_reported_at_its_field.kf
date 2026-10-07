@@ -8,7 +8,7 @@ template equal_fields on struct T {
     impl Equal for T {
         fun equals(other: &T): bool {
             while field in T.fields {
-                if self.$field != other.$field { return false }
+                if field.of(self) != field.of(other) { return false }
             }
             return true
         }

@@ -3,21 +3,21 @@
 // module and carried on `LocalEnv`.
 
 import alloc.list.*
+import alloc.hash_map.*
 
 import kf_core.ast.Module
 import kf_codegen.emit.glue.is_box_tref
 import kf_codegen.emit.c_type
 import kf_codegen.emit.release_fn_for_ctype
 
-/// `keys` are "<Enum>/<Variant>/<index>", `rels` their release functions ("" for
-/// none). Flat lists: a nested generic does not survive mono.
+/// Keyed "<Enum>/<Variant>/<index>", each payload's release function ("" for
+/// none). The first view to add a key answers for it.
 pub struct ArmPayloads {
-    pub var keys: List<String>
-    pub var rels: List<String>
+    var rels: HashMap<String, String>
 }
 
 pub fun no_arm_payloads(): ArmPayloads {
-    return ArmPayloads { keys: List.new<String>(), rels: List.new<String>() }
+    return ArmPayloads { rels: HashMap.new<String, String>() }
 }
 
 pub fun arm_payload_key(ename: str, vname: str, idx: uint64): String {
@@ -48,8 +48,8 @@ pub mutating fun ArmPayloads.add_arm_payloads(m: &Module): void {
                         val pt = *v.payloads.at(pj)
                         // A binder rc owns releases as its `Box` would: pointee, then box.
                         val rel = pt.boxed_release() ?: release_fn_for_ctype(pt.c_type().as_str())
-                        self.keys.push(arm_payload_key(ename.as_str(), v.name.as_string().as_str(), pj))
-                        self.rels.push(rel)
+                        val key = arm_payload_key(ename.as_str(), v.name.as_string().as_str(), pj)
+                        if !self.rels.contains(&key) { self.rels.insert(key, rel) }
                         pj = pj + 1
                     }
                 }
@@ -59,27 +59,12 @@ pub mutating fun ArmPayloads.add_arm_payloads(m: &Module): void {
     }
 }
 
-/// Owned, since a `LocalEnv` outlives the call that built it.
-pub fun ArmPayloads.clone_arm_payloads(): ArmPayloads {
-    var out = no_arm_payloads()
-    var i = 0
-    while i < self.keys.size() {
-        out.keys.push(self.keys.at(i).clone())
-        out.rels.push(self.rels.at(i).clone())
-        i = i + 1
-    }
-    return out
-}
-
 /// "" when none is needed or the enum is unknown.
 pub fun ArmPayloads.arm_payload_release(ename: str, vname: str, idx: uint64): String {
-    val want = arm_payload_key(ename, vname, idx)
-    var i = 0
-    while i < self.keys.size() {
-        if self.keys.at(i).equals(want) { return self.rels.at(i).clone() }
-        i = i + 1
+    when (self.rels.get(&arm_payload_key(ename, vname, idx))) {
+        Some(rel) => return rel.clone()
+        None => return ""
     }
-    return ""
 }
 
 /// A `Box<Inner>`'s release sentinel, or null for any other type.

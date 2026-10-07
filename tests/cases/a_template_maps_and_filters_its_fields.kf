@@ -1,0 +1,51 @@
+//! run: exit 0
+//! deps: core
+// `T.fields.map(|field| e)` writes `e` once per field into an array literal,
+// which `all`, `fold` and the other adapters take, and `filter` keeps the
+// fields whose facts say so.
+
+annotation hidden on field
+annotation compared on struct
+
+template compared on struct T {
+    impl Equal for T {
+        fun equals(other: &T): bool {
+            return T.fields.map(|field| field.of(self) == field.of(other)).all(|same: bool| same)
+        }
+    }
+
+    fun T.shown_count(): int64 {
+        return T.fields.filter(|field| !field.has<hidden>()).size()
+    }
+
+    fun T.shown_total(): int64 {
+        val shown = T.fields.filter(|field| !field.has<hidden>()).map(|field| field.of(self) as int64)
+        return shown.fold(0 as int64, |sum: int64, x: int64| sum + x)
+    }
+
+    fun T.looped_total(): int64 {
+        var total: int64 = 0
+        while field in T.fields.filter(|field| !field.has<hidden>()) {
+            total = total + field.of(self) as int64
+        }
+        return total
+    }
+}
+
+@compared
+struct Point {
+    val x: int32
+    @hidden
+    val secret: int32
+    val y: int64
+}
+
+fun main(): int32 {
+    val a = Point { x: 1, secret: 99, y: 2 }
+    val b = Point { x: 1, secret: 99, y: 2 }
+    val c = Point { x: 1, secret: 99, y: 3 }
+    if !(a == b) || a == c { return 1 }
+    if a.shown_count() != 2 { return 2 }
+    if a.shown_total() != 3 || a.looped_total() != 3 { return 3 }
+    return 0
+}

@@ -61,7 +61,7 @@ fun subst_proj_tref_ptr(p: Ptr<TypeRef>, self_name: str, trait_name: str, trait_
 /// TypeCtx. Only a plain named owner resolves; anything else is "". Type
 /// arguments are mangled in, keying the instance (`Box__int32`), not the
 /// template, whose `type Out = T` would splice a bare `T`.
-fun projection_owner_key(owner: TypeRef, self_name: str): String {
+fun projection_owner_key(owner: &TypeRef, self_name: str): String {
     when (owner.kind) {
         Named(n, args) => {
             // `Self` names the impl target, known only through `self_name`.

@@ -15,7 +15,7 @@ impl NameSet {
     }
 
     pub fun has(name: str): bool {
-        return self.index.contains(&String.from(name))
+        return self.index.contains(&String.from_literal(name))
     }
 
     pub mutating fun add(name: String): void {

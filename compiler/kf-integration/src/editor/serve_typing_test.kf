@@ -1,0 +1,102 @@
+// `serve` keeps typings between requests: one of the asked file alone for a
+// question about it, one of the crates that can name a target for a search
+// for uses. Answers must read as if each request typed everything afresh.
+
+import alloc.list.*
+import core.assert.assert_eq
+import std.fs.scratch_path
+import kf_driver.serve.ServeSession
+import kf_integration.harness.FixtureGraph
+import testing.test
+
+fun serve_fixture_path(): str {
+    return scratch_path("kf_serve_typing/src/lib.kf")
+}
+
+fun other_path(): str {
+    return scratch_path("kf_serve_typing/src/other.kf")
+}
+
+/// ```
+/// // lib.kf
+/// fun helper(n: int32): int32 {
+///     return n + 1
+/// }
+///
+/// fun uses_it_twice(): int32 {
+///     return helper(1) + helper(2)   // calls at 90 and 102
+/// }
+///
+/// // other.kf
+/// fun elsewhere(): int32 {
+///     return helper(9)               // call at 36
+/// }
+/// ```
+fun prepare_serve_fixture(): void {
+    unsafe { system("rm -rf ${scratch_path("kf_serve_typing")} && mkdir -p ${scratch_path("kf_serve_typing/src")}") }
+    write_file(scratch_path("kf_serve_typing/kf.toml"), "[project]\nname = \"serve_typing\"\nkind = \"lib\"\n")
+    val lib = """fun helper(n: int32): int32 {
+    return n + 1
+}
+
+fun uses_it_twice(): int32 {
+    return helper(1) + helper(2)
+}
+"""
+    write_file(serve_fixture_path(), lib.as_str())
+    write_file(other_path(), "fun elsewhere(): int32 {\n    return helper(9)\n}\n")
+}
+
+/// The `crates` param naming the fixture and what it depends on.
+fun crates_json(): String {
+    var out = String.from("[")
+    val sources = FixtureGraph.around(serve_fixture_path()).sources()
+    while i in 0..sources.size() {
+        val item = sources.at(i)
+        if i > 0 { out.append(",") }
+        out.append("{\"name\":\"${item.name}\",\"root\":\"${item.root}\",\"src\":\"${item.src}\"}".as_str())
+    }
+    out.append("]")
+    return out
+}
+
+fun typed_request(method: str, offset: uint32): String {
+    val params = "\"path\":\"${serve_fixture_path()}\",\"offset\":${offset},\"crates\":${crates_json()}"
+    return "{\"id\":1,\"method\":\"${method}\",\"params\":{${params}}}"
+}
+
+fun serve_session(): ServeSession {
+    prepare_serve_fixture()
+    var session = ServeSession.new()
+    val _hello = session.answer("{\"id\":0,\"method\":\"hello\",\"params\":{\"protocol\":1}}")
+    return session
+}
+
+@test
+fun references_after_a_hover_reach_the_sibling_file(): void {
+    var session = serve_session()
+    val _hover = session.answer(typed_request("hover", 90).as_str())
+    val line = session.answer(typed_request("references", 90).as_str())
+    assert_eq(line.as_str().contains("other.kf\",\"byte_start\":36"), true, "a use in a sibling file counts")
+}
+
+@test
+fun a_hover_after_references_answers_as_alone(): void {
+    var session = serve_session()
+    val _references = session.answer(typed_request("references", 90).as_str())
+    val after = session.answer(typed_request("hover", 90).as_str())
+    var fresh = serve_session()
+    val alone = fresh.answer(typed_request("hover", 90).as_str())
+    assert_eq(after.as_str(), alone.as_str(), "the kept typing answers as a fresh one")
+}
+
+@test
+fun references_see_a_use_staged_in_the_sibling_file(): void {
+    var session = serve_session()
+    val _before = session.answer(typed_request("references", 90).as_str())
+    val text = "fun elsewhere(): int32 {\\n    return helper(9) + helper(8)\\n}\\n"
+    val stage = "{\"id\":2,\"method\":\"stage\",\"params\":{\"path\":\"${other_path()}\",\"text\":\"${text}\"}}"
+    val _staged = session.answer(stage.as_str())
+    val line = session.answer(typed_request("references", 90).as_str())
+    assert_eq(line.as_str().contains("other.kf\",\"byte_start\":48"), true, "the staged second call counts")
+}
