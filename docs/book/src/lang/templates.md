@@ -11,7 +11,7 @@ template fields_equal on struct T {
     impl Equal for T {
         fun equals(other: &T): bool {
             while field in T.fields {
-                if self.$field != other.$field { return false }
+                if field.of(self) != field.of(other) { return false }
             }
             return true
         }
@@ -55,7 +55,7 @@ In each block:
 
 | Written | Becomes |
 |---|---|
-| `self.$field` | the field, `self.x` |
+| `field.of(self)` | the field read from `self`, `self.x` |
 | `field.name` | its name as a string, `"x"` |
 | `field.index` | its position, `0` |
 | `field.type` (in a type) | its type, `int32` |
@@ -109,7 +109,9 @@ user User with 3 fields: 0=id 1=login
 ```
 
 Any other variable in a template is an ordinary one, living while the program
-runs. `field` itself is not a value: use one of its facts, or `$field`.
+runs. `field` itself is not a value: use one of its facts, or read it with
+`field.of(x)`. That is a place as well as a value, so `field.of(out) = value`
+assigns to `out`'s field.
 
 A member loop is written out once per field rather than run, so `break` and
 `continue` cannot leave it. A loop of their own inside it still can.

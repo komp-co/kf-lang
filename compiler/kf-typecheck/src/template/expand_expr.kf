@@ -1,5 +1,5 @@
 // A template's expressions and types for one struct: `T` becomes the struct,
-// each fact a literal, and `$field` the field's name. Inside a member loop an
+// each fact a literal, and `field.of(x)` the field read from `x`. Inside a member loop an
 // expression takes the field's span, so an error in it points at the field;
 // a variable keeps its own, which the checker keys a binding's uses on.
 
@@ -101,7 +101,7 @@ fun Expr.expanded_kind(x: &var Expansion): Expr {
         Variable(name) => return self.expanded_name(name, x)
         FieldAccess(owner, member) => return self.expanded_access(&*owner, member, x)
         MethodCall(receiver, method, args) => {
-            val fact = self.member_fact(&*receiver, method, x)
+            val fact = self.member_fact(&*receiver, method, &args, x)
             if fact != null { return fact ?: self.clone() }
             return self.rekinded(ExprKind.MethodCall(Box.new(receiver.expanded(x)), method, expanded_exprs(&args, x)))
         }
@@ -154,22 +154,13 @@ fun Expr.expanded_kind(x: &var Expansion): Expr {
 /// `T` names the struct; the member loop's binder is only for facts.
 fun Expr.expanded_name(name: Sym, x: &var Expansion): Expr {
     if name.id == x.marked.id { return self.rekinded(ExprKind.Variable(x.type_name)) }
-    if name.as_str().starts_with("$") { return self.rekinded(ExprKind.Variable(x.spliced(name, self.span))) }
     if x.in_member() && name.id == x.binder.id {
         val facts = "`${name.as_str()}.name`, `.index`, `.has<A>()` or `.get<A>()`"
-        x.report(self.span, "`${name.as_str()}` is a field only at compile time: use ${facts}, or `$${name.as_str()}`")
+        val read = "`${name.as_str()}.of(x)`"
+        x.report(self.span, "`${name.as_str()}` is a field only at compile time: use ${facts}, or read it with ${read}")
         return self.fact(ExprKind.Poison)
     }
     return self.clone()
-}
-
-/// `$field`: the field the loop is on.
-mutating fun Expansion.spliced(name: Sym, at: Span): Sym {
-    val wanted = name.as_str().substring(1, name.as_str().byte_len())
-    if self.in_member() && wanted.as_str() == self.binder.as_str() { return self.field().name }
-    val loop = "`while ${wanted.as_str()} in T.fields`"
-    self.report(at, "`${name.as_str()}` names no member loop: splice the binder of ${loop}")
-    return name
 }
 
 fun Expr.expanded_access(owner: &Expr, member: Sym, x: &var Expansion): Expr {
@@ -193,19 +184,19 @@ fun Expr.expanded_access(owner: &Expr, member: Sym, x: &var Expansion): Expr {
         x.report(self.span, "`@${x.annotation.as_str()}` has no parameter `${member.as_str()}`")
         return self.fact(ExprKind.Poison)
     }
-    val written = if member.as_str().starts_with("$") { x.spliced(member, self.span) } else { member }
-    return self.rekinded(ExprKind.FieldAccess(Box.new(owner.expanded(x)), written))
+    return self.rekinded(ExprKind.FieldAccess(Box.new(owner.expanded(x)), member))
 }
 
-/// `T.fields.size()`, `field.has<A>()` or `field.get<A>()` as a literal;
-/// null for any other call.
-fun Expr.member_fact(receiver: &Expr, method: Sym, x: &var Expansion): Expr? {
+/// `T.fields.size()`, `field.has<A>()` or `field.get<A>()` as a literal,
+/// `field.of(x)` as `x`'s field; null for any other call.
+fun Expr.member_fact(receiver: &Expr, method: Sym, args: &List<Expr>, x: &var Expansion): Expr? {
     val is_field_list = when (receiver.kind) {
         FieldAccess(owner, member) => owner.is_variable(x.marked) && member.as_str() == "fields"
         _ => false
     }
     if is_field_list && method.as_str() == "size" { return self.fact(ExprKind.LitInt(x.fields.size() as int64)) }
     if !x.in_member() || !receiver.is_variable(x.binder) { return null }
+    if method.as_str() == "of" { return self.field_of(args, x) }
     val annotation = self.fact_annotation()
     if method.as_str() == "has" && annotation.as_str().byte_len() > 0 {
         return self.fact(ExprKind.LitBool(x.has_member_annotation(annotation)))
@@ -217,8 +208,19 @@ fun Expr.member_fact(receiver: &Expr, method: Sym, x: &var Expansion): Expr? {
         x.report(self.span, "field `${x.field().name.as_str()}` has no `@${annotation.as_str()}`: ${guard}")
         return self.fact(ExprKind.Poison)
     }
-    x.report(self.span, "a field has no fact `${method.as_str()}()`: it has `has<A>()` and `get<A>()`")
+    x.report(self.span, "a field has no fact `${method.as_str()}()`: it has `has<A>()`, `get<A>()` and `of(x)`")
     return self.fact(ExprKind.Poison)
+}
+
+/// `field.of(x)`: `x.name` for the field the loop is on, a place as well as
+/// a value.
+fun Expr.field_of(args: &List<Expr>, x: &var Expansion): Expr {
+    if args.size() != 1 {
+        x.report(self.span, "`${x.binder.as_str()}.of(x)` takes the value to read the field from, and nothing else")
+        return self.fact(ExprKind.Poison)
+    }
+    val owner = Box.new(args.at(0).expanded(x))
+    return self.fact(ExprKind.FieldAccess(owner, x.field().name))
 }
 
 /// `A` in `has<A>()`, or "".

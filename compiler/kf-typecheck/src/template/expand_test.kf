@@ -65,10 +65,26 @@ fun ExprKind.text(): String {
     assert_eq(written.expanded_type(&var x).bare_type_name().as_str(), "String", "`field.type` on `label`")
 }
 
-@test fun a_splice_names_the_field(): void {
+fun field_of(args: List<Expr>): Expr {
+    return Expr.new(no_span(), ExprKind.MethodCall(Box.new(variable("field")), intern("of"), args))
+}
+
+fun just(e: Expr): List<Expr> {
+    var out = List.new<Expr>()
+    out.push(e)
+    return out
+}
+
+@test fun field_of_reads_the_field(): void {
     var x = point_expansion()
-    val out = access(variable("self"), "$field").expanded(&var x)
-    assert_eq(out.kind.text().as_str(), "self.label", "`self.$field`")
+    val out = field_of(just(variable("self"))).expanded(&var x)
+    assert_eq(out.kind.text().as_str(), "self.label", "`field.of(self)`")
+}
+
+@test fun field_of_without_a_value_is_reported(): void {
+    var x = point_expansion()
+    val _out = field_of(List.new<Expr>()).expanded(&var x)
+    assert_eq(x.diags.size(), 1, "`field.of()` reads from nothing")
 }
 
 @test fun a_field_fact_is_a_literal(): void {
@@ -89,11 +105,10 @@ fun ExprKind.text(): String {
     assert_eq(x.diags.size(), 1, "`field.width`")
 }
 
-@test fun a_splice_outside_a_loop_is_reported(): void {
+@test fun the_binder_alone_is_reported(): void {
     var x = point_expansion()
-    x.binder = intern("")
-    val _out = access(variable("self"), "$field").expanded(&var x)
-    assert_eq(x.diags.size(), 1, "no loop binds `field`")
+    val _out = variable("field").expanded(&var x)
+    assert_eq(x.diags.size(), 1, "`field` is not a value")
 }
 
 @test fun a_member_loop_unrolls_once_per_field(): void {
