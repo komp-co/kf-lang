@@ -65,9 +65,9 @@ mutating fun JsonReader.load_shaped_params(): List<Param>? {
         if !self.expect_key("variadic") { return null }
         val variadic = self.read_bool()
         if self.object_has_next() { return null }
-        var ty = when (mark_kind_of(written.as_str())) {
+        var ty = when (mark_kind_of(written)) {
             Some(kind) => name_param_type(no_span(), kind)
-            None => parse_type_value(written.as_str())
+            None => parse_type_value(written)
         }
         if variadic { ty = variadic_param_type(no_span(), ty) }
         params.push(new_param(no_span(), name, Box.new(ty)))

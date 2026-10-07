@@ -16,10 +16,10 @@ fun Expr.names_declaration(kind: MarkKind, table: &SigTable, crate: CrateId): bo
         _ => String.from("")
     }
     return when (kind) {
-        Trait => table.find_trait(name.as_str()) != null
-        Struct => table.find_struct(name.as_str(), crate) != null
-        Enum => table.find_enum(name.as_str(), crate) != null
-        Function => table.find_signature(name.as_str()) != null
+        Trait => table.find_trait(name) != null
+        Struct => table.find_struct(name, crate) != null
+        Enum => table.find_enum(name, crate) != null
+        Function => table.find_signature(name) != null
         _ => false
     }
 }

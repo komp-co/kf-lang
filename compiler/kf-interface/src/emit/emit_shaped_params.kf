@@ -31,7 +31,7 @@ fun emit_shaped_params(params: &List<Param>): String {
         }
         var po = JsonWriter.object()
         po.field_string("name", p.name.as_str())
-        po.field_string("type", written.as_str())
+        po.field_string("type", written)
         po.field_bool("variadic", (*p.ty).variadic_element() != null)
         arr.write_raw(po.finish().as_str())
     }
