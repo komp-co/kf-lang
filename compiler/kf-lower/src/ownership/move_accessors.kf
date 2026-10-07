@@ -170,7 +170,7 @@ fun Type.is_heap_ty(): bool {
 /// renaming an already-borrowed local: `var e = d` after
 /// `val d = xs.get(i)` names the same element.
 pub fun Expr.is_borrow_source(ctx: &var MoveCtx): bool {
-    if self.is_borrow_path(&ctx.move_only_names) { return true }
+    if self.is_borrow_path() { return true }
     if self.expr_is_borrowed_local(ctx) { return true }
     // An `if` is a view if either branch is.
     return when (self.kind) {

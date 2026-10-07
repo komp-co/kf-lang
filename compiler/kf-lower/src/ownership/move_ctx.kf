@@ -32,7 +32,7 @@ pub view struct MoveCtx {
     // liveness-accurate, so the pipeline discards this channel.
     pub var diags: &var Diagnostics
     // Mangled names of move-only types.
-    pub var move_only_names: List<String>
+    pub var move_only_names: TypeNameSet
     // Locals and binders bound from a borrow path; they own nothing.
     pub var borrowed: List<Sym>
     // Shared by pointer: it holds move-only lists.
@@ -69,7 +69,7 @@ pub struct MobCount {
     pub var n: uint64
 }
 
-pub fun new_move_ctx(diags: &var Diagnostics, move_only_names: List<String>, ptable: Ptr<ParamTable>, mob_count: Ptr<MobCount>, cur_fn: String, smap: Ptr<SourceMap>, warn: Ptr<WarnState>): MoveCtx {
+pub fun new_move_ctx(diags: &var Diagnostics, move_only_names: TypeNameSet, ptable: Ptr<ParamTable>, mob_count: Ptr<MobCount>, cur_fn: String, smap: Ptr<SourceMap>, warn: Ptr<WarnState>): MoveCtx {
     return MoveCtx { owned: List.new<Sym>(), moved: List.new<MovedEntry>(), diags: diags, move_only_names: move_only_names, borrowed: List.new<Sym>(), ptable: ptable, mob_count: mob_count, self_owner: "", cur_fn: cur_fn, smap: smap, warn: warn, consumed_here: List.new<Sym>(), copy_names: List.new<String>() }
 }
 
@@ -221,29 +221,13 @@ pub fun param_lookup(table: &ParamTable, callee: String, idx: uint64): ParamLook
 }
 
 // A Box, or a type in move_only_names.
-fun Type.mc_is_move_only(names: &List<String>): bool {
+fun Type.mc_is_move_only(names: &TypeNameSet): bool {
     when (self.kind) {
         BoxOf(_) => return true
-        Struct(n) => {
-            val name = type_identity_display(n)
-            while item in &names {
-                if item.as_str().equals(name.as_str()) { return true }
-            }
-            return false
-        }
-        EnumTy(n) => {
-            while item in &names {
-                if item.as_str().equals(type_identity_display(n).as_str()) { return true }
-            }
-            return false
-        }
+        Struct(n) => return names.contains(type_identity_display(n).as_str())
+        EnumTy(n) => return names.contains(type_identity_display(n).as_str())
         // Listed only by the template check, for a parameter not bounded by `Copy`.
-        Generic(n) => {
-            while item in &names {
-                if item.as_str().equals(n.as_str()) { return true }
-            }
-            return false
-        }
+        Generic(n) => return names.contains(n.as_str())
         _ => return false
     }
 }
@@ -259,7 +243,7 @@ fun Type.mc_receiver_pointee(): Type {
 
 // A field read or deref: consuming it by value is a move out of a borrow. An
 // accessor's element read is a deref inside the accessor, classified there.
-fun Expr.is_borrow_path(names: &List<String>): bool {
+fun Expr.is_borrow_path(): bool {
     when (self.kind) {
         FieldAccess(_, _) => return !self.is_variant_construction()
         Deref(_) => return true

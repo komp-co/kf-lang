@@ -45,7 +45,7 @@ pub fun Expr.when_subject_enum(): String {
 /// Mirrors `is_move_only`'s Struct arm.
 /// A `Box` payload owns its pointee; it is in no move-only list by name.
 fun payload_owns(tyname: str, ctx: &var RcCtx): bool {
-    return tyname == "Box" || tyname.starts_with("Box__") || names_contains(ctx.move_only_names, tyname)
+    return tyname == "Box" || tyname.starts_with("Box__") || ctx.move_only_names.contains(tyname)
 }
 
 /// A `_` binder declines the payload, which the arm must still drop.

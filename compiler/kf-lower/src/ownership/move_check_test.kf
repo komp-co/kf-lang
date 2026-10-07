@@ -52,8 +52,8 @@ fun fresh_diag_ptr(): Ptr<Diagnostics> {
 // A MoveCtx with an empty param table. The move-only names normally come
 // from core's `impl Drop for String`; these tests state it.
 fun fresh_ctx(dp: &var Diagnostics): MoveCtx {
-    var names = List.new<String>()
-    names.push(String.from("String"))
+    var names = new_type_name_set()
+    names.add(String.from("String"))
     val pt: Ptr<ParamTable> = unsafe { alloc<ParamTable>() }
     unsafe { *pt = new_param_table() }
     val mc: Ptr<MobCount> = unsafe { alloc<MobCount>() }

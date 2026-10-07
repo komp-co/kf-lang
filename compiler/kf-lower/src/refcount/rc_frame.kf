@@ -26,7 +26,7 @@ pub struct RcCtx {
     pub var fn_name: String
     pub var frame_stack: List<RcFrame>
     pub var block_counter: uint64
-    pub var move_only_names: List<String>
+    pub var move_only_names: TypeNameSet
     /// Types whose values cannot hold a borrow; see rc_borrow_free.kf.
     pub var borrow_free: List<String>
     // Decides per callee whether a by-value String argument transfers
@@ -48,7 +48,7 @@ pub fun new_rc_ctx(fn_name: String): RcCtx {
         fn_name: fn_name,
         frame_stack: List.new<RcFrame>(),
         block_counter: 0,
-        move_only_names: List.new<String>(),
+        move_only_names: new_type_name_set(),
         borrow_free: List.new<String>(),
         ptable: tp,
         variants: vp,

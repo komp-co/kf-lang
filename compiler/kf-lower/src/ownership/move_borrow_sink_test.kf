@@ -33,8 +33,8 @@ fun ctx_with_one_sink(name: String, borrow_sink: bool): MoveCtx {
         prune: false, clone_names: List.new<String>(), lints: List.new<Diagnostic>()
     } }
     // Normally filled from core's `impl Drop for String`.
-    var names = List.new<String>()
-    names.push(String.from("String"))
+    var names = new_type_name_set()
+    names.add(String.from("String"))
     return new_move_ctx(unsafe { &var *fresh_diag_ptr() }, names, table, count, String.from("sink_test"), map, wp)
 }
 

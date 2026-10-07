@@ -147,11 +147,11 @@ fun check_template(td: &TopDecl, outer: &List<TypeParam>, bounds: &TemplateBound
             var all = outer.clone()
             while tp in &td.generics { all.push(tp.clone()) }
             if all.size() == 0 { return }
-            var owning = List.new<String>()
+            var owning = new_type_name_set()
             var copyable = List.new<String>()
             while tp in &all {
                 val is_copy = bounds.param_is_bounded_by(tp, bounds.copy_trait)
-                if !is_copy { owning.push(tp.name.as_string()) }
+                if !is_copy { owning.add(tp.name.as_string()) }
                 if is_copy || bounds.param_is_bounded_by(tp, bounds.clone_trait) { copyable.push(tp.name.as_string()) }
             }
             unsafe { (*warn).clone_names = copyable }
