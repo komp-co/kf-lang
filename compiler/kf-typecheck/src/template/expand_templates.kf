@@ -73,7 +73,8 @@ fun Module.checked_templates(diags: &var List<Diagnostic>): List<TemplateAt> {
         val annotation = self.template_annotation(td, diags) ?: continue
         var duplicate = false
         while earlier in &out {
-            if earlier.annotation == annotation {
+            val same_kind = self.decls.at(earlier.template).template_kind() == td.template_kind()
+            if earlier.annotation == annotation && same_kind {
                 val kind = td.template_kind().word()
                 var diag = error_at(at, "`@${td.name.as_str()}` already has a template on `${kind}`")
                 diag.secondary.push(new_label(self.decls.at(earlier.template).decl_name_span(), "the first"))

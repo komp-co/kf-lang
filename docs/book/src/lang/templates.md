@@ -37,9 +37,10 @@ hand beside the struct. It is then checked like any other code.
 ## Declaring one
 
 `template NAME on struct T { declarations }` belongs to the annotation `NAME`,
-which must be declared in the same crate and mark structs. An annotation has at
-most one template on `struct`. `T` names the marked struct inside the template.
-`on enum T` is the same for enums, as [below](#enums) says.
+which must be declared in the same crate and mark structs. `T` names the
+marked struct inside the template. `on enum T` is the same for enums, as
+[below](#enums) says. An annotation marking both may have one template of each,
+but at most one per kind.
 
 The template holds ordinary declarations: trait impls, `impl T` blocks, and
 extension functions such as `fun T.describe()`. `template`, like `annotation`,

@@ -1,0 +1,31 @@
+//! run: exit 0
+//! deps: core
+// An annotation marking structs and enums may have a template on each; two
+// on the same kind is the error.
+
+annotation counted on <struct, enum>
+
+template counted on struct T {
+    fun T.count(): int64 { return T.fields.size() }
+}
+
+template counted on enum T {
+    fun T.count(): int64 { return T.variants.size() }
+}
+
+@counted
+struct Pair {
+    val a: int32
+    val b: int32
+}
+
+@counted
+enum Light {
+    Red
+    Amber
+    Green
+}
+
+fun main(): int32 {
+    return (Pair { a: 1, b: 2 }.count() + Light.Red.count() - 5) as int32
+}
