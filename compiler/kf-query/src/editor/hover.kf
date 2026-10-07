@@ -22,12 +22,12 @@ pub fun render_hover_json(path: str, offset: uint32, crate: &TypedCrate): String
     val typed = hit.found && !hit.ty.is_poison()
     // A template's binder has the type core declares for it, though no
     // checked expression covers it.
-    val word = word_at(crate.source.as_str(), offset)
-    val bound = if typed { String.from("") } else { crate.template_binder_type(word.as_str(), offset) }
+    val word = word_at(crate.source, offset)
+    val bound = if typed { String.from("") } else { crate.template_binder_type(word, offset) }
     if typed {
         out.field_string("type", hit.ty.written_type(crate.sigs).as_str())
     } else if bound.byte_len() > 0 {
-        out.field_string("type", bound.as_str())
+        out.field_string("type", bound)
     } else {
         out.field_null("type")
     }
@@ -48,7 +48,7 @@ pub fun render_hover_json(path: str, offset: uint32, crate: &TypedCrate): String
         out.field_uint32("byte_start", hit.span.start)
         out.field_uint32("byte_end", hit.span.end)
     } else if bound.byte_len() > 0 {
-        val start = word_start_at(crate.source.as_str(), offset)
+        val start = word_start_at(crate.source, offset)
         out.field_uint32("byte_start", start)
         out.field_uint32("byte_end", start + word.byte_len() as uint32)
     } else {

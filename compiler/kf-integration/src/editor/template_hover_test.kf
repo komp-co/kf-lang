@@ -51,32 +51,32 @@ fun template_json(offset: uint32, completing: bool): String {
 /// Byte offset of the first `needle` in the fixture, plus `into`.
 fun template_at(needle: str, into: uint32): uint32 {
     val text = template_fixture_source()
-    val found = text.as_str().index_of(needle) ?: 0
+    val found = text.index_of(needle) ?: 0
     return found as uint32 + into
 }
 
 @test
 fun a_member_binder_has_the_type_core_declares(): void {
     val json = template_json(template_at("field.name", 2), false)
-    assert_eq(json.as_str().contains("\"type\":\"TemplateField\""), true, "`field` stands for a `TemplateField`")
+    assert_eq(json.contains("\"type\":\"TemplateField\""), true, "`field` stands for a `TemplateField`")
 }
 
 @test
 fun a_fact_hovers_as_the_declared_field(): void {
     val json = template_json(template_at("field.name", 8), false)
-    assert_eq(json.as_str().contains("\"signature\":\"val name: str\""), true, "`name` is the field core declares")
+    assert_eq(json.contains("\"signature\":\"val name: str\""), true, "`name` is the field core declares")
 }
 
 @test
 fun site_has_the_type_core_declares(): void {
     val json = template_json(template_at("site.line", 2), false)
-    assert_eq(json.as_str().contains("\"type\":\"TemplateSite\""), true, "`site` stands for a `TemplateSite`")
+    assert_eq(json.contains("\"type\":\"TemplateSite\""), true, "`site` stands for a `TemplateSite`")
 }
 
 @test
 fun completion_after_a_binder_lists_its_facts(): void {
     val json = template_json(template_at("field.name", 6), true)
-    assert_eq(json.as_str().contains("\"receiver_type\":\"TemplateField\""), true, "the receiver is the declared type")
-    assert_eq(json.as_str().contains("\"label\":\"index\""), true, "a field fact")
-    assert_eq(json.as_str().contains("\"label\":\"has\""), true, "a method fact")
+    assert_eq(json.contains("\"receiver_type\":\"TemplateField\""), true, "the receiver is the declared type")
+    assert_eq(json.contains("\"label\":\"index\""), true, "a field fact")
+    assert_eq(json.contains("\"label\":\"has\""), true, "a method fact")
 }

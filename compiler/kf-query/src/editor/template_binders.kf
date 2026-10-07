@@ -18,7 +18,7 @@ pub fun TypedCrate.template_binder_type(name: str, offset: uint32): String {
     val src = self.source.as_str()
     if template.decl_end as uint64 > src.byte_len() { return String.from("") }
     val text = src.substring(template.span.start as uint64, template.decl_end as uint64)
-    return binder_type_in(text.as_str(), name, template.template_param_name().as_str())
+    return binder_type_in(text, name, template.template_param_name().as_str())
 }
 
 /// The template written around `offset` in `file_id`.
@@ -47,7 +47,7 @@ fun binder_type_in(text: str, name: str, marked: str): String {
     val looped = "while ${name} in "
     var from: uint64 = 0
     while true {
-        val at = text.index_of_from(looped.as_str(), from) ?: break
+        val at = text.index_of_from(looped, from) ?: break
         val start = at + looped.byte_len()
         val end = text.index_of_from("{", start) ?: text.byte_len()
         val found = list_type(text.substring(start, end).as_str())
@@ -57,7 +57,7 @@ fun binder_type_in(text: str, name: str, marked: str): String {
     val lambda = "|${name}|"
     from = 0
     while true {
-        val at = text.index_of_from(lambda.as_str(), from) ?: break
+        val at = text.index_of_from(lambda, from) ?: break
         val found = lambda_type(text.substring(line_start(text, at), at).as_str(), marked)
         if found.byte_len() > 0 { return found }
         from = at + 1
