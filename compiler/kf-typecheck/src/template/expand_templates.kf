@@ -1,7 +1,7 @@
 // `template NAME on struct T { ... }`: its declarations, expanded for each
-// struct of this crate marked `@NAME`, join the module, and the template
-// leaves it. Runs before anything registers, so what it adds is checked
-// like code written by hand.
+// struct of this crate marked `@NAME`, join the module and the decl table,
+// and the template leaves it. Runs before anything registers, so what it
+// adds is checked like code written by hand.
 
 import alloc.list.*
 
@@ -11,6 +11,8 @@ import kf_core.ast.duplicate
 import kf_core.ast.declaration.MarkKind
 import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
+import kf_resolve.DeclTable
+import kf_resolve.should_register_decl
 
 /// A checked template and the annotation it belongs to, by index into the
 /// module's declarations.
@@ -19,7 +21,7 @@ struct TemplateAt {
     val annotation: uint64
 }
 
-pub mutating fun Module.expand_templates(diags: &var List<Diagnostic>): List<ExpansionSite> {
+pub mutating fun Module.expand_templates(table: &var DeclTable, diags: &var List<Diagnostic>): List<ExpansionSite> {
     var sites = List.new<ExpansionSite>()
     if !self.has_templates() { return sites }
     var added = List.new<TopDecl>()
@@ -39,7 +41,9 @@ pub mutating fun Module.expand_templates(diags: &var List<Diagnostic>): List<Exp
         if !td.is_template() { kept.push(td.clone()) }
     }
     while item in &added {
-        kept.push(item.clone())
+        var joined = item.clone()
+        if joined.should_register_decl() { joined.decl = table.insert(joined.name.as_string()) }
+        kept.push(joined)
     }
     self.decls = kept
     return sites
