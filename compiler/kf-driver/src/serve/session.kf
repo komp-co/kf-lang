@@ -11,7 +11,9 @@ import kf_core.ast.types.TypingNodes
 import kf_core.ast.types.restore_type_nodes
 import kf_driver.build.CompileUnit
 import kf_driver.editor.TypedCrate
-import kf_driver.editor.typed_crate_with
+import kf_driver.editor.typed_crate_cached
+import kf_driver.editor.DependencySignatures
+import kf_driver.editor.no_dependency_signatures
 import kf_driver.cli.render_json_diag
 import kf_driver.count_errors
 import kf_driver.kflat_version
@@ -24,6 +26,8 @@ import kf_driver.build.interface_from_source
 import kf_driver.build.interfaces_in
 import std.fs.TempDir
 import kf_driver.editor.focus
+import kf_driver.editor.declaring_file
+import kf_driver.build.crate_source_dir
 
 /// The protocol versions this compiler speaks.
 pub fun serve_protocol(): int64 {
@@ -33,13 +37,13 @@ pub fun serve_protocol(): int64 {
 pub struct ServeSession {
     var greeted: bool
     var buffers: Overlay
-    /// The crates last typed for a typed request, kept until a buffer
-    /// changes: empty, or one.
-    var typed: List<TypedCrate>
-    /// Which crates `typed` holds.
-    var typed_key: String
-    /// Whether `typed` checked every crate's bodies, not only the queried one's.
-    var typed_every_body: bool
+    /// Typings for typed requests, kept until a buffer changes: the last
+    /// for a question about one file, and the last for a search for uses.
+    var focused: KeptTyping
+    var searched: KeptTyping
+    /// The dependencies' signatures, which outlive the typings across edits
+    /// to the queried crate.
+    var signatures: DependencySignatures
     /// Where `check` writes the interfaces of its `sources`: empty until
     /// the first needs it.
     var staged_interfaces: List<TempDir>
@@ -50,8 +54,8 @@ pub struct ServeSession {
 impl ServeSession {
     pub static fun new(): ServeSession {
         return ServeSession {
-            greeted: false, buffers: no_overlay(), typed: List.new<TypedCrate>(), typed_key: "",
-            typed_every_body: false, staged_interfaces: List.new<TempDir>(), stopping: false
+            greeted: false, buffers: no_overlay(), focused: no_typing(), searched: no_typing(),
+            signatures: no_dependency_signatures(), staged_interfaces: List.new<TempDir>(), stopping: false
         }
     }
 
@@ -101,37 +105,73 @@ impl ServeSession {
     mutating fun stage(id: str, line: str): String {
         val staged = read_path_and_text(line) ?: return invalid_params(id, "stage")
         self.buffers.stage(staged.path.as_str(), staged.text.as_str())
-        self.typed = List.new<TypedCrate>()
+        self.focused = no_typing()
+        self.searched = no_typing()
         return result_line(id, "null")
     }
 
     mutating fun unstage(id: str, line: str): String {
         val staged = read_path_and_text(line) ?: return invalid_params(id, "unstage")
         self.buffers.unstage(staged.path.as_str())
-        self.typed = List.new<TypedCrate>()
+        self.focused = no_typing()
+        self.searched = no_typing()
         return result_line(id, "null")
     }
 
     /// Types the crates once and answers every typed question about them
-    /// from that, until a buffer changes.
+    /// from that, until a buffer changes. A question about one file needs
+    /// only its bodies; a search for uses, those of every crate from the one
+    /// declaring the target on, since no crate before it can name it.
     mutating fun typed_answer(id: str, method: str, line: str): String {
         val params = read_typed_params(line) ?: return invalid_params(id, method)
         if needs_offset(method) && params.offset < 0 { return invalid_params(id, method) }
-        val every_body = searches_every_body(method)
-        val stale = self.typed_key.as_str() != params.key.as_str() || every_body && !self.typed_every_body
-        if self.typed.is_empty() || stale {
-            self.typed = List.new<TypedCrate>()
-            self.typed.push(typed_crate_with(params.path.as_str(), &self.buffers, &params.crates, every_body))
-            self.typed_key = params.key.clone()
-            self.typed_every_body = every_body
+        val key = params.key.as_str()
+        val path = params.path.as_str()
+        if searches_every_body(method) {
+            val from = self.declaring_crate(&params)
+            if !self.searched.answers(key, path, from, false) {
+                // A second search among the same crates types them all, so a
+                // third types nothing.
+                val start = if self.searched.types(key) { 0 } else { from }
+                self.searched = self.typing(&params, start, false)
+            }
+            return typed_reply(id, method, &params, self.searched.crates.at_mut(0))
         }
-        if !self.typed[0].focus(params.path.as_str()) {
-            return error_line(id, "not_in_crate", "`${params.path}` is not a file the last crate compiles")
+        val last = params.crates.size() - 1
+        if self.searched.answers(key, path, last, true) {
+            return typed_reply(id, method, &params, self.searched.crates.at_mut(0))
         }
-        val previous = self.typed[0].nodes.enter()
-        val answer = typed_result(method, &params, &self.typed[0])
-        restore_type_nodes(previous)
-        return result_line(id, answer.as_str())
+        if !self.focused.answers(key, path, last, true) { self.focused = self.typing(&params, last, true) }
+        return typed_reply(id, method, &params, self.focused.crates.at_mut(0))
+    }
+
+    mutating fun typing(params: &TypedParams, bodies_from: uint64, focus_only: bool): KeptTyping {
+        val path = params.path.as_str()
+        val crate = typed_crate_cached(
+            path, &self.buffers, &params.crates, bodies_from, focus_only, &var self.signatures
+        )
+        return kept_typing(crate, params.key.clone(), bodies_from, focus_only, params.path.clone())
+    }
+
+    /// The place among `params.crates` of the crate declaring what the name
+    /// at the offset names, read from a typing of the file alone; 0, every
+    /// crate, when that is not found.
+    mutating fun declaring_crate(params: &TypedParams): uint64 {
+        val last = params.crates.size() - 1
+        if !self.focused.answers(params.key.as_str(), params.path.as_str(), last, true) {
+            self.focused = self.typing(params, last, true)
+        }
+        val crate = self.focused.crates.at_mut(0)
+        if !crate.focus(params.path.as_str()) { return 0 }
+        val file = crate.declaring_file(params.offset as uint32)
+        if file.is_empty() { return 0 }
+        while i in 0..params.crates.size() {
+            val item = params.crates.at(i)
+            if file.as_str().starts_with("${crate_source_dir(item.root.as_str(), item.src.as_str())}/".as_str()) {
+                return i
+            }
+        }
+        return 0
     }
 
     mutating fun check(id: str, line: str): String {
@@ -188,6 +228,17 @@ impl ServeSession {
         }
         return lookup
     }
+}
+
+/// `method`'s answer from `crate`, focused on the file `params` names.
+fun typed_reply(id: str, method: str, params: &TypedParams, crate: &var TypedCrate): String {
+    if !crate.focus(params.path.as_str()) {
+        return error_line(id, "not_in_crate", "`${params.path}` is not a file the last crate compiles")
+    }
+    val previous = crate.nodes.enter()
+    val answer = typed_result(method, params, crate)
+    restore_type_nodes(previous)
+    return result_line(id, answer.as_str())
 }
 
 fun invalid_params(id: str, method: str): String {
