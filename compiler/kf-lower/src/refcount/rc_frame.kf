@@ -28,7 +28,7 @@ pub struct RcCtx {
     pub var block_counter: uint64
     pub var move_only_names: TypeNameSet
     /// Types whose values cannot hold a borrow; see rc_borrow_free.kf.
-    pub var borrow_free: List<String>
+    pub var borrow_free: TypeNameSet
     // Decides per callee whether a by-value String argument transfers
     // ownership (a komp function drops it) or is only lent (an extern keeps
     // the caller's drop).
@@ -49,7 +49,7 @@ pub fun new_rc_ctx(fn_name: String): RcCtx {
         frame_stack: List.new<RcFrame>(),
         block_counter: 0,
         move_only_names: new_type_name_set(),
-        borrow_free: List.new<String>(),
+        borrow_free: new_type_name_set(),
         ptable: tp,
         variants: vp,
         string_name: intern("")
