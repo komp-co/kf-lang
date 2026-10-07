@@ -23,7 +23,7 @@ import kf_driver.build.assemble_crate_list
 import kf_driver.build.merge_module_list
 import kf_driver.build.report_config_diags
 import kf_driver.build.report_parse_errors
-import kf_driver.editor.typed_crate_staged
+import kf_query.editor.typed_crate_staged
 import core.hash.hash_bytes
 
 /// One source string to C, without assembly. Assumes well-typed input.

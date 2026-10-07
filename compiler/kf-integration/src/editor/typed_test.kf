@@ -10,10 +10,10 @@ import kf_typecheck.typecheck_module
 import kf_core.diagnostic.*
 import kf_driver.fresh_source_map
 import kf_driver.collect_module_diags
-import kf_driver.editor.innermost_expr_at
-import kf_driver.editor.written_type
-import kf_driver.editor.path_for_file_id
-import kf_driver.editor.render_inlays_json
+import kf_query.editor.innermost_expr_at
+import kf_query.editor.written_type
+import kf_query.editor.path_for_file_id
+import kf_query.editor.render_inlays_json
 import kf_integration.harness.assemble_project
 import std.fs.scratch_path
 import testing.test
@@ -310,8 +310,8 @@ fun prepare_unused_fixture(): void {
     write_file(scratch_path("kf_unused_import/src/spare/spare.kf"), "pub struct Unwanted {\n    pub val b: int32\n}\n")
     var src = """import unused_import.helper.*
 import unused_import.spare.*
-import kf_driver.editor.path_for_file_id
-import kf_driver.editor.render_inlays_json
+import kf_query.editor.path_for_file_id
+import kf_query.editor.render_inlays_json
 
 pub fun probe(): int32 {
     val p = Pair { a: 1 }

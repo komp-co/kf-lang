@@ -6,9 +6,9 @@ import alloc.list.*
 import alloc.path.Path
 import json.reader.*
 import kf_driver.build.CrateSource
-import kf_driver.serve.read_lint_rows
-import kf_driver.serve.read_option_rows
-import kf_driver.serve.read_strings
+import kf_query.serve.read_lint_rows
+import kf_query.serve.read_option_rows
+import kf_query.serve.read_strings
 import std.env.env_var
 import std.fs.TempDir
 import std.fs.absolute

@@ -33,11 +33,12 @@ build.sh     — root-level compiler build entry point
 The passes run in order `kf-parse` → `kf-assemble` → `kf-resolve` →
 `kf-typecheck` → `kf-mono` → `kf-lower` → `kf-codegen`. `kf-core` holds the
 shared AST and diagnostics, `kf-interface` the compiled crate metadata
-(`.kfi`), `kf-driver` the compiler's entry points (one crate, `check`,
-`serve` and the editor answers it gives). `kf-integration` holds the
-whole-project tests: it reads a fixture's crates through `komp metadata` and
-builds it by running komp (`KOMP`, which `komp test` sets). `kflatc`, the one
-binary, links kf-driver and turns one crate into C. komp, which drives it, is
+(`.kfi`), `kf-driver` the compiler's entry points (one crate, `check`), and
+`kf-query` the `serve` protocol and the editor answers it gives.
+`kf-integration` holds the whole-project tests: it reads a fixture's crates
+through `komp metadata` and builds it by running komp (`KOMP`, which `komp
+test` sets). `kflatc`, the one binary, links kf-driver and kf-query and turns
+one crate into C. komp, which drives it, is
 komp-co/komp's: this repository uses the released komp `bootstrap/stage0.toml`
 pins and never its source. What the two agree on (the files kflatc writes,
 which files make a crate, the `serve` protocol) is kflatc's documented command

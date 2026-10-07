@@ -12,6 +12,7 @@ members = [
     "kf-interface",
     "kf-lint",
     "kf-driver",
+    "kf-query",
     "kf-integration",
     "../libs/core",
     "../libs/core-tests",
