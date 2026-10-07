@@ -67,7 +67,8 @@ The compiler crates run in pipeline order: `kf-parse` → `kf-assemble` →
 `kf-resolve` → `kf-typecheck` → `kf-mono` → `kf-lower` → `kf-codegen`, with
 `kf-core` holding the shared AST and diagnostics, `kf-interface` the compiled
 crate metadata that makes separate compilation work, and `kf-driver` the
-compiler's entry points: compiling one crate, `check`, `query` and test mains.
+compiler's entry points: compiling one crate, `check` and test mains, and
+`kf-query` the editor's answers behind `serve`.
 `kf-integration` holds the whole-project tests: they read a fixture's crates
 through `komp metadata` and build it by running komp, as users do. A crate's
 `.kf` files, the files kflatc writes and the `serve` protocol are kflatc's

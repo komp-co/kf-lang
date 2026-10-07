@@ -1,14 +1,14 @@
 // The questions `kflatc serve` answers from the typed crates around a file.
 
-import kf_driver.editor.TypedCrate
-import kf_driver.editor.render_completion_json
-import kf_driver.editor.render_hover_json
-import kf_driver.editor.render_implementations_json
-import kf_driver.editor.render_inlays_json
-import kf_driver.editor.render_references_json
-import kf_driver.editor.render_rename_json
-import kf_driver.editor.render_signature_json
-import kf_driver.editor.render_tokens_json
+import kf_query.editor.TypedCrate
+import kf_query.editor.render_completion_json
+import kf_query.editor.render_hover_json
+import kf_query.editor.render_implementations_json
+import kf_query.editor.render_inlays_json
+import kf_query.editor.render_references_json
+import kf_query.editor.render_rename_json
+import kf_query.editor.render_signature_json
+import kf_query.editor.render_tokens_json
 
 /// Whether `method` is answered from typed crates.
 pub fun is_typed_method(method: str): bool {

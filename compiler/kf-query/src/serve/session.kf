@@ -10,10 +10,10 @@ import kf_core.diagnostic.*
 import kf_core.ast.types.TypingNodes
 import kf_core.ast.types.restore_type_nodes
 import kf_driver.build.CompileUnit
-import kf_driver.editor.TypedCrate
-import kf_driver.editor.typed_crate_cached
-import kf_driver.editor.DependencySignatures
-import kf_driver.editor.no_dependency_signatures
+import kf_query.editor.TypedCrate
+import kf_query.editor.typed_crate_cached
+import kf_query.editor.DependencySignatures
+import kf_query.editor.no_dependency_signatures
 import kf_driver.cli.render_json_diag
 import kf_driver.count_errors
 import kf_driver.kflat_version
@@ -25,8 +25,8 @@ import kf_driver.build.check_crate
 import kf_driver.build.interface_from_source
 import kf_driver.build.interfaces_in
 import std.fs.TempDir
-import kf_driver.editor.focus
-import kf_driver.editor.declaring_file
+import kf_query.editor.focus
+import kf_query.editor.declaring_file
 import kf_driver.build.crate_source_dir
 
 /// The protocol versions this compiler speaks.

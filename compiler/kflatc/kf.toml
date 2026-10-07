@@ -6,4 +6,6 @@ kind = "bin"
 [dependencies]
 alloc = { path = "../../libs/alloc" }
 kf_driver = { path = "../kf-driver" }
+kf_query = { path = "../kf-query" }
+core = { path = "../../libs/core" }
 std = { path = "../../libs/std" }

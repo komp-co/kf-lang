@@ -4,7 +4,7 @@
 import kf_integration.harness.typed_crate_for
 import core.assert.assert_eq
 
-import kf_driver.editor.render_inlays_json
+import kf_query.editor.render_inlays_json
 import std.fs.scratch_path
 import testing.test
 

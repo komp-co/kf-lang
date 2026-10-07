@@ -5,7 +5,7 @@
 import alloc.list.*
 import core.assert.assert_eq
 import std.fs.scratch_path
-import kf_driver.serve.ServeSession
+import kf_query.serve.ServeSession
 import kf_integration.harness.FixtureGraph
 import testing.test
 

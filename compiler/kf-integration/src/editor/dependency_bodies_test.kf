@@ -5,8 +5,8 @@ import kf_integration.harness.typed_crate_for
 import core.assert.assert_eq
 import std.fs.scratch_path
 import kf_core.ast.Module
-import kf_driver.editor.innermost_expr_at
-import kf_driver.editor.written_type
+import kf_query.editor.innermost_expr_at
+import kf_query.editor.written_type
 import testing.test
 
 extern "C" fun system(cmd: str): int32

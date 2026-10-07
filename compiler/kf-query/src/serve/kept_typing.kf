@@ -2,7 +2,7 @@
 
 import alloc.list.*
 
-import kf_driver.editor.TypedCrate
+import kf_query.editor.TypedCrate
 
 pub struct KeptTyping {
     /// Empty, or the one typing.

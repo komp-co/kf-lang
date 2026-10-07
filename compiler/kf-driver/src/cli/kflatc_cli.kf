@@ -14,7 +14,7 @@
 // A crate's sources are the `.kf` files under `--src`, `<root>/src` without it.
 // `--entry-file` adds a file whose `main` is the program's, the crate's own
 // set aside: a test program's main comes from whoever builds it.
-//   kflatc serve
+//   kflatc serve      (kf-query's, dispatched by the kflatc binary)
 //   kflatc version
 //
 // Exit 0 on success, 1 when the crate has errors, 2 on a malformed line.
@@ -27,7 +27,6 @@ import core.args.arg_count
 import kf_driver.note_crate_being_built
 import kf_driver.print_lint_table
 import kf_driver.build.*
-import kf_driver.serve.kflatc_serve
 import kf_driver.kflat_version
 import kf_interface.interface_compiler_abi
 import kf_interface.interface_runtime_abi
@@ -39,7 +38,6 @@ pub fun kflatc_cli(): int32 {
     if arg_count() == 0 { return kflatc_usage() }
     val command = arg_at(0)
     if command == "version" { return kflatc_version() }
-    if command == "serve" { return kflatc_serve() }
     if command == "lints" { return print_lint_table() }
     if command != "compile" && command != "check" && command != "unity" { return kflatc_usage() }
     var name: str = ""
