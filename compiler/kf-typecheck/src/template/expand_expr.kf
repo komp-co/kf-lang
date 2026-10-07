@@ -1,5 +1,5 @@
-// A template's expressions and types for one struct: `T` becomes the struct,
-// each fact a literal, and `field.of(x)` the field read from `x`. Inside a member loop an
+// A template's expressions and types for one struct or enum: `T` becomes
+// the type, each fact a literal, and `field.of(x)` the field read from `x`. Inside a member loop an
 // expression takes the field's span, so an error in it points at the field;
 // a variable keeps its own, which the checker keys a binding's uses on.
 
@@ -25,7 +25,12 @@ fun TypeRef.expanded_type(x: &var Expansion): TypeRef {
         }
         Projection(owner, member) => {
             val bound = owner.bound_member(x)
-            if bound != null && member.as_str() == "type" { return x.fields.at(bound ?: 0).ty.clone() }
+            if bound != null && member.as_str() == "type" && !x.on_enum { return x.fields.at(bound ?: 0).ty.clone() }
+            val payload = owner.bound_payload(x)
+            if member.as_str() == "type" && payload != null {
+                val found = payload ?: return TypeRef.new_poison(self.span)
+                return x.fields.at(found.member).payloads.at(found.payload ?: 0).clone()
+            }
             return TypeRef.new(self.span, TypeRefKind.Projection(Box.new(owner.expanded_type(x)), member))
         }
         DynTrait(name, args) => return TypeRef.new(self.span, TypeRefKind.DynTrait(name, expanded_types(&args, x)))
@@ -48,6 +53,14 @@ fun TypeRef.expanded_type(x: &var Expansion): TypeRef {
 fun TypeRef.bound_member(x: &Expansion): uint64? {
     return when (self.kind) {
         Named(written, args) => if args.size() == 0 { x.member_of(written) } else { null }
+        _ => null
+    }
+}
+
+/// The payload a bare binder in type position stands for, or null.
+fun TypeRef.bound_payload(x: &Expansion): Bound? {
+    return when (self.kind) {
+        Named(written, args) => if args.size() == 0 { x.payload_of(written) } else { null }
         _ => null
     }
 }
@@ -103,7 +116,9 @@ fun Expr.expanded_kind(x: &var Expansion): Expr {
         Variable(name) => return self.expanded_name(name, x)
         FieldAccess(owner, member) => return self.expanded_access(&*owner, member, x)
         MethodCall(receiver, method, args) => {
-            if receiver.is_variable(x.marked) && method.as_str() == "build" { return self.built_struct(&args, x) }
+            if receiver.is_variable(x.marked) && method.as_str() == "build" && !x.on_enum {
+                return self.built_struct(&args, x)
+            }
             val listed = self.field_list_call(&*receiver, method.as_str(), &args, x)
             if listed != null { return listed ?: self.clone() }
             val fact = self.member_fact(&*receiver, method, &args, x)
@@ -158,13 +173,15 @@ fun Expr.expanded_kind(x: &var Expansion): Expr {
     }
 }
 
-/// `T` names the struct; the member loop's binder is only for facts.
+/// `T` names the type; the member loop's binder is only for facts.
 fun Expr.expanded_name(name: Sym, x: &var Expansion): Expr {
     if name.id == x.marked.id { return self.rekinded(ExprKind.Variable(x.type_name)) }
-    if x.member_of(name) != null {
+    if x.binding(name) != null {
+        val word = if x.payload_of(name) != null { "payload" } else { x.member_word() }
         val facts = "`${name.as_str()}.name`, `.index`, `.has<A>()` or `.get<A>()`"
         val read = "`${name.as_str()}.of(x)`"
-        x.report(self.span, "`${name.as_str()}` is a field only at compile time: use ${facts}, or read it with ${read}")
+        val only = "`${name.as_str()}` is a ${word} only at compile time"
+        x.report(self.span, "${only}: use ${facts}, or read it with ${read}")
         return self.fact(ExprKind.Poison)
     }
     return self.rekinded(ExprKind.Variable(x.built(name, self.span)))
@@ -173,18 +190,29 @@ fun Expr.expanded_name(name: Sym, x: &var Expansion): Expr {
 fun Expr.expanded_access(owner: &Expr, member: Sym, x: &var Expansion): Expr {
     if owner.is_variable(x.marked) {
         if member.as_str() == "name" { return self.fact(ExprKind.LitStr(x.type_name.as_string())) }
-        if member.as_str() == "fields" {
-            val uses = "loop over it, or `map`, `filter` or `size()` it"
-            x.report(self.span, "`T.fields` is a list only at compile time: ${uses}")
+        if member.as_str() == x.members_name() {
+            val uses = "loop over it, or `map`, `filter`, `all`, `any` or `size()` it"
+            x.report(self.span, "`T.${x.members_name()}` is a list only at compile time: ${uses}")
             return self.fact(ExprKind.Poison)
         }
+    }
+    val payload = owner.bound_payload(x)
+    if payload != null {
+        val found = payload ?: return self.clone()
+        return self.payload_access(&found, member, x)
     }
     val bound = owner.bound_member(x)
     if bound != null {
         val field = x.fields.at(bound ?: 0)
         if member.as_str() == "name" { return self.fact(ExprKind.LitStr(field.name.as_string())) }
         if member.as_str() == "index" { return self.fact(ExprKind.LitInt(field.index as int64)) }
-        x.report(self.span, "a field has no fact `${member.as_str()}`: it has `name`, `index` and `type`")
+        val facts = if x.on_enum { "`name`, `index` and `payloads`" } else { "`name`, `index` and `type`" }
+        if x.on_enum && member.as_str() == "payloads" {
+            val uses = "loop over it, or `map`, `filter`, `all`, `any` or `size()` it"
+            x.report(self.span, "`payloads` is a list only at compile time: ${uses}")
+            return self.fact(ExprKind.Poison)
+        }
+        x.report(self.span, "a ${x.member_word()} has no fact `${member.as_str()}`: it has ${facts}")
         return self.fact(ExprKind.Poison)
     }
     if owner.is_variable(intern("args")) {
@@ -199,12 +227,20 @@ fun Expr.expanded_access(owner: &Expr, member: Sym, x: &var Expansion): Expr {
 /// `field.has<A>()` or `field.get<A>()` as a literal, `field.of(x)` as `x`'s
 /// field; null for any other call.
 fun Expr.member_fact(receiver: &Expr, method: Sym, args: &List<Expr>, x: &var Expansion): Expr? {
+    val payload = receiver.bound_payload(x)
+    if payload != null {
+        val found = payload ?: return null
+        if method.as_str() == "of" { return self.payload_of(&found, args, x) }
+        x.report(self.span, "a payload has no fact `${method.as_str()}()`: it has `of(a)`, `index` and `type`")
+        return self.fact(ExprKind.Poison)
+    }
     val bound = receiver.bound_member(x) ?: return null
     val binder = when (receiver.kind) {
         Variable(name) => name
         _ => intern("")
     }
-    if method.as_str() == "of" { return self.field_of(binder, bound, args, x) }
+    if method.as_str() == "of" && !x.on_enum { return self.field_of(binder, bound, args, x) }
+    if method.as_str() == "build" && x.on_enum { return self.built_variant(bound, args, x) }
     val annotation = self.fact_annotation()
     if method.as_str() == "has" && annotation.as_str().byte_len() > 0 {
         return self.fact(ExprKind.LitBool(x.has_member_annotation(bound, annotation)))
@@ -213,10 +249,13 @@ fun Expr.member_fact(receiver: &Expr, method: Sym, args: &List<Expr>, x: &var Ex
         val found = x.member_arguments(bound, annotation, self.span)
         if found != null { return found }
         val guard = "guard it with `if ${binder.as_str()}.has<${annotation.as_str()}>()`"
-        x.report(self.span, "field `${x.fields.at(bound).name.as_str()}` has no `@${annotation.as_str()}`: ${guard}")
+        val named = "${x.member_word()} `${x.fields.at(bound).name.as_str()}`"
+        x.report(self.span, "${named} has no `@${annotation.as_str()}`: ${guard}")
         return self.fact(ExprKind.Poison)
     }
-    x.report(self.span, "a field has no fact `${method.as_str()}()`: it has `has<A>()`, `get<A>()` and `of(x)`")
+    val last = if x.on_enum { "build(|payload| e)" } else { "of(x)" }
+    val facts = "it has `has<A>()`, `get<A>()` and `${last}`"
+    x.report(self.span, "a ${x.member_word()} has no fact `${method.as_str()}()`: ${facts}")
     return self.fact(ExprKind.Poison)
 }
 
@@ -235,6 +274,14 @@ fun Expr.field_of(binder: Sym, member: uint64, args: &List<Expr>, x: &var Expans
 fun Expr.bound_member(x: &Expansion): uint64? {
     return when (self.kind) {
         Variable(name) => x.member_of(name)
+        _ => null
+    }
+}
+
+/// The payload a bare binder stands for, or null.
+fun Expr.bound_payload(x: &Expansion): Bound? {
+    return when (self.kind) {
+        Variable(name) => x.payload_of(name)
         _ => null
     }
 }
@@ -273,19 +320,6 @@ fun expanded_params(params: &List<Param>, x: &var Expansion): List<Param> {
         }
         val ty = Box.new(param.ty.expanded_type(x))
         out.push(Param { span: param.span, name: name, ty: ty, default: param.default.clone() })
-    }
-    return out
-}
-
-fun expanded_arms(arms: &List<Arm>, x: &var Expansion): List<Arm> {
-    var out = List.new<Arm>()
-    while arm in &arms {
-        var guard: Box<Expr>? = null
-        when (arm.guard) {
-            Some(g) => guard = Box.new(g.expanded(x))
-            None => {}
-        }
-        out.push(arm.rebuilt(Box.new((*arm.pattern).clone()), guard, expand_stmts(&arm.body, x)))
     }
     return out
 }

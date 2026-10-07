@@ -1,7 +1,7 @@
-// `template NAME on struct T { ... }`: its declarations, expanded for each
-// struct of this crate marked `@NAME`, join the module and the decl table,
-// and the template leaves it. Runs before anything registers, so what it
-// adds is checked like code written by hand.
+// `template NAME on struct T { ... }` or `on enum T`: its declarations,
+// expanded for each struct or enum of this crate marked `@NAME`, join the module and the decl table. A
+// template stays, for the interface to carry. Runs before anything
+// registers, so what it adds is checked like code written by hand.
 
 import alloc.list.*
 
@@ -32,17 +32,14 @@ pub mutating fun Module.expand_templates(table: &var DeclTable, diags: &var List
     while found in &templates {
         val template = self.decls.at(found.template)
         while td in &self.decls {
-            if !self.is_marked_by(td, found.annotation) { continue }
+            if !self.is_marked_by(td, template, found.annotation) { continue }
             val expanded = self.expand_for(template, td, found.annotation, diags, &var sites)
             while item in &expanded {
                 added.push(item.clone())
             }
         }
     }
-    var kept = List.new<TopDecl>()
-    while td in &self.decls {
-        if !td.is_template() { kept.push(td.clone()) }
-    }
+    var kept = self.decls.clone()
     while item in &added {
         var joined = item.clone()
         if joined.should_register_decl() { joined.decl = table.register(&joined) }
@@ -77,7 +74,8 @@ fun Module.checked_templates(diags: &var List<Diagnostic>): List<TemplateAt> {
         var duplicate = false
         while earlier in &out {
             if earlier.annotation == annotation {
-                var diag = error_at(at, "`@${td.name.as_str()}` already has a template on `struct`")
+                val kind = td.template_kind().word()
+                var diag = error_at(at, "`@${td.name.as_str()}` already has a template on `${kind}`")
                 diag.secondary.push(new_label(self.decls.at(earlier.template).decl_name_span(), "the first"))
                 diags.push(diag)
                 duplicate = true
@@ -85,17 +83,23 @@ fun Module.checked_templates(diags: &var List<Diagnostic>): List<TemplateAt> {
         }
         if !duplicate && td.body_is_expandable(diags) { out.push(TemplateAt { template: i, annotation: annotation }) }
     }
+    while i in 0..self.decls.size() {
+        val td = self.decls.at(i)
+        if td.crate.raw == self.crate.raw || !td.is_template() { continue }
+        val annotation = self.imported_annotation(td) ?: continue
+        out.push(TemplateAt { template: i, annotation: annotation })
+    }
     return out
 }
 
 /// The annotation a template belongs to: one of this crate, in the
-/// template's module if several share the name, marking structs.
+/// template's module if several share the name, marking the template's kind.
 fun Module.template_annotation(template: &TopDecl, diags: &var List<Diagnostic>): uint64? {
     val at = template.decl_name_span()
     val name = template.name.as_str()
     val kind = template.template_kind()
-    if kind != MarkKind.Struct {
-        diags.push(error_at(at, "a template cannot add to `${kind.word()}`: it adds to a `struct`"))
+    if kind != MarkKind.Struct && kind != MarkKind.Enum {
+        diags.push(error_at(at, "a template cannot add to `${kind.word()}`: it adds to a `struct` or an `enum`"))
         return null
     }
     val found = self.own_annotation(template.name, template.module_path)
@@ -104,8 +108,10 @@ fun Module.template_annotation(template: &TopDecl, diags: &var List<Diagnostic>)
         return null
     }
     val index = found ?: return null
-    if !self.decls.at(index).marks(MarkKind.Struct) {
-        diags.push(error_at(at, "`@${name}` does not mark structs: declare it `on struct` for a template on `struct`"))
+    if !self.decls.at(index).marks(kind) {
+        val word = kind.word()
+        val declare = "declare it `on ${word}` for a template on `${word}`"
+        diags.push(error_at(at, "`@${name}` does not mark ${word}s: ${declare}"))
         return null
     }
     return index
@@ -161,7 +167,7 @@ fun TopDecl.body_is_expandable(diags: &var List<Diagnostic>): bool {
         Template(_kind, _marked, body) => {
             while item in &body {
                 if item.is_template() || item.is_annotation() {
-                    val message = "a template adds declarations beside a struct, not annotations or templates"
+                    val message = "a template adds declarations beside a type, not annotations or templates"
                     diags.push(error_at(item.decl_name_span(), message))
                     fits = false
                 }
@@ -172,17 +178,19 @@ fun TopDecl.body_is_expandable(diags: &var List<Diagnostic>): bool {
     return fits
 }
 
-/// Whether `td` is a struct of this crate carrying `@NAME` for this
-/// annotation.
-fun Module.is_marked_by(td: &TopDecl, annotation: uint64): bool {
+/// Whether `td` is a struct or enum of this crate, as `template` adds to,
+/// carrying `@NAME` for this annotation.
+fun Module.is_marked_by(td: &TopDecl, template: &TopDecl, annotation: uint64): bool {
     if td.crate.raw != self.crate.raw { return false }
-    val is_struct = when (td.kind) {
-        Struct(_fields, _pub) => true
-        _ => false
+    val kind = when (td.kind) {
+        Struct(_fields, _pub) => MarkKind.Struct
+        EnumDecl(_variants, _pub) => MarkKind.Enum
+        _ => MarkKind.Function
     }
-    if !is_struct { return false }
+    if kind != template.template_kind() { return false }
     val declared = self.decls.at(annotation)
     if !td.has_annotation(declared.name.as_str()) { return false }
-    val resolved = self.own_annotation(declared.name, td.module_path) ?: return false
-    return resolved == annotation
+    val resolved = self.own_annotation(declared.name, td.module_path)
+    if declared.crate.raw == self.crate.raw { return resolved == annotation }
+    return resolved == null && self.file_imports(td.span.file_id, declared.module_path, declared.name)
 }

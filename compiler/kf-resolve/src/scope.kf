@@ -69,6 +69,10 @@ impl DeclTable {
             while k in 0..named.size() {
                 val at = named.get(k)
                 val mine = self.entries.at(at)
+                // A module path starts with its crate's name, so this is the
+                // caller's own module: a template's code, expanded into
+                // another crate, still reaches what its home module declares.
+                if mine.module.id == module.id { return at }
                 if mine.crate.raw == crate.raw {
                     // Own module: unrestricted. Same crate, other module: only
                     // `pub` and imported; keep looking, since a later or

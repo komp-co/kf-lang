@@ -33,13 +33,17 @@ pub struct InstanceSupport {
 pub fun Module.collect_instance_support(m: &Module): InstanceSupport {
     var callees = NameSet.new()
     var type_refs = NameSet.new()
-    while decl in &self.decls {
-        decl.scan_decl_references(&var callees, &var type_refs)
-    }
-    // Instances closed transitively. Prototypes and private layouts come only
-    // from instance bodies; self code is served by dependency headers.
+    // Instances closed transitively. Prototypes and private layouts come from
+    // instance bodies and from what a dependency's template added; other self
+    // code is served by dependency headers.
     var instance_callees = NameSet.new()
     var instance_types = NameSet.new()
+    while decl in &self.decls {
+        decl.scan_decl_references(&var callees, &var type_refs)
+        if decl.resolves_in.as_str().byte_len() > 0 {
+            decl.scan_decl_references(&var instance_callees, &var instance_types)
+        }
+    }
     var instance_names = NameSet.new()
     // Each instance declaration is scanned once, when first referenced; what
     // it references may reach declarations already passed, hence the rounds.

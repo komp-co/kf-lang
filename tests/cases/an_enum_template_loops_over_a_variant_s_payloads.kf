@@ -1,0 +1,42 @@
+//! run: exit 0
+//! deps: core, alloc
+// `while payload in variant.payloads` writes its body once per payload, with
+// `payload.index`, `payload.type` and `payload.of(a)`, as `Hash` and `Display`
+// walk them.
+
+annotation shown on enum
+
+template shown on enum T {
+    fun T.shown(): String {
+        var out = String.from("")
+        when (self) {
+            while variant in T.variants {
+                ${variant.name}(..a) => {
+                    out.append(variant.name)
+                    if variant.payloads.size() > 0 { out.append("(") }
+                    while payload in variant.payloads {
+                        if payload.index > 0 { out.append(", ") }
+                        val value: payload.type = payload.of(a)
+                        out.append("${value}")
+                    }
+                    if variant.payloads.size() > 0 { out.append(")") }
+                }
+            }
+        }
+        return out
+    }
+}
+
+@shown
+enum Event {
+    Click(int32, int32)
+    Key(uint8)
+    Quit
+}
+
+fun main(): int32 {
+    if Event.Click(3, 4).shown() != "Click(3, 4)" { return 1 }
+    if Event.Key(65).shown() != "Key(65)" { return 2 }
+    if Event.Quit.shown() != "Quit" { return 3 }
+    return 0
+}

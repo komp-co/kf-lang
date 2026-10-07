@@ -1,0 +1,174 @@
+// An enum's template: arms written once per variant, `${variant.name}(..a)`
+// binding each payload of the variant, and `payload.of(a)` reading one.
+// `variant.build(|payload| e)` makes the variant, `e` written per payload.
+
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+
+/// What `name` binds the `index`th payload to, after `..name`.
+fun rest_payload(name: Sym, index: uint64): Sym { return intern("__${name.as_str()}_${index}") }
+
+/// Each arm expanded in order, a member loop's once per variant or field.
+fun expanded_arms(arms: &List<Arm>, x: &var Expansion): List<Arm> {
+    var out = List.new<Arm>()
+    var start: uint64 = 0
+    while start < arms.size() {
+        val group = arms.at(start).member_loop.clone()
+        var end = start + 1
+        while end < arms.size() && same_loop(&group, &arms.at(end).member_loop) { end = end + 1 }
+        val members = x.loop_members(&group)
+        while member in 0..members {
+            x.enter_member(&group, member)
+            while i in start..end {
+                out.push(arms.at(i).expanded_arm(x))
+            }
+            x.leave_member(&group)
+        }
+        start = end
+    }
+    return out
+}
+
+fun Arm.expanded_arm(x: &var Expansion): Arm {
+    var guard: Box<Expr>? = null
+    when (self.guard) {
+        Some(g) => guard = Box.new(g.expanded(x))
+        None => {}
+    }
+    val pattern = Box.new(self.pattern.expanded_pattern(x))
+    var out = self.rebuilt(pattern, guard, expand_stmts(&self.body, x))
+    out.member_loop = null
+    return out
+}
+
+/// Names built from facts written out, and `..a` as one binder per payload.
+fun Pattern.expanded_pattern(x: &var Expansion): Pattern {
+    when (self.kind) {
+        Identifier(name) => {
+            if name.as_str().starts_with("..") {
+                x.report(self.span, String.from("`..name` stands alone between a variant's parentheses"))
+                return pattern_poison(self.span)
+            }
+            return new_pattern(self.span, PatternKind.Identifier(x.built(name, self.span)))
+        }
+        Variant(name, subs) => {
+            val built = x.built(name, self.span)
+            if subs.size() == 1 {
+                val rest = subs.at(0).rest_binder()
+                if rest != null { return self.rest_pattern(built, rest ?: name, x) }
+            }
+            var out = List.new<Pattern>()
+            while sub in &subs {
+                out.push(sub.expanded_pattern(x))
+            }
+            return new_pattern(self.span, PatternKind.Variant(built, out))
+        }
+        StructPat(name, fields, pats) => {
+            var out = List.new<Pattern>()
+            while sub in &pats {
+                out.push(sub.expanded_pattern(x))
+            }
+            return new_pattern(self.span, PatternKind.StructPat(x.built(name, self.span), fields.clone(), out))
+        }
+        Or(alternatives) => {
+            var out = List.new<Pattern>()
+            while alternative in &alternatives {
+                out.push(alternative.expanded_pattern(x))
+            }
+            return new_pattern(self.span, PatternKind.Or(out))
+        }
+        _ => return self.clone()
+    }
+}
+
+/// `a` of `..a`, which the parser writes as a name no source can.
+fun Pattern.rest_binder(): Sym? {
+    return when (self.kind) {
+        Identifier(name) => {
+            val text = name.as_str()
+            if text.starts_with("..") { Option.Some(intern(text.substring(2, text.byte_len()).as_str())) } else { null }
+        }
+        _ => null
+    }
+}
+
+/// `V(..a)`: `V(__a_0, __a_1)` for the variant a member loop is on, or `V`
+/// when it has no payloads.
+fun Pattern.rest_pattern(name: Sym, binder: Sym, x: &var Expansion): Pattern {
+    val variant = x.variant()
+    if variant == null {
+        x.report(self.span, "`..${binder.as_str()}` binds the payloads of the variant a member loop is on")
+        return pattern_poison(self.span)
+    }
+    x.rests.push(binder)
+    val count = x.fields.at(variant ?: 0).payloads.size()
+    if count == 0 { return new_pattern(self.span, PatternKind.Identifier(name)) }
+    var subs = List.new<Pattern>()
+    while i in 0..count {
+        subs.push(new_pattern(self.span, PatternKind.Identifier(rest_payload(binder, i))))
+    }
+    return new_pattern(self.span, PatternKind.Variant(name, subs))
+}
+
+/// `payload.index` as a literal; null for any other member, reported.
+fun Expr.payload_access(found: &Bound, member: Sym, x: &var Expansion): Expr {
+    val index = found.payload ?: 0
+    if member.as_str() == "index" { return self.fact(ExprKind.LitInt(index as int64)) }
+    x.report(self.span, "a payload has no fact `${member.as_str()}`: it has `index` and `type`, and `of(a)`")
+    return self.fact(ExprKind.Poison)
+}
+
+/// `payload.of(a)`: the payload `..a` bound, in the arm it is written in.
+fun Expr.payload_of(found: &Bound, args: &List<Expr>, x: &var Expansion): Expr {
+    val binder = found.binder.as_str()
+    val rest: Sym? = if args.size() == 1 { args.at(0).rest_name() } else { null }
+    if rest == null {
+        x.report(self.span, "`${binder}.of(a)` takes the name `..a` bound the variant's payloads to")
+        return self.fact(ExprKind.Poison)
+    }
+    val name = rest ?: return self.fact(ExprKind.Poison)
+    if !x.binds_rest(name) {
+        x.report(self.span, "`${name.as_str()}` binds no payloads: write `..${name.as_str()}` in the arm's pattern")
+        return self.fact(ExprKind.Poison)
+    }
+    return self.fact(ExprKind.Variable(rest_payload(name, found.payload ?: 0)))
+}
+
+fun Expansion.binds_rest(name: Sym): bool {
+    while rest in &self.rests {
+        if rest.id == name.id { return true }
+    }
+    return false
+}
+
+fun Expr.rest_name(): Sym? {
+    return when (self.kind) {
+        Variable(name) => Option.Some(name)
+        _ => null
+    }
+}
+
+/// `variant.build(|payload| e)`: `T.V(e(0), e(1))`, or `T.V` without
+/// payloads.
+fun Expr.built_variant(variant: uint64, args: &List<Expr>, x: &var Expansion): Expr {
+    val lambda: FieldLambda? = if args.size() == 1 { args.at(0).field_lambda() } else { null }
+    if lambda == null {
+        x.report(self.span, String.from("`build` takes `|payload| e`: one parameter, and one expression per payload"))
+        return self.fact(ExprKind.Poison)
+    }
+    val written = lambda ?: return self.fact(ExprKind.Poison)
+    val name = x.fields.at(variant).name
+    val count = x.fields.at(variant).payloads.size()
+    val owner = Box.new(self.fact(ExprKind.Variable(x.type_name)))
+    if count == 0 { return self.fact(ExprKind.FieldAccess(owner, name)) }
+    var values = List.new<Expr>()
+    while i in 0..count {
+        x.bind_payload(written.binder, variant, i)
+        values.push(written.value.expanded(x))
+        x.unbind()
+    }
+    return self.fact(ExprKind.MethodCall(owner, name, values))
+}

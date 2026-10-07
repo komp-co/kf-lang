@@ -13,7 +13,7 @@ pub fun resolve_module(m: &var Module, table: &var DeclTable): void {
 
     while j in 0..m.decls.size() {
         val td = m.decls.at_mut(j)
-        table.stand_in(td.span.file_id, td.crate, td.module_path)
+        table.stand_in(td.span.file_id, td.crate, td.scope_module())
         resolve_decl_body(td, table)
     }
 }

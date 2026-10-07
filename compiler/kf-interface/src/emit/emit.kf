@@ -191,6 +191,10 @@ mutating fun JsonWriter.append_decl_entry(td: &TopDecl, m: &Module, crate: Crate
             return
         }
     }
+    if m.exports_template(td, crate) {
+        self.write_raw(td.emit_template_entry(false, m, crate, smap).as_str())
+        return
+    }
     if !hidden_name_in(hidden, td.name.as_str()) { return }
     if td.generics.size() > 0 || td.is_constant() {
         if td.decl_end == 0 as uint32 { return }

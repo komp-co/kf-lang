@@ -1,0 +1,28 @@
+//! build: fail
+//! deps: core
+// `payload.of(a)` reads what `..a` bound: a name no arm binds is reported.
+
+annotation summed on enum
+
+template summed on enum T {
+    fun T.total(): int64 {
+        var total: int64 = 0
+        when (self) {
+            while variant in T.variants {
+                ${variant.name}(..a) => {
+                    while payload in variant.payloads {
+                        total = total + payload.of(b) as int64
+                    }
+                }
+            }
+        }
+        return total
+    }
+}
+
+@summed
+enum Pair {
+    Two(int32, int32)
+}
+
+fun main(): int32 { return 0 }

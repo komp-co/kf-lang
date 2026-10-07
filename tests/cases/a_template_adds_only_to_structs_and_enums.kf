@@ -1,0 +1,9 @@
+//! build: fail
+//! deps: core, alloc
+// A template adds beside a struct or an enum, not a function.
+
+annotation traced on fun
+
+template traced on fun T { }
+
+fun main(): int32 { return 0 }
