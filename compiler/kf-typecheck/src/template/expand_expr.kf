@@ -13,6 +13,7 @@ import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.expression.FieldInit
 import kf_core.ast.declaration.Param
+import kf_core.ast.declaration.new_param
 
 fun TypeRef.expanded_type(x: &var Expansion): TypeRef {
     when (self.kind) {
@@ -265,8 +266,12 @@ fun expanded_exprs(exprs: &List<Expr>, x: &var Expansion): List<Expr> {
 fun expanded_params(params: &List<Param>, x: &var Expansion): List<Param> {
     var out = List.new<Param>()
     while param in &params {
-        val ty = Box.new(param.ty.expanded_type(x))
         val name = x.built(param.name, param.span)
+        if !param.is_typed() {
+            out.push(new_param(param.span, name.as_string(), ptr_null<TypeRef>()))
+            continue
+        }
+        val ty = Box.new(param.ty.expanded_type(x))
         out.push(Param { span: param.span, name: name, ty: ty, default: param.default.clone() })
     }
     return out

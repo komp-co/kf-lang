@@ -1,0 +1,13 @@
+//! build: fail
+//! deps: core
+// A fuzz finding, reduced: a lambda whose parameter has no type, here in a
+// call the template does not expand itself, is copied without one.
+
+annotation compared on struct
+template compared on struct T {
+        fun equals(other: &T): bool {
+        val shown = T.fields.filter(|field| !field.has<hidden>)).map(|field| field.of(self) as int64)
+    }
+}
+@compared
+struct Point {
