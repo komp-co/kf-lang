@@ -11,6 +11,7 @@ import kf_core.ast.types.TypeIdentity
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.*
+import kf_resolve.DeclTable
 
 @derive(Clone)
 pub struct FnSignature {
@@ -286,6 +287,12 @@ pub struct SigTable {
     pub var imported_names: List<Sym>
     /// Whether find_imported_signature filters by the import map.
     pub var gate_visibility: bool
+    /// Resolve's table, which says which declaration a name means; null
+    /// when typing without one.
+    pub var decls: Ptr<DeclTable>
+    /// Each declaration's signature, at its id's `raw`; `none_index()` for
+    /// one without.
+    pub var decl_sigs: List<uint64>
     /// Declarations minted inside a body (lambdas), carried back to the module.
     pub var synth_decls: List<TopDecl>
     /// Lambda types bound to locals; invokable, not yet transferable.
@@ -371,6 +378,8 @@ pub fun new_sig_table(): SigTable {
         imported_targets: List.new<Sym>(),
         imported_names: List.new<Sym>(),
         gate_visibility: false,
+        decls: ptr_null<DeclTable>(),
+        decl_sigs: List.new<uint64>(),
         synth_decls: List.new<TopDecl>(),
         stored_lambda_types: List.new<Sym>(),
         // Declaration order: a struct literal lowers positionally.

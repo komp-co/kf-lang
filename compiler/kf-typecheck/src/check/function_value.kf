@@ -21,7 +21,7 @@ import kf_typecheck.note_import_use_named
 /// `FnRef` to it. A generic function is reported, since a value has one type.
 pub mutating fun Expr.name_function_value(name: Sym, ctx: &var TypeCtx): bool {
     val sigs = unsafe { &*ctx.sigs }
-    val sig = sigs.lookup_callee(name.as_str(), Sym { id: 0 }, ctx.owner_file, ctx.owner_crate,
+    val sig = sigs.lookup_callee(name.as_str(), Sym { id: 0 }, self.decl, ctx.owner_file, ctx.owner_crate,
         ctx.owner_module) ?: return false
     note_import_use_named(ctx.sigs, ctx.owner_file, sig.owner_module, name)
     if sig.generics.size() > 0 {

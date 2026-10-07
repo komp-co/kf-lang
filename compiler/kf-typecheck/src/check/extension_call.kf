@@ -67,7 +67,7 @@ pub mutating fun Expr.extension_function_call(name: Sym, args: &var List<Expr>, 
         self.ty = Type.new_poison()
         return true
     }
-    self.ty = check_call(link.clone(), args, self.type_args, self.span, ctx)
+    self.ty = check_call(link.clone(), args, self.type_args, self.span, null, ctx)
     // After the check, which coerced the arguments in place.
     val callee = if ctx.qualified_callee.byte_len() > 0 { ctx.qualified_callee.clone() } else { link.clone() }
     ctx.qualified_callee = String.from("")

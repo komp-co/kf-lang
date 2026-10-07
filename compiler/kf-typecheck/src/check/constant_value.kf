@@ -96,7 +96,7 @@ pub mutating fun Expr.name_top_level_value(name: Sym, ctx: &var TypeCtx): bool {
 /// its literal.
 mutating fun Expr.name_constant(name: Sym, ctx: &var TypeCtx): bool {
     val sigs = ctx.sig_table()
-    val sig = sigs.lookup_callee(name.as_str(), Sym { id: 0 }, ctx.owner_file, ctx.owner_crate,
+    val sig = sigs.lookup_callee(name.as_str(), Sym { id: 0 }, self.decl, ctx.owner_file, ctx.owner_crate,
         ctx.owner_module) ?: return false
     val value = sigs.constant_value(&sig) ?: return false
     note_import_use_named(ctx.sigs, ctx.owner_file, sig.owner_module, name)
@@ -117,7 +117,7 @@ pub fun FnSignature.rejects_call_of_constant(span: Span, ctx: &var TypeCtx): boo
 /// True when `name` names a top-level `val` this file sees.
 pub fun str.names_constant(ctx: &var TypeCtx): bool {
     val sigs = ctx.sig_table()
-    val sig = sigs.lookup_callee(self, Sym { id: 0 }, ctx.owner_file, ctx.owner_crate,
+    val sig = sigs.lookup_callee(self, Sym { id: 0 }, null, ctx.owner_file, ctx.owner_crate,
         ctx.owner_module) ?: return false
     return sigs.constant_value(&sig).is_some()
 }

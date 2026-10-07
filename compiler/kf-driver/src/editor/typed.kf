@@ -42,6 +42,8 @@ pub struct TypedCrate {
     pub var smap: Box<SourceMap>
     /// Where the typing's type children live; they go with the crate.
     pub var nodes: TypingNodes
+    /// Resolve's table, which `sigs` reads through a view.
+    pub var decls: Box<DeclTable>
 }
 
 /// `staged` marks absence: an emptied buffer is still a document. `crates`
@@ -102,7 +104,7 @@ pub fun typed_crate_cached(file_path: str, overlay: &Overlay, crates: &List<Crat
         val empty: Ptr<SigTable> = typing.sigs
         return TypedCrate {
             ok: false, file_id: 0, module: new_module(List.new<String>()), sigs: empty, typing: typing, source: "",
-            smap: fresh_source_map(), root: "", nodes: TypingNodes.new()
+            smap: fresh_source_map(), root: "", nodes: TypingNodes.new(), decls: Box.new(new_decl_table())
         }
     }
     val nodes = TypingNodes.new()
@@ -128,9 +130,11 @@ pub fun typed_crate_cached(file_path: str, overlay: &Overlay, crates: &List<Crat
     val targets = new_import_syms()
     val names = new_import_syms()
     val _import_diags = validate_imports_per_module(&var merged, callers, targets, names, smap)
-    var table = new_decl_table()
-    resolve_module(&var merged, &var table)
-    val typed = typecheck_module_typed(&var merged, &var table, callers, targets, names, smap)
+    // Boxed, so the view `sigs` keeps stays where it points.
+    var table = Box.new(new_decl_table())
+    table.note_imports(&*callers, &*targets, &*names)
+    resolve_module(&var merged, &var *table)
+    val typed = typecheck_module_typed(&var merged, &var *table, callers, targets, names, smap)
     // The table stays where its box put it when `typed` moves into the crate.
     val sigs: Ptr<SigTable> = typed.sigs
 
@@ -138,7 +142,7 @@ pub fun typed_crate_cached(file_path: str, overlay: &Overlay, crates: &List<Crat
     restore_type_nodes(previous)
     var crate = TypedCrate {
         ok: false, file_id: 0, module: merged, sigs: sigs, typing: typed, source: "", smap: smap, root: root,
-        nodes: nodes
+        nodes: nodes, decls: table
     }
     val _found = crate.focus(file_path)
     return crate

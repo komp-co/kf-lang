@@ -44,7 +44,7 @@ pub mutating fun Module.expand_templates(table: &var DeclTable, diags: &var List
     var kept = self.decls.clone()
     while item in &added {
         var joined = item.clone()
-        if joined.should_register_decl() { joined.decl = table.insert(joined.name.as_string()) }
+        if joined.should_register_decl() { joined.decl = table.register(&joined) }
         kept.push(joined)
     }
     self.decls = kept

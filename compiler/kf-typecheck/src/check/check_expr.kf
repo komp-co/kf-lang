@@ -122,7 +122,7 @@ fun check_expr_kind(e: &var Expr, ctx: &var TypeCtx): void {
                 e.kind = ExprKind.MethodCall(receiver, intern("call"), args)
                 check_expr(e, ctx)
             } else if through_alias || !e.extension_function_call(callee_name, &var args, ctx) {
-                e.ty = check_call(callee_name.as_string(), args, e.type_args, e.span, ctx)
+                e.ty = check_call(callee_name.as_string(), args, e.type_args, e.span, e.decl, ctx)
                 if ctx.qualified_callee.byte_len() > 0 {
                     val kept = args.clone()
                     e.kind = ExprKind.Call(intern(ctx.qualified_callee.as_str()), kept)
