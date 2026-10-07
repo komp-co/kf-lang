@@ -10,6 +10,7 @@ import kf_core.ast.Sym
 import kf_core.ast.duplicate
 import kf_core.ast.declaration.MarkKind
 import kf_core.ast.declaration.TopDecl
+import kf_core.span.SourceMap
 import kf_core.diagnostic.*
 import kf_resolve.DeclTable
 import kf_resolve.should_register_decl
@@ -21,7 +22,8 @@ struct TemplateAt {
     val annotation: uint64
 }
 
-pub mutating fun Module.expand_templates(table: &var DeclTable, diags: &var List<Diagnostic>): List<ExpansionSite> {
+pub mutating fun Module.expand_templates(table: &var DeclTable, diags: &var List<Diagnostic>,
+    smap: Ptr<SourceMap>): List<ExpansionSite> {
     var sites = List.new<ExpansionSite>()
     while td in &self.decls {
         if td.crate.raw == self.crate.raw && !td.is_template() { td.report_built_names(diags) }
@@ -33,7 +35,7 @@ pub mutating fun Module.expand_templates(table: &var DeclTable, diags: &var List
         val template = self.decls.at(found.template)
         while td in &self.decls {
             if !self.is_marked_by(td, template, found.annotation) { continue }
-            val expanded = self.expand_for(template, td, found.annotation, diags, &var sites)
+            val expanded = self.expand_for(template, td, found.annotation, diags, &var sites, smap)
             while item in &expanded {
                 added.push(item.clone())
             }

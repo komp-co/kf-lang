@@ -45,7 +45,7 @@ pub fun typecheck_module_typed(m: &var Module,
     smap: Ptr<SourceMap>): TypedModule {
     var diags = new_diagnostics()
     // First, so what a template adds passes through every later step.
-    val expansions = m.expand_templates(table, &var diags.items)
+    val expansions = m.expand_templates(table, &var diags.items, smap)
     m.validate_annotations(&var diags)
     m.reject_colliding_no_mangle(&var diags)
     m.reject_duplicate_lang_items(&var diags)

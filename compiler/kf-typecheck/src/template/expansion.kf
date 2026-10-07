@@ -22,6 +22,8 @@ struct FieldFacts {
     val payloads: List<TypeRef>
     val annotations: List<Annotation>
     val span: Span
+    /// The line it is written on, 0 without a source map.
+    val line: uint32
 }
 
 /// A binder standing for one field or variant: a member loop's, or
@@ -48,6 +50,9 @@ struct Expansion {
     val on_enum: bool
     /// The struct's module, which owns what the template adds.
     val home: Sym
+    /// Where the marked declaration's name is: `site.file`, `.line` and
+    /// `.column`.
+    val site: Location
     val fields: List<FieldFacts>
     /// `args.p`: each parameter's value at this use.
     val args: List<FieldInit>
