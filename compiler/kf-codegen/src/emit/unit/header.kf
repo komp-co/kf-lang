@@ -8,6 +8,7 @@ import alloc.list.*
 import kf_core.ast.CrateId
 import kf_core.ast.Import
 import kf_core.ast.Module
+import kf_core.ast.decl_index
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.Param
@@ -57,9 +58,10 @@ pub fun Module.header_layout_view(hview: &Module, m: &Module): Module {
         }
     }
     self.collect_public_signature_layouts(m, &var names)
+    val index = m.decl_index()
     var k = 0
     while k < names.size() {
-        val dependencies = named_type_deps(*names.at(k), m)
+        val dependencies = named_type_deps(*names.at(k), m, &index)
         while dependency in &dependencies {
             if !name_list_contains(&names, dependency.as_str()) {
                 if m.module_has_header_layout(dependency.as_str(), self.crate) {
@@ -175,9 +177,10 @@ pub fun Module.header_type_view(): Module {
             names.push(td.name.as_string())
         }
     }
+    val index = self.decl_index()
     var k = 0
     while k < names.size() {
-        val deps = by_value_type_deps(*names.at(k), self)
+        val deps = by_value_type_deps(*names.at(k), self, &index)
         while d in &deps {
             if !name_list_contains(&names, d.as_str()) {
                 if self.module_has_type_decl(d.as_str()) {

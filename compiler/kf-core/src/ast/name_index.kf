@@ -51,3 +51,13 @@ impl NameIndex {
         }
     }
 }
+
+/// Each declaration's position in `decls` by its name; an impl block is
+/// filed under its type's name, beside the type.
+pub fun Module.decl_index(): NameIndex {
+    var index = new_name_index()
+    while i in 0..self.decls.size() {
+        index.add(self.decls.at(i).name.as_string(), i)
+    }
+    return index
+}
