@@ -332,7 +332,7 @@ fun impl_writes_method(methods: &List<TopDecl>, name: str): bool {
     return false
 }
 
-fun register_fn_sig(metadata_owner: Ptr<TopDecl>, fn_name: String, params: List<Param>, ret_ptr: Ptr<TypeRef>, generics: List<String>, owner_crate: CrateId, owner_module: Sym, owner_file: uint32, is_pub: bool, sig_ptr: Ptr<SigTable>, diags: &var Diagnostics, table: Ptr<DeclTable>?): void {
+fun register_fn_sig(metadata_owner: Ptr<TopDecl>, fn_name: String, params: &List<Param>, ret_ptr: Ptr<TypeRef>, generics: List<String>, owner_crate: CrateId, owner_module: Sym, owner_file: uint32, is_pub: bool, sig_ptr: Ptr<SigTable>, diags: &var Diagnostics, table: Ptr<DeclTable>?): void {
     var eff_table: Ptr<DeclTable>? = table
     if unsafe { (*metadata_owner).linkage.is_imported() } { eff_table = Option.None }
     var ctx0 = new_type_ctx(Type.new_void(no_span()), diags, eff_table, sig_ptr)

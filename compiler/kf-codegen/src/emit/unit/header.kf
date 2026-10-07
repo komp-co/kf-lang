@@ -87,7 +87,7 @@ fun Module.module_has_header_layout(name: str, crate: CrateId): bool {
     return false
 }
 
-fun header_layout_decl(td: TopDecl, crate: CrateId): bool {
+fun header_layout_decl(td: &TopDecl, crate: CrateId): bool {
     if !td.crate.is_poison() {
         if td.crate.raw != crate.raw && !td.linkage.is_template() { return false }
     }
@@ -130,7 +130,7 @@ fun collect_layout_signature(params: &List<Param>, ret: Ptr<TypeRef>, m: &Module
     collect_layout_tyref(unsafe { *ret }, m, crate, names)
 }
 
-fun collect_layout_tyref(ty: TypeRef, m: &Module, crate: CrateId, names: &var List<String>): void {
+fun collect_layout_tyref(ty: &TypeRef, m: &Module, crate: CrateId, names: &var List<String>): void {
     when (ty.kind) {
         Named(name, args) => {
             while arg in &args {
@@ -207,7 +207,7 @@ pub fun Module.header_type_view(): Module {
     return Module { crate: self.crate, path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 }
 
-fun type_decl_is_pub(td: TopDecl): bool {
+fun type_decl_is_pub(td: &TopDecl): bool {
     return when (td.kind) {
         Struct(_f, is_pub) => is_pub
         EnumDecl(_v, is_pub) => is_pub

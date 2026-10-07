@@ -63,7 +63,7 @@ fun Module.collect_type_renames_pass(imported: bool, names: &var List<String>, r
     }
 }
 
-fun type_decl_qualifies(td: TopDecl, list_name: Sym, option_name: Sym): bool {
+fun type_decl_qualifies(td: &TopDecl, list_name: Sym, option_name: Sym): bool {
     var is_type = false
     when (td.kind) {
         Struct(_f, _p) => { is_type = true }
@@ -261,7 +261,7 @@ fun method_name_is_runtime_owned(name: str): bool {
     }
 }
 
-fun fn_decl_qualifies(td: TopDecl): bool {
+fun fn_decl_qualifies(td: &TopDecl): bool {
     var is_fn = false
     when (td.kind) {
         Function(_p, _r, _b, _pub, _u, _m, _s) => { is_fn = true }

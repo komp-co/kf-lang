@@ -62,7 +62,7 @@ mutating fun Module.normalize_trait_impls(): void {
 
 /// CONSTRAINT: runs while the trait declaration still exists. `index` is
 /// `self.decl_index()`.
-fun Module.append_default_trait_methods(index: &NameIndex, owner: &TopDecl, tref: TypeRef, methods: List<TopDecl>,
+fun Module.append_default_trait_methods(index: &NameIndex, owner: &TopDecl, tref: &TypeRef, methods: List<TopDecl>,
     suffix: str): List<TopDecl> {
     var completed = methods
     val positions = index.positions(tref.trait_ref_principal().as_str())
@@ -129,7 +129,7 @@ fun TypeRef.trait_ref_principal(): String {
     }
 }
 
-pub fun trait_ref_arg_suffix(tref: TypeRef, m: &Module): String {
+pub fun trait_ref_arg_suffix(tref: &TypeRef, m: &Module): String {
     when (tref.kind) {
         Named(name, args) => {
             if args.size() == 0 && m.is_auto_trait(name.as_str()) { return "" }
@@ -159,7 +159,7 @@ mutating fun Module.strip_templates(): void {
     self.decls = kept
 }
 
-fun is_poison_decl(td: TopDecl): bool {
+fun is_poison_decl(td: &TopDecl): bool {
     return when (td.kind) {
         Poison => true
         _ => false

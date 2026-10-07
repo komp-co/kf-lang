@@ -40,7 +40,7 @@ pub fun c_type_name(name: String): String {
     return c_type_named(name, List.new<TypeRef>())
 }
 
-fun c_type_named(name: String, args: List<TypeRef>): String {
+fun c_type_named(name: String, args: &List<TypeRef>): String {
     val s = name.as_str()
     when s {
         "void" => return String.from("void")
@@ -109,7 +109,7 @@ fun c_type_named(name: String, args: List<TypeRef>): String {
 }
 
 /// `mangle_named("List", [String])` is "List__String", matching Mono.
-pub fun mangle_named(name: String, args: List<TypeRef>): String {
+pub fun mangle_named(name: String, args: &List<TypeRef>): String {
     var result = name.clone()
     while item in &args {
         result = concat(result, concat(String.from("__"), item.tyref_mangle()))
@@ -204,7 +204,7 @@ pub fun Type.c_type_of_type(): String {
     }
 }
 
-pub fun ty_needs_drop(t: TypeRef, facts: &TypeFacts): bool {
+pub fun ty_needs_drop(t: &TypeRef, facts: &TypeFacts): bool {
     val tk = t.kind
     when (tk) {
         Named(name, _args) => {
@@ -226,7 +226,7 @@ pub fun ty_needs_drop(t: TypeRef, facts: &TypeFacts): bool {
 
 /// The transitive classification for glue: also true for a declared struct or
 /// enum owning heap through by-value members.
-pub fun ty_needs_drop_deep(t: TypeRef, facts: &TypeFacts): bool {
+pub fun ty_needs_drop_deep(t: &TypeRef, facts: &TypeFacts): bool {
     if ty_needs_drop(t, facts) { return true }
     when (t.kind) {
         Named(name, args) => {

@@ -49,7 +49,7 @@ pub mutating fun Module.compute_move_only_names(list_name: Sym): TypeNameSet {
     return out
 }
 
-fun fields_infect(fields: List<Field>, names: &TypeNameSet, list_name: Sym): bool {
+fun fields_infect(fields: &List<Field>, names: &TypeNameSet, list_name: Sym): bool {
     while f in &fields {
         val tr = unsafe { *f.ty }
         if tr.tref_infects(names, list_name) { return true }
@@ -57,7 +57,7 @@ fun fields_infect(fields: List<Field>, names: &TypeNameSet, list_name: Sym): boo
     return false
 }
 
-fun variants_infect(variants: List<Variant>, names: &TypeNameSet, list_name: Sym): bool {
+fun variants_infect(variants: &List<Variant>, names: &TypeNameSet, list_name: Sym): bool {
     while v in &variants {
         while tr in &v.payloads {
             if tr.tref_infects(names, list_name) { return true }
@@ -88,14 +88,14 @@ fun TypeRef.tref_infects(names: &TypeNameSet, list_name: Sym): bool {
     }
 }
 
-fun impl_has_drop_method(methods: List<TopDecl>): bool {
+fun impl_has_drop_method(methods: &List<TopDecl>): bool {
     while m in &methods {
         if m.name.as_str() == "drop" { return true }
     }
     return false
 }
 
-fun struct_has_box_field(fields: List<Field>): bool {
+fun struct_has_box_field(fields: &List<Field>): bool {
     while f in &fields {
         val tr = unsafe { *f.ty }
         when (tr.kind) {

@@ -80,7 +80,7 @@ fun pick_callee(raw: String, mangled: String): String {
     return mangled.clone()
 }
 
-fun emit_call(name: String, mangled: String, args: List<Expr>): String {
+fun emit_call(name: String, mangled: String, args: &List<Expr>): String {
     val nstr = name.as_str()
     // Builtins dispatch on the raw name.
     when nstr {
@@ -107,7 +107,7 @@ fun emit_call(name: String, mangled: String, args: List<Expr>): String {
 }
 
 /// `(callee)(args)`: through a function pointer.
-fun emit_call_value(callee_p: Ptr<Expr>, args: List<Expr>): String {
+fun emit_call_value(callee_p: Ptr<Expr>, args: &List<Expr>): String {
     var parts = List.new<String>()
     parts.push("(${emit_expr(*callee_p)})(")
     while i in 0..args.size() {
@@ -118,7 +118,7 @@ fun emit_call_value(callee_p: Ptr<Expr>, args: List<Expr>): String {
     return concat_all(parts)
 }
 
-fun emit_runtime_cstr_call(name: String, args: List<Expr>): String {
+fun emit_runtime_cstr_call(name: String, args: &List<Expr>): String {
     var parts = List.new<String>()
     parts.push(name)
     parts.push(String.from("("))
@@ -152,7 +152,7 @@ fun callee_is_trait_impl(callee: str): bool {
 }
 
 // `callee(marg0, marg1, ...)`, no receiver.
-fun build_static_call(callee: String, margs: List<Expr>): String {
+fun build_static_call(callee: String, margs: &List<Expr>): String {
     var parts = List.new<String>()
     parts.push(callee)
     parts.push(String.from("("))
@@ -166,7 +166,7 @@ fun build_static_call(callee: String, margs: List<Expr>): String {
 }
 
 // `callee(self_arg, marg0, marg1, ...)`.
-fun build_method_call(callee: String, self_arg: String, margs: List<Expr>): String {
+fun build_method_call(callee: String, self_arg: String, margs: &List<Expr>): String {
     var parts = List.new<String>()
     parts.push(callee)
     parts.push(String.from("("))

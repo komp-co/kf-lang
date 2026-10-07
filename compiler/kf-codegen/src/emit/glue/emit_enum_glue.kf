@@ -24,7 +24,7 @@ pub fun Module.emit_enum_tags(): String {
     return concat_all(parts)
 }
 
-fun emit_enum_tag(name: String, variants: List<Variant>): String {
+fun emit_enum_tag(name: String, variants: &List<Variant>): String {
     var parts = List.new<String>()
     // An enum with no variants is uninhabited; C has no empty enum, so the tag
     // gets some nameable type. The field stays for `<E>_drop` to switch on.
@@ -47,7 +47,7 @@ fun emit_enum_tag(name: String, variants: List<Variant>): String {
     return concat_all(parts)
 }
 
-fun emit_enum_body(name: String, variants: List<Variant>): String {
+fun emit_enum_body(name: String, variants: &List<Variant>): String {
     var parts = List.new<String>()
     val tag_type = enum_tag_type(name.as_str())
     // Nor an empty union; a switch with no cases is valid.
@@ -86,7 +86,7 @@ pub fun Module.emit_enum_drops(lookup: &Module): String {
     return concat_all(parts)
 }
 
-fun emit_enum_drop(name: String, variants: List<Variant>, facts: &TypeFacts): String {
+fun emit_enum_drop(name: String, variants: &List<Variant>, facts: &TypeFacts): String {
     var parts = List.new<String>()
     parts.push("static inline void ${name}__glue_drop(${name} v) {\n")
     if facts.has_user_drop(name.as_str()) {
@@ -142,7 +142,7 @@ pub fun Module.emit_enum_retains(lookup: &Module): String {
     return concat_all(parts)
 }
 
-fun emit_enum_retain(name: String, variants: List<Variant>, facts: &TypeFacts): String {
+fun emit_enum_retain(name: String, variants: &List<Variant>, facts: &TypeFacts): String {
     var parts = List.new<String>()
     parts.push(String.from("static inline "))
     parts.push(name.clone())
@@ -198,7 +198,7 @@ pub fun Module.emit_enum_clones(): String {
     return concat_all(parts)
 }
 
-fun emit_enum_clone(name: String, variants: List<Variant>, facts: &TypeFacts): String {
+fun emit_enum_clone(name: String, variants: &List<Variant>, facts: &TypeFacts): String {
     var parts = List.new<String>()
     parts.push(String.from("static inline "))
     parts.push(name.clone())

@@ -144,7 +144,7 @@ fun check_expr_kind(e: &var Expr, ctx: &var TypeCtx): void {
             // receiver is walked as a value.
             val obj_raw = unsafe { *obj_ptr }
             if e.name_method_value(&obj_raw, field_name_sym, ctx) { return }
-            val enum_nm = try_get_enum_recv_name(obj_raw.kind, ctx)
+            val enum_nm = try_get_enum_recv_name(obj_raw.written_receiver(), ctx)
             val not_enum = enum_nm.as_str().equals("")
             if !not_enum {
                 var no_args = List.new<Expr>()

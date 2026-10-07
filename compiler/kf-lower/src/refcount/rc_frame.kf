@@ -247,7 +247,7 @@ fun is_heap_ty_rc(ty: Type): bool {
 
 /// Already owned, needing no retain: a `from(...)`, `List.new<T>()`, a heap
 /// struct literal, a Retain.
-fun is_fresh_alloc(e: Expr): bool {
+fun is_fresh_alloc(e: &Expr): bool {
     when (e.kind) {
         Call(name, _) => {
             val s = name.as_str()

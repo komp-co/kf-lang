@@ -15,7 +15,7 @@ pub fun mangle_type_name(name: str, args: &List<TypeRef>, ctx: &var TypeCtx): St
 }
 
 /// As it appears inside a struct name.
-fun mangle_type_ref(tr: TypeRef, ctx: &var TypeCtx): String {
+fun mangle_type_ref(tr: &TypeRef, ctx: &var TypeCtx): String {
     // `&dyn Trait` is a fat value, mangled `Dyn__Trait`; resolving first would
     // lose that.
     when (tr.kind) {
