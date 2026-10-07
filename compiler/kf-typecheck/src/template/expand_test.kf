@@ -26,7 +26,9 @@ fun access(owner: Expr, member: str): Expr {
 }
 
 /// `Point { x: int32, label: String }`, the loop on `label`.
-fun point_expansion(): Expansion {
+fun point_expansion(): Expansion { return point_expansion_with(List.new<FieldInit>()) }
+
+fun point_expansion_with(args: List<FieldInit>): Expansion {
     var fields = List.new<FieldFacts>()
     fields.push(FieldFacts {
         name: intern("x"), index: 0, ty: named("int32"), annotations: List.new<Annotation>(), span: no_span()
@@ -36,7 +38,7 @@ fun point_expansion(): Expansion {
     })
     return Expansion {
         annotation: intern("shown"), marked: intern("T"), type_name: intern("Point"), home: intern("app"),
-        fields: fields, args: List.new<FieldInit>(), shapes: List.new<AnnotationShape>(), binder: intern("field"),
+        fields: fields, args: args, shapes: List.new<AnnotationShape>(), binder: intern("field"),
         member: 1, diags: List.new<Diagnostic>()
     }
 }
@@ -65,10 +67,26 @@ fun ExprKind.text(): String {
     assert_eq(written.expanded_type(&var x).bare_type_name().as_str(), "String", "`field.type` on `label`")
 }
 
-@test fun a_splice_names_the_field(): void {
+fun field_of(args: List<Expr>): Expr {
+    return Expr.new(no_span(), ExprKind.MethodCall(Box.new(variable("field")), intern("of"), args))
+}
+
+fun just(e: Expr): List<Expr> {
+    var out = List.new<Expr>()
+    out.push(e)
+    return out
+}
+
+@test fun field_of_reads_the_field(): void {
     var x = point_expansion()
-    val out = access(variable("self"), "$field").expanded(&var x)
-    assert_eq(out.kind.text().as_str(), "self.label", "`self.$field`")
+    val out = field_of(just(variable("self"))).expanded(&var x)
+    assert_eq(out.kind.text().as_str(), "self.label", "`field.of(self)`")
+}
+
+@test fun field_of_without_a_value_is_reported(): void {
+    var x = point_expansion()
+    val _out = field_of(List.new<Expr>()).expanded(&var x)
+    assert_eq(x.diags.size(), 1, "`field.of()` reads from nothing")
 }
 
 @test fun a_field_fact_is_a_literal(): void {
@@ -89,11 +107,10 @@ fun ExprKind.text(): String {
     assert_eq(x.diags.size(), 1, "`field.width`")
 }
 
-@test fun a_splice_outside_a_loop_is_reported(): void {
+@test fun the_binder_alone_is_reported(): void {
     var x = point_expansion()
-    x.binder = intern("")
-    val _out = access(variable("self"), "$field").expanded(&var x)
-    assert_eq(x.diags.size(), 1, "no loop binds `field`")
+    val _out = variable("field").expanded(&var x)
+    assert_eq(x.diags.size(), 1, "`field` is not a value")
 }
 
 @test fun a_member_loop_unrolls_once_per_field(): void {
@@ -151,4 +168,28 @@ fun TypeRef.bare_type_name(): String {
     stmts.push(Stmt.new(no_span(), StmtKind.ForEach(intern("field"), Box.new(access(variable("T"), "fields")), body)))
     val _out = expand_stmts(&stmts, &var x)
     assert_eq(x.diags.size(), 0, "`break` leaves its own loop")
+}
+
+@test fun a_name_builds_from_the_field(): void {
+    var x = point_expansion()
+    assert_eq(x.built(intern("with_\${field.name}"), no_span()).as_str(), "with_label", "`field.name` in a name")
+}
+
+@test fun a_name_builds_from_the_struct(): void {
+    var x = point_expansion()
+    assert_eq(x.built(intern("\${T.name}Builder"), no_span()).as_str(), "PointBuilder", "`T.name` in a name")
+}
+
+@test fun a_name_builds_from_text_arguments(): void {
+    val value = Box.new(Expr.new(no_span(), ExprKind.LitStr(String.from("get"))))
+    var args = List.new<FieldInit>()
+    args.push(FieldInit { span: no_span(), name: intern("prefix"), value: value })
+    var x = point_expansion_with(args)
+    assert_eq(x.built(intern("\${args.prefix}_\${field.name}"), no_span()).as_str(), "get_label", "two parts")
+}
+
+@test fun a_name_from_anything_else_is_reported(): void {
+    var x = point_expansion()
+    val _name = x.built(intern("with_\${field.index}"), no_span())
+    assert_eq(x.diags.size(), 1, "`field.index` is not text")
 }

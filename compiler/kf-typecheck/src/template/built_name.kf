@@ -1,0 +1,101 @@
+// Names built from facts: `with_${field.name}` or `${T.name}Builder`, each
+// `${...}` replaced by the text of `T.name`, `field.name` or a string `args`.
+
+import alloc.list.*
+
+import kf_core.span.Span
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.TopDecl
+import kf_core.diagnostic.*
+
+/// Whether `name` builds itself from facts.
+fun Sym.is_built(): bool { return self.as_str().contains("\${") }
+
+/// `name` with each `${fact}` written out; `name` when it builds nothing.
+mutating fun Expansion.built(name: Sym, at: Span): Sym {
+    if !name.is_built() { return name }
+    val text = name.as_str()
+    var out = String.from("")
+    var from: uint64 = 0
+    while from < text.byte_len() {
+        val open = text.index_of_from("\${", from) ?: text.byte_len()
+        out.append(text.substring(from, open).as_str())
+        if open == text.byte_len() { break }
+        val closing = text.index_of_from("}", open)
+        if closing == null {
+            self.report(at, "`${text}` opens `\${` without closing it")
+            return name
+        }
+        val close = closing ?: open
+        out.append(self.name_fact(text.substring(open + 2, close).as_str(), at).as_str())
+        from = close + 1
+    }
+    return intern(out.as_str())
+}
+
+/// The text `${fact}` stands for in a name, or "" with the reason reported.
+mutating fun Expansion.name_fact(fact: str, at: Span): String {
+    val dot = fact.index_of(".") ?: fact.byte_len()
+    val owner = fact.substring(0, dot)
+    val member = if dot < fact.byte_len() { fact.substring(dot + 1, fact.byte_len()) } else { String.from("") }
+    if owner.as_str() == self.marked.as_str() && member.as_str() == "name" { return self.type_name.as_string() }
+    if self.in_member() && owner.as_str() == self.binder.as_str() && member.as_str() == "name" {
+        return self.field().name.as_string()
+    }
+    if owner.as_str() == "args" {
+        val value = self.argument(intern(member.as_str()))
+        if value != null {
+            val given = value ?: return String.from("")
+            val text = given.text_literal()
+            if text != null { return text ?: String.from("") }
+            self.report(at, "`args.${member.as_str()}` is not text, so it cannot be part of a name")
+            return String.from("")
+        }
+    }
+    val facts = "`${self.marked.as_str()}.name`, a member loop's `field.name`, or text in `args`"
+    self.report(at, "`${fact}` is not a fact a name can be built from: use ${facts}")
+    return String.from("")
+}
+
+fun Expr.text_literal(): String? {
+    return when (self.kind) {
+        LitStr(s) => Option.Some(s.clone())
+        _ => null
+    }
+}
+
+/// Each name outside a template that is built from facts, reported: only a
+/// template writes one out.
+fun TopDecl.report_built_names(diags: &var List<Diagnostic>): void {
+    if self.name.is_built() || self.ext_name.is_built() { report_built(self.decl_name_span(), self.name, diags) }
+    when (self.kind) {
+        Function(params, _ret, _body, _pub, _unsafe, _mutating, _static) => {
+            while param in &params {
+                if param.name.is_built() { report_built(param.span, param.name, diags) }
+            }
+        }
+        Struct(fields, _pub) => {
+            while field in &fields {
+                if field.name.is_built() { report_built(field.span, field.name, diags) }
+            }
+        }
+        ImplBlock(methods) => {
+            while method in &methods {
+                method.report_built_names(diags)
+            }
+        }
+        TraitImpl(_trait_ref, methods) => {
+            while method in &methods {
+                method.report_built_names(diags)
+            }
+        }
+        _ => {}
+    }
+}
+
+fun report_built(at: Span, name: Sym, diags: &var List<Diagnostic>): void {
+    diags.push(error_at(at, "`${name.as_str()}` is built from facts, which only a template's code can do"))
+}

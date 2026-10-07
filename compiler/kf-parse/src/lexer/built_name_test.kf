@@ -1,0 +1,23 @@
+import core.assert.assert_eq
+import testing.test
+
+fun first_name(src: str): String {
+    val toks = tokenize(src, 1)
+    return when (toks.at(0).kind) {
+        Identifier(s) => s.as_string()
+        _ => String.from("")
+    }
+}
+
+@test fun a_built_part_is_inside_the_name(): void {
+    assert_eq(first_name("with_\${field.name}(").as_str(), "with_\${field.name}", "one identifier")
+}
+
+@test fun a_name_may_start_with_a_built_part(): void {
+    assert_eq(first_name("\${T.name}Builder {").as_str(), "\${T.name}Builder", "the `\$` starts it")
+}
+
+@test fun a_built_part_ends_with_its_line(): void {
+    val toks = tokenize("a\${b\nc", 1)
+    assert_eq(toks.size(), 4, "the name, the newline, `c`, the end")
+}

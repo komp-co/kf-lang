@@ -92,11 +92,13 @@ impl Parser {
     /// Shared by inherent impls, trait impls and traits. Empty without `{`.
     mutating fun parse_brace_methods(): List<TopDecl> {
         var methods = List.new<TopDecl>()
+        val outer = self.set_member_loop_aside()
         if is_op(self.peek(), Operator.LBrace) {
             unsafe { self.advance() }
             while true {
                 self.skip_newlines()
                 if is_op(self.peek(), Operator.RBrace) {
+                    if self.closes_member_loop() { continue }
                     unsafe { self.advance() }
                     break
                 }
@@ -104,9 +106,18 @@ impl Parser {
                     self.parse_err(self.peek().span, String.from("unclosed `impl`/`trait` body: missing `}` before the end of the file"))
                     break
                 }
+                if self.at_member_loop() {
+                    self.open_member_loop()
+                    continue
+                }
+                val before = methods.size()
                 self.parse_one_impl_method(&var methods)
+                while i in before..methods.size() {
+                    methods.at_mut(i).member_loop = self.member_loop.clone()
+                }
             }
         }
+        self.member_loop = outer
         return methods
     }
 
