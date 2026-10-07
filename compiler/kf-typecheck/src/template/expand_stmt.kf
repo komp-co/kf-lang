@@ -1,7 +1,7 @@
-// A template's statements for one struct. `while field in T.fields` becomes
-// one `if true { ... }` block per field, and an `if` or `when` whose
-// condition is facts alone keeps only the branch taken, so the other need
-// not check for that field.
+// A template's statements for one struct. `while field in T.fields`, or a
+// filter of it, becomes one `if true { ... }` block per field kept, and an
+// `if` or `when` whose condition is facts alone keeps only the branch taken,
+// so the other need not check for that field.
 
 import alloc.list.*
 
@@ -24,8 +24,9 @@ fun expand_stmts(stmts: &List<Stmt>, x: &var Expansion): List<Stmt> {
 fun Stmt.expand_into(x: &var Expansion, out: &var List<Stmt>): void {
     when (self.kind) {
         ForEach(binder, subject, body) => {
-            if subject.is_field_list(x.marked) {
-                self.unroll(binder, &body, x, out)
+            val kept = subject.selected_fields(x)
+            if kept != null {
+                self.unroll(binder, &(kept ?: List.new<uint64>()), &body, x, out)
                 return
             }
             out.push(self.rekinded(StmtKind.ForEach(binder, Box.new(subject.expanded(x)), expand_stmts(&body, x))))
@@ -70,8 +71,8 @@ fun Stmt.expand_into(x: &var Expansion, out: &var List<Stmt>): void {
     }
 }
 
-/// One block per field, the binder standing for it inside.
-fun Stmt.unroll(binder: Sym, body: &List<Stmt>, x: &var Expansion, out: &var List<Stmt>): void {
+/// One block per field kept, the binder standing for it inside.
+fun Stmt.unroll(binder: Sym, kept: &List<uint64>, body: &List<Stmt>, x: &var Expansion, out: &var List<Stmt>): void {
     if x.in_member() {
         x.report(self.span, String.from("a member loop cannot be inside another"))
         return
@@ -82,7 +83,7 @@ fun Stmt.unroll(binder: Sym, body: &List<Stmt>, x: &var Expansion, out: &var Lis
         x.report(at, String.from("a member loop is written out once per field, so it has no loop to leave"))
         return
     }
-    while i in 0..x.fields.size() {
+    while i in &kept {
         x.bind(binder, i)
         val copy = expand_stmts(body, x)
         x.unbind()
@@ -128,13 +129,6 @@ fun Stmt.scope(body: List<Stmt>): Stmt {
 
 fun Stmt.rekinded(kind: StmtKind): Stmt {
     return Stmt { span: self.span, binder: self.binder, kind: kind }
-}
-
-fun Expr.is_field_list(marked: Sym): bool {
-    return when (self.kind) {
-        FieldAccess(owner, member) => owner.is_variable(marked) && member.as_str() == "fields"
-        _ => false
-    }
 }
 
 fun expanded_opt_expr(value: &Box<Expr>?, x: &var Expansion): Box<Expr>? {

@@ -103,6 +103,8 @@ fun Expr.expanded_kind(x: &var Expansion): Expr {
         FieldAccess(owner, member) => return self.expanded_access(&*owner, member, x)
         MethodCall(receiver, method, args) => {
             if receiver.is_variable(x.marked) && method.as_str() == "build" { return self.built_struct(&args, x) }
+            val listed = self.field_list_call(&*receiver, method.as_str(), &args, x)
+            if listed != null { return listed ?: self.clone() }
             val fact = self.member_fact(&*receiver, method, &args, x)
             if fact != null { return fact ?: self.clone() }
             val called = x.built(method, self.span)
@@ -171,7 +173,8 @@ fun Expr.expanded_access(owner: &Expr, member: Sym, x: &var Expansion): Expr {
     if owner.is_variable(x.marked) {
         if member.as_str() == "name" { return self.fact(ExprKind.LitStr(x.type_name.as_string())) }
         if member.as_str() == "fields" {
-            x.report(self.span, "`T.fields` is a list only at compile time: loop over it, or ask its `size()`")
+            val uses = "loop over it, or `map`, `filter` or `size()` it"
+            x.report(self.span, "`T.fields` is a list only at compile time: ${uses}")
             return self.fact(ExprKind.Poison)
         }
     }
@@ -192,14 +195,9 @@ fun Expr.expanded_access(owner: &Expr, member: Sym, x: &var Expansion): Expr {
     return self.rekinded(ExprKind.FieldAccess(Box.new(owner.expanded(x)), x.built(member, self.span)))
 }
 
-/// `T.fields.size()`, `field.has<A>()` or `field.get<A>()` as a literal,
-/// `field.of(x)` as `x`'s field; null for any other call.
+/// `field.has<A>()` or `field.get<A>()` as a literal, `field.of(x)` as `x`'s
+/// field; null for any other call.
 fun Expr.member_fact(receiver: &Expr, method: Sym, args: &List<Expr>, x: &var Expansion): Expr? {
-    val is_field_list = when (receiver.kind) {
-        FieldAccess(owner, member) => owner.is_variable(x.marked) && member.as_str() == "fields"
-        _ => false
-    }
-    if is_field_list && method.as_str() == "size" { return self.fact(ExprKind.LitInt(x.fields.size() as int64)) }
     val bound = receiver.bound_member(x) ?: return null
     val binder = when (receiver.kind) {
         Variable(name) => name

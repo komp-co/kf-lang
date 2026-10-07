@@ -99,6 +99,56 @@ The condition is facts alone, so for each field only one branch is written:
 `with_y` builds `Point { x: self.x, y: value }`, and the other branch, an
 `int64` where an `int32` goes, is never checked.
 
+### Mapping and filtering the fields
+
+`T.fields.map(|field| e)` writes `e` once per field into an array literal,
+`[e(x), e(y)]`. An array is `Iterable`, so `all`, `any`, `count` and `fold`
+take it, and nothing is allocated, in a crate on `core` alone too.
+`T.fields.filter(|field| c)` keeps the fields `c` holds for, and `size()`
+counts them:
+
+```kflat
+annotation hidden on field
+annotation compared on struct
+
+template compared on struct T {
+    impl Equal for T {
+        fun equals(other: &T): bool {
+            return T.fields.map(|field| field.of(self) == field.of(other)).all(|same: bool| same)
+        }
+    }
+
+    fun T.shown_total(): int64 {
+        val shown = T.fields.filter(|field| !field.has<hidden>()).map(|field| field.of(self) as int64)
+        return shown.fold(0 as int64, |sum: int64, x: int64| sum + x)
+    }
+}
+
+@compared
+struct Point {
+    val x: int32
+    @hidden
+    val secret: int32
+    val y: int64
+}
+
+fun main(): int32 {
+    val a = Point { x: 1, secret: 99, y: 2 }
+    if !(a == a) { return 1 }
+    return (a.shown_total() - 3) as int32
+}
+```
+
+Each copy of `e` is checked on its own, so `field.of(self)` may have a
+different type for each field, but the copies must share one type: they are
+one array's elements. Every element is evaluated before an adapter sees any,
+so each field is compared even when an earlier one already made `all` false;
+a member loop that returns early is the choice when that matters.
+
+`filter` decides which fields are kept while the program compiles, so its
+condition is facts alone: `has<A>()`, `name` and `index`. A member loop may
+walk a filter too, `while field in T.fields.filter(|field| !field.has<hidden>())`.
+
 An `if` or `when` whose condition is made of these facts alone is decided while
 the program compiles: only the branch taken is kept, so the other need not make
 sense for that field. `get<A>()` on a field without `@A` is an error, so guard it
