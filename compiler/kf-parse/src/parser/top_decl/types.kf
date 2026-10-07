@@ -238,14 +238,20 @@ impl Parser {
         val tps = self.parse_type_params() // optional <T, ...>
 
         var fields = List.new<Field>()
+        val outer = self.set_member_loop_aside()
 
         if is_op(self.peek(), Operator.LBrace) {
             unsafe { self.advance() }
             while true {
                 self.skip_newlines()
                 if is_op(self.peek(), Operator.RBrace) {
+                    if self.closes_member_loop() { continue }
                     unsafe { self.advance() }
                     break
+                }
+                if self.at_member_loop() {
+                    self.open_member_loop()
+                    continue
                 }
                 if self.at_eof() {
                     self.parse_err(self.peek().span, String.from("unclosed struct body: missing `}` before the end of the file"))
@@ -254,6 +260,7 @@ impl Parser {
                 val annotations = self.parse_annotation_run()
                 var field = self.parse_field()
                 field.annotations = annotations
+                field.member_loop = self.member_loop.clone()
                 fields.push(field)
                 self.skip_newlines()
                 if is_op(self.peek(), Operator.Comma) {
@@ -263,6 +270,7 @@ impl Parser {
         } else if !self.at_newline() && !self.at_eof() {
             self.parse_err(self.peek().span, "expected `{` or the end of the line after the struct name, found ${tok_str(self.peek())}")
         }
+        self.member_loop = outer
 
         var td = new_top_decl(span, name, TopDeclKind.Struct(fields, is_pub))
         td.name_span = name_at

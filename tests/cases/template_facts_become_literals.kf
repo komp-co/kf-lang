@@ -23,7 +23,7 @@ template described on struct T {
         while field in T.fields {
             when field.index {
                 0 => {
-                    val copy: field.type = self.$field
+                    val copy: field.type = field.of(self)
                     return copy
                 }
                 _ => {}

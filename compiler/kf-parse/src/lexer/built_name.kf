@@ -1,0 +1,16 @@
+// `${...}` inside an identifier, `with_${field.name}`: one name a template
+// builds from facts, kept whole so the template can write it out.
+
+impl Lexer {
+    /// `${` inside a name: a template builds the name from facts.
+    fun at_built_part(): bool { return self.peek() == 36 && self.peek_at(1) == 123 }
+
+    /// Through the `}` closing a built part, or to the end of the line.
+    mutating fun skip_built_part(): void {
+        while !(self.at_end()) && self.peek() != 10 {
+            val closing = self.peek() == 125
+            self.advance()
+            if closing { return }
+        }
+    }
+}

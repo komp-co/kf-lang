@@ -52,11 +52,13 @@ fun Stmt.expand_into(x: &var Expansion, out: &var List<Stmt>): void {
             }
             out.push(self.rekinded(StmtKind.When(Box.new(decided), expanded_arms(&arms, x))))
         }
-        LetVal(name, ty, init) => out.push(self.rekinded(StmtKind.LetVal(name, expanded_opt_type(&ty, x),
-            expanded_opt_expr(&init, x))))
-        LetVar(name, ty, init) => out.push(self.rekinded(StmtKind.LetVar(name, expanded_opt_type(&ty, x),
-            expanded_opt_expr(&init, x))))
-        Assign(name, value) => out.push(self.rekinded(StmtKind.Assign(name, Box.new(value.expanded(x)))))
+        LetVal(name, ty, init) => out.push(self.rekinded(StmtKind.LetVal(x.built(name, self.span),
+            expanded_opt_type(&ty, x), expanded_opt_expr(&init, x))))
+        LetVar(name, ty, init) => out.push(self.rekinded(StmtKind.LetVar(x.built(name, self.span),
+            expanded_opt_type(&ty, x), expanded_opt_expr(&init, x))))
+        Assign(name, value) => {
+            out.push(self.rekinded(StmtKind.Assign(x.built(name, self.span), Box.new(value.expanded(x)))))
+        }
         AssignTo(place, value) => {
             out.push(self.rekinded(StmtKind.AssignTo(Box.new(place.expanded(x)), Box.new(value.expanded(x)))))
         }

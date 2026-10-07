@@ -1,0 +1,27 @@
+//! run: exit 0
+//! deps: core
+// `field.of(x)` reads a field and is a place too: assigning to it writes the
+// field of `x`.
+
+annotation copied on struct
+
+template copied on struct T {
+    fun T.copy_into(out: &var T): void {
+        while field in T.fields {
+            field.of(out) = field.of(self)
+        }
+    }
+}
+
+@copied
+struct Point {
+    var x: int32
+    var y: int32
+}
+
+fun main(): int32 {
+    val a = Point { x: 3, y: 4 }
+    var b = Point { x: 0, y: 0 }
+    a.copy_into(&var b)
+    return b.x + b.y - 7
+}

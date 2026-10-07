@@ -11,7 +11,7 @@ template fields_equal on struct T {
     impl Equal for T {
         fun equals(other: &T): bool {
             while field in T.fields {
-                if self.$field != other.$field { return false }
+                if field.of(self) != field.of(other) { return false }
             }
             return true
         }
@@ -55,7 +55,7 @@ In each block:
 
 | Written | Becomes |
 |---|---|
-| `self.$field` | the field, `self.x` |
+| `field.of(self)` | the field read from `self`, `self.x` |
 | `field.name` | its name as a string, `"x"` |
 | `field.index` | its position, `0` |
 | `field.type` (in a type) | its type, `int32` |
@@ -109,10 +109,53 @@ user User with 3 fields: 0=id 1=login
 ```
 
 Any other variable in a template is an ordinary one, living while the program
-runs. `field` itself is not a value: use one of its facts, or `$field`.
+runs. `field` itself is not a value: use one of its facts, or read it with
+`field.of(x)`. That is a place as well as a value, so `field.of(out) = value`
+assigns to `out`'s field.
 
 A member loop is written out once per field rather than run, so `break` and
 `continue` cannot leave it. A loop of their own inside it still can.
+
+### Where a member loop goes
+
+A member loop may also stand where declarations go, among a template's
+declarations or an `impl`'s methods, and among the fields of a struct the
+template adds. What it holds is then written once per field:
+
+```kflat
+annotation accessors on struct
+
+template accessors on struct T {
+    struct ${T.name}Parts {
+        while field in T.fields {
+            val ${field.name}: field.type
+        }
+    }
+
+    impl T {
+        while field in T.fields {
+            fun get_${field.name}(): field.type { return field.of(self) }
+        }
+    }
+}
+
+@accessors
+struct Point {
+    val x: int32
+    val y: int32
+}
+
+fun main(): int32 {
+    val p = Point { x: 3, y: 4 }
+    val parts = PointParts { x: p.get_x(), y: p.get_y() }
+    return parts.x + parts.y - 7
+}
+```
+
+`Point` gets `get_x` and `get_y`, and `PointParts` a field for each of
+`Point`'s. A name written out per field is built from `field.name`, as
+[below](#names-built-from-facts) says, or every copy would have the same one.
+A member loop inside another is an error, wherever either stands.
 
 ## Where the code lives
 
@@ -120,6 +163,52 @@ What a template adds belongs to the marked struct's module: an extension
 function it adds is called there without an import. Names in the template
 resolve where the template is written, so it can call its own module's
 private helpers, and a user of the annotation imports only the annotation.
+
+## Names built from facts
+
+`${...}` inside a name builds it from facts, as it does inside a string
+literal: `${T.name}Summary` is `PointSummary` for `Point`. So what a template
+adds can be named after the struct it marks, and two marked structs do not
+collide:
+
+```kflat
+annotation summarized(verb: str) on struct
+
+template summarized on struct T {
+    struct ${T.name}Summary {
+        val count: int64
+    }
+
+    fun T.${args.verb}_summary(): ${T.name}Summary {
+        return ${T.name}Summary { count: T.fields.size() as int64 }
+    }
+}
+
+@summarized("make")
+struct Point {
+    val x: int32
+    val y: int32
+}
+
+@summarized("take")
+struct Size {
+    val width: int32
+    val height: int32
+}
+
+fun main(): int32 {
+    val p: PointSummary = Point { x: 1, y: 2 }.make_summary()
+    val s: SizeSummary = Size { width: 3, height: 4 }.take_summary()
+    return (p.count + s.count - 4) as int32
+}
+```
+
+A name is built from `T.name`, a member loop's `field.name`, and text in
+`args`; nothing else, and no casing or other change to them. Any name in a
+template may be built: a declaration, a parameter or a field, a variable, and
+a name that refers to one of them, in a type too. A type is never built from a
+field: `field.type` is the field's type. Outside a template a built name is an
+error, since nothing writes it out.
 
 ## Errors
 
@@ -141,8 +230,6 @@ naming the struct it was adding to.
 ## Limits
 
 Templates add to structs of their own crate only, and not to a generic struct.
-A name a template adds cannot be spliced (`with_$field`), so a free function or
-a type in a template is added once per marked struct under one name, and
-collides when two structs are marked. A `pub` extension function a template
-adds cannot be imported by another module. [Limitations](../limitations.md#templates)
+A `pub` extension function a template adds cannot be imported by another
+module. [Limitations](../limitations.md#templates)
 lists each with its issue.

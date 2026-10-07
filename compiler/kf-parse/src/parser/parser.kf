@@ -1,5 +1,8 @@
 import alloc.list.*
 import kf_core.span.*
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.declaration.MemberLoop
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
 import kf_core.diagnostic.*
@@ -38,6 +41,13 @@ pub struct Parser {
     /// The enclosing function's declared return type, empty outside one. A
     /// `?` bails with `Result.from_residual<bool, int32>(r)` built from it.
     pub var fn_ret: List<TypeRef>
+    /// The template's `T` while its declarations are parsed, empty outside
+    /// one: a member loop may then stand where declarations or fields go.
+    pub var template_param: Sym
+    /// The member loop the next declaration or field is written in.
+    pub var member_loop: MemberLoop?
+    /// Numbers each member loop, so two side by side stay apart.
+    pub var loop_ctr: uint32
     /// Returned by `peek` past the end; a borrow needs storage that outlives
     /// the call.
     pub val eof: Token
@@ -52,7 +62,7 @@ pub struct PendingTry {
 }
 
 pub fun new_parser(toks: List<Token>): Parser {
-    return Parser { toks: toks, pos: 0, no_struct_lit: false, cast_after_prefix: false, diags: List.new<Diagnostic>(), speculative: false, block_done: false, used_range: false, pending_try: List.new<PendingTry>(), try_ctr: 0, elv_ctr: 0, sc_ctr: 0, fn_ret: List.new<TypeRef>(), eof: new_token(TokenKind.Eof, no_span()) }
+    return Parser { toks: toks, pos: 0, no_struct_lit: false, cast_after_prefix: false, diags: List.new<Diagnostic>(), speculative: false, block_done: false, used_range: false, pending_try: List.new<PendingTry>(), try_ctr: 0, elv_ctr: 0, sc_ctr: 0, fn_ret: List.new<TypeRef>(), template_param: intern(""), member_loop: null, loop_ctr: 0, eof: new_token(TokenKind.Eof, no_span()) }
 }
 
 /// For "found X" messages.

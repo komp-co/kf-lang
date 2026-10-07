@@ -1,0 +1,44 @@
+//! run: exit 0
+//! deps: core
+// A member loop where declarations or fields go writes what it holds once
+// per field: a struct's fields, an impl's methods, a template's functions.
+
+annotation accessors on struct
+
+template accessors on struct T {
+    struct ${T.name}Parts {
+        while field in T.fields {
+            val ${field.name}: field.type
+        }
+    }
+
+    impl T {
+        while field in T.fields {
+            fun get_${field.name}(): field.type { return field.of(self) }
+        }
+    }
+
+    while field in T.fields {
+        fun T.${field.name}_label(): str { return field.name }
+    }
+}
+
+@accessors
+struct Point {
+    val x: int32
+    val y: int32
+}
+
+@accessors
+struct Size {
+    val width: int64
+}
+
+fun main(): int32 {
+    val p = Point { x: 3, y: 4 }
+    val parts = PointParts { x: p.get_x(), y: p.get_y() }
+    val s = Size { width: 5 }
+    val wide = SizeParts { width: s.get_width() }
+    if p.y_label() != "y" || s.width_label() != "width" { return 1 }
+    return parts.x + parts.y + wide.width as int32 - 12
+}

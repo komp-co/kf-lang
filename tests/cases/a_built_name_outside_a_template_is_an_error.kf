@@ -1,0 +1,7 @@
+//! build: fail
+//! deps: core
+// Only a template writes a built name out, so one anywhere else is reported.
+
+fun with_${x}(): int32 { return 0 }
+
+fun main(): int32 { return 0 }
