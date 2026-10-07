@@ -298,15 +298,8 @@ mutating fun TopDecl.drop_method_templates(): void {
     when (self.kind) {
         TraitImpl(tref, methods) => {
             var keep = List.new<bool>()
-            var dropped = false
-            while mth in &methods {
-                keep.push(mth.generics.size() == 0)
-                if mth.generics.size() > 0 { dropped = true }
-            }
-            if dropped {
-                methods.keep_flagged(&keep)
-                self.kind = TopDeclKind.TraitImpl(tref, take<List<TopDecl>>(methods))
-            }
+            while mth in &methods { keep.push(mth.generics.size() == 0) }
+            if methods.keep_flagged(&keep) { self.kind = TopDeclKind.TraitImpl(tref, take<List<TopDecl>>(methods)) }
         }
         ImplBlock(methods) => {
             var i: uint64 = 0
