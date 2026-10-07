@@ -1,6 +1,8 @@
 import alloc.list.*
 
 import kf_core.ast.Module
+import kf_core.ast.NameIndex
+import kf_core.ast.decl_index
 import kf_core.ast.Sym
 import kf_core.ast.intern
 import kf_core.ast.types.TypeRef
@@ -15,12 +17,13 @@ import kf_core.ast.dyn_meta.clone_dyn_vtable_list
 /// Every TraitImpl becomes an ImplBlock and every TraitDecl is dropped.
 mutating fun Module.normalize_trait_impls(): void {
     var kept = List.new<TopDecl>()
+    val index = self.decl_index()
     while td in &self.decls {
         when (td.kind) {
             TraitDecl(_methods, _pub, _) => { }
             TraitImpl(tref, methods) => {
                 val suffix = trait_ref_arg_suffix(unsafe { *tref }, self)
-                val completed = self.append_default_trait_methods(&td, unsafe { *tref }, methods, suffix.as_str())
+                val completed = self.append_default_trait_methods(&index, &td, unsafe { *tref }, methods, suffix.as_str())
                 var renamed = List.new<TopDecl>()
                 while j in 0..completed.size() {
                     var method = *completed.at(j)
@@ -48,7 +51,7 @@ mutating fun Module.normalize_trait_impls(): void {
                 normalized.dyn_vtables = clone_dyn_vtable_list(&td.dyn_vtables)
                 normalized.decl_end = td.decl_end
                 val principal = tref.trait_ref_principal()
-                normalized.implemented_lang_trait = self.lang_key_of_trait(principal.as_str())
+                normalized.implemented_lang_trait = self.lang_key_of_trait(&index, principal.as_str())
                 kept.push(normalized)
             }
             _ => kept.push(td)
@@ -57,16 +60,17 @@ mutating fun Module.normalize_trait_impls(): void {
     self.decls = kept
 }
 
-/// CONSTRAINT: runs while the trait declaration still exists.
-fun Module.append_default_trait_methods(owner: &TopDecl, tref: TypeRef, methods: List<TopDecl>, suffix: str): List<TopDecl> {
+/// CONSTRAINT: runs while the trait declaration still exists. `index` is
+/// `self.decl_index()`.
+fun Module.append_default_trait_methods(index: &NameIndex, owner: &TopDecl, tref: TypeRef, methods: List<TopDecl>,
+    suffix: str): List<TopDecl> {
     var completed = methods
-    val trait_name = tref.trait_ref_principal()
-    while candidate in &self.decls {
-        if candidate.name.as_str().equals(trait_name.as_str()) {
-            when (candidate.kind) {
-                TraitDecl(defaults, _pub, _) => append_missing_defaults(&var completed, owner, &candidate, &tref, &defaults, suffix)
-                _ => { }
-            }
+    val positions = index.positions(tref.trait_ref_principal().as_str())
+    while p in 0..positions.size() {
+        val candidate = self.decls.at(positions.get(p))
+        when (candidate.kind) {
+            TraitDecl(defaults, _pub, _) => append_missing_defaults(&var completed, owner, &candidate, &tref, &defaults, suffix)
+            _ => { }
         }
     }
     return completed
@@ -164,12 +168,12 @@ fun is_poison_decl(td: TopDecl): bool {
 
 /// The lang key of the trait named `name`, or empty for an ordinary trait.
 /// CONSTRAINT: runs while the trait declaration still exists.
-fun Module.lang_key_of_trait(name: str): Sym {
-    while td in &self.decls {
+fun Module.lang_key_of_trait(index: &NameIndex, name: str): Sym {
+    val positions = index.positions(name)
+    while p in 0..positions.size() {
+        val td = self.decls.at(positions.get(p))
         when (td.kind) {
-            TraitDecl(_members, _pub, _supers) => {
-                if td.name.as_str() == name { return intern((&td).lang_key_of().as_str()) }
-            }
+            TraitDecl(_members, _pub, _supers) => return intern(td.lang_key_of().as_str())
             _ => { }
         }
     }
