@@ -240,7 +240,6 @@ fun Expr.bound_member(x: &Expansion): uint64? {
     }
 }
 
-
 /// `A` in `has<A>()`, or "".
 fun Expr.fact_annotation(): Sym {
     if self.type_args.size() != 1 { return intern("") }
