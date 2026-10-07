@@ -947,6 +947,44 @@ Both are [views](../lang/memory.md#view-types), so a struct cannot hold one.
 `AnnotatedKind` is `Copy` and `Equal`, so an entry's kind can be compared:
 `entry.kind == AnnotatedKind.Trait`.
 
+## TemplateField, TemplateVariant, TemplatePayload and TemplateSite
+
+What a [template](../lang/templates.md) reads while the program compiles: a
+struct's field, an enum's variant, a variant's payload, and where the marked
+declaration is written. None is ever built. In a template, `field` in
+`while field in T.fields` stands for a `TemplateField`, and each fact it is
+asked for becomes a literal or code as the template expands; a method called
+at run time fails.
+
+```kflat
+pub view struct TemplateField {
+    pub val name: str           // as written, `"user_id"`
+    pub val index: uint64       // its position, from 0
+    pub val line: uint32        // the line it is written on
+}                               // and has<A>(), get<A>(), of(x)
+
+pub view struct TemplateVariant {
+    pub val name: str
+    pub val index: uint64
+    pub val line: uint32
+    pub val payloads: &TemplatePayload[]
+}                               // and has<A>(), get<A>(), build(|payload| e)
+
+pub view struct TemplatePayload {
+    pub val index: uint64
+}                               // and of(a), for `..a` in the arm's pattern
+
+pub view struct TemplateSite {
+    pub val file: str           // relative to the crate root
+    pub val line: uint32
+    pub val column: uint32
+}
+```
+
+`field.of(x)` and `payload.of(a)` have the member's own type, and `field.type`
+in a type is that type, so neither has a signature to declare. The compiler's
+own list of facts is tested against these declarations.
+
 ## Path
 
 `Path` represents a filesystem path. It wraps a `String`, so it lives in

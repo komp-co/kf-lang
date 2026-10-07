@@ -65,6 +65,14 @@ In each block:
 | `field.has<A>()` | whether the field carries `@A` |
 | `field.get<A>()` | `@A`'s arguments on the field, as `A`'s argument struct |
 
+These facts are declared in core, in `libs/core/src/template.kf`: `field` is
+a `TemplateField`, and the enum facts [below](#enums) are a `TemplateVariant`
+and a `TemplatePayload`, with `site` a `TemplateSite`. They are never built:
+each fact becomes a literal or code as the template expands. The declarations
+are there to be read, and an editor uses them inside a template, which is never
+checked as written: hovering `field` shows its type, and completion after
+`field.` lists its facts.
+
 Outside a loop, `T.name` is the struct's name, `T.fields.size()` the number of
 fields, and `args` the arguments the annotation's use was written with.
 `site.file`, `site.line` and `site.column` are where the struct's name is
