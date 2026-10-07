@@ -1,0 +1,176 @@
+// `template derive(Equal) on struct T`: a template keyed on one value of its
+// annotation's name parameter, expanded for each use that lists that name. It
+// lives in the crate declaring its key, as an impl lives with its trait, so
+// any crate can add a derivable trait; a listed name with no template is an
+// error at the name.
+
+import alloc.list.*
+
+import kf_core.ast.Module
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.expression.Expr
+import kf_core.ast.declaration.*
+import kf_core.ast.annotation.*
+import kf_core.diagnostic.*
+
+fun TopDecl.is_keyed(): bool { return self.template_key.as_str().byte_len() > 0 }
+
+/// The name parameter a keyed template's key is a value of: the only one
+/// taking a declaration's name, with its kind.
+struct KeyParam {
+    val name: Sym
+    val kind: MarkKind
+}
+
+fun Module.key_param(annotation: uint64): KeyParam? {
+    var found: KeyParam? = null
+    var count = 0
+    when (self.decls.at(annotation).kind) {
+        AnnotationDecl(params, _target, _pub) => {
+            while param in &params {
+                val kind = (*param.ty).argument_type().named_kind() ?: continue
+                found = Option.Some(KeyParam { name: param.name, kind: kind })
+                count = count + 1
+            }
+        }
+        _ => {}
+    }
+    return if count == 1 { found } else { null }
+}
+
+/// Whether this crate declares `template`'s key, a declaration of the kind
+/// the annotation's name parameter takes; reported when not.
+fun Module.key_is_owned(template: &TopDecl, annotation: uint64, diags: &var List<Diagnostic>): bool {
+    val at = template.decl_name_span()
+    val name = template.name.as_str()
+    val key = template.template_key.as_str()
+    val param = self.key_param(annotation)
+    if param == null {
+        val why = "it needs exactly one parameter taking a declaration's name"
+        diags.push(error_at(at, "`@${name}`'s template cannot be keyed: ${why}"))
+        return false
+    }
+    val found = param ?: return false
+    val kind = found.kind
+    while td in &self.decls {
+        if td.crate.raw != self.crate.raw || td.name.as_str() != key { continue }
+        if td.declares(kind) { return true }
+    }
+    val placed = "a keyed template lives in the crate declaring its key"
+    diags.push(error_at(at, "no `${kind.word()}` `${key}` in this crate: ${placed}"))
+    return false
+}
+
+fun TopDecl.marked_kind_word(): str {
+    return when (self.kind) {
+        EnumDecl(_variants, _pub) => "enum"
+        _ => "struct"
+    }
+}
+
+fun TopDecl.declares(kind: MarkKind): bool {
+    return when (self.kind) {
+        Struct(_fields, _pub) => kind == MarkKind.Struct
+        EnumDecl(_variants, _pub) => kind == MarkKind.Enum
+        TraitDecl(_members, _pub, _supers) => kind == MarkKind.Trait
+        Function(_params, _ret, _body, _pub, _unsafe, _mutating, _static) => kind == MarkKind.Function
+        _ => false
+    }
+}
+
+/// The values `td`'s use of the annotation gives its name parameter: every
+/// positional one from its place on when it is variadic.
+fun Module.key_values(td: &TopDecl, annotation: uint64): List<Expr> {
+    var out = List.new<Expr>()
+    val param = self.key_param(annotation) ?: return out
+    val names = self.annotation_params(annotation)
+    var place: uint64 = names.size()
+    while i in 0..names.size() {
+        if names.at(i).id == param.name.id { place = i }
+    }
+    val variadic = self.annotation_variadic(annotation) && place + 1 == names.size()
+    val declared = self.decls.at(annotation).name
+    while use in &td.annotations {
+        if use.name.id != declared.id { continue }
+        while i in 0..use.args.size() {
+            val arg = use.args.at(i)
+            val named = arg.name.as_str().byte_len() > 0
+            val taken = if named { arg.name.id == param.name.id } else { i == place || (variadic && i > place) }
+            if taken { out.push((*arg.value).clone()) }
+        }
+    }
+    return out
+}
+
+/// The name a key value gives, its last segment: `Point` of `geo.Point`.
+fun Expr.key_name(): Sym {
+    return when (self.kind) {
+        Variable(name) => name
+        FieldAccess(_owner, member) => member
+        _ => intern("")
+    }
+}
+
+/// Whether `td`'s use lists `key`.
+fun Module.lists_key(td: &TopDecl, annotation: uint64, key: Sym): bool {
+    val values = self.key_values(td, annotation)
+    while value in &values {
+        if value.key_name().id == key.id { return true }
+    }
+    return false
+}
+
+/// A dependency's keyed template: the one public annotation of its name. A
+/// keyed template lives with its key, so not beside its annotation.
+fun Module.keyed_annotation(template: &TopDecl): uint64? {
+    var found: uint64? = null
+    var count = 0
+    while i in 0..self.decls.size() {
+        val td = self.decls.at(i)
+        if td.name.id != template.name.id { continue }
+        when (td.kind) {
+            AnnotationDecl(_params, _target, is_pub) => {
+                if is_pub || td.crate.raw == self.crate.raw {
+                    found = Option.Some(i)
+                    count = count + 1
+                }
+            }
+            _ => {}
+        }
+    }
+    return if count == 1 { found } else { null }
+}
+
+/// Each listed name of a use of an annotation with keyed templates that no
+/// template is keyed on, reported at the name.
+fun Module.report_missing_keys(templates: &List<TemplateAt>, diags: &var List<Diagnostic>): void {
+    var annotations = List.new<uint64>()
+    while found in &templates {
+        if self.decls.at(found.template).is_keyed() && !annotations.contains(&found.annotation) {
+            annotations.push(found.annotation)
+        }
+    }
+    while annotation in &annotations {
+        while td in &self.decls {
+            if !self.is_marked_by_any(td, annotation) { continue }
+            val values = self.key_values(td, annotation)
+            while value in &values {
+                if self.has_keyed_template(templates, annotation, value.key_name(), td) { continue }
+                val name = self.decls.at(annotation).name.as_str()
+                val written = value.key_name().as_str()
+                val on = td.marked_kind_word()
+                diags.push(error_at(value.span, "`${written}` has no `${name}` template on `${on}`"))
+            }
+        }
+    }
+}
+
+fun Module.has_keyed_template(templates: &List<TemplateAt>, annotation: uint64, key: Sym, marked: &TopDecl): bool {
+    while found in &templates {
+        val template = self.decls.at(found.template)
+        if found.annotation != annotation || template.template_key.id != key.id { continue }
+        if marked.declares(template.template_kind()) { return true }
+    }
+    return false
+}

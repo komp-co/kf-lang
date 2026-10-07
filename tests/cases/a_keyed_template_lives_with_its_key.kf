@@ -1,0 +1,10 @@
+//! build: fail
+//! deps: core
+// A keyed template lives in the crate declaring its key, as an impl lives
+// with its trait: a key this crate does not declare is an error.
+
+annotation deriving(traits: trait..) on struct
+
+template deriving(Missing) on struct T { }
+
+fun main(): int32 { return 0 }
