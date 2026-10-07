@@ -1,0 +1,82 @@
+// The facts a template's binders have are declared in core
+// (`libs/core/src/template.kf`), and the compiler's own lists, which its
+// messages name, are checked against those declarations here.
+
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.declaration.TopDecl
+import kf_parse.lexer.tokenize
+import kf_parse.parser.*
+import kf_typecheck.template.declared_facts
+import std.fs.read_to_string
+import testing.test
+
+/// `name: a b c | m n` for each `Template` struct in core: its fields, then
+/// the methods of its `impl`.
+fun core_facts(): String {
+    val src = when (read_to_string("libs/core/src/template.kf")) {
+        Ok(text) => text
+        Err(_e) => String.from("")
+    }
+    var smap = new_source_map()
+    val file = smap.add_file(new_source_file(String.from("template.kf"), src.clone()))
+    var parser = new_parser(tokenize(src.as_str(), file))
+    var path = List.new<String>()
+    path.push(String.from("core"))
+    val m = parser.parse_module(path)
+    var out = String.from("")
+    while td in &m.decls {
+        when (td.kind) {
+            Struct(fields, _pub) => {
+                out.append("${td.name.as_str()}:")
+                while field in &fields {
+                    out.append(" ${field.name.as_str()}")
+                }
+                out.append(" |")
+                out.append(methods_of(&m.decls, td).as_str())
+                out.append("\n")
+            }
+            _ => {}
+        }
+    }
+    return out
+}
+
+fun methods_of(decls: &List<TopDecl>, owner: &TopDecl): String {
+    var out = String.from("")
+    while td in decls {
+        if td.name.id != owner.name.id { continue }
+        when (td.kind) {
+            ImplBlock(methods) => {
+                while method in &methods {
+                    out.append(" ${method.name.as_str()}")
+                }
+            }
+            _ => {}
+        }
+    }
+    return out
+}
+
+fun compiler_facts(): String {
+    var out = String.from("")
+    while declared in &declared_facts() {
+        out.append("${declared.type_name.as_str()}:")
+        while value in &declared.values {
+            out.append(" ${value.as_str()}")
+        }
+        out.append(" |")
+        while method in &declared.methods {
+            out.append(" ${method.as_str()}")
+        }
+        out.append("\n")
+    }
+    return out
+}
+
+@test
+fun the_compiler_knows_each_fact_core_declares_and_no_other(): void {
+    assert_eq(core_facts().as_str(), compiler_facts().as_str(), "core/template.kf and the compiler's fact lists agree")
+}

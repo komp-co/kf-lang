@@ -117,7 +117,7 @@ fun Pattern.rest_pattern(name: Sym, binder: Sym, x: &var Expansion): Pattern {
 fun Expr.payload_access(found: &Bound, member: Sym, x: &var Expansion): Expr {
     val index = found.payload ?: 0
     if member.as_str() == "index" { return self.fact(ExprKind.LitInt(index as int64)) }
-    x.report(self.span, "a payload has no fact `${member.as_str()}`: it has `index` and `type`, and `of(a)`")
+    x.report(self.span, "a payload has no fact `${member.as_str()}`: it has ${listed_facts("TemplatePayload")}")
     return self.fact(ExprKind.Poison)
 }
 
