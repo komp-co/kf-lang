@@ -258,7 +258,7 @@ fun List<Sym>.name_at(i: uint64): Sym {
 
 /// Whether `callee` declares a default for every parameter from `written` on.
 pub fun SigTable.defaults_cover(callee: str, written: uint64): bool {
-    val params = self.param_lists.get(&String.from(callee)) ?: return false
+    val params = self.param_lists.get(&String.from_literal(callee)) ?: return false
     return written < params.size() && params.defaults_cover(written)
 }
 

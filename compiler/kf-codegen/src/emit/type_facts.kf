@@ -63,16 +63,16 @@ impl TypeFacts {
     }
 
     pub fun has_user_drop(name: str): bool {
-        return self.user_drop.contains(&String.from(name))
+        return self.user_drop.contains(&String.from_literal(name))
     }
 
     pub fun has_user_clone(name: str): bool {
-        return self.user_clone.contains(&String.from(name))
+        return self.user_clone.contains(&String.from_literal(name))
     }
 
     /// False for a name the module declares no struct or enum under.
     pub fun declared_owns_heap(name: str): bool {
-        return self.owns_heap.contains(&String.from(name))
+        return self.owns_heap.contains(&String.from_literal(name))
     }
 
     fun members_own_heap(td: &TopDecl): bool {
