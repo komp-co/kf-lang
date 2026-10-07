@@ -16,7 +16,7 @@ import kf_core.ast.declaration.*
 pub fun new_annotation(span: Span, name: str, words: List<String>): Annotation {
     var args = List.new<AnnotationArg>()
     while word in &words {
-        val value = Expr.new(span, ExprKind.Variable(intern(word.as_str())))
+        val value = Expr.new(span, ExprKind.Variable(intern(word)))
         args.push(AnnotationArg { name: intern(""), value: Box.new(value) })
     }
     return Annotation { name: intern(name), args: args, has_parens: words.size() > 0, span: span }

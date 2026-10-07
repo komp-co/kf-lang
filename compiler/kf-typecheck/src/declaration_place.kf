@@ -24,7 +24,7 @@ pub fun place_in(smap: Ptr<SourceMap>, span: Span, module: Sym): Location {
     val dot = path.index_of(".")
     if dot != null {
         val at = dot ?: return unknown
-        file.append(path.substring(at + 1, path.byte_len()).as_str().replace(".", "/").as_str())
+        file.append(path.substring(at + 1, path.byte_len()).replace(".", "/").as_str())
         file.append("/")
     }
     file.append("${path_file_stem(located.file_path.as_str())}.kf")

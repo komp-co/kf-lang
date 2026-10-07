@@ -22,9 +22,9 @@ c_sources = ["native/core.c"]
 hosted_c_sources = ["native/core_hosted.c"]
 """)
     val core_native = read_file("libs/core/native/core.c")
-    write_file(scratch_path("kf_dyn_strip_core/native/core.c"), core_native.as_str())
+    write_file(scratch_path("kf_dyn_strip_core/native/core.c"), core_native)
     val core_hosted = read_file("libs/core/native/core_hosted.c")
-    write_file(scratch_path("kf_dyn_strip_core/native/core_hosted.c"), core_hosted.as_str())
+    write_file(scratch_path("kf_dyn_strip_core/native/core_hosted.c"), core_hosted)
     write_file(scratch_path("kf_dyn_strip_app/kf.toml"), """[project]
 name = "dyn_strip_app"
 kind = "bin"
@@ -44,7 +44,7 @@ core = { path = "../kf_dyn_strip_core" }
     return 1
 }
 """)
-    write_file(scratch_path("kf_dyn_strip_app/src/main.kf"), app.as_str())
+    write_file(scratch_path("kf_dyn_strip_app/src/main.kf"), app)
     return 0
 }
 

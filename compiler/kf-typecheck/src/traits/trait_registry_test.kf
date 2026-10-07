@@ -230,7 +230,7 @@ mutating fun Module.registry_message(): String {
     val diagnostics = self.typecheck_module(&var declarations)
     while diagnostic in &diagnostics {
         val text = diagnostic.primary.message
-        if text.as_str().contains("duplicate impl") { return text.clone() }
+        if text.contains("duplicate impl") { return text.clone() }
     }
     return String.from("")
 }
@@ -244,7 +244,7 @@ fun a_duplicate_impl_from_a_dependency_names_that_crate(): void {
     module.decls.push(registry_impl_in("dep", "int32", "Show", Linkage.ImportedCompiled))
     module.decls.push(registry_impl_in("sample", "int32", "Show", linkage_source()))
     val message = module.registry_message()
-    assert_eq(message.as_str().contains("crate `dep`"), true, "for a dependency's impl of a runtime type, naming the crate is the whole of the hint")
+    assert_eq(message.contains("crate `dep`"), true, "for a dependency's impl of a runtime type, naming the crate is the whole of the hint")
 }
 
 @test
@@ -255,5 +255,5 @@ fun a_duplicate_impl_in_this_crate_says_so(): void {
     module.decls.push(registry_impl_in("sample", "Point", "Show", linkage_source()))
     module.decls.push(registry_impl_in("sample", "Point", "Show", linkage_source()))
     val message = module.registry_message()
-    assert_eq(message.as_str().contains("already implemented in this crate"), true, "naming `sample` would tell the reader nothing they did not know")
+    assert_eq(message.contains("already implemented in this crate"), true, "naming `sample` would tell the reader nothing they did not know")
 }

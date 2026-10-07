@@ -34,7 +34,7 @@ pub fun canonical_type_identity(identity: TypeIdentity): Sym {
     text.append(identity.module.as_str())
     text.append("::")
     text.append(identity.name.as_str())
-    return intern(text.as_str())
+    return intern(text)
 }
 
 pub fun named_struct_ty(identity: TypeIdentity, span: Span): Type {
@@ -73,7 +73,7 @@ pub fun canonical_identity_crate(identity: Sym): CrateId {
     while i + 1 < n {
         if text.byte_at(i) == 58 && text.byte_at(i + 1) == 58 {
             val crate_name = text.substring(0, i)
-            return new_crate_id(crate_name.as_str())
+            return new_crate_id(crate_name)
         }
         i = i + 1
     }

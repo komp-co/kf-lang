@@ -56,7 +56,7 @@ core = { path = "../kf_dyn_prim_core" }
     app.append("    val w = Wrapper { n: 5 }\n")
     app.append("    if through_dyn(&w) != 1 { return 4 }\n")
     app.append("    return 0\n}\n")
-    write_file(scratch_path("kf_dyn_prim_app/src/main.kf"), app.as_str())
+    write_file(scratch_path("kf_dyn_prim_app/src/main.kf"), app)
     return 0
 }
 

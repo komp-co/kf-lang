@@ -51,12 +51,12 @@ mutating fun JsonReader.load_generic(crate: CrateId, crate_name: str, path: str,
     if !self.expect_key("src") { return poison_decl() }
     val src = self.read_string()
     if self.object_has_next() { return poison_decl() }
-    if src.as_str().byte_len() == 0 { return poison_decl() }
+    if src.byte_len() == 0 { return poison_decl() }
     var fragment_path = String.from(crate_name)
     fragment_path.append(".kfi:")
     fragment_path.append(path)
     val fid = unsafe { smap.add_file(new_source_file(fragment_path, src.clone())) }
-    val tokens = tokenize(src.as_str(), fid)
+    val tokens = tokenize(src, fid)
     var parser = new_parser(tokens)
     val fragment = parser.parse_module(List.new<String>())
     if parser.diags.size() > 0 || fragment.decls.size() != 1 { return poison_decl() }
@@ -104,7 +104,7 @@ fun stamp_imported(td: TopDecl, crate: CrateId, path: str, link_name: String, hi
     var stamped = td
     stamp_decl_owner(&var stamped, crate, intern(path))
     if hidden { stamped.linkage = Linkage.HiddenSupport } else { stamped.linkage = Linkage.ImportedCompiled }
-    stamped.link_name = intern(link_name.as_str())
+    stamped.link_name = intern(link_name)
     return stamped
 }
 
@@ -131,7 +131,7 @@ mutating fun JsonReader.read_c_naming(): CNaming? {
 fun mark_c_naming(td: TopDecl, naming: CNaming): TopDecl {
     var marked = td
     if naming.unmangled { marked.annotations.push(new_annotation(no_span(), "no_mangle", List.new<String>())) }
-    if !naming.lang.as_str().equals("") { marked.annotations.push(lang_annotation(naming.lang.as_str())) }
+    if !naming.lang.as_str().equals("") { marked.annotations.push(lang_annotation(naming.lang)) }
     marked.is_view = naming.view
     return marked
 }

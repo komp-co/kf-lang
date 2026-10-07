@@ -35,15 +35,15 @@ pub fun compile_source(src: str): String {
     val source_module = p.parse_module(List.new<String>())
     while diag in &p.diags {
         val text = render(diag, smap)
-        runtime_println(text.as_str())
+        runtime_println(text)
     }
     var errors = new_diagnostics()
     val libs = bundled_libs()
     val core_root = "${libs}/core"
     var core_diags = new_diagnostics()
-    val core_crate = assemble_crate(core_root.as_str(), String.from("core"), smap, &var core_diags)
+    val core_crate = assemble_crate(core_root, String.from("core"), smap, &var core_diags)
     val alloc_root = "${libs}/alloc"
-    val alloc_crate = assemble_crate(alloc_root.as_str(), String.from("alloc"), smap, &var core_diags)
+    val alloc_crate = assemble_crate(alloc_root, String.from("alloc"), smap, &var core_diags)
     var modules = core_crate.modules.clone()
     while module in &alloc_crate.modules {
         modules.push(module.clone())
@@ -63,7 +63,7 @@ pub fun compile_source(src: str): String {
     // As komp composes a unity build: the generated C, then the natives.
     var text = generated
     text.append("\n#define KF_NATIVE_UNITY 1\n")
-    text.append(native.as_str())
+    text.append(native)
     return text
 }
 
@@ -81,7 +81,7 @@ pub fun compile_crate_separate(crate_root: str, crate_name: str, is_bin: bool): 
 pub fun check_project(root_dir: str): int32 {
     val graph = FixtureGraph.of(root_dir)
     if !graph.error.is_empty() {
-        runtime_println(graph.error.as_str())
+        runtime_println(graph.error)
         return 1
     }
     val smap = fresh_source_map()
@@ -126,7 +126,7 @@ impl FixtureGraph {
             cfg.apply_table_lint("lint configuration", row.substring(0, eq).as_str(),
                 row.substring(eq + 1, row.byte_len()).as_str(), diags)
         }
-        while row in &root.lint_options { cfg.apply_option_row(row.as_str(), diags) }
+        while row in &root.lint_options { cfg.apply_option_row(row, diags) }
         return cfg
     }
 }
@@ -142,7 +142,7 @@ fun FixtureGraph.compile_graph_outputs_with_interfaces(errors: &var Diagnostics,
     interfaces: Ptr<List<String>>): List<CrateCodegenOutput> {
     var out = List.new<CrateCodegenOutput>()
     if !self.error.is_empty() {
-        runtime_println(self.error.as_str())
+        runtime_println(self.error)
         errors.count_errors(1)
         return out
     }
@@ -150,7 +150,7 @@ fun FixtureGraph.compile_graph_outputs_with_interfaces(errors: &var Diagnostics,
     var pdiags = new_diagnostics()
     var all_modules = List.new<Module>()
     while bc in &self.crates {
-        val c = assemble_crate(bc.root.as_str(), String.from(bc.name.as_str()), smap, &var pdiags)
+        val c = assemble_crate(bc.root, String.from(bc.name.as_str()), smap, &var pdiags)
         while j in 0..c.modules.size() {
             all_modules.push(deep_clone_module(c.modules.at(j)))
         }
@@ -160,7 +160,7 @@ fun FixtureGraph.compile_graph_outputs_with_interfaces(errors: &var Diagnostics,
     while pi < pdiags.size() {
         val d = pdiags.at(pi)
         val text = render(d, smap)
-        runtime_println(text.as_str())
+        runtime_println(text)
         perrs = perrs + 1
         pi = pi + 1
     }
@@ -176,7 +176,7 @@ fun FixtureGraph.compile_graph_outputs_with_interfaces(errors: &var Diagnostics,
     var emitted_hashes = List.new<String>()
     while interface_crate in &self.crates {
         val dependency_hashes = dependency_interface_hashes(&interface_crate.deps, &emitted_names, &emitted_hashes)
-        val closure_errors = export_closure_diagnostics(&merged, new_crate_id(interface_crate.name.as_str()))
+        val closure_errors = export_closure_diagnostics(&merged, new_crate_id(interface_crate.name))
         while closure_index in 0..closure_errors.size() {
             runtime_println(closure_errors.at(closure_index).as_str())
             errors.count_errors(1)

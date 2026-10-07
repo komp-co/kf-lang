@@ -35,7 +35,7 @@ pub fun emit_missing_operator_impl(ty: Type, trait_name: str, span: Span, ctx: &
     val target = impl_target_spelling(base.clone(), ctx)
     val operand = ty.display_type(ctx)
     var message = "operator requires `impl ${trait_name} for ${target}`"
-    if !operand.as_str().equals(target.as_str()) {
+    if !operand.as_str().equals(target) {
         message = message + "; `${operand}` has none"
     }
     ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
@@ -43,7 +43,7 @@ pub fun emit_missing_operator_impl(ty: Type, trait_name: str, span: Span, ctx: &
 
 /// `Option` as `Option<T>`, `HashMap` as `HashMap<K, V>`; others unchanged.
 fun impl_target_spelling(base: String, ctx: &var TypeCtx): String {
-    val info = unsafe { (*ctx.sigs).find_generic_info(base.as_str(), ctx.owner_crate) } ?: return base
+    val info = unsafe { (*ctx.sigs).find_generic_info(base, ctx.owner_crate) } ?: return base
     if info.type_params.size() == 0 { return base }
     var out = base.clone()
     out.append("<")

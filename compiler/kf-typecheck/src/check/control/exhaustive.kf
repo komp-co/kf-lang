@@ -26,7 +26,7 @@ pub fun when_missing_variants(subject_ty: Type, arms: &List<Arm>, ctx: &var Type
 
     // Enums resolve to Struct(name); the sig table decides.
     val ename = subject_ty.kind.enum_or_struct_name()
-    val layout = unsafe { (*ctx.sigs).find_enum(ename.as_str(), ctx.owner_crate) } ?: return missing
+    val layout = unsafe { (*ctx.sigs).find_enum(ename, ctx.owner_crate) } ?: return missing
 
     if arms_have_irrefutable(arms) { return missing }
     // An arm naming a variant the enum lacks is already reported; what it
@@ -34,7 +34,7 @@ pub fun when_missing_variants(subject_ty: Type, arms: &List<Arm>, ctx: &var Type
     if arms_name_a_foreign_variant(arms, &layout) { return missing }
 
     while v in &layout.variants {
-        if !variant_is_covered(v.name.as_str(), arms) && !v.cannot_be_built(ctx) {
+        if !variant_is_covered(v.name, arms) && !v.cannot_be_built(ctx) {
             missing.push(String.from(v.name.as_str()))
         }
     }
@@ -177,7 +177,7 @@ fun arms_name_a_foreign_variant(arms: &List<Arm>, layout: &EnumLayout): bool {
             Variant(vname, _) => vname.as_string()
             _ => String.from("")
         }
-        if !named.is_empty() && !layout.has_variant(named.as_str()) { return true }
+        if !named.is_empty() && !layout.has_variant(named) { return true }
     }
     return false
 }

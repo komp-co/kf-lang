@@ -56,10 +56,10 @@ fun counter_ty(): Type {
     val diags = unsafe { *ctx.diags }
     assert_eq(diags.size(), 1, "one diagnostic")
     val m = diags.at(0).primary.message
-    assert_eq(m.as_str().contains("while v in &..."), true, "names the loop as written")
-    assert_eq(m.as_str().contains("CountIter"), true, "names the iterator")
-    assert_eq(m.as_str().contains("next_ptr"), true, "names what is missing")
-    assert_eq(m.as_str().contains("drop the `&`"), true, "and the other way out")
+    assert_eq(m.contains("while v in &..."), true, "names the loop as written")
+    assert_eq(m.contains("CountIter"), true, "names the iterator")
+    assert_eq(m.contains("next_ptr"), true, "names what is missing")
+    assert_eq(m.contains("drop the `&`"), true, "and the other way out")
 }
 
 // An unknown subject is left to the ordinary `no method` path.

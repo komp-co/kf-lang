@@ -15,9 +15,9 @@ pub fun Sym.local_is_callable(arity: uint64, ctx: &var TypeCtx): bool {
         }
         Struct(identity) => {
             val shared = call_trait_name(arity, false)
-            if unsafe { (*ctx.sigs).identity_implements_any(identity, shared.as_str()) } { return true }
+            if unsafe { (*ctx.sigs).identity_implements_any(identity, shared) } { return true }
             val mutable = call_trait_name(arity, true)
-            return unsafe { (*ctx.sigs).identity_implements_any(identity, mutable.as_str()) }
+            return unsafe { (*ctx.sigs).identity_implements_any(identity, mutable) }
         }
         _ => return false
     }

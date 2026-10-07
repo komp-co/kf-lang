@@ -69,14 +69,14 @@ pub fun sanitize_crate_symbol(name: str): String {
         val b = name.byte_at(i)
         if !crate_symbol_ident_byte(b) {
             val piece = name.substring(start, i)
-            out.append(piece.as_str())
+            out.append(piece)
             out.append("_")
             start = i + 1
         }
         i = i + 1
     }
     val tail = name.substring(start, n)
-    out.append(tail.as_str())
+    out.append(tail)
     return out
 }
 

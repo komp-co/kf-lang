@@ -108,7 +108,7 @@ pub fun self_read_assign_old(name: Sym, rhs_ptr: Ptr<Expr>, before: &AssignOwner
     val tmp_id = ctx.block_counter
     ctx.block_counter = tmp_id + 1
     val tmp_name = "__old_${u64_to_str(tmp_id)}"
-    val tmp_sym = intern(tmp_name.as_str())
+    val tmp_sym = intern(tmp_name)
     var v = Expr.new(span, ExprKind.Variable(name))
     v.ty = unsafe { (*rhs_ptr).ty }
     val vp: Ptr<Expr> = unsafe { alloc<Expr>() }

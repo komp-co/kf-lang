@@ -245,7 +245,7 @@ pub fun emit_method_forward(struct_name: String, td: &TopDecl): String {
 pub fun emit_method(struct_name: String, td: &TopDecl, payloads: &ArmPayloads): String {
     var body = td.extract_body()
     if !fn_is_static(td) {
-        deref_self_stmt_list(&var body, struct_name.as_str())
+        deref_self_stmt_list(&var body, struct_name)
     }
     var env = build_param_env(td, payloads)
     var parts = List.new<String>()
@@ -316,7 +316,7 @@ fun TypeRef.param_release(ct: String): String {
         }
         _ => { }
     }
-    return release_fn_for_ctype(ct.as_str())
+    return release_fn_for_ctype(ct)
 }
 
 fun TopDecl.extract_body(): List<Stmt> {

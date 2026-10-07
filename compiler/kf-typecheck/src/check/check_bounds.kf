@@ -84,7 +84,7 @@ fun Type.field_is_var(name: Sym, ctx: &var TypeCtx): bool {
     // By its declared name, as a field read finds it: a call's result carries
     // the canonical identity.
     val sname = t.kind.struct_name()
-    val layout = unsafe { (*ctx.sigs).find_struct(sname.as_str(), ctx.owner_crate) } ?: return true
+    val layout = unsafe { (*ctx.sigs).find_struct(sname, ctx.owner_crate) } ?: return true
     while f in &layout.fields {
         if f.name.as_str().equals(name.as_str()) { return f.is_var }
     }
@@ -157,7 +157,7 @@ fun emit_immutable_recv_err(method_name: String, recv: &Expr, span: Span, ctx: &
         return
     }
     // A parameter's fix is in its type, not `var`.
-    if ctx.is_param(root.as_str()) {
+    if ctx.is_param(root) {
         val plab = new_label(span, "mutating method `${method_name}"
             + String.from("` needs a mutable receiver, and `") + root.clone()
             + String.from("` is a by-value parameter; take it as `&var`"))
@@ -188,10 +188,10 @@ pub fun Type.method_is_mutating(method_name: String, arity: uint64, ctx: &var Ty
             if name_starts_with(sname.clone(), "List__") && synthesized_mutating.contains(&m) { return true }
             if m.equals("call") {
                 val trait_name = call_trait_name(arity, true)
-                if unsafe { (*ctx.sigs).identity_implements_any(n, trait_name.as_str()) } { return true }
+                if unsafe { (*ctx.sigs).identity_implements_any(n, trait_name) } { return true }
             }
             val mangled = sname + String.from("_") + method_name
-            val direct = unsafe { (*ctx.sigs).find_signature(mangled.as_str()) }
+            val direct = unsafe { (*ctx.sigs).find_signature(mangled) }
             if direct.is_some() {
                 val sig = direct ?: return false
                 return sig.is_mutating
@@ -277,25 +277,25 @@ fun check_generic_bounds_env(owner: String, param: String, bound_ty: &Type, gnam
     var i = 0
     while i < nb {
         val b = unsafe { *sp.bounds.at(i) }
-        if b.owner.as_str().equals(owner.as_str()) {
-            if b.param.as_str().equals(param.as_str()) {
+        if b.owner.as_str().equals(owner) {
+            if b.param.as_str().equals(param) {
                 if !gbind.as_str().equals("") {
                     if !owner_has_bound(ctx.fn_owner.clone(), gbind.clone(), b.trait_name.clone(), ctx) {
-                        val lab = new_label(span, String.from("type parameter `") + gbind.clone() + String.from("` does not carry bound `") + b.trait_name.clone() + String.from("` (required by `") + param.clone() + String.from(": ") + b.trait_name.clone() + String.from("` on `") + unsafe { (*sp).surface_name(owner.as_str()) } + String.from("`); add it: `") + gbind.clone() + String.from(": ") + b.trait_name.clone() + String.from("`"))
+                        val lab = new_label(span, String.from("type parameter `") + gbind.clone() + String.from("` does not carry bound `") + b.trait_name.clone() + String.from("` (required by `") + param.clone() + String.from(": ") + b.trait_name.clone() + String.from("` on `") + unsafe { (*sp).surface_name(owner) } + String.from("`); add it: `") + gbind.clone() + String.from(": ") + b.trait_name.clone() + String.from("`"))
                         ctx.emit(new_diagnostic(Severity.Error, lab))
                     }
                 } else if unjudged && !b.trait_name.as_str().equals(copy_name.as_str()) {
-                } else if !bound_type_implements_here(bound_ty, b.trait_name.as_str(), subst_trait_args(b.trait_args.as_str(), gnames, bound_tys, false), gnames, span, ctx) {
+                } else if !bound_type_implements_here(bound_ty, b.trait_name, subst_trait_args(b.trait_args, gnames, bound_tys, false), gnames, span, ctx) {
                     // A nonexistent trait is reported at the declaration, not
                     // at every call.
-                    val trait_exists = !unsafe { sp.find_trait(b.trait_name.as_str()) }.is_none()
-                    if trait_exists && !ty_satisfies_intrinsically(base.as_str(), b.trait_name.as_str(), ctx) {
+                    val trait_exists = !unsafe { sp.find_trait(b.trait_name) }.is_none()
+                    if trait_exists && !ty_satisfies_intrinsically(base, b.trait_name, ctx) {
                         // Rendered with its arguments (`From<str>`).
                         var tshow = b.trait_name.clone()
                         if !b.trait_args.as_str().equals("") {
-                            tshow = tshow + String.from("<") + projection_mangle_display(b.trait_args.as_str()) + String.from(">")
+                            tshow = tshow + String.from("<") + projection_mangle_display(b.trait_args) + String.from(">")
                         }
-                        val lab = new_label(span, String.from("type `") + bound_ty.display_type(ctx) + String.from("` does not implement trait `") + tshow.clone() + String.from("` (required by bound `") + param.clone() + String.from(": ") + tshow.clone() + String.from("` on `") + unsafe { (*sp).surface_name(owner.as_str()) } + String.from("`)"))
+                        val lab = new_label(span, String.from("type `") + bound_ty.display_type(ctx) + String.from("` does not implement trait `") + tshow.clone() + String.from("` (required by bound `") + param.clone() + String.from(": ") + tshow.clone() + String.from("` on `") + unsafe { (*sp).surface_name(owner) } + String.from("`)"))
                         ctx.emit(new_diagnostic(Severity.Error, lab))
                     }
                 }

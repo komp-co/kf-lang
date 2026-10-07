@@ -64,7 +64,7 @@ fun generics_contains(haystack: str, needle: str): bool {
 @test
 fun template_entry_carries_declaration_source(): void {
     val out = emit_mapped("pub fun id<T>(x: T): T { return x }")
-    assert_eq(generics_contains(out.as_str(), "\"kind\":\"generic\",\"hidden\":false,\"name\":\"id\",\"src\":\"pub fun id<T>(x: T): T { return x }\""), true, "template crosses as its own source text")
+    assert_eq(generics_contains(out, "\"kind\":\"generic\",\"hidden\":false,\"name\":\"id\",\"src\":\"pub fun id<T>(x: T): T { return x }\""), true, "template crosses as its own source text")
 }
 
 @test
@@ -80,26 +80,26 @@ fun template_emission_is_deterministic(): void {
 @test
 fun hidden_helper_rides_along_marked_hidden(): void {
     val out = emit_mapped("pub fun run<T>(x: T): T { helper()\nreturn x }\nfun helper(): void { }")
-    assert_eq(generics_contains(out.as_str(), "\"kind\":\"fun\",\"hidden\":true,\"name\":\"helper\",\"pub\":false,\"link_name\":\"sample__helper\""), true, "private helper crosses bodyless with its archive symbol")
+    assert_eq(generics_contains(out, "\"kind\":\"fun\",\"hidden\":true,\"name\":\"helper\",\"pub\":false,\"link_name\":\"sample__helper\""), true, "private helper crosses bodyless with its archive symbol")
 }
 
 @test
 fun private_fun_without_template_stays_out(): void {
     val out = emit_mapped("pub fun visible(): void { }\nfun helper(): void { }")
-    assert_eq(generics_contains(out.as_str(), "helper"), false, "no template means no hidden support")
+    assert_eq(generics_contains(out, "helper"), false, "no template means no hidden support")
 }
 
 @test
 fun template_annotation_is_reconstructed(): void {
     val out = emit_mapped("@derive(Default)\npub struct Wrap<T> { val v: T }")
-    assert_eq(generics_contains(out.as_str(), "\"src\":\"@derive(Default)\\npub struct Wrap<T> { val v: T }\""), true, "annotation rides in front of the slice")
+    assert_eq(generics_contains(out, "\"src\":\"@derive(Default)\\npub struct Wrap<T> { val v: T }\""), true, "annotation rides in front of the slice")
 }
 
 fun round_trip_generics(src: str): InterfaceLoad {
     val emit_map = generics_source_map()
     val m = mapped_module(src, "sample", emit_map)
     val encoded = m.emit_interface_full(String.from("sample"), &List.new<String>(), &List.new<String>(), emit_map)
-    return parse_interface_mapped(encoded.as_str(), generics_source_map())
+    return parse_interface_mapped(encoded, generics_source_map())
 }
 
 fun InterfaceLoad.find_decl(name: str): TopDecl {

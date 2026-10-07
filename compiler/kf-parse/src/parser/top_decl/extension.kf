@@ -106,8 +106,8 @@ impl Parser {
         val receiver_at = self.peek().span
         val receiver_name = self.expect_name("receiver type")
         unsafe { self.advance() }
-        val receiver_args = self.parse_receiver_arguments(receiver_name.as_str())
-        val receiver = TypeRef.new(receiver_at, TypeRefKind.Named(intern(receiver_name.as_str()), receiver_args))
+        val receiver_args = self.parse_receiver_arguments(receiver_name)
+        val receiver = TypeRef.new(receiver_at, TypeRefKind.Named(intern(receiver_name), receiver_args))
         unsafe { self.advance() } // consume `.`
         val name_at = self.peek().span
         val name = self.expect_name("extension function")
@@ -127,7 +127,7 @@ impl Parser {
         val ret = self.parse_fun_ret(span)
         val body = self.parse_fun_body(ret)
         val kind = TopDeclKind.Function(params, ret, body, is_pub, false, false, false)
-        var td = new_top_decl(span, extension_link_name(name.as_str(), &receiver), kind)
+        var td = new_top_decl(span, extension_link_name(name, &receiver), kind)
         td.name_span = name_at
         // The function's own parameters come first, so an explicit type
         // argument at a call site means one of them.
@@ -136,7 +136,7 @@ impl Parser {
             generics.push(receiver_generic)
         }
         td.generics = generics
-        td.ext_name = intern(name.as_str())
+        td.ext_name = intern(name)
         return td
     }
 

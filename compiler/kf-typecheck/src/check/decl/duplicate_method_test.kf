@@ -41,7 +41,7 @@ fun dup_test_diagnostics(first: str, second: str): List<Diagnostic> {
 
 fun dup_test_reported(diagnostics: &List<Diagnostic>, needle: str): bool {
     while diagnostic in &diagnostics {
-        if (diagnostic.primary.message.as_str()).contains(needle) { return true }
+        if (diagnostic.primary.message).contains(needle) { return true }
     }
     return false
 }

@@ -102,8 +102,8 @@ fun int_has_sub(s: str, needle: str): bool {
     val s = Stmt.new(no_span(), StmtKind.Switch(expr_ptr(subj), arms))
     var env = new_local_env()
     val c = emit_stmt(s, 0, &var env)
-    assert_eq(int_has_sub(c.as_str(), "__auto_type __a ="), true, "named binder a is bound")
-    assert_eq(int_has_sub(c.as_str(), "___"), false, "wildcard binder emits no ___")
+    assert_eq(int_has_sub(c, "__auto_type __a ="), true, "named binder a is bound")
+    assert_eq(int_has_sub(c, "___"), false, "wildcard binder emits no ___")
 }
 
 // `ctx.sigs` on a `&var TypeCtx` emits `recv.field`.
@@ -128,7 +128,7 @@ fun int_has_sub(s: str, needle: str): bool {
     val fkind = TopDeclKind.Function(List.new<Param>(), ty_ptr("String"), List.new<Stmt>(), true, false, false, false)
     val method = new_top_decl(no_span(), String.from("display"), fkind)
     val proto = emit_method_proto(String.from("int32"), method)
-    assert_eq(int_has_sub(proto.as_str(), "int32_t* __self"), true, "primitive method receivers use their C type")
+    assert_eq(int_has_sub(proto, "int32_t* __self"), true, "primitive method receivers use their C type")
 }
 
 // `String.from(x)` is an ordinary static call.
@@ -263,8 +263,8 @@ fun pt_var_ptr(name: str): Ptr<Expr> {
     val whl = Stmt.new(no_span(), StmtKind.While(cond, body))
     var env = new_local_env()
     val c = emit_stmt(whl, 0, &var env)
-    assert_eq(int_has_sub(c.as_str(), "goto __brk_0;"), true, "break → goto __brk_0;")
-    assert_eq(int_has_sub(c.as_str(), "__brk_0: ;"), true, "loop emits its break-label")
+    assert_eq(int_has_sub(c, "goto __brk_0;"), true, "break → goto __brk_0;")
+    assert_eq(int_has_sub(c, "__brk_0: ;"), true, "loop emits its break-label")
 }
 
 @test fun while_without_break_has_no_label(): void {
@@ -277,7 +277,7 @@ fun pt_var_ptr(name: str): Ptr<Expr> {
     val whl = Stmt.new(no_span(), StmtKind.While(cond, body))
     var env = new_local_env()
     val c = emit_stmt(whl, 0, &var env)
-    assert_eq(int_has_sub(c.as_str(), "__brk"), false, "no label when loop has no break")
+    assert_eq(int_has_sub(c, "__brk"), false, "no label when loop has no break")
 }
 
 @test fun addr_of_lvalue_takes_plain_address(): void {

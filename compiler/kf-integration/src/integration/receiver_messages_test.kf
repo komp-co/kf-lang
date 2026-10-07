@@ -155,6 +155,6 @@ fun a_mutating_method_through_a_bound_needs_a_var_parameter(): void {
 @test
 fun a_mutating_method_through_a_bound_runs_on_a_var_local(): void {
     val source = bump_through_a_bound("var y = x\n    y.bump()")
-    val said = reports("kf_recv_bound_var", source.as_str(), "mutable receiver")
+    val said = reports("kf_recv_bound_var", source, "mutable receiver")
     assert_eq(said, false, "a `var` local is a mutable receiver")
 }

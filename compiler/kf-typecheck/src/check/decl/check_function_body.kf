@@ -46,7 +46,7 @@ fun check_fn_body(metadata_owner: Ptr<TopDecl>, owner: String, owner_crate: Crat
         ctx.metadata_owner = metadata_owner
         ctx.declare_value_params()
         if !impl_target.as_str().equals("") {
-            ctx.self_ty = impl_target_ty(impl_target.as_str(), no_span(), ctx.string_name())
+            ctx.self_ty = impl_target_ty(impl_target, no_span(), ctx.string_name())
         }
         val ret_tr: TypeRef = unsafe { *ret_ptr }
         ctx.return_ty = ret_tr.resolve_type_ref(&var ctx)
@@ -57,7 +57,7 @@ fun check_fn_body(metadata_owner: Ptr<TopDecl>, owner: String, owner_crate: Crat
             // primitive target.
             var self_ty = Type.new_poison()
             if ctx.self_ty.is_poison() {
-                val self_kind = TypeRefKind.Named(intern(self_name.as_str()), List.new<TypeRef>())
+                val self_kind = TypeRefKind.Named(intern(self_name), List.new<TypeRef>())
                 val self_tr = TypeRef.new(no_span(), self_kind)
                 self_ty = self_tr.resolve_type_ref(&var ctx)
             } else {
@@ -270,7 +270,7 @@ fun emit_builtin_type_name_reserved_err(diags: &var Diagnostics, span: Span, nam
 
 /// Each of the owner's value parameters is a constant of its type.
 mutating fun TypeCtx.declare_value_params(): void {
-    val found = self.value_params_of(self.fn_owner.as_str())
+    val found = self.value_params_of(self.fn_owner)
     while info in &found {
         val ty = info.ty.resolve_type_ref(self)
         self.declare_val(info.param.clone(), ty)

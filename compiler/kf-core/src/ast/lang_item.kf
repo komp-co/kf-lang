@@ -168,7 +168,7 @@ impl Module {
 pub fun lang_placeholder(key: str): Sym {
     var text = String.from("lang::")
     text.append(key)
-    return intern(text.as_str())
+    return intern(text)
 }
 
 impl Sym {

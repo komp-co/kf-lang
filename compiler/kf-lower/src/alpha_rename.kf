@@ -70,7 +70,7 @@ mutating fun RnCtx.rn_bind(name: Sym): Sym {
     if self.rn_visible(name) {
         val suffix = "${self.counter}"
         val fresh = name.as_string() + String.from("__shadow") + suffix
-        nn = intern(fresh.as_str())
+        nn = intern(fresh)
         self.counter = self.counter + 1
     }
     val n = self.scopes.size()

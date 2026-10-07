@@ -29,11 +29,11 @@ pub fun dyn_or_extension_call(e: &var Expr, recv_ptr: Ptr<Expr>, recv: &Expr, na
     if !renders && receiver_has_own_method(recv.ty.clone(), name.as_string(), ctx) { return false }
     val link = chosen_extension(name.as_str(), &recv.ty, e.span, ctx)
     if link.byte_len() == 0 { return e.report_blocked_extension(name.as_str(), &recv.ty, ctx) }
-    if link.as_str().equals(".") || !extension_arity_fits(link.as_str(), name.as_str(), args, e.span, ctx) {
+    if link.as_str().equals(".") || !extension_arity_fits(link, name.as_str(), args, e.span, ctx) {
         e.ty = Type.new_poison()
         return true
     }
-    if recv.cannot_lend_to(link.as_str(), ctx) {
+    if recv.cannot_lend_to(link, ctx) {
         emit_immutable_recv_err(name.as_string(), recv, e.span, ctx)
         e.ty = Type.new_poison()
         return true
@@ -44,7 +44,7 @@ pub fun dyn_or_extension_call(e: &var Expr, recv_ptr: Ptr<Expr>, recv: &Expr, na
     while arg in &args {
         call_args.push(arg)
     }
-    e.kind = ExprKind.Call(intern(link.as_str()), call_args)
+    e.kind = ExprKind.Call(intern(link), call_args)
     ctx.pretyped_args = 1
     check_expr(e, ctx)
     return true
@@ -71,7 +71,7 @@ pub mutating fun Expr.extension_function_call(name: Sym, args: &var List<Expr>, 
     // After the check, which coerced the arguments in place.
     val callee = if ctx.qualified_callee.byte_len() > 0 { ctx.qualified_callee.clone() } else { link.clone() }
     ctx.qualified_callee = String.from("")
-    self.kind = ExprKind.Call(intern(callee.as_str()), args.clone())
+    self.kind = ExprKind.Call(intern(callee), args.clone())
     return true
 }
 
@@ -114,7 +114,7 @@ fun renders_through_display(recv_ty: Type, name: str, arg_count: uint64, ctx: &v
     val table = unsafe { &*ctx.sigs }
     val on_instance = "${sname}_${name}"
     val on_template = "${base}_${name}"
-    return table.find_signature(on_instance.as_str()).is_none() && table.find_signature(on_template.as_str()).is_none()
+    return table.find_signature(on_instance).is_none() && table.find_signature(on_template).is_none()
 }
 
 /// A type or trait method, or one komp supplies; a type parameter has its
@@ -140,9 +140,9 @@ fun receiver_has_own_method(recv_ty: Type, name: String, ctx: &var TypeCtx): boo
     val list_method = n == "get" || n == "at" || n == "at_mut" || n == "size" || n == "is_empty" || n == "push" ||
         n == "set"
     if is_list && list_method { return true }
-    val identity = intern(sname.as_str())
+    val identity = intern(sname)
     if unsafe { (*ctx.sigs).lookup_method_link(identity, n) }.as_str().byte_len() > 0 { return true }
-    if type_has_method_named(sname.as_str(), n, ctx) { return true }
+    if type_has_method_named(sname, n, ctx) { return true }
     return receiver_declares_trait_method(recv, name.clone(), ctx)
 }
 
@@ -243,10 +243,10 @@ fun FnSignature.receiver_fit(recv: &Type, ctx: &var TypeCtx): uint64 {
     var generic = false
     var narrowed: uint64 = 0
     while g in &self.generics {
-        val binding = want.bind_generic_from_param(&have, g.as_str(), ctx)
+        val binding = want.bind_generic_from_param(&have, g, ctx)
         if !binding.is_poison() {
-            if self.unmet_bound(g.as_str(), &binding, ctx).byte_len() > 0 { return 0 }
-            val by_bounds = self.bound_narrowing(g.as_str(), ctx)
+            if self.unmet_bound(g, &binding, ctx).byte_len() > 0 { return 0 }
+            val by_bounds = self.bound_narrowing(g, ctx)
             if by_bounds > narrowed { narrowed = by_bounds }
             generic = true
             bound = bound.subst_generic(g.clone(), binding)
@@ -281,7 +281,7 @@ fun nearest_with_extensions(type_name: str, wanted: str, budget: uint64, ctx: &v
                 val on = autoderef_ty(*sig.params.at(0)).kind.nominal_name()
                 val candidate = on.as_str().equals(type_name) && !name.as_str().equals(wanted)
                 if candidate && sig.extension_visible(ctx) {
-                    val distance = edit_distance(wanted, name.as_str(), best_distance)
+                    val distance = edit_distance(wanted, name, best_distance)
                     if distance < best_distance {
                         best = name.clone()
                         best_distance = distance

@@ -139,7 +139,7 @@ fun Type.is_float(): bool {
 
 fun Expr.is_float_zero(): bool {
     return when (self.kind) {
-        LitFloat(spelling) => spelling.as_str().trim_end_matches_zero() == "0."
+        LitFloat(spelling) => spelling.trim_end_matches_zero() == "0."
         _ => false
     }
 }

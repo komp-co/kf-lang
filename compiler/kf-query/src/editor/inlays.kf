@@ -86,6 +86,6 @@ fun Stmt.inlay_binding(ann: Ptr<TypeRef>?, init_opt: Ptr<Expr>?, crate: &TypedCr
     label.append(ty.written_type(crate.sigs).as_str())
     var o = JsonWriter.object()
     o.field_uint32("byte_offset", at)
-    o.field_string("label", label.as_str())
+    o.field_string("label", label)
     arr.write_raw(o.finish().as_str())
 }

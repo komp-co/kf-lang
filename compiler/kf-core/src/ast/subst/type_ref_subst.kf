@@ -20,7 +20,7 @@ pub fun TypeRef.mangle_tyref(): String {
             while item in &args {
                 result.append("__")
                 val arg = item.mangle_tyref()
-                result.append(arg.as_str())
+                result.append(arg)
             }
             return result
         }
@@ -30,7 +30,7 @@ pub fun TypeRef.mangle_tyref(): String {
             while item in &args {
                 result.append("__")
                 val arg = item.mangle_tyref()
-                result.append(arg.as_str())
+                result.append(arg)
             }
             return result
         }
@@ -44,7 +44,7 @@ pub fun TypeRef.mangle_tyref(): String {
             }
             // `&T` is not `T`: `List<&A>` and `List<A>` need different names.
             val pointee = mangle_tyref(unsafe { &*inner })
-            return borrow_frag(is_mut, pointee.as_str())
+            return borrow_frag(is_mut, pointee)
         }
         Function(params, ret) => {
             var frags = List.new<String>()
@@ -56,13 +56,13 @@ pub fun TypeRef.mangle_tyref(): String {
         Array(elem, _n) => {
             var result = String.from("Array__")
             val item = mangle_tyref(unsafe { &*elem })
-            result.append(item.as_str())
+            result.append(item)
             return result
         }
         // Named by owner and member so substitution can rewrite the owner.
         Projection(owner, member) => {
             val inner = mangle_tyref(unsafe { &*owner })
-            return projection_mangle_frag(inner.as_str(), member.as_str())
+            return projection_mangle_frag(inner, member.as_str())
         }
         Value(v) => return value_frag(v)
         Poison => return String.from("poison")
@@ -78,7 +78,7 @@ pub fun monomorphized_type_name(base: String, args: &List<TypeRef>): String {
     while item in &args {
         result.append("__")
         val arg = item.mangle_tyref()
-        result.append(arg.as_str())
+        result.append(arg)
     }
     return result
 }

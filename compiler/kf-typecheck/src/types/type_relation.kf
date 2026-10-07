@@ -56,17 +56,17 @@ fun TypeKind.kind_eq_flat(b: TypeKind): bool {
     if tag == TAG_STRUCT() {
         val an: String = self.coerce_struct_name()
         val bn: String = b.coerce_struct_name()
-        return an.as_str().equals(bn.as_str())
+        return an.as_str().equals(bn)
     }
     if tag == TAG_ENUM() {
         val an: String = self.coerce_enum_name()
         val bn: String = b.coerce_enum_name()
-        return an.as_str().equals(bn.as_str())
+        return an.as_str().equals(bn)
     }
     if tag == TAG_TRAIT() {
         val an: String = self.coerce_trait_name()
         val bn: String = b.coerce_trait_name()
-        return an.as_str().equals(bn.as_str())
+        return an.as_str().equals(bn)
     }
     if tag == TAG_DYN_TRAIT() { return self.dyn_kind_eq(b) }
     if tag == TAG_GENERIC() {

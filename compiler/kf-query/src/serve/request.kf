@@ -44,7 +44,7 @@ pub fun params_of(line: str): JsonReader? {
 /// A string or integer id as JSON text; "null" for anything else.
 fun read_id(reader: &var JsonReader): String {
     return when (reader.peek_kind()) {
-        String => reader.read_string().as_str().json_quoted()
+        String => reader.read_string().json_quoted()
         Number => "${reader.read_int64()}"
         _ => {
             reader.skip_value()

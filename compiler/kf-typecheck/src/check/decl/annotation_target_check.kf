@@ -25,7 +25,7 @@ pub fun MarkTarget.check_bounds(table: &SigTable, diags: &var List<Diagnostic>):
             val trait_name = bound.bare_name()
             if trait_name.as_str().equals("") {
                 diags.push(error_at(bound.span, "an annotation's bound names a trait without type arguments"))
-            } else if table.find_trait(trait_name.as_str()) == null {
+            } else if table.find_trait(trait_name) == null {
                 diags.push(error_at(bound.span, "cannot find trait `${trait_name.as_str()}` for this bound"))
             }
         }
@@ -111,7 +111,7 @@ fun TopDecl.meets_bounds(kind: str, bounds: &List<TypeRef>, table: &SigTable, di
     var fits = true
     while bound in &bounds {
         val trait_name = bound.bare_name()
-        if !table.type_implements(self.name.as_str(), trait_name.as_str(), "") {
+        if !table.type_implements(self.name.as_str(), trait_name, "") {
             val message = "`${self.name.as_str()}` must implement `${trait_name.as_str()}` to carry `@${kind}`"
             diags.push(error_at(at, message))
             fits = false

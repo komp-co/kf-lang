@@ -21,7 +21,7 @@ pub struct TypeParam {
 }
 
 pub fun new_type_param(span: Span, name: String): TypeParam {
-    return TypeParam { span: span, name: intern(name.as_str()), bounds: List.new<TypeRef>() }
+    return TypeParam { span: span, name: intern(name), bounds: List.new<TypeRef>() }
 }
 
 @derive(Clone)
@@ -34,7 +34,7 @@ pub struct Param {
 }
 
 pub fun new_param(span: Span, name: String, ty: Ptr<TypeRef>): Param {
-    return Param { span: span, name: intern(name.as_str()), ty: ty, default: null }
+    return Param { span: span, name: intern(name), ty: ty, default: null }
 }
 
 impl Param {
@@ -74,7 +74,7 @@ pub struct Field {
 
 pub fun new_field(span: Span, name: String, ty: Ptr<TypeRef>, is_var: bool, is_pub: bool): Field {
     return Field {
-        span: span, name: intern(name.as_str()), ty: ty, is_var: is_var, is_pub: is_pub, is_internal: false,
+        span: span, name: intern(name), ty: ty, is_var: is_var, is_pub: is_pub, is_internal: false,
         annotations: List.new<Annotation>(), member_loop: null
     }
 }
@@ -88,7 +88,7 @@ pub struct Variant {
 }
 
 pub fun new_variant(span: Span, name: String, payloads: List<TypeRef>): Variant {
-    return Variant { span: span, name: intern(name.as_str()), payloads: payloads, annotations: List.new<Annotation>() }
+    return Variant { span: span, name: intern(name), payloads: payloads, annotations: List.new<Annotation>() }
 }
 
 /// One argument of `@name(...)`: `Clone`, `"string"`, `iterations = 100`.
@@ -280,7 +280,7 @@ impl TopDecl {
 
 pub fun new_top_decl(span: Span, name: String, kind: TopDeclKind): TopDecl {
     return TopDecl {
-        span: span, name: intern(name.as_str()), kind: kind, crate: crate_id_poison(),
+        span: span, name: intern(name), kind: kind, crate: crate_id_poison(),
         module_path: intern(""), decl: null, generics: List.new<TypeParam>(),
         annotations: List.new<Annotation>(), from_trait_impl: false, linkage: linkage_source(),
         link_name: intern(""), dyn_layouts: List.new<DynTraitLayout>(),

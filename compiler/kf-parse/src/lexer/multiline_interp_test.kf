@@ -13,7 +13,7 @@ fun literal_parts(toks: &List<Token>): String {
             StringLiteral(s) => {
                 if !first { out.append("|") }
                 first = false
-                out.append(s.as_str())
+                out.append(s)
             }
             _ => { }
         }

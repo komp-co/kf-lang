@@ -20,7 +20,7 @@ fun reexporting_module(): Module {
 @test fun a_module_carries_its_reexports(): void {
     val out = reexporting_module().emit_interface(String.from("sample"), &List.new<String>())
     val expected = "\"reexports\":[{\"path\":\"sample.parse.read\",\"wildcard\":false,\"as\":\"\"}]"
-    assert_eq(interface_contains(out.as_str(), expected), true, "the export as written")
+    assert_eq(interface_contains(out, expected), true, "the export as written")
 }
 
 @test fun a_dependencys_reexport_is_not_carried_as_this_crates(): void {
@@ -30,7 +30,7 @@ fun reexporting_module(): Module {
     path.push(String.from("thing"))
     m.imports.push(new_reexport(no_span(), path, true, String.from("other")))
     val out = m.emit_interface(String.from("sample"), &List.new<String>())
-    assert_eq(interface_contains(out.as_str(), "other.thing"), false, "only this crate's re-exports")
+    assert_eq(interface_contains(out, "other.thing"), false, "only this crate's re-exports")
 }
 
 @test fun a_renamed_export_carries_its_new_name(): void {
@@ -43,5 +43,5 @@ fun reexporting_module(): Module {
     imp.owner = String.from("sample.api")
     m.imports.push(imp)
     val out = m.emit_interface(String.from("sample"), &List.new<String>())
-    assert_eq(interface_contains(out.as_str(), "\"as\":\"parse_file\""), true, "the `as` name crosses the interface")
+    assert_eq(interface_contains(out, "\"as\":\"parse_file\""), true, "the `as` name crosses the interface")
 }

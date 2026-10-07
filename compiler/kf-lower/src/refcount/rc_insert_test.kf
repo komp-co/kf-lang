@@ -25,7 +25,7 @@ fun null_tr(): Ptr<TypeRef> {
 }
 
 fun mk_string_var_expr(name: String): Expr {
-    var e = Expr.new(no_span(), ExprKind.Variable(intern(name.as_str())))
+    var e = Expr.new(no_span(), ExprKind.Variable(intern(name)))
     e.ty = intern("String").lang_struct_ty(no_span())
     return e
 }

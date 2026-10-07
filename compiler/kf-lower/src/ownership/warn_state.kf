@@ -52,7 +52,7 @@ pub mutating fun WarnState.warn_span_is_new(span: Span): bool {
 fun warning_has_a_subject(span: Span, ctx: &var MoveCtx): bool {
     val w = ctx.warn
     if unsafe { w.prune } {
-        if !name_is_reached(unsafe { &w.reached }, intern(ctx.cur_fn.as_str())) { return false }
+        if !name_is_reached(unsafe { &w.reached }, intern(ctx.cur_fn)) { return false }
     }
     return warn_span_is_new(unsafe { &var *w }, span)
 }

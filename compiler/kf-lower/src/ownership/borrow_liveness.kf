@@ -99,16 +99,16 @@ fun check_stmt_list(stmts: &List<Stmt>, facts: &LivenessFacts, ptable: Ptr<Param
         val origin = owning_origin(stmts, i, (stmts.at(i)).borrow_binding_origin(&facts.views), &facts.views)
         if origin.as_str() != "" {
             val bound = (stmts.at(i)).binding_name()
-            if !name_in(params, origin.as_str()) {
-                report_returned_borrow_of_local(stmts, i, bound.as_str(), origin.as_str(), &facts.views, diags)
+            if !name_in(params, origin) {
+                report_returned_borrow_of_local(stmts, i, bound, origin, &facts.views, diags)
             }
-            val last = last_use_index(stmts, bound.as_str(), i)
+            val last = last_use_index(stmts, bound, i)
             var j = i + 1
             while j <= last {
-                if (stmts.at(j)).stmt_disturbs(origin.as_str(), &facts.muts) {
-                    (stmts.at(j)).emit_outlives_error(bound.as_str(), origin.as_str(), diags)
-                } else if (stmts.at(j)).stmt_moves(origin.as_str(), ptable) {
-                    (stmts.at(j)).emit_moved_error(bound.as_str(), origin.as_str(), diags)
+                if (stmts.at(j)).stmt_disturbs(origin, &facts.muts) {
+                    (stmts.at(j)).emit_outlives_error(bound, origin, diags)
+                } else if (stmts.at(j)).stmt_moves(origin, ptable) {
+                    (stmts.at(j)).emit_moved_error(bound, origin, diags)
                 }
                 j = j + 1
             }
@@ -126,7 +126,7 @@ fun owning_origin(stmts: &List<Stmt>, at: uint64, origin: String, views: &List<S
         if (stmts.at(j)).binding_name().as_str() == current.as_str() {
             var further = (stmts.at(j)).borrow_binding_origin(views)
             if further.as_str() == "" && (stmts.at(j)).declares_borrow_without_value(views) {
-                further = assigned_borrow_origin(stmts, j + 1, current.as_str(), views)
+                further = assigned_borrow_origin(stmts, j + 1, current, views)
                 // Every value assigned borrows something that outlives the function.
                 if further.as_str() == "" { return further }
             }

@@ -109,10 +109,10 @@ pub fun box_or_normal_release(t: Type, ct: String): String {
     when (t.kind) {
         BoxOf(p) => {
             val innerct = c_type_of_type(unsafe { *p })
-            val innerdrop = release_fn_for_ctype(innerct.as_str())
+            val innerdrop = release_fn_for_ctype(innerct)
             return concat(String.from("__BOX__"), innerdrop)
         }
-        _ => return release_fn_for_ctype(ct.as_str())
+        _ => return release_fn_for_ctype(ct)
     }
 }
 

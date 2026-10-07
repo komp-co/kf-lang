@@ -33,10 +33,10 @@ import core.option.*""") > 0, true, "the restriction still holds")
 
 @test fun the_message_states_the_rule_instead_of_listing_import(): void {
     val m = import_order_first_diag("import alloc.list.*\nfun f(): int32 { return 1 }\nimport core.option.*")
-    assert_eq(m.as_str().contains("must precede"), true, "the message has to name the rule")
+    assert_eq(m.contains("must precede"), true, "the message has to name the rule")
 }
 
 @test fun the_message_does_not_offer_import_as_a_remedy(): void {
     val m = import_order_first_diag("import alloc.list.*\nfun f(): int32 { return 1 }\nimport core.option.*")
-    assert_eq(m.as_str().contains("expected a declaration"), false, "listing `import` as allowed while rejecting one is the bug")
+    assert_eq(m.contains("expected a declaration"), false, "listing `import` as allowed while rejecting one is the bug")
 }

@@ -11,14 +11,14 @@ import testing.test
 fun hover_on_a_type_in_a_signature_names_the_type(): void {
     val crate = impls_crate()
     val json = render_hover_json("lib.kf", offset_of("p: Point", 3), &crate)
-    assert_eq(json.as_str().contains("\"signature\":\"struct Point\""), true, "the struct, from `p: Point`")
+    assert_eq(json.contains("\"signature\":\"struct Point\""), true, "the struct, from `p: Point`")
 }
 
 @test
 fun an_annotated_types_doc_is_above_its_annotations(): void {
     val crate = impls_crate()
     val json = render_hover_json("lib.kf", offset_of("p: Point", 3), &crate)
-    assert_eq(json.as_str().contains("\"documentation\":\"A point in the plane.\""), true, "past `@shown`")
+    assert_eq(json.contains("\"documentation\":\"A point in the plane.\""), true, "past `@shown`")
 }
 
 @test
@@ -27,5 +27,5 @@ fun an_annotations_use_names_its_declaration(): void {
     val json = render_references_json("lib.kf", offset_of("@shown", 1), &crate)
     val file = "${scratch_path("kf_query_impls")}/src/lib.kf"
     val declared = "\"declaration\":{\"file\":\"${file}\",${impl_start("shown on", 0)}"
-    assert_eq(json.as_str().contains(declared.as_str()), true, "`annotation shown`")
+    assert_eq(json.contains(declared), true, "`annotation shown`")
 }

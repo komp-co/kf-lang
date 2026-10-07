@@ -126,7 +126,7 @@ mutating fun Stmt.trim_stmt(arity: &VariantArity, self_owner: str): void {
             while ai in 0..arms.size() {
                 val a = arms.at_mut(ai)
                 trim_stmts(&var a.body, arity, self_owner)
-                val kept = bindable_count(&a.binders, &a.tag, owner.as_str(), arity)
+                val kept = bindable_count(&a.binders, &a.tag, owner, arity)
                 if kept < a.binders.size() {
                     blank_returns_of(&var a.body, &a.binders, kept)
                     a.binders = binder_prefix(&a.binders, kept)
@@ -159,8 +159,8 @@ fun bindable_count(written: &List<Sym>, tag: &SwitchTag, owner: str, arity: &Var
         Variant(name) => name.clone()
         _ => ""
     }
-    if vname.as_str().byte_len() == 0 { return written.size() }
-    val keep = arity.variant_arity_for(owner, vname.as_str(), written.size())
+    if vname.byte_len() == 0 { return written.size() }
+    val keep = arity.variant_arity_for(owner, vname, written.size())
     return if keep < written.size() { keep } else { written.size() }
 }
 

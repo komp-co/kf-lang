@@ -52,7 +52,7 @@ impl Parser {
                         unsafe { self.advance() }
                         val owner_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
                         unsafe { *owner_ptr = tr }
-                        tr = TypeRef.new(t.span, TypeRefKind.Projection(owner_ptr, intern(mname.as_str())))
+                        tr = TypeRef.new(t.span, TypeRefKind.Projection(owner_ptr, intern(mname)))
                     } else {
                         self.parse_err(member.span, String.from("expected an associated type name after `.` in a type"))
                         tr = TypeRef.new_poison(t.span)

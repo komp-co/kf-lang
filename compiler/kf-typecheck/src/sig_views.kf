@@ -15,7 +15,7 @@ impl SigTable {
         if name.as_str() == "" { return false }
         if self.declares_view(name.as_str()) { return true }
         val inst = self.find_inst(name.as_str()) ?: return false
-        return self.declares_view(inst.base.as_str())
+        return self.declares_view(inst.base)
     }
 
     /// `name` as written, or as an identity, names a view type.

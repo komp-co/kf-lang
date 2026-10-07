@@ -8,12 +8,12 @@ fun check_line(crate_fields: str): String {
 
 /// `field` of the params `line` reads, space-separated; "" when it reads none.
 fun rows_of(line: String, field: str): String {
-    val params = read_check_params(line.as_str()) ?: return ""
+    val params = read_check_params(line) ?: return ""
     val rows = if field == "lints" { params.lints } else { params.lint_options }
     var out = ""
     while row in &rows {
         if out.byte_len() > 0 { out.append(" ") }
-        out.append(row.as_str())
+        out.append(row)
     }
     return out
 }

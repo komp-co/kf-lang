@@ -41,7 +41,7 @@ fun is_self_or_param(e: &Expr, ctx: &TypeCtx): bool {
     if name.as_str() == "" { return false }
     if name.as_str().equals("self") { return true }
     while param in &ctx.params {
-        if param.as_str().equals(name.as_str()) { return true }
+        if param.as_str().equals(name) { return true }
     }
     return false
 }

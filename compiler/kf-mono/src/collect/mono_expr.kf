@@ -27,9 +27,9 @@ mutating fun Expr.set_expr_mangled(s: str): void {
 mutating fun Expr.apply_generic_mangle(name: str, is_struct_lit: bool): void {
     val mn = monomorphized_type_name(String.from(name), &self.type_args)
     if is_struct_lit {
-        self.set_expr_ty(mk_struct_ty(mn.as_str(), self.span))
+        self.set_expr_ty(mk_struct_ty(mn, self.span))
     }
-    self.set_expr_mangled(mn.as_str())
+    self.set_expr_mangled(mn)
 }
 
 /// A body outside any impl block.
@@ -105,8 +105,8 @@ pub fun mono_expr_in(e: &var Expr, owner: str): void {
                 if e.type_args.size() > 0 {
                     method_seg = monomorphized_type_name(method_seg, &e.type_args)
                 }
-                val mangled = mangle_method(struct_name.as_str(), method_seg.as_str())
-                e.mangled_callee = intern(mangled.as_str())
+                val mangled = mangle_method(struct_name, method_seg)
+                e.mangled_callee = intern(mangled)
             }
         }
         FieldAccess(obj_ptr, _) => {
@@ -166,7 +166,7 @@ fun generic_call_base(name: str): String {
     if qualified_generic_crate(name) >= 0 {
         val plain = qualified_generic_name(name)
         val prefix = name.substring(0, name.byte_len() - plain.byte_len())
-        return prefix + generic_call_base(plain.as_str())
+        return prefix + generic_call_base(plain)
     }
     val length = name.byte_len()
     var i: uint64 = 0
@@ -205,11 +205,11 @@ fun retarget_callee_owner(callee: str, owner: str): String {
     if boundary == n { return String.from(callee) }
     val prefix = callee.substring(0, boundary)
     val base = generic_call_base(owner)
-    if !prefix.as_str().equals(base.as_str()) { return String.from(callee) }
+    if !prefix.as_str().equals(base) { return String.from(callee) }
     if prefix.as_str().equals(owner) { return String.from(callee) }
     val tail = callee.substring(boundary, n)
     var out = String.from(owner)
-    out.append(tail.as_str())
+    out.append(tail)
     return out
 }
 

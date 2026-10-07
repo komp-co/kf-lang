@@ -27,12 +27,12 @@ pub fun infer_from_bounds(callee: str, gnames: &List<String>, inf_tys: &var List
         progress = false
         while b in &bounds {
             if !b.owner.as_str().equals(callee) { continue }
-            val bound_at = name_index(gnames, b.param.as_str())
+            val bound_at = name_index(gnames, b.param)
             if bound_at >= inf_tys.size() || inf_tys.at(bound_at).is_poison() { continue }
-            val wanted = key_segments(b.trait_args.as_str())
+            val wanted = key_segments(b.trait_args)
             if !mentions_unbound(&wanted, gnames, inf_tys) { continue }
             val self_ty = inf_tys.at(bound_at)
-            val impl_args = impl_trait_arg_types(self_ty, b.trait_name.as_str(), &wanted, gnames, inf_tys, span, ctx)
+            val impl_args = impl_trait_arg_types(self_ty, b.trait_name, &wanted, gnames, inf_tys, span, ctx)
             if impl_args.size() != wanted.size() { continue }
             while k in 0..wanted.size() {
                 val g = name_index(gnames, wanted.at(k).as_str())
@@ -55,10 +55,10 @@ fun impl_trait_arg_types(self_ty: &Type, trait_name: str, wanted: &List<String>,
     var found = List.new<Type>()
     var fits: uint64 = 0
     while ti in &impls {
-        if !ti.type_name.as_str().equals(base.as_str()) || !ti.trait_name.as_str().equals(trait_name) { continue }
-        val segs = trait_arg_segments(ti.trait_args.as_str(), ti.arg_count)
+        if !ti.type_name.as_str().equals(base) || !ti.trait_name.as_str().equals(trait_name) { continue }
+        val segs = trait_arg_segments(ti.trait_args, ti.arg_count)
         if segs.size() != wanted.size() { continue }
-        val impl_params = key_segments(ti.generics.as_str())
+        val impl_params = key_segments(ti.generics)
         var args = List.new<Type>()
         var agrees = true
         while k in 0..segs.size() {
@@ -91,7 +91,7 @@ fun impl_segment_type(seg: str, impl_params: &List<String>, receiver: &Type, spa
         return ty_from_frag_in_scope(String.from(seg), span, ctx)
     }
     val name = receiver.kind.nominal_name()
-    val inst = unsafe { (*ctx.sigs).find_inst(name.as_str()) } ?: return Type.new_poison()
+    val inst = unsafe { (*ctx.sigs).find_inst(name) } ?: return Type.new_poison()
     if inst.args.size() != impl_params.size() { return Type.new_poison() }
     return (*inst.args.at(at)).resolve_type_ref(ctx)
 }
@@ -110,8 +110,8 @@ fun compound_segment_type(seg: str, impl_params: &List<String>, receiver: &Type,
     while i < parts.size() {
         val part = *parts.at(i)
         var resolved = Type.new_poison()
-        if name_index(impl_params, part.as_str()) < impl_params.size() {
-            resolved = impl_segment_type(part.as_str(), impl_params, receiver, span, ctx)
+        if name_index(impl_params, part) < impl_params.size() {
+            resolved = impl_segment_type(part, impl_params, receiver, span, ctx)
         } else {
             resolved = ty_from_frag_in_scope(part.clone(), span, ctx)
         }
@@ -124,12 +124,12 @@ fun compound_segment_type(seg: str, impl_params: &List<String>, receiver: &Type,
         i = i + 1
     }
     unsafe { ctx.sigs.insert_inst(GenericInst { mangled: mangled.clone(), base: base_name, args: arg_refs }) }
-    return Type { kind: TypeKind.Struct(intern(mangled.as_str())), provenance: Provenance.Inferred(span) }
+    return Type { kind: TypeKind.Struct(intern(mangled)), provenance: Provenance.Inferred(span) }
 }
 
 fun mentions_unbound(segs: &List<String>, gnames: &List<String>, inf_tys: &List<Type>): bool {
     while seg in &segs {
-        val g = name_index(gnames, seg.as_str())
+        val g = name_index(gnames, seg)
         if g < inf_tys.size() && inf_tys.at(g).is_poison() { return true }
     }
     return false
@@ -148,7 +148,7 @@ pub fun bound_type_implements_here(bound_ty: &Type, trait_name: str, args: Strin
     ctx: &var TypeCtx): bool {
     if trait_name.equals(ctx.lang_trait_name(lang_copy_key()).as_str()) { return bound_ty.type_is_copy(ctx) }
     if !bound_ty.bound_type_implements(trait_name, ctx.sigs) { return false }
-    if !impl_args_agree(bound_ty, trait_name, args.as_str(), free, span, ctx) { return false }
+    if !impl_args_agree(bound_ty, trait_name, args, free, span, ctx) { return false }
     return bound_ty.instance_args_meet(trait_name, span, ctx)
 }
 
@@ -163,11 +163,11 @@ fun impl_args_agree(bound_ty: &Type, trait_name: str, args_key: str, free: &List
     val impls = unsafe { (*ctx.sigs).trait_impls }
     var any = false
     while ti in &impls {
-        if !ti.type_name.as_str().equals(base.as_str()) || !ti.trait_name.as_str().equals(trait_name) { continue }
-        if !trait_args_satisfy(args_key, ti.trait_args.as_str(), ti.generics.as_str(), ti.arg_count, free) { continue }
+        if !ti.type_name.as_str().equals(base) || !ti.trait_name.as_str().equals(trait_name) { continue }
+        if !trait_args_satisfy(args_key, ti.trait_args, ti.generics, ti.arg_count, free) { continue }
         any = true
-        val segs = trait_arg_segments(ti.trait_args.as_str(), ti.arg_count)
-        val impl_params = key_segments(ti.generics.as_str())
+        val segs = trait_arg_segments(ti.trait_args, ti.arg_count)
+        val impl_params = key_segments(ti.generics)
         if segs.size() != wanted.size() { return true }
         var agrees = true
         while k in 0..segs.size() {

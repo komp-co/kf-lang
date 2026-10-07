@@ -28,12 +28,12 @@ pub fun render_hover_json(path: str, offset: uint32, crate: &TypedCrate): String
 
     val decl = crate.hover_decl_at(offset)
     if decl.found && decl.label.as_str() != "" {
-        out.field_string("signature", decl.label.as_str())
+        out.field_string("signature", decl.label)
     } else {
         out.field_null("signature")
     }
     if decl.found && decl.doc.as_str() != "" {
-        out.field_string("documentation", decl.doc.as_str())
+        out.field_string("documentation", decl.doc)
     } else {
         out.field_null("documentation")
     }

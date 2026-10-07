@@ -49,7 +49,7 @@ pub fun render_completion_json(path: str, offset: uint32, crate: &TypedCrate): S
         return out.finish()
     }
     out.field_string("receiver_type", hit.ty.written_type(crate.sigs).as_str())
-    out.field_raw("items", crate.members_json(owner.as_str(), &hit.ty).as_str())
+    out.field_raw("items", crate.members_json(owner, &hit.ty).as_str())
     return out.finish()
 }
 
@@ -121,7 +121,7 @@ fun TopDecl.add_methods(seen: &var List<String>, arr: &var JsonWriter): void {
         if !mm.method_is_static() {
             val rendered = mm.signature_of()
             if rendered.found {
-                push_item(seen, arr, mm.name.as_str(), "method", rendered.label.as_str())
+                push_item(seen, arr, mm.name.as_str(), "method", rendered.label)
             }
         }
     }

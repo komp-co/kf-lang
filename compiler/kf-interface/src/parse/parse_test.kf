@@ -10,7 +10,7 @@ import testing.test
 fun round_trip_interface(): InterfaceLoad {
     val m = interface_test_module()
     val encoded = m.emit_interface(String.from("sample"), &List.new<String>())
-    return parse_interface(encoded.as_str())
+    return parse_interface(encoded)
 }
 
 @test
@@ -151,8 +151,8 @@ fun interface_round_trip_restores_a_lang_key(): void {
     marked.annotations.push(lang_annotation("string"))
     m.decls.set(0, marked)
     val encoded = m.emit_interface(String.from("sample"), &List.new<String>())
-    val loaded = parse_interface(encoded.as_str())
-    assert_eq(encoded.as_str().contains("\"lang\":\"string\""), true, "the key is written")
+    val loaded = parse_interface(encoded)
+    assert_eq(encoded.contains("\"lang\":\"string\""), true, "the key is written")
     val point = *loaded.modules.at(0).decls.at(0)
     assert_eq(point.name.as_str(), "Point", "the marked struct comes back first")
     assert_eq((&point).lang_key_of().as_str(), "string", "a consumer finds the type the language builds on")

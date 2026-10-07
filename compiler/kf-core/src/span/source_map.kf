@@ -144,7 +144,7 @@ impl SourceMap {
         if idx >= self.files.size() { return null }
         val f = self.files.at(idx)
         val target: uint64 = s.start as uint64
-        if target > f.content.as_str().byte_len() { return null }
+        if target > f.content.byte_len() { return null }
         val li = self.line_index_for(idx, s.start)
         val col: uint32 = (target - self.line_start_at(idx, li) + 1) as uint32
         return Location { file_path: f.path.clone(), line: (li + 1) as uint32, col: col }

@@ -104,5 +104,5 @@ pub fun lint_at(code: str, span: Span, message: String): Diagnostic {
 }
 
 pub fun Diagnostic.diag_is_lint(): bool {
-    return self.code.as_str().byte_len() > 0
+    return self.code.byte_len() > 0
 }

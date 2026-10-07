@@ -29,41 +29,41 @@ fun utf8_bytes(b0: uint8, b1: uint8, b2: uint8, n: uint64): String {
 // Decoding steps over a stray continuation byte instead of stalling.
 @test fun a_stray_continuation_byte_is_stepped_over(): void {
     val s = utf8_bytes(128, 0, 0, 1)
-    assert_eq(utf8_formed(s.as_str(), 0), false, "not well-formed")
-    assert_eq(utf8_width_of(s.as_str(), 0), 1 as uint64, "consumes exactly the bad byte")
-    assert_eq(utf8_scalar_of(s.as_str(), 0), 128 as uint32, "and hands back the raw byte")
+    assert_eq(utf8_formed(s, 0), false, "not well-formed")
+    assert_eq(utf8_width_of(s, 0), 1 as uint64, "consumes exactly the bad byte")
+    assert_eq(utf8_scalar_of(s, 0), 128 as uint32, "and hands back the raw byte")
 }
 
 // The width covers what was read, so the walk resumes at the breaking byte.
 @test fun a_truncated_sequence_stops_before_the_bad_byte(): void {
     // 0xE2 promises two continuations; one follows, then `A`.
     val s = utf8_bytes(226, 130, 65, 3)
-    assert_eq(utf8_formed(s.as_str(), 0), false, "not well-formed")
-    assert_eq(utf8_width_of(s.as_str(), 0), 2 as uint64, "the lead and the one good continuation")
-    assert_eq(utf8_scalar_of(s.as_str(), 2), 65 as uint32, "so the walk resumes on `A`")
+    assert_eq(utf8_formed(s, 0), false, "not well-formed")
+    assert_eq(utf8_width_of(s, 0), 2 as uint64, "the lead and the one good continuation")
+    assert_eq(utf8_scalar_of(s, 2), 65 as uint32, "so the walk resumes on `A`")
 }
 
 // Structurally fine, still not UTF-8.
 @test fun an_overlong_encoding_is_rejected(): void {
     // 0xC0 0x80 encodes U+0000 in two bytes; one byte would do.
     val s = utf8_bytes(192, 128, 0, 2)
-    assert_eq(utf8_scalar_of(s.as_str(), 0), 0 as uint32, "it decodes to NUL")
-    assert_eq(utf8_width_of(s.as_str(), 0), 2 as uint64, "and consumes both bytes")
-    assert_eq(utf8_formed(s.as_str(), 0), false, "but a shorter sequence could carry it")
+    assert_eq(utf8_scalar_of(s, 0), 0 as uint32, "it decodes to NUL")
+    assert_eq(utf8_width_of(s, 0), 2 as uint64, "and consumes both bytes")
+    assert_eq(utf8_formed(s, 0), false, "but a shorter sequence could carry it")
 }
 
 @test fun a_surrogate_is_rejected(): void {
     // 0xED 0xA0 0x80 is U+D800, which UTF-8 may not encode.
     val s = utf8_bytes(237, 160, 128, 3)
-    assert_eq(utf8_scalar_of(s.as_str(), 0), 55296 as uint32, "U+D800 decodes")
-    assert_eq(utf8_formed(s.as_str(), 0), false, "and is still not encodable")
+    assert_eq(utf8_scalar_of(s, 0), 55296 as uint32, "U+D800 decodes")
+    assert_eq(utf8_formed(s, 0), false, "and is still not encodable")
 }
 
 @test fun an_impossible_lead_byte_is_rejected(): void {
     // 0xF8 begins no UTF-8 sequence.
     val s = utf8_bytes(248, 0, 0, 1)
-    assert_eq(utf8_formed(s.as_str(), 0), false, "not a lead byte")
-    assert_eq(utf8_width_of(s.as_str(), 0), 1 as uint64, "consumes one byte, so a walk advances")
+    assert_eq(utf8_formed(s, 0), false, "not a lead byte")
+    assert_eq(utf8_width_of(s, 0), 1 as uint64, "consumes one byte, so a walk advances")
 }
 
 /// Encode a scalar, write it into a String, decode it back. Returns the
@@ -73,7 +73,7 @@ fun utf8_round_trip(v: uint32): uint32 {
     if e.width == 0 { return 4294967295 as uint32 }
     var s = String.from("")
     s.append(e.as_str())
-    val d = s.as_str().decode_at(0)
+    val d = s.decode_at(0)
     if !d.well_formed { return 4294967294 as uint32 }
     if d.width != e.width { return 4294967293 as uint32 }
     return d.scalar as uint32
@@ -112,6 +112,6 @@ fun utf8_round_trip(v: uint32): uint32 {
     s.push_byte(65)
     assert_eq(s.byte_len(), 2 as uint64, "the String holds both bytes")
     // The same String seen as a `str` holds none of them.
-    assert_eq(s.as_str().decode_at(0).width, 0 as uint64,
+    assert_eq(s.decode_at(0).width, 0 as uint64,
         "so the conversion, not the codec, is where U+0000 is lost")
 }

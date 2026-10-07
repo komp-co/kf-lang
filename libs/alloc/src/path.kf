@@ -13,7 +13,7 @@ impl Path {
     }
 
     pub fun as_str(): str {
-        return self.raw.as_str()
+        return self.raw
     }
 
     pub fun is_empty(): bool {
@@ -21,7 +21,7 @@ impl Path {
     }
 
     pub fun is_absolute(): bool {
-        return self.raw.as_str().starts_with("/")
+        return self.raw.starts_with("/")
     }
 
     /// `part` alone when it is absolute, as the path it names.
@@ -85,7 +85,7 @@ impl Path {
         }
         val joined = kept.join("/")
         if absolute { return Path { raw: "/${joined}" } }
-        return Path.new(if joined.is_empty() { "." } else { joined.as_str() })
+        return Path.new(if joined.is_empty() { "." } else { joined })
     }
 
     /// Whether `prefix` is this path or one of its ancestors, compared as

@@ -26,9 +26,9 @@ fun walk_kf_files_raw(dir: str, out: &var List<String>, include_tests: bool): vo
     val names = listed.unwrap()
     while name in &names {
         val full = "${dir}/${name}"
-        if is_directory(full.as_str()) {
-            walk_kf_files_raw(full.as_str(), out, include_tests)
-        } else if is_kf_file_any(name.as_str()) && (include_tests || is_kf_source_file(name.as_str())) {
+        if is_directory(full) {
+            walk_kf_files_raw(full, out, include_tests)
+        } else if is_kf_file_any(name) && (include_tests || is_kf_source_file(name)) {
             out.push(full)
         }
     }

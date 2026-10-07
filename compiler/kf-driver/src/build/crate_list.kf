@@ -26,8 +26,8 @@ pub fun assemble_crate_list(crates: &List<CrateSource>, smap: Ptr<SourceMap>, pd
     while i in 0..crates.size() {
         val item = crates.at(i)
         val tests = root_tests && i + 1 == crates.size()
-        val sources = crate_source_dir(item.root.as_str(), item.src.as_str())
-        val assembled = assemble_crate_sources(sources.as_str(), item.name.clone(), smap, pdiags, tests, overlay)
+        val sources = crate_source_dir(item.root, item.src)
+        val assembled = assemble_crate_sources(sources, item.name.clone(), smap, pdiags, tests, overlay)
         while module in &assembled.modules {
             modules.push(module.clone())
         }

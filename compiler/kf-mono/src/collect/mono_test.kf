@@ -100,7 +100,7 @@ fun mk_box_decl(): TopDecl {
 
 @test fun new_owned_top_decl_accepts_borrowed_name(): void {
     val name = String.from("Borrowed")
-    val decl = new_owned_top_decl(crate_id_poison(), no_span(), name.as_str(), TopDeclKind.Poison)
+    val decl = new_owned_top_decl(crate_id_poison(), no_span(), name, TopDeclKind.Poison)
     assert_eq(decl.name.as_str(), "Borrowed", "declaration constructor interns a borrowed name")
 }
 

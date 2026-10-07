@@ -24,7 +24,7 @@ fun render_symbol_list(decls: &List<TopDecl>, nested: bool): String {
     while td in &decls {
         val rendered = td.render_symbol(nested)
         if rendered.as_str() != "" {
-            arr.write_raw(rendered.as_str())
+            arr.write_raw(rendered)
         }
     }
     return arr.finish()

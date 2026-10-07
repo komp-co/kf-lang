@@ -93,8 +93,8 @@ pub fun RcCtx.rc_moved_frame(name: str): int64 {
 /// For a binding given a new value after its old one was moved out.
 pub mutating fun RcCtx.restore_heap_local_at(idx: uint64, name: String): void {
     val f = self.frame_stack.at_mut(idx)
-    f.moved_locals = without_name(&f.moved_locals, name.as_str())
-    if !names_contains(&f.heap_locals, name.as_str()) { f.heap_locals.push(name) }
+    f.moved_locals = without_name(&f.moved_locals, name)
+    if !names_contains(&f.heap_locals, name) { f.heap_locals.push(name) }
 }
 
 fun without_name(names: &List<String>, name: str): List<String> {
@@ -146,7 +146,7 @@ pub mutating fun RcCtx.consume_kind(name: String): uint8 {
     var var_frame: uint64 = 0
     var found = false
     while i in 0..self.frame_stack.size() {
-        if names_contains(&self.frame_stack.at(i).heap_locals, name.as_str()) {
+        if names_contains(&self.frame_stack.at(i).heap_locals, name) {
             var_frame = i
             found = true
         }
@@ -173,9 +173,9 @@ mutating fun RcCtx.exit_releases(stop_at_loop: bool, exclude: &List<String>): Li
         while li > 0 {
             li = li - 1
             val name = f.heap_locals.at(li)
-            val excluded = names_contains(exclude, name.as_str())
+            val excluded = names_contains(exclude, name)
             if !excluded {
-                releases.push(Stmt.new(no_span(), StmtKind.Release(intern(name.as_str()))))
+                releases.push(Stmt.new(no_span(), StmtKind.Release(intern(name))))
             }
         }
         if stop_at_loop && f.is_loop {

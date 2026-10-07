@@ -24,6 +24,6 @@ pub fun qualified_generic_crate(base: str): int64 {
 pub fun qualified_generic_name(base: str): String {
     if qualified_generic_crate(base) < 0 { return String.from(base) }
     val tail = base.substring(5, base.byte_len())
-    val cut = tail.as_str().index_of("__") ?: return String.from(base)
-    return tail.as_str().substring(cut + 2, tail.byte_len())
+    val cut = tail.index_of("__") ?: return String.from(base)
+    return tail.substring(cut + 2, tail.byte_len())
 }

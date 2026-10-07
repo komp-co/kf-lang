@@ -54,7 +54,7 @@ fun message_for_type_named(name: str, kind: TopDeclKind): String {
 @test
 fun a_non_type_declaration_is_not_refused_as_a_reserved_name(): void {
     val message = message_for_type_named("Box", TopDeclKind.ImplBlock(List.new<TopDecl>()))
-    assert_eq(message.as_str().contains("is reserved for a builtin type"), false, "an impl block declares no type, so the reserved-name rule has nothing to say about it")
+    assert_eq(message.contains("is reserved for a builtin type"), false, "an impl block declares no type, so the reserved-name rule has nothing to say about it")
 }
 
 /// How many diagnostics say a type takes the lang string's name.
@@ -74,7 +74,7 @@ fun lang_name_messages(crate: str, with_lang: bool): uint64 {
     val diagnostics = module.typecheck_module(&var table)
     var count: uint64 = 0
     while diagnostic in &diagnostics {
-        if diagnostic.primary.message.as_str().contains("the language's string type") { count = count + 1 }
+        if diagnostic.primary.message.contains("the language's string type") { count = count + 1 }
     }
     return count
 }

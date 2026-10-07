@@ -46,7 +46,7 @@ fun prepare_rename_fixture(): void {
     lib.append("pub fun uses_it(): int32 {\n")
     lib.append("    return helper(1) + helper(2)\n")
     lib.append("}\n")
-    write_file(rename_fixture_path(), lib.as_str())
+    write_file(rename_fixture_path(), lib)
     val other = "pub fun elsewhere(): int32 {\n    return helper(9)\n}\n"
     write_file(scratch_path("kf_query_rename/src/other.kf"), other.as_str())
 }
@@ -60,31 +60,31 @@ fun rename_at(offset: uint32, new_name: str): String {
 @test
 fun rename_edits_the_declaration_and_every_use(): void {
     val json = rename_at(8, "scaled")
-    assert_eq(json.as_str().contains("\"ok\":true"), true, "a free rename is allowed")
-    assert_eq(json.as_str().contains("\"byte_start\":8,\"byte_end\":14"), true, "the declaration's own name is edited")
-    assert_eq(json.as_str().contains("\"byte_start\":133,\"byte_end\":139"), true, "and the first use")
-    assert_eq(json.as_str().contains("\"byte_start\":145,\"byte_end\":151"), true, "and the second")
+    assert_eq(json.contains("\"ok\":true"), true, "a free rename is allowed")
+    assert_eq(json.contains("\"byte_start\":8,\"byte_end\":14"), true, "the declaration's own name is edited")
+    assert_eq(json.contains("\"byte_start\":133,\"byte_end\":139"), true, "and the first use")
+    assert_eq(json.contains("\"byte_start\":145,\"byte_end\":151"), true, "and the second")
 }
 
 @test
 fun rename_reaches_into_a_sibling_file(): void {
     val json = rename_at(8, "scaled")
-    assert_eq(json.as_str().contains("other.kf\",\"byte_start\":40,\"byte_end\":46"), true, "a use in another file is an edit too")
+    assert_eq(json.contains("other.kf\",\"byte_start\":40,\"byte_end\":46"), true, "a use in another file is an edit too")
 }
 
 @test
 fun rename_answers_the_same_from_a_use_as_from_the_declaration(): void {
     val from_use = rename_at(133, "scaled")
-    assert_eq(from_use.as_str().contains("\"byte_start\":8,\"byte_end\":14"), true, "asking at a call still edits the declaration")
-    assert_eq(from_use.as_str().contains("other.kf\",\"byte_start\":40"), true, "and every other use")
+    assert_eq(from_use.contains("\"byte_start\":8,\"byte_end\":14"), true, "asking at a call still edits the declaration")
+    assert_eq(from_use.contains("other.kf\",\"byte_start\":40"), true, "and every other use")
 }
 
 @test
 fun rename_refuses_a_name_already_declared(): void {
     val json = rename_at(8, "taken")
-    assert_eq(json.as_str().contains("\"ok\":false"), true, "a collision is refused")
-    assert_eq(json.as_str().contains("already declared in this crate (a function)"), true, "and says what it would collide with")
-    assert_eq(json.as_str().contains("\"edits\":[]"), true, "with no edits to apply by accident")
+    assert_eq(json.contains("\"ok\":false"), true, "a collision is refused")
+    assert_eq(json.contains("already declared in this crate (a function)"), true, "and says what it would collide with")
+    assert_eq(json.contains("\"edits\":[]"), true, "with no edits to apply by accident")
 }
 
 @test
@@ -103,21 +103,21 @@ fun rename_refuses_the_name_it_already_has(): void {
 @test
 fun rename_refuses_where_there_is_no_name(): void {
     val json = rename_at(1, "anything")
-    assert_eq(json.as_str().contains("\"ok\":false"), true, "the `pub` keyword names no declaration")
-    assert_eq(json.as_str().contains("nothing to rename here"), true, "and says so")
+    assert_eq(json.contains("\"ok\":false"), true, "the `pub` keyword names no declaration")
+    assert_eq(json.contains("nothing to rename here"), true, "and says so")
 }
 
 // Validate-only: no new name yet.
 @test
 fun an_empty_new_name_validates_without_editing(): void {
     val json = rename_at(133, "")
-    assert_eq(json.as_str().contains("\"ok\":true"), true, "the target is renameable")
-    assert_eq(json.as_str().contains("\"byte_start\":133,\"byte_end\":139"), true, "and the name to highlight is reported")
-    assert_eq(json.as_str().contains("\"edits\":[]"), true, "without doing the work")
+    assert_eq(json.contains("\"ok\":true"), true, "the target is renameable")
+    assert_eq(json.contains("\"byte_start\":133,\"byte_end\":139"), true, "and the name to highlight is reported")
+    assert_eq(json.contains("\"edits\":[]"), true, "without doing the work")
 }
 
 @test
 fun an_empty_new_name_still_refuses_an_impossible_target(): void {
     val json = rename_at(1, "")
-    assert_eq(json.as_str().contains("\"ok\":false"), true, "validating a non-name still refuses")
+    assert_eq(json.contains("\"ok\":false"), true, "validating a non-name still refuses")
 }

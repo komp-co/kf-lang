@@ -41,7 +41,7 @@ fun Type.array_shape(ctx: &var TypeCtx): ArrayShape? {
 /// `Array<int32, 3>`, not its mangled name. Any other type as written.
 fun Type.written_instance(span: Span, ctx: &var TypeCtx): TypeRef {
     val inst = self.expected_inst(ctx) ?: return self.type_to_type_ref(span)
-    return TypeRef.new(span, TypeRefKind.Named(intern(inst.base.as_str()), clone_type_args(&inst.args)))
+    return TypeRef.new(span, TypeRefKind.Named(intern(inst.base), clone_type_args(&inst.args)))
 }
 
 fun TypeRef.written_length(): uint64? {

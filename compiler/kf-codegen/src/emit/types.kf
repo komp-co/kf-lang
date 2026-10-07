@@ -79,7 +79,7 @@ fun c_type_named(name: String, args: &List<TypeRef>): String {
     // typedef: it is `T*`. Recognized by spelling, since mono flattened it.
     if args.size() == 0 {
         val pointee = mangled_pointer_pointee(s)
-        if pointee.as_str().byte_len() > 0 {
+        if pointee.byte_len() > 0 {
             return concat(c_type_name(pointee), String.from("*"))
         }
     }
@@ -91,9 +91,9 @@ fun c_type_named(name: String, args: &List<TypeRef>): String {
             val parts = function!!
             var c_params = List.new<String>()
             while param in &parts.params {
-                c_params.push(frag_c_type(param.as_str()))
+                c_params.push(frag_c_type(param))
             }
-            return fn_pointer_c_type(&c_params, frag_c_type(parts.ret.as_str()).as_str())
+            return fn_pointer_c_type(&c_params, frag_c_type(parts.ret).as_str())
         }
     }
 
@@ -234,7 +234,7 @@ pub fun ty_needs_drop_deep(t: &TypeRef, facts: &TypeFacts): bool {
             // A generic's ownership lives on its materialized instance
             // (`List__crate__T`), structurally, with no container special-cased.
             val inst = t.c_type()
-            return facts.has_user_drop(inst.as_str()) || facts.declared_owns_heap(inst.as_str())
+            return facts.has_user_drop(inst) || facts.declared_owns_heap(inst)
         }
         // An array's storage owns what its elements own.
         Array(element, _length) => return ty_needs_drop_deep((*element).clone(), facts)
@@ -313,6 +313,6 @@ fun fn_pointer_c_type(params: &List<String>, ret: str): String {
 /// structurally.
 fun frag_c_type(frag: str): String {
     val borrowed = borrow_frag_inner(frag)
-    if borrowed.byte_len() > 0 { return concat(frag_c_type(borrowed.as_str()), String.from("*")) }
+    if borrowed.byte_len() > 0 { return concat(frag_c_type(borrowed), String.from("*")) }
     return c_type_name(String.from(frag))
 }

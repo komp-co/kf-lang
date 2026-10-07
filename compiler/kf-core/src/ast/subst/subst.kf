@@ -181,18 +181,18 @@ pub fun Type.subst_type(names: &var List<String>, repls: &var List<TypeRef>): Ty
 fun subst_named_type(n: String, orig: &Type, names: &var List<String>, repls: &var List<TypeRef>, is_struct: bool): Type {
     val r = lookup_repl_type(n, names, repls)
     if r.found { return r.ty }
-    val nn = subst_mangled_name(n.as_str(), names, repls)
+    val nn = subst_mangled_name(n, names, repls)
     if is_struct {
-        return Type { kind: TypeKind.Struct(intern(nn.as_str())), provenance: orig.provenance }
+        return Type { kind: TypeKind.Struct(intern(nn)), provenance: orig.provenance }
     }
-    return Type { kind: TypeKind.EnumTy(intern(nn.as_str())), provenance: orig.provenance }
+    return Type { kind: TypeKind.EnumTy(intern(nn)), provenance: orig.provenance }
 }
 
 struct ReplLookup { pub val found: bool pub val ty: Type }
 
 fun lookup_repl_type(n: String, names: &var List<String>, repls: &var List<TypeRef>): ReplLookup {
     while i in 0..names.size() {
-        if names.at(i).as_str().equals(n.as_str()) {
+        if names.at(i).as_str().equals(n) {
             if i < repls.size() {
                 return ReplLookup { found: true, ty: tref_to_type_shallow(repls.at(i)) }
             }
@@ -264,7 +264,7 @@ pub fun subst_dyn_layouts(source: &List<DynTraitLayout>, names: &var List<String
         }
         val identity = subst_mangled_name(layout.identity.as_str(), names, repls)
         result.push(DynTraitLayout {
-            identity: intern(identity.as_str()), principal: layout.principal, args: args,
+            identity: intern(identity), principal: layout.principal, args: args,
             methods: methods, owner: layout.owner, imported: layout.imported
         })
     }
@@ -277,14 +277,14 @@ pub fun subst_dyn_vtables(source: &List<DynVTableInstance>, names: &var List<Str
         var adapters = List.new<Sym>()
         while item in &table.adapters {
             val adapter = subst_static_callee(item.as_str(), names, repls)
-            adapters.push(intern(adapter.as_str()))
+            adapters.push(intern(adapter))
         }
         val layout = subst_mangled_name(table.layout.as_str(), names, repls)
         val receiver_identity = subst_mangled_name(table.receiver_identity.as_str(), names, repls)
         val symbol = subst_mangled_name(table.symbol.as_str(), names, repls)
         result.push(DynVTableInstance {
-            layout: intern(layout.as_str()), receiver: table.receiver.subst_type(names, repls),
-            receiver_identity: intern(receiver_identity.as_str()), symbol: intern(symbol.as_str()), adapters: adapters,
+            layout: intern(layout), receiver: table.receiver.subst_type(names, repls),
+            receiver_identity: intern(receiver_identity), symbol: intern(symbol), adapters: adapters,
             owner: table.owner, linkage: table.linkage
         })
     }

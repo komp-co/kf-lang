@@ -22,9 +22,9 @@ c_sources = ["native/core.c"]
 hosted_c_sources = ["native/core_hosted.c"]
 """)
     val core_native = read_file("libs/core/native/core.c")
-    write_file(scratch_path("kf_user_iter_core/native/core.c"), core_native.as_str())
+    write_file(scratch_path("kf_user_iter_core/native/core.c"), core_native)
     val core_hosted = read_file("libs/core/native/core_hosted.c")
-    write_file(scratch_path("kf_user_iter_core/native/core_hosted.c"), core_hosted.as_str())
+    write_file(scratch_path("kf_user_iter_core/native/core_hosted.c"), core_hosted)
     write_file(scratch_path("kf_user_iter_app/kf.toml"), """[project]
 name = "user_iter_app"
 kind = "bin"
@@ -55,7 +55,7 @@ core = { path = "../kf_user_iter_core" }
     app.append("    while i in s {\n        sum = sum + i\n    }\n")
     app.append("    if sum == 10 { return 0 }\n")
     app.append("    return 1\n}\n")
-    write_file(scratch_path("kf_user_iter_app/src/main.kf"), app.as_str())
+    write_file(scratch_path("kf_user_iter_app/src/main.kf"), app)
     return 0
 }
 

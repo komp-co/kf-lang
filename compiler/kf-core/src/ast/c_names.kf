@@ -197,7 +197,7 @@ pub fun fn_frag_parts(frag: str): FnFragParts? {
     var ret = String.from("")
     var seen_to = false
     while i < body.byte_len() {
-        val rest = body.as_str().substring(i, body.byte_len())
+        val rest = body.substring(i, body.byte_len())
         if rest.starts_with("kf__fn__") {
             depth = depth + 1
             i = i + 8
@@ -205,11 +205,11 @@ pub fun fn_frag_parts(frag: str): FnFragParts? {
             depth = depth - 1
             i = i + 8
         } else if depth == 0 && rest.starts_with("__kf__and__") {
-            params.push(body.as_str().substring(start, i))
+            params.push(body.substring(start, i))
             i = i + 11
             start = i
         } else if depth == 0 && rest.starts_with("__kf__to__") {
-            if i > start { params.push(body.as_str().substring(start, i)) }
+            if i > start { params.push(body.substring(start, i)) }
             i = i + 10
             start = i
             seen_to = true
@@ -218,7 +218,7 @@ pub fun fn_frag_parts(frag: str): FnFragParts? {
         }
     }
     if !seen_to || depth != 0 { return null }
-    ret = body.as_str().substring(start, body.byte_len())
+    ret = body.substring(start, body.byte_len())
     return FnFragParts { params: params, ret: ret }
 }
 

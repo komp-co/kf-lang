@@ -15,10 +15,10 @@ import kf_core.diagnostic.*
 /// says whether it worked, or whether there was one.
 pub fun check_dropped_value(at: Span, ty: &Type, walk: &var TypedWalk): void {
     val name = ty.named()
-    if name.as_str() == "Result" || name.as_str().starts_with("Result__") {
+    if name.as_str() == "Result" || name.starts_with("Result__") {
         walk.found.push(lint_at("unused_result", at,
             String.from("this `Result` is dropped; handle the error, or bind it to `_` to say so")))
-    } else if name.as_str() == "Option" || name.as_str().starts_with("Option__") {
+    } else if name.as_str() == "Option" || name.starts_with("Option__") {
         walk.found.push(lint_at("unused_option", at,
             String.from("this `Option` is dropped; bind it to `_` if that is meant")))
     }
@@ -26,7 +26,7 @@ pub fun check_dropped_value(at: Span, ty: &Type, walk: &var TypedWalk): void {
 
 /// `clone_on_copy`: `.clone()` on a value whose type derives `Copy`.
 pub fun check_clone_on_copy(at: Span, receiver: String, walk: &var TypedWalk): void {
-    if receiver.is_empty() || !walk.copy_types.holds_name(receiver.as_str()) { return }
+    if receiver.is_empty() || !walk.copy_types.holds_name(receiver) { return }
     walk.found.push(lint_at("clone_on_copy", at,
         "`${receiver}` derives `Copy`, so this value is copied anyway; `.clone()` adds nothing"))
 }

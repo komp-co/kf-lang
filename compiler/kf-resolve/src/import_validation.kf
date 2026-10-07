@@ -65,7 +65,7 @@ pub fun validate_imports_per_module(m: &Module,
             if resolved.id == 0 {
                 diags.push(error_at(imp.span, aliased_module_not_found(&imp, m.crate, &module_paths, &file_paths)))
             } else {
-                admitted = alias_admission(imp.alias.as_str())
+                admitted = alias_admission(imp.alias)
             }
         } else if imp.wildcard {
             resolved = imp.resolve_wildcard(&module_paths, &file_paths)
@@ -166,7 +166,7 @@ fun Import.resolve_specific(valid_paths: &List<Sym>, valid_names: &List<Sym>, fi
         return poison_sym()
     }
     val target_name = *self.path.at(seg_count - 1)
-    val name_sym = intern(target_name.as_str())
+    val name_sym = intern(target_name)
 
     val module_seg_count = seg_count - 1
     if module_seg_count == 0 {
@@ -211,11 +211,11 @@ fun Module.collect_importable_files(smap: Ptr<SourceMap>): List<Sym> {
         }
         if from_source {
             val stem = unsafe { smap.file_stem_of(d.span.file_id) }
-            if !stem.as_str().is_empty() {
+            if !stem.is_empty() {
                 var dotted = String.from(d.module_path.as_str())
                 dotted.append(".")
-                dotted.append(stem.as_str())
-                val sym = intern(dotted.as_str())
+                dotted.append(stem)
+                val sym = intern(dotted)
                 if !contains_sym(&out, sym) { out.push(sym) }
             }
         }
@@ -223,7 +223,7 @@ fun Module.collect_importable_files(smap: Ptr<SourceMap>): List<Sym> {
     var k = 0
     while k < unsafe { smap.interface_files.size() } {
         val entry = unsafe { *smap.interface_files.at(k) }
-        val sym = intern(entry.as_str())
+        val sym = intern(entry)
         if !contains_sym(&out, sym) { out.push(sym) }
         k = k + 1
     }
@@ -267,7 +267,7 @@ fun import_admitted_name(path: &List<String>): Sym {
     val n = path.size()
     if n == 0 { return poison_sym() }
     val last = *path.at(n - 1)
-    return intern(last.as_str())
+    return intern(last)
 }
 
 fun has_pair(paths: &List<Sym>, names: &List<Sym>, mp: Sym, name: Sym): bool {

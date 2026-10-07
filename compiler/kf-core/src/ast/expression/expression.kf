@@ -227,6 +227,6 @@ pub struct FieldInit {
 
 impl FieldInit {
     pub static fun new(span: Span, name: String, value: Box<Expr>): Self {
-        return Self { span: span, name: intern(name.as_str()), value: value }
+        return Self { span: span, name: intern(name), value: value }
     }
 }

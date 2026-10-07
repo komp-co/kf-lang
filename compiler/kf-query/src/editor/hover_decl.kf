@@ -44,14 +44,14 @@ fun TypedCrate.hover_member_at(offset: uint32): HoverDecl {
     // Tried as a declared type first: `Point` in `Point.new` is not an
     // expression, and reaches only static members.
     val recv = word_at(src, start - 2)
-    if recv.as_str() != "" && self.module.names_a_type(recv.as_str()) {
-        return self.member_named(recv.as_str(), name.as_str(), &Type.new_poison())
+    if recv.as_str() != "" && self.module.names_a_type(recv) {
+        return self.member_named(recv, name, &Type.new_poison())
     }
     val hit = self.module.innermost_expr_at(self.file_id, start - 2)
     if !hit.found || hit.ty.is_poison() { return no_hover_decl() }
     val owner = hit.ty.type_base_name()
     if owner.as_str() == "" { return no_hover_decl() }
-    return self.member_named(owner.as_str(), name.as_str(), &hit.ty)
+    return self.member_named(owner, name, &hit.ty)
 }
 
 /// A top-level declaration's name, or a method's in an impl or trait.
@@ -182,13 +182,13 @@ fun TopDecl.decl_label(): String {
 pub fun Span.doc_for_span(crate: &TypedCrate): String {
     if (*self).is_none() { return "" }
     if self.file_id == crate.file_id {
-        return doc_comment_above(crate.source.as_str(), crate.file_id, self.start)
+        return doc_comment_above(crate.source, crate.file_id, self.start)
     }
     val decl_path = path_for_file_id(crate.smap, self.file_id)
     if decl_path.as_str() == "" { return "" }
-    val text = read_file(decl_path.as_str())
+    val text = read_file(decl_path)
     if text.as_str() == "" { return "" }
-    return doc_comment_above(text.as_str(), self.file_id, self.start)
+    return doc_comment_above(text, self.file_id, self.start)
 }
 
 /// First byte of the name covering `offset`, or `offset` when none does.

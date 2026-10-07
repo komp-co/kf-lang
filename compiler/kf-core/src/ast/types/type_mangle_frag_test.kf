@@ -48,19 +48,19 @@ fun ptr_to(inner: Type): Type {
     val shared = ref_to(struct_named("A")).mangle_frag()
     val mutable = mut_ref_to(struct_named("A")).mangle_frag()
     assert_eq(mutable.as_str(), "kf__mut__A", "a mutable borrow says so")
-    assert_eq(shared.as_str().equals(mutable.as_str()), false, "`&A` and `&var A` are not one type")
+    assert_eq(shared.as_str().equals(mutable), false, "`&A` and `&var A` are not one type")
 }
 
 @test fun borrows_of_different_types_differ(): void {
     val a = ref_to(struct_named("A")).mangle_frag()
     val b = ref_to(struct_named("B")).mangle_frag()
-    assert_eq(a.as_str().equals(b.as_str()), false, "`&A` and `&B` are not the same type")
+    assert_eq(a.as_str().equals(b), false, "`&A` and `&B` are not the same type")
 }
 
 @test fun a_borrow_differs_from_its_pointee(): void {
     val borrowed = ref_to(struct_named("A")).mangle_frag()
     val owned = struct_named("A").mangle_frag()
-    assert_eq(borrowed.as_str().equals(owned.as_str()), false, "`&A` and `A` are not the same type")
+    assert_eq(borrowed.as_str().equals(owned), false, "`&A` and `A` are not the same type")
 }
 
 @test fun a_pointer_keeps_its_pointee(): void {

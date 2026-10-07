@@ -37,7 +37,7 @@ impl Type {
             // Kept, not poisoned, so `F` stays a segment substitution can reach.
             Projection(owner, member) => {
                 val inner = unsafe { *owner }.mangle_frag()
-                projection_mangle_frag(inner.as_str(), member.as_str())
+                projection_mangle_frag(inner, member.as_str())
             }
             Value(v) => value_frag(v)
             Poison => String.from("poison")

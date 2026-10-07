@@ -43,8 +43,8 @@ fun one_file_map(content: str): Ptr<SourceMap> {
     val sp = Span { file_id: 1, start: 3, end: 30 }
     val d = error_at(sp, String.from("long span"))
     val out = render(&d, smp)
-    assert_eq(out.as_str().contains("\n    ^~~~"), true, "caret+3 tildes (line is 4 bytes)")
-    assert_eq(out.as_str().contains("^~~~~"), false, "no tilde past the line end")
+    assert_eq(out.contains("\n    ^~~~"), true, "caret+3 tildes (line is 4 bytes)")
+    assert_eq(out.contains("^~~~~"), false, "no tilde past the line end")
 }
 
 @test fun render_warning_prefix(): void {
@@ -52,7 +52,7 @@ fun one_file_map(content: str): Ptr<SourceMap> {
     val sp = Span { file_id: 1, start: 4, end: 5 }
     val d = warning_at(sp, String.from("unused"))
     val out = render(&d, smp)
-    assert_eq(out.as_str().contains("warning: unused"), true, "warning severity label")
+    assert_eq(out.contains("warning: unused"), true, "warning severity label")
 }
 
 fun with_note(d: Diagnostic, sp: Span, message: str): Diagnostic {
@@ -110,9 +110,9 @@ fun with_note(d: Diagnostic, sp: Span, message: str): Diagnostic {
     val smp = one_file_map("val y = true\n")
     val sp = Span { file_id: 1, start: 8, end: 12 }
     val e = render_colored(&error_at(sp, String.from("bad")), smp, true)
-    assert_eq(e.as_str().contains("\033[1;31merror\033[0m: "), true, "error in red, the colon plain")
+    assert_eq(e.contains("\033[1;31merror\033[0m: "), true, "error in red, the colon plain")
     val w = render_colored(&warning_at(sp, String.from("odd")), smp, true)
-    assert_eq(w.as_str().contains("\033[1;33mwarning\033[0m: "), true, "warning in yellow")
+    assert_eq(w.contains("\033[1;33mwarning\033[0m: "), true, "warning in yellow")
 }
 
 @test fun the_location_is_left_uncolored(): void {

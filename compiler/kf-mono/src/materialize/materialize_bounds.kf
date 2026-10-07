@@ -94,7 +94,7 @@ fun TypeRef.arg_meets_bounds(
     }
 
     val base = self.tyref_base_name()
-    if fn_frag_parts(base.as_str()) != null { return tp.bounded_by_copy_alone(copy_name) }
+    if fn_frag_parts(base) != null { return tp.bounded_by_copy_alone(copy_name) }
     // A projection or poison is undecidable here; typecheck judges it.
     if base.as_str().equals("") { return true }
     while b in &tp.bounds {
@@ -104,7 +104,7 @@ fun TypeRef.arg_meets_bounds(
                 // `Rev<I: Iterator<T>, T>` the registry holds `Iterator<int32>`,
                 // never `Iterator<T>`.
                 val bound_args = subst_tref_list(&targs, names, repls)
-                val ok = unsafe { sigs.type_implements(base.as_str(), trait_sym.as_str(), trait_args_key(&bound_args).as_str()) }
+                val ok = unsafe { sigs.type_implements(base, trait_sym.as_str(), trait_args_key(&bound_args).as_str()) }
                 if !ok { return false }
             }
             _ => { }

@@ -61,31 +61,31 @@ fun a_field_type_names_its_struct(): void {
     val json = type_references_at("from: Point", 7)
     val file = "${scratch_path("kf_query_type_refs")}/src/lib.kf"
     val declared = "\"declaration\":{\"file\":\"${file}\",${type_start("Point {", 0)}"
-    assert_eq(json.as_str().contains(declared.as_str()), true, "the struct's own name")
+    assert_eq(json.contains(declared), true, "the struct's own name")
 }
 
 @test
 fun a_structs_references_include_an_impl_header(): void {
     val json = type_references_at("struct Point", 7)
-    assert_eq(json.as_str().contains(type_start("impl Point", 5).as_str()), true, "`impl Point`")
+    assert_eq(json.contains(type_start("impl Point", 5).as_str()), true, "`impl Point`")
 }
 
 @test
 fun a_structs_references_include_a_result_type(): void {
     val json = type_references_at("struct Point", 7)
-    assert_eq(json.as_str().contains(type_start("(): Point", 4).as_str()), true, "`-> Point` of `moved`")
+    assert_eq(json.contains(type_start("(): Point", 4).as_str()), true, "`-> Point` of `moved`")
 }
 
 @test
 fun a_trait_in_an_impl_header_names_the_trait(): void {
     val json = type_references_at("impl Loud", 5)
-    assert_eq(json.as_str().contains(type_start("Loud {", 0).as_str()), true, "the trait's own name")
+    assert_eq(json.contains(type_start("Loud {", 0).as_str()), true, "the trait's own name")
 }
 
 @test
 fun a_traits_references_include_a_bound(): void {
     val json = type_references_at("trait Loud", 6)
-    assert_eq(json.as_str().contains(type_start("T: Loud", 3).as_str()), true, "`T: Loud`")
+    assert_eq(json.contains(type_start("T: Loud", 3).as_str()), true, "`T: Loud`")
 }
 
 @test
@@ -93,5 +93,5 @@ fun renaming_a_struct_edits_its_type_positions(): void {
     val crate = types_crate()
     val offset = types_source().index_of("struct Point")!! + 7
     val json = render_rename_json("lib.kf", offset as uint32, "Spot", &crate)
-    assert_eq(json.as_str().contains(type_start("from: Point", 6).as_str()), true, "the field's type too")
+    assert_eq(json.contains(type_start("from: Point", 6).as_str()), true, "the field's type too")
 }

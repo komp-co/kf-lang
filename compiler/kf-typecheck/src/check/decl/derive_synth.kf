@@ -26,14 +26,14 @@ fun synth_default_impl(name: String, fields: &List<Field>, span: Span, owner: Cr
         inits.push(FieldInit.new(span, f.name.as_string(), dv))
     }
     val slit_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *slit_ptr = Expr.new(span, ExprKind.StructLit(intern(name.as_str()), inits)) }
+    unsafe { *slit_ptr = Expr.new(span, ExprKind.StructLit(intern(name), inits)) }
     val ret_operand: Box<Expr>? = slit_ptr
     var body = List.new<Stmt>()
     body.push(Stmt.new(span, StmtKind.Return(ret_operand)))
 
     // static fun default(): Name { body }
     val ret_ref: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ret_ref = TypeRef.new(span, TypeRefKind.Named(intern(name.as_str()), List.new<TypeRef>())) }
+    unsafe { *ret_ref = TypeRef.new(span, TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
     var default_fn = new_top_decl(span, String.from("default"),
         TopDeclKind.Function(List.new<Param>(), ret_ref, body, true, false, false, true))
     default_fn.crate = owner
@@ -55,7 +55,7 @@ fun synth_equal_impl(name: String, fields: &List<Field>, span: Span, owner: Crat
     trait_sym: Sym): TopDecl {
     var params = List.new<Param>()
     val other_named: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *other_named = TypeRef.new(span, TypeRefKind.Named(intern(name.as_str()), List.new<TypeRef>())) }
+    unsafe { *other_named = TypeRef.new(span, TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
     val other_type: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *other_type = TypeRef.new(span, TypeRefKind.Reference(false, other_named)) }
     params.push(new_param(span, String.from("other"), other_type))
@@ -155,7 +155,7 @@ fun synth_equal_trait_impl(name: String, params: List<Param>, body: List<Stmt>,
 // A marker: the struct's clone glue already deep-copies.
 fun synth_clone_impl(name: String, span: Span, owner: CrateId, module_path: Sym, trait_sym: Sym): TopDecl {
     val result_type: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *result_type = TypeRef.new(span, TypeRefKind.Named(intern(name.as_str()), List.new<TypeRef>())) }
+    unsafe { *result_type = TypeRef.new(span, TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
     val self_value: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *self_value = Expr.new(span, ExprKind.Variable(intern("self"))) }
     val operand: Box<Expr>? = self_value

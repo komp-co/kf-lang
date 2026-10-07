@@ -209,7 +209,7 @@ pub fun TypedCrate.positional_items_json(offset: uint32, src: str): String {
     if pos_is_type(pos) { arr.push_items(&primitive_type_items()) }
     val scoped = self.scope_items_at(offset)
     while it in &scoped {
-        if scope_kind_fits(it.kind.as_str(), pos) { arr.push_item_json(it) }
+        if scope_kind_fits(it.kind, pos) { arr.push_item_json(it) }
     }
     return arr.finish()
 }
@@ -222,8 +222,8 @@ mutating fun JsonWriter.push_items(items: &List<ScopeItem>): void {
 
 mutating fun JsonWriter.push_item_json(it: &ScopeItem): void {
     var o = JsonWriter.object()
-    o.field_string("label", it.label.as_str())
-    o.field_string("kind", it.kind.as_str())
-    o.field_string("detail", it.detail.as_str())
+    o.field_string("label", it.label)
+    o.field_string("kind", it.kind)
+    o.field_string("detail", it.detail)
     self.write_raw(o.finish().as_str())
 }

@@ -22,9 +22,9 @@ mutating fun JsonReader.load_reexports(owner: str): List<Import> {
         val exposed = self.read_string()
         if self.object_has_next() { return out }
         if wildcard {
-            out.push(new_reexport(no_span(), split_dotted_path(path.as_str()), true, String.from(owner)))
+            out.push(new_reexport(no_span(), split_dotted_path(path), true, String.from(owner)))
         } else {
-            var imp = new_renaming_reexport(no_span(), split_dotted_path(path.as_str()), exposed)
+            var imp = new_renaming_reexport(no_span(), split_dotted_path(path), exposed)
             imp.owner = String.from(owner)
             out.push(imp)
         }

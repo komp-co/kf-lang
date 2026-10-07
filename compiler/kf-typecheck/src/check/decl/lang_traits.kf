@@ -7,7 +7,7 @@ pub fun Module.note_lang_traits(sig_ptr: Ptr<SigTable>): void {
         when (td.kind) {
             TraitDecl(_members, _is_pub, _supers) => {
                 val lkey = (&td).lang_key_of()
-                if !lkey.as_str().is_empty() { unsafe { (*sig_ptr).note_lang_trait(lkey.as_str(), td.name) } }
+                if !lkey.is_empty() { unsafe { (*sig_ptr).note_lang_trait(lkey, td.name) } }
             }
             _ => {}
         }

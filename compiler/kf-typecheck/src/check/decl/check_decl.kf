@@ -272,7 +272,7 @@ pub fun register_sigs(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: &var Diag
         }
         ImplBlock(methods) => {
             val struct_name = td.name.as_string()
-            reject_duplicate_methods(&methods, struct_name.as_str(), td.linkage, diags)
+            reject_duplicate_methods(&methods, struct_name, td.linkage, diags)
             while i in 0..methods.size() {
                 register_impl_method(struct_name.clone(), td.generics, methods.at_mut(i), "", "", "", sig_ptr, diags,
                     table)
@@ -281,7 +281,7 @@ pub fun register_sigs(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: &var Diag
         TraitImpl(tref, methods) => {
             // Trait-impl methods register like inherent ones.
             val struct_name = td.name.as_string()
-            reject_duplicate_methods(&methods, struct_name.as_str(), td.linkage, diags)
+            reject_duplicate_methods(&methods, struct_name, td.linkage, diags)
             val suffix = trait_method_suffix(unsafe { *tref }, sig_ptr)
             val trait_name = trait_ref_head_name(unsafe { *tref })
             val trait_args = trait_ref_args_key(unsafe { *tref })
@@ -300,18 +300,18 @@ pub fun register_sigs(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: &var Diag
 /// no method. Types come from the trait with `Self` as this impl's target.
 fun register_omitted_defaults(struct_name: String, methods: &List<TopDecl>, suffix: String, trait_name: String, td: &TopDecl, sig_ptr: Ptr<SigTable>): void {
     if trait_name.as_str().equals("") { return }
-    val self_ty = Type { kind: TypeKind.Struct(intern(struct_name.as_str())), provenance: Provenance.Inferred(no_span()) }
-    val info = unsafe { (*sig_ptr).find_trait(trait_name.as_str()) } ?: return
+    val self_ty = Type { kind: TypeKind.Struct(intern(struct_name)), provenance: Provenance.Inferred(no_span()) }
+    val info = unsafe { (*sig_ptr).find_trait(trait_name) } ?: return
     while req in &info.methods {
-        if req.has_default && !impl_writes_method(methods, req.name.as_str()) {
+        if req.has_default && !impl_writes_method(methods, req.name) {
             var mangled = struct_name.clone()
             mangled.append("_")
-            mangled.append(req.name.as_str())
+            mangled.append(req.name)
             if !suffix.as_str().equals("") {
                 mangled.append("__")
-                mangled.append(suffix.as_str())
+                mangled.append(suffix)
             }
-            if unsafe { (*sig_ptr).find_signature(mangled.as_str()).is_none() } {
+            if unsafe { (*sig_ptr).find_signature(mangled).is_none() } {
                 var ptys = List.new<Type>()
                 if !req.is_static { ptys.push(self_ty.clone()) }
                 while pi in 0..req.params.size() {
@@ -357,7 +357,7 @@ fun register_fn_sig(metadata_owner: Ptr<TopDecl>, fn_name: String, params: &List
     reject_unsayable_origin(&ptys, &ret_ty, false, ret_tr.span, &var ctx0)
     val borrows = infer_borrow_origin(&ptys, &ret_ty, false, sp)
     val owner = unsafe { &*metadata_owner }
-    unsafe { (*sp).record_params(fn_name.as_str(), &params) }
+    unsafe { (*sp).record_params(fn_name, &params) }
     insert_fn_sig(sp, metadata_owner, FnSignature { name: fn_name, params: ptys, ret: ret_ty, generics: generics, is_static: false, is_mutating: false, owner_module: owner_module, owner_crate: owner_crate, is_pub: is_pub, borrows: borrows, is_prelude: owner.has_annotation("prelude"),
         is_extern: owner.is_extern_decl() })
 }
@@ -377,7 +377,7 @@ fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &va
             mangled.append(td.name.as_str())
             if !suffix.as_str().equals("") {
                 mangled.append("__")
-                mangled.append(suffix.as_str())
+                mangled.append(suffix)
             }
             // An instance method gets an implicit `self` prepended, matching
             // how the receiver is passed; a `static fun` has none.
@@ -407,7 +407,7 @@ fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &va
                 all_generics.push(own_generic)
             }
             ctx0.seed_generics(all_generics.clone())
-            ctx0.self_ty = impl_target_ty(struct_name.as_str(), no_span(), ctx0.string_name())
+            ctx0.self_ty = impl_target_ty(struct_name, no_span(), ctx0.string_name())
             // Which trait instantiation: a type implementing one trait at two
             // argument lists binds `Out` twice.
             ctx0.impl_trait = trait_name.clone()
@@ -417,7 +417,7 @@ fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &va
             ret_ty.validate_dyn_placement(ret_tr.span, &var ctx0)
             var ptys = List.new<Type>()
             if !is_static {
-                ptys.push(Type { kind: TypeKind.Struct(intern(struct_name.as_str())), provenance: Provenance.Inferred(no_span()) })
+                ptys.push(Type { kind: TypeKind.Struct(intern(struct_name)), provenance: Provenance.Inferred(no_span()) })
             }
             while p in &params {
                 val ty_ptr: Ptr<TypeRef> = p.ty
@@ -428,7 +428,7 @@ fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &va
             }
             val sp = sig_ptr
             if td.linkage.is_imported() {
-                val receiver = canonical_type_identity(TypeIdentity.new(td.crate, td.module_path, intern(struct_name.as_str())))
+                val receiver = canonical_type_identity(TypeIdentity.new(td.crate, td.module_path, intern(struct_name)))
                 unsafe { sp.insert_method_link(MethodLink {
                     receiver_identity: receiver,
                     method_name: td.name.as_string(),
@@ -437,7 +437,7 @@ fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &va
             }
             reject_unsayable_origin(&ptys, &ret_ty, !is_static, ret_tr.span, &var ctx0)
             val borrows = infer_borrow_origin(&ptys, &ret_ty, !is_static, sp)
-            unsafe { (*sp).record_params(mangled.as_str(), &params) }
+            unsafe { (*sp).record_params(mangled, &params) }
             unsafe { sp.insert(FnSignature { name: mangled, params: ptys, ret: ret_ty, generics: all_generics, is_static: is_static, is_mutating: is_mutating, owner_module: td.module_path, owner_crate: td.crate, is_pub: true, borrows: borrows, is_prelude: (&td).has_annotation("prelude"), is_extern: false }) }
         }
         _ => { }
@@ -494,7 +494,7 @@ fun check_top_decl(td: &var TopDecl, _table: &var DeclTable, diags: &var Diagnos
             // Same instantiation answer as the bodies.
             sig_ctx.impl_trait = trait_name.clone()
             sig_ctx.impl_trait_args = trait_args.clone()
-            check_satisfies(unsafe { *tref }, struct_name.as_str(), gnames, methods, td.span, diags, sigs, &var sig_ctx)
+            check_satisfies(unsafe { *tref }, struct_name, gnames, methods, td.span, diags, sigs, &var sig_ctx)
         }
         _ => { }
     }

@@ -43,7 +43,7 @@ extern "C" fun kf_create_dir_all(p: str): int32
     var pdiags = new_diagnostics()
 
     val none = no_overlay()
-    val c = assemble_crate_inc(root.as_str(), String.from("once"), smap, &var pdiags, true, &none)
+    val c = assemble_crate_inc(root, String.from("once"), smap, &var pdiags, true, &none)
     assert_eq(c.modules.size(), 2, "the test file is assembled alongside the source")
     assert_eq(unsafe { smap.files.size() }, 2, "each file is registered exactly once")
 }

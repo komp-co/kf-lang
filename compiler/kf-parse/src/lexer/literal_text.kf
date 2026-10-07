@@ -20,13 +20,13 @@ fun digits_text(src: str, from: uint32, to: uint32): String {
     while i < to {
         if src.byte_at_in(n, i as uint64) == 95 {
             val chunk = slice_to_string(src, seg, i)
-            out.append(chunk.as_str())
+            out.append(chunk)
             seg = i + 1
         }
         i = i + 1
     }
     val tail = slice_to_string(src, seg, to)
-    out.append(tail.as_str())
+    out.append(tail)
     return out
 }
 

@@ -63,7 +63,7 @@ fun diags_for_impl(param_ty: str, ret_ty: str): uint64 {
     val out = module.typecheck_module(&var table)
     var n: uint64 = 0
     while item in &out {
-        if (item.primary.message.as_str()).contains("where trait") { n = n + 1 }
+        if (item.primary.message).contains("where trait") { n = n + 1 }
     }
     return n
 }

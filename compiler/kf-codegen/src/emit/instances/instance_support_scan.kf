@@ -211,10 +211,10 @@ fun scan_expr_list(args: &List<Expr>, callees: &var NameSet, type_refs: &var Nam
 fun callee_prefix_matches(callees: &NameSet, type_name: str): bool {
     val n = type_name.byte_len()
     while callee in &callees.names {
-        val cn = callee.as_str().byte_len()
+        val cn = callee.byte_len()
         if cn > n + 1 {
-            if callee.as_str().starts_with(type_name) {
-                if callee.as_str().byte_at(n) == 95 {
+            if callee.starts_with(type_name) {
+                if callee.byte_at(n) == 95 {
                     return true
                 }
             }

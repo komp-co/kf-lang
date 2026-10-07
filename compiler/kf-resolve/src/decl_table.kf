@@ -90,8 +90,8 @@ impl DeclTable {
     /// A name with nothing known about its declaration.
     pub mutating fun insert(name: String): DeclId {
         val entry = ScopeEntry {
-            name: intern(name.as_str()), crate: CrateId { raw: 0 }, module: Sym { id: 0 },
-            surface: intern(name.as_str()), callable: false, is_type: false, is_pub: false, is_prelude: false
+            name: intern(name), crate: CrateId { raw: 0 }, module: Sym { id: 0 },
+            surface: intern(name), callable: false, is_type: false, is_pub: false, is_prelude: false
         }
         return self.declare(name, entry)
     }

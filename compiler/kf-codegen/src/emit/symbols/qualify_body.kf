@@ -85,7 +85,7 @@ fun qualify_expr_ptr(ep: Ptr<Expr>, names: &var List<String>, repls: &var List<T
     }
     if rename_types && e.is_dynamic_call {
         val layout = subst_mangled_name(e.dynamic_layout.as_str(), names, repls)
-        unsafe { ep.dynamic_layout = intern(layout.as_str()) }
+        unsafe { ep.dynamic_layout = intern(layout) }
     }
     when (e.kind) {
         Variable(vn) => {
@@ -93,7 +93,7 @@ fun qualify_expr_ptr(ep: Ptr<Expr>, names: &var List<String>, repls: &var List<T
             // type-name receiver, which the checker leaves untyped, is a type.
             if !rename_types || !e.ty.is_poison() { return }
             val hit = rename_lookup(vn.as_str(), names, repls)
-            if hit.as_str().byte_len() == 0 { return }
+            if hit.byte_len() == 0 { return }
             // A type-name receiver is respelled so codegen's receiver-name
             // comparison still matches.
             val sp: Span = e.span
@@ -108,8 +108,8 @@ fun qualify_expr_ptr(ep: Ptr<Expr>, names: &var List<String>, repls: &var List<T
         FnRef(n) => {
             if rename_types { return }
             val lookup_name = if e.mangled_callee.as_str() == "" { n.as_string() } else { e.mangled_callee.as_string() }
-            val hit = rename_lookup(lookup_name.as_str(), names, repls)
-            if hit.as_str().byte_len() > 0 {
+            val hit = rename_lookup(lookup_name, names, repls)
+            if hit.byte_len() > 0 {
                 unsafe { ep.mangled_callee = intern_string(hit) }
             }
         }
@@ -126,8 +126,8 @@ fun qualify_expr_ptr(ep: Ptr<Expr>, names: &var List<String>, repls: &var List<T
                 }
             } else {
                 val lookup_name = if e.mangled_callee.as_str() == "" { _n.as_string() } else { e.mangled_callee.as_string() }
-                val hit = rename_lookup(lookup_name.as_str(), names, repls)
-                if hit.as_str().byte_len() > 0 {
+                val hit = rename_lookup(lookup_name, names, repls)
+                if hit.byte_len() > 0 {
                     unsafe { ep.mangled_callee = intern_string(hit) }
                 }
             }
@@ -139,11 +139,11 @@ fun qualify_expr_ptr(ep: Ptr<Expr>, names: &var List<String>, repls: &var List<T
             val recv_ty_before = qualified_method_owner(unsafe { rp.ty })
             val recv_param = bound_method_owner(unsafe { rp.ty }, e.mangled_callee.as_str())
             val via_bound = recv_param.byte_len() > 0 &&
-                callee_method_tail(e.mangled_callee.as_str(), recv_param.as_str(), _mn.as_str()).matched
+                callee_method_tail(e.mangled_callee.as_str(), recv_param, _mn.as_str()).matched
             qualify_expr_ptr(rp, names, repls, rename_types)
             qualify_expr_args(args, names, repls, rename_types)
             if rename_types && e.is_static_call {
-                if callee_targets_receiver(e.mangled_callee.as_str(), recv_before.as_str(), _mn.as_str()) {
+                if callee_targets_receiver(e.mangled_callee.as_str(), recv_before, _mn.as_str()) {
                     rebuild_static_callee(ep, rp, _mn, &recv_before, names, repls)
                 } else {
                     // A trait-qualified receiver names the trait; only the
@@ -152,27 +152,27 @@ fun qualify_expr_ptr(ep: Ptr<Expr>, names: &var List<String>, repls: &var List<T
                 }
             } else if rename_types && !e.mangled_callee.as_str().equals("") && !is_mangled_decl_name(e.mangled_callee.as_str()) {
                 unsafe { ep.mangled_callee = intern(subst_static_callee(e.mangled_callee.as_str(), names, repls).as_str()) }
-            } else if rename_types && instance_callee_targets_receiver(e.mangled_callee.as_str(), _mn.as_str(), recv_ty_before.as_str()) {
+            } else if rename_types && instance_callee_targets_receiver(e.mangled_callee.as_str(), _mn.as_str(), recv_ty_before) {
                 // A trait-impl method through an instance call: rebuilt around
                 // the qualified receiver type, trait tail kept.
                 val owner = qualified_method_owner(unsafe { rp.ty })
                 if owner.as_str() != "" {
                     // The tail's types take the prefix too.
-                    val split = callee_method_tail(e.mangled_callee.as_str(), recv_ty_before.as_str(), _mn.as_str())
-                    val tail = subst_mangled_name(split.tail.as_str(), names, repls)
+                    val split = callee_method_tail(e.mangled_callee.as_str(), recv_ty_before, _mn.as_str())
+                    val tail = subst_mangled_name(split.tail, names, repls)
                     var callee = owner
                     callee.append("_")
                     callee.append(_mn.as_str())
-                    callee.append(tail.as_str())
-                    unsafe { ep.mangled_callee = intern(callee.as_str()) }
+                    callee.append(tail)
+                    unsafe { ep.mangled_callee = intern(callee) }
                 }
             } else if rename_types && via_bound {
                 // Through a parameter's or associated type's bound: the owner is
                 // left for Mono; the tail's trait arguments are qualified.
-                val split = callee_method_tail(e.mangled_callee.as_str(), recv_param.as_str(), _mn.as_str())
-                val tail = subst_mangled_name(split.tail.as_str(), names, repls)
+                val split = callee_method_tail(e.mangled_callee.as_str(), recv_param, _mn.as_str())
+                val tail = subst_mangled_name(split.tail, names, repls)
                 val callee = "${recv_param}_${_mn.as_str()}${tail}"
-                unsafe { ep.mangled_callee = intern(callee.as_str()) }
+                unsafe { ep.mangled_callee = intern(callee) }
             } else if rename_types && (e.mangled_callee.as_str() == "" || e.mangled_callee.as_str() == _mn.as_str()) {
                 val receiver = unsafe { *rp }
                 val owner = qualified_method_owner(receiver.ty)
@@ -180,7 +180,7 @@ fun qualify_expr_ptr(ep: Ptr<Expr>, names: &var List<String>, repls: &var List<T
                     var callee = owner
                     callee.append("_")
                     callee.append(_mn.as_str())
-                    unsafe { ep.mangled_callee = intern(callee.as_str()) }
+                    unsafe { ep.mangled_callee = intern(callee) }
                 }
             } else if !rename_types && (e.mangled_callee.as_str() == "" || e.mangled_callee.as_str() == _mn.as_str()) {
                 val hit = rename_lookup(_mn.as_str(), names, repls)
@@ -220,8 +220,8 @@ fun qualify_expr_ptr(ep: Ptr<Expr>, names: &var List<String>, repls: &var List<T
             if rename_types {
                 var key = String.from(sn.as_str())
                 if e.mangled_callee.as_str() != "" { key = e.mangled_callee.as_string() }
-                val hit = rename_lookup(key.as_str(), names, repls)
-                if hit.as_str().byte_len() > 0 {
+                val hit = rename_lookup(key, names, repls)
+                if hit.byte_len() > 0 {
                     unsafe { ep.mangled_callee = intern_string(hit) }
                 }
             }
@@ -236,7 +236,7 @@ fun qualify_expr_ptr(ep: Ptr<Expr>, names: &var List<String>, repls: &var List<T
             val concrete_vtable = subst_mangled_name(vtable.as_str(), names, repls)
             val value: Ptr<Expr> = ip
             qualify_expr_ptr(value, names, repls, rename_types)
-            unsafe { ep.kind = ExprKind.DynCoerce(value, intern(concrete_vtable.as_str())) }
+            unsafe { ep.kind = ExprKind.DynCoerce(value, intern(concrete_vtable)) }
         }
         Retain(ip) => qualify_expr_ptr(ip, names, repls, rename_types)
         _ => return

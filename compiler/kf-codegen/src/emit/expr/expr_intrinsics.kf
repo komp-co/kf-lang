@@ -43,19 +43,19 @@ fun Intrinsic.emit_intrinsic(type_args: &List<TypeRef>, args: &List<Expr>): Stri
         String.from("/* poison */ void")
     }
     return when (self) {
-        Alloc => emit_alloc(cty.as_str(), args)
-        AllocArray => emit_alloc_array(cty.as_str(), args)
-        ReallocArray => emit_realloc_array(cty.as_str(), args)
+        Alloc => emit_alloc(cty, args)
+        AllocArray => emit_alloc_array(cty, args)
+        ReallocArray => emit_realloc_array(cty, args)
         Dealloc => emit_free(args)
         Sizeof => "sizeof(${cty})"
         // An identity.
         Take => args.at(0).emit_expr()
         DropInPlace => {
-            val pointee = type_args.boxed_pointee() ?: return emit_drop_in_place(cty.as_str(), args)
+            val pointee = type_args.boxed_pointee() ?: return emit_drop_in_place(cty, args)
             emit_box_drop_in_place(pointee.c_type(), args)
         }
         ClonePlace => {
-            val pointee = type_args.boxed_pointee() ?: return emit_clone_place(cty.as_str(), args)
+            val pointee = type_args.boxed_pointee() ?: return emit_clone_place(cty, args)
             emit_box_clone_place(pointee.c_type(), args)
         }
         PtrRead => emit_ptr_read(args)
@@ -67,7 +67,7 @@ fun Intrinsic.emit_intrinsic(type_args: &List<TypeRef>, args: &List<Expr>): Stri
 // primitive.
 fun emit_drop_in_place(cty: str, args: &List<Expr>): String {
     val rel = release_fn_for_ctype(cty)
-    if rel.as_str().byte_len() == 0 {
+    if rel.byte_len() == 0 {
         return String.from("((void)0)")
     }
     var parts = List.new<String>()
@@ -92,8 +92,8 @@ fun List<TypeRef>.boxed_pointee(): TypeRef? {
 // A `Box` in place owns its pointee: drop that, then free it.
 fun emit_box_drop_in_place(inner_cty: String, args: &List<Expr>): String {
     val place = args.at(0).emit_expr()
-    val inner_drop = release_fn_for_ctype(inner_cty.as_str())
-    val drop_pointee = if inner_drop.as_str().byte_len() > 0 {
+    val inner_drop = release_fn_for_ctype(inner_cty)
+    val drop_pointee = if inner_drop.byte_len() > 0 {
         "${inner_drop}(*__bx); "
     } else {
         String.from("")
@@ -104,8 +104,8 @@ fun emit_box_drop_in_place(inner_cty: String, args: &List<Expr>): String {
 // A `Box` in place clones into a fresh allocation, never sharing its pointee.
 fun emit_box_clone_place(inner_cty: String, args: &List<Expr>): String {
     val place = args.at(0).emit_expr()
-    val inner_clone = clone_fn_for_ctype(inner_cty.as_str())
-    val copy = if inner_clone.as_str().byte_len() > 0 { "${inner_clone}(*__src)" } else { String.from("*__src") }
+    val inner_clone = clone_fn_for_ctype(inner_cty)
+    val copy = if inner_clone.byte_len() > 0 { "${inner_clone}(*__src)" } else { String.from("*__src") }
     val fresh = "(${inner_cty}*)kf_alloc(sizeof(${inner_cty}))"
     return "({ ${inner_cty}* __src = *(${place}); ${inner_cty}* __bx = ${fresh}; *__bx = ${copy}; __bx; })"
 }
@@ -121,7 +121,7 @@ fun emit_ptr_read(args: &List<Expr>): String {
 fun emit_clone_place(cty: str, args: &List<Expr>): String {
     val cfn = clone_fn_for_ctype(cty)
     var parts = List.new<String>()
-    val has_clone = cfn.as_str().byte_len() > 0
+    val has_clone = cfn.byte_len() > 0
     if has_clone {
         parts.push(cfn.clone())
         parts.push(String.from("((*"))

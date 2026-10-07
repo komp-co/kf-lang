@@ -8,7 +8,7 @@ import testing.test
 
 fun loaded_dyn_interface(): InterfaceLoad {
     val encoded = emitted_dyn_interface()
-    return parse_interface(encoded.as_str())
+    return parse_interface(encoded)
 }
 
 fun raw_dyn_interface(traits: str, vtables: str): String {
@@ -86,7 +86,7 @@ fun valid_dyn_layout_json(): str {
 @test fun dyn_interface_rejects_duplicate_layouts(): void {
     val one: str = "{\"identity\":\"Score\",\"principal\":\"Score\",\"args\":[],\"methods\":[]}"
     val traits = "[${one},${one}]"
-    val loaded = parse_interface(raw_dyn_interface(traits.as_str(), "[]").as_str())
+    val loaded = parse_interface(raw_dyn_interface(traits, "[]").as_str())
     assert_eq(loaded.ok, false, "duplicate dynamic layout identities are rejected")
 }
 

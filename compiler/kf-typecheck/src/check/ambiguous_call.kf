@@ -12,7 +12,7 @@ fun Expr.no_fitting_impl_message(recv_ty: Type, method_name: String, args: &List
     val shown = recv_ty.display_type(ctx)
     val traits = providing_traits(recv_ty, method_name.clone(), args, ctx)
     if traits.size() > 1 {
-        return ambiguous_method_message(method_name.as_str(), &traits, shown.as_str(), self.receiver_text().as_str())
+        return ambiguous_method_message(method_name, &traits, shown, self.receiver_text().as_str())
     }
     return "no implementation of `${method_name}` for `${shown}` accepts these arguments"
 }

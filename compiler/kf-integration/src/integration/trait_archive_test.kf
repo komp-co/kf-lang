@@ -18,9 +18,9 @@ c_sources = ["native/core.c"]
 hosted_c_sources = ["native/core_hosted.c"]
 """)
     val core_native = read_file("libs/core/native/core.c")
-    write_file(scratch_path("kf_sc5_trait_core/native/core.c"), core_native.as_str())
+    write_file(scratch_path("kf_sc5_trait_core/native/core.c"), core_native)
     val core_hosted = read_file("libs/core/native/core_hosted.c")
-    write_file(scratch_path("kf_sc5_trait_core/native/core_hosted.c"), core_hosted.as_str())
+    write_file(scratch_path("kf_sc5_trait_core/native/core_hosted.c"), core_hosted)
     write_file(scratch_path("kf_sc5_trait_lib/kf.toml"), """[project]
 name = "trait_lib"
 kind = "lib"
@@ -32,7 +32,7 @@ core = { path = "../kf_sc5_trait_core" }
     library.append("pub struct Token {\n    pub val value: int32\n}\n\n")
     library.append("impl Score for Token {\n    pub fun score(): int32 { return self.value + 1 }\n}\n\n")
     library.append("pub fun token(value: int32): Token {\n    return Token { value: value }\n}\n")
-    write_file(scratch_path("kf_sc5_trait_lib/src/lib.kf"), library.as_str())
+    write_file(scratch_path("kf_sc5_trait_lib/src/lib.kf"), library)
     write_file(scratch_path("kf_sc5_trait_app/kf.toml"), """[project]
 name = "trait_app"
 kind = "bin"
@@ -84,8 +84,8 @@ fun imported_trait_method_runs_from_dependency_archive(): void {
     val ran = unsafe { system(scratch_path("kf_sc5_trait_app/target/kflat/trait_app")) }
     val consumer = read_file(scratch_path("kf_sc5_trait_app/target/kflat/trait_app.c"))
     val restored = unsafe { system("mv ${scratch_path("kf_sc5_trait_lib/src.hidden")} ${scratch_path("kf_sc5_trait_lib/src")}") }
-    val has_call = trait_archive_contains(consumer.as_str(), "trait_lib__Token_score__Score(")
-    val has_body = trait_archive_contains(consumer.as_str(), "trait_lib__Token_score__Score(trait_lib__Token self) {")
+    val has_call = trait_archive_contains(consumer, "trait_lib__Token_score__Score(")
+    val has_body = trait_archive_contains(consumer, "trait_lib__Token_score__Score(trait_lib__Token self) {")
     val artifacts_ok = prepared == 0 && first == 0 && archive == 0 && interface_file == 0
     val interface_ok = hidden == 0 && rebuilt == 0 && ran == 0 && restored == 0
     val ok = artifacts_ok && interface_ok && has_call && !has_body

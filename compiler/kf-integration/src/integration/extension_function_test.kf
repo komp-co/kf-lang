@@ -22,8 +22,8 @@ fun extension_messages(name: str, source: str): List<String> {
     unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
     write_file("${root}/kf.toml".as_str(), "[project]\nname = \"ext_probe\"\nkind = \"lib\"\n")
     val file = "${root}/src/lib.kf"
-    write_file(file.as_str(), source)
-    var crate = typed_crate_for(file.as_str())
+    write_file(file, source)
+    var crate = typed_crate_for(file)
     var table = new_decl_table()
     resolve_module(&var crate.module, &var table)
     val diags = typecheck_module(&var crate.module, &var table)
@@ -36,7 +36,7 @@ fun extension_messages(name: str, source: str): List<String> {
 
 fun says(messages: &List<String>, needle: str): bool {
     while m in &messages {
-        if m.as_str().contains(needle) { return true }
+        if m.contains(needle) { return true }
     }
     return false
 }
@@ -148,7 +148,7 @@ fun build_extension_crates(name: str, main_source: str): int32 {
     unsafe { system("rm -rf ${root} && mkdir -p ${dirs} && cp -R libs/core libs/alloc ${root}/libs/") }
     val deps = "core = { path = \"../libs/core\" }\nalloc = { path = \"../libs/alloc\" }\n"
     val geo_manifest = "[project]\nname = \"geo\"\nkind = \"lib\"\n\n[dependencies]\n${deps}"
-    write_file("${root}/geo/kf.toml".as_str(), geo_manifest.as_str())
+    write_file("${root}/geo/kf.toml".as_str(), geo_manifest)
     write_file("${root}/geo/src/lib.kf".as_str(), """import alloc.list.*
 
 pub struct Point {
@@ -197,7 +197,7 @@ fun int32.hidden(): int32 { return self }
 """)
     val app_deps = "${deps}geo = { path = \"../geo\" }\n"
     val app_manifest = "[project]\nname = \"app\"\nkind = \"bin\"\n\n[dependencies]\n${app_deps}"
-    write_file("${root}/app/kf.toml".as_str(), app_manifest.as_str())
+    write_file("${root}/app/kf.toml".as_str(), app_manifest)
     write_file("${root}/app/src/main.kf".as_str(), main_source)
     return komp_build("${root}/app".as_str(), "")
 }

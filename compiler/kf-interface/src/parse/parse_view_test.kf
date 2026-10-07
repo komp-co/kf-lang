@@ -14,7 +14,7 @@ fun interface_round_trip_restores_a_view(): void {
     marked.is_view = true
     m.decls.set(0, marked)
     val encoded = m.emit_interface(String.from("sample"), &List.new<String>())
-    val loaded = parse_interface(encoded.as_str())
+    val loaded = parse_interface(encoded)
     val point = *loaded.modules.at(0).decls.at(0)
     assert_eq(point.is_view_type(), true, "a consumer treats the type's values as borrows")
 }

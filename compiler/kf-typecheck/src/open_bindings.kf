@@ -94,7 +94,7 @@ impl TypeCtx {
         } else {
             self.declare_val(name.clone(), preset.ty.clone())
         }
-        val i = self.binding_index(name.as_str()) ?: return
+        val i = self.binding_index(name) ?: return
         self.locals.at_mut(i).decided_at = preset.decided_at
     }
 }

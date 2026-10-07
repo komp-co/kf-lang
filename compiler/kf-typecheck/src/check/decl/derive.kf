@@ -66,7 +66,7 @@ fun TopDecl.validate_derive_options(options: &List<String>, diags: &var Diagnost
 /// An `@allow` naming no registered lint suppresses nothing silently.
 fun TopDecl.validate_allow_names(names: &List<String>, diags: &var Diagnostics): void {
     while name in &names {
-        if !lint_exists(name.as_str()) {
+        if !lint_exists(name) {
             val message = "`@allow(...)` names no lint `${name}`"
             diags.emit(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
         }
@@ -80,9 +80,9 @@ pub mutating fun Module.expand_derives(): void {
     while td in &self.decls {
         val options = (&td).annotation_words("derive")
         while option in &options {
-            val entry = lookup_derive(option.as_str())
+            val entry = lookup_derive(option)
             if !entry.name.as_str().equals("") && derive_admits(entry, &td) {
-                val trait_sym = self.lang_trait_name(entry.lang_key.as_str())
+                val trait_sym = self.lang_trait_name(entry.lang_key)
                 synth.push(expand_one_derive(entry.expander, &td, trait_sym))
             }
         }
