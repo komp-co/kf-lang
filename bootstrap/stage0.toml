@@ -3,8 +3,8 @@
 # sha256. A seed that ships komp.c drives with it, and needs no komp_url.
 # komp has no release of its own yet, so the driver is the komp.c of the
 # last seed that shipped one.
-version = "0.25.0"
-url = "https://github.com/komp-co/kf-lang/releases/download/v0.25.0/kflat-seed-0.25.0.tar.gz"
-sha256 = "83694bd704fee1e91e0c878846d6f37c2f0abd60e3b97401fad0e7e6ec70733c"
+version = "0.26.0"
+url = "https://github.com/komp-co/kf-lang/releases/download/v0.26.0/kflat-seed-0.26.0.tar.gz"
+sha256 = "133f490b712be06adea32a1647cc7bfdde6c13a833d71137d3da3adf15950abe"
 komp_url = "https://github.com/komp-co/kf-lang/releases/download/v0.24.0/kflat-seed-0.24.0.tar.gz"
 komp_sha256 = "e0ed4fd944b9ff60ef8d92bd046b89c9a20c686b60cceb906c7d3232153b63fb"
