@@ -1,0 +1,34 @@
+// Signatures found through Resolve's table.
+
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.span.no_span
+import kf_core.ast.*
+import kf_core.ast.types.Type
+import kf_resolve.*
+import testing.test
+
+fun runtime_println_signature(): FnSignature {
+    return FnSignature {
+        name: String.from("runtime_println"), params: List.new<Type>(), ret: Type.new_void(no_span()),
+        generics: List.new<String>(), is_static: false, is_mutating: false, owner_module: intern("core.assert"),
+        owner_crate: new_crate_id("core"), is_pub: false, borrows: 0 - 1, is_prelude: false, is_extern: false
+    }
+}
+
+@test
+fun a_runtime_function_needs_no_declaration_or_import(): void {
+    var table = new_decl_table()
+    var files = List.new<uint32>()
+    files.push(7)
+    var targets = List.new<Sym>()
+    targets.push(intern("library"))
+    table.note_imports(&files, &targets, &List.new<Sym>())
+    var sigs = new_sig_table()
+    val view: Ptr<DeclTable> = &var table
+    sigs.decls = view
+    sigs.insert(runtime_println_signature())
+    val found = sigs.find_imported_signature("runtime_println", 7, new_crate_id("application"), intern("application"))
+    assert_eq(found.is_some(), true, "runtime signatures have no visibility boundary")
+}

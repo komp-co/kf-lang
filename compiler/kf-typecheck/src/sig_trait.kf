@@ -7,7 +7,6 @@ import kf_core.ast.intern
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeIdentity
 import kf_core.ast.types.TypeRef
-import kf_typecheck.types.runtime_prelude_declares
 import kf_core.span.no_span
 import kf_core.ast.subst.clone_type_ref
 
@@ -50,67 +49,16 @@ impl SigTable {
         return false
     }
 
-    /// `find_signature` with visibility when `gate_visibility` is set: visible
-    /// to its own module always, to any other module, in this crate or
-    /// another, only if `pub` and imported. The caller's own crate shadows
-    /// other crates; `@prelude` functions need no import.
+    /// The function or constant `name` means where the caller is written,
+    /// as Resolve's table says (see kf-resolve's scope.kf). Without one,
+    /// every signature is visible.
     pub fun find_imported_signature(name: str, caller_file: uint32, caller_crate: CrateId, caller_module: Sym): FnSignature? {
-        // The caller's own crate shadows an imported definition, or every
-        // library addition could break a program using that name. The runtime
-        // prelude is exempt: its names are reserved and in every TU.
-        val first = self.first_named(name)
-        if !runtime_prelude_declares(name) {
-            var at = first
-            while at != none_index() {
-                val mine = *self.sigs.at(at)
-                // A module path starts with its crate's name, so this is the
-                // caller's own module: a template's code, expanded into
-                // another crate, still reaches what its home module declares.
-                if mine.owner_module.id == caller_module.id { return Option.Some(mine) }
-                if mine.owner_crate.raw == caller_crate.raw {
-                    // Own module: unrestricted. Same crate, other module: only
-                    // `pub` and imported; keep scanning, since a later or
-                    // imported definition may still answer.
-                    if mine.owner_module.id == caller_module.id { return Option.Some(mine) }
-                    if mine.is_pub && self.imports_admit(caller_file, &mine) { return Option.Some(mine) }
-                }
-                at = *self.sig_next.at(at)
-            }
-        }
-        // `gate_visibility` alone decides; guarding on the import list too
-        // would let a file with no imports call every private function.
-        if !self.gate_visibility {
-            return self.find_signature(name)
-        }
-        var ambient: uint64 = 0
-        var has_ambient = false
-        var i = first
-        while i != none_index() {
-            val s = *self.sigs.at(i)
-            // In every generated translation unit.
-            if runtime_prelude_declares(name) {
-                return Option.Some(s)
-            }
-            if s.owner_crate.raw == caller_crate.raw {
-                if s.owner_module.id == caller_module.id { return Option.Some(s) }
-                if !s.is_pub { return Option.None }
-            }
-            if s.is_pub && self.imports_admit(caller_file, &s) { return Option.Some(s) }
-            if s.is_pub && s.is_prelude && !has_ambient {
-                ambient = i
-                has_ambient = true
-            }
-            i = *self.sig_next.at(i)
-        }
-        when (self.find_renamed(name, caller_file)) {
-            Some(renamed) => return Option.Some(renamed)
-            None => { }
-        }
-        if has_ambient { return Option.Some(*self.sigs.at(ambient)) }
-        return Option.None
+        if !self.has_scope() { return self.find_signature(name) }
+        return self.scope_signature(name, caller_file, caller_crate, caller_module)
     }
 
-    /// Ungated, everything is admitted; gated, the caller's imports decide.
+    /// Whether the caller's imports admit `sig`; everything is admitted
+    /// ungated.
     pub fun imports_admit(caller_file: uint32, sig: &FnSignature): bool {
         if !self.gate_visibility { return true }
         return self.file_admits(caller_file, sig.owner_module, self.surface_name(sig.name.as_str()).as_str())
@@ -132,24 +80,9 @@ impl SigTable {
     }
 
     /// The file's own imports admit `name` from `target`; a sibling's do not.
-    /// CONSTRAINT: keep scanning on a miss, since one file may name several
-    /// imports of one module.
     pub fun file_admits(caller: uint32, target: Sym, name: str): bool {
-        var i = 0
-        while i < self.caller_files.size() {
-            if self.caller_files.get(i) == caller {
-                if self.imported_targets.get(i).id == target.id {
-                    // No names recorded means the whole module.
-                    if i >= self.imported_names.size() { return true }
-                    val admitted = self.imported_names.get(i)
-                    // Poison is `.*`.
-                    if admitted.id == 0 { return true }
-                    if admitted.as_str().equals(name) { return true }
-                }
-            }
-            i = i + 1
-        }
-        return false
+        if !self.has_scope() { return true }
+        return self.scope().admits(caller, target, name)
     }
 
     // Types resolve globally, whatever the imports say; gating them would be a

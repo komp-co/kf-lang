@@ -131,7 +131,6 @@
 21 compiler/kf-parse/src/parser/type_ref.kf
 6 compiler/kf-resolve/src/import_validation.kf
 1 compiler/kf-resolve/src/resolve_body.kf
-1 compiler/kf-resolve/src/resolver.kf
 1 compiler/kf-tool/src/build/artifact_manifest.kf
 1 compiler/kf-tool/src/build/compile_c.kf
 1 compiler/kf-tool/src/build/compiler_identity.kf
@@ -213,6 +212,7 @@
 1 compiler/kf-typecheck/src/declaration_place.kf
 2 compiler/kf-typecheck/src/lib.kf
 2 compiler/kf-typecheck/src/sig_fn_types.kf
+1 compiler/kf-typecheck/src/sig_scope.kf
 23 compiler/kf-typecheck/src/sig_table_imports.kf
 3 compiler/kf-typecheck/src/traits/ambiguous_method.kf
 6 compiler/kf-typecheck/src/traits/copy_obligation.kf

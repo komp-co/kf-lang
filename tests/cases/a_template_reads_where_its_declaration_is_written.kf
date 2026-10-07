@@ -1,0 +1,45 @@
+//! run: exit 0
+//! deps: core, alloc
+// `site.file`, `site.line` and `site.column` are where the marked
+// declaration's name is, the file relative to the crate root, and
+// `field.line` and `variant.line` where each member is: 29 and 30 here.
+
+annotation located on <struct, enum>
+
+template located on struct T {
+    fun T.where(): String { return "${site.file}:${site.line}:${site.column}" }
+
+    fun T.field_lines(): int64 {
+        return T.fields.map(|field| field.line as int64).fold(0 as int64, |sum: int64, n: int64| sum + n)
+    }
+}
+
+template located on enum T {
+    fun T.line(): int64 {
+        return when (self) {
+            while variant in T.variants {
+                ${variant.name}(..a) => variant.line
+            }
+        }
+    }
+}
+
+@located
+struct User {
+    val id: int64
+    val age: int32
+}
+
+@located
+enum Shape {
+    Circle(int32)
+    Empty
+}
+
+fun main(): int32 {
+    val u = User { id: 1, age: 2 }
+    if u.where() != "src/main.kf:28:8" { return 1 }
+    if u.field_lines() != 59 { return 2 }
+    if Shape.Circle(1).line() != 35 || Shape.Empty.line() != 36 { return 3 }
+    return 0
+}

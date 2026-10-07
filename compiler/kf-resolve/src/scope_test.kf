@@ -1,0 +1,180 @@
+// Which declaration a name means, by the caller's place and its file's
+// imports. File 7 is in `application` unless a test says otherwise.
+
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.ast.*
+import kf_core.ast.declaration.DeclId
+import testing.test
+
+fun function_entry(name: str, crate: str, module: str, is_pub: bool, is_prelude: bool): ScopeEntry {
+    return ScopeEntry {
+        name: intern(name), crate: new_crate_id(crate), module: intern(module), surface: intern(name), callable: true,
+        is_type: false, is_pub: is_pub, is_prelude: is_prelude
+    }
+}
+
+/// Gated, with file 7 importing `target` whole, or nothing for "".
+fun table_importing(target: str): DeclTable {
+    var table = new_decl_table()
+    var files = List.new<uint32>()
+    var modules = List.new<Sym>()
+    if target != "" {
+        files.push(7)
+        modules.push(intern(target))
+    }
+    table.note_imports(&files, &modules, &List.new<Sym>())
+    return table
+}
+
+fun table_importing_library(): DeclTable {
+    return table_importing("library")
+}
+
+/// The id `name` answers with in `crate`'s `module`, or 0 for none.
+mutating fun DeclTable.answer(name: str, file: uint32, crate: str, module: str): uint32 {
+    val found = self.visible(name, file, new_crate_id(crate), intern(module)) ?: return 0
+    return found.raw
+}
+
+mutating fun DeclTable.answer_in_application(name: str): uint32 {
+    return self.answer(name, 7, "application", "application")
+}
+
+@test
+fun an_import_does_not_expose_a_private_function(): void {
+    var table = table_importing_library()
+    val _helper = table.declare(String.from("helper"), function_entry("helper", "library", "library", false, false))
+    assert_eq(table.answer_in_application("helper"), 0, "a private function stays in its module")
+}
+
+@test
+fun an_import_exposes_a_public_function(): void {
+    var table = table_importing_library()
+    val helper = table.declare(String.from("helper"), function_entry("helper", "library", "library", true, false))
+    assert_eq(table.answer_in_application("helper"), helper.raw, "an import exposes a public function")
+}
+
+@test
+fun a_private_function_is_hidden_from_another_module_of_its_crate(): void {
+    var table = table_importing_library()
+    val _helper = table.declare(String.from("helper"), function_entry("helper", "library", "library", false, false))
+    assert_eq(table.answer("helper", 7, "library", "consumer"), 0, "another module of the crate does not see it")
+}
+
+@test
+fun a_module_sees_its_own_private_function(): void {
+    var table = table_importing_library()
+    val helper = table.declare(String.from("helper"), function_entry("helper", "library", "library", false, false))
+    assert_eq(table.answer("helper", 7, "library", "library"), helper.raw, "its own module reaches it")
+}
+
+@test
+fun pub_carries_a_function_to_another_module_of_its_crate(): void {
+    var table = table_importing_library()
+    val helper = table.declare(String.from("helper"), function_entry("helper", "library", "library", true, false))
+    assert_eq(table.answer("helper", 7, "library", "consumer"), helper.raw, "pub crosses the module boundary")
+}
+
+@test
+fun a_siblings_import_does_not_lend_visibility(): void {
+    // File 7 imports `library`; file 8, in the same directory, does not.
+    var table = table_importing_library()
+    val helper = table.declare(String.from("helper"), function_entry("helper", "library", "library", true, false))
+    assert_eq(table.answer_in_application("helper"), helper.raw, "the importing file sees it")
+    assert_eq(table.answer("helper", 8, "application", "application"), 0, "its sibling does not")
+}
+
+@test
+fun each_module_means_its_own_private_function(): void {
+    var table = table_importing("")
+    val in_a = table.declare(String.from("helper"), function_entry("helper", "two", "two.a", false, false))
+    val in_b = table.declare(String.from("helper"), function_entry("helper", "two", "two.b", false, false))
+    assert_eq(table.answer("helper", 1, "two", "two.a"), in_a.raw, "a's call means a's helper")
+    assert_eq(table.answer("helper", 2, "two", "two.b"), in_b.raw, "b's call means b's helper, not the first")
+}
+
+@test
+fun a_prelude_function_needs_no_import(): void {
+    var table = table_importing("")
+    val clamp = table.declare(String.from("clamp"), function_entry("clamp", "core", "core.math", true, true))
+    assert_eq(table.answer_in_application("clamp"), clamp.raw, "a marked function, unimported")
+}
+
+@test
+fun a_public_but_unmarked_function_needs_an_import(): void {
+    var table = table_importing("")
+    val _clamp = table.declare(String.from("clamp"), function_entry("clamp", "core", "core.math", true, false))
+    assert_eq(table.answer_in_application("clamp"), 0, "the prelude is a mark, not a crate name")
+}
+
+@test
+fun a_private_prelude_mark_is_not_ambient(): void {
+    var table = table_importing("")
+    val _clamp = table.declare(String.from("clamp"), function_entry("clamp", "core", "core.math", false, true))
+    assert_eq(table.answer_in_application("clamp"), 0, "a private function is not the prelude")
+}
+
+@test
+fun an_imported_function_answers_before_the_prelude(): void {
+    var table = table_importing("geometry")
+    val _ambient = table.declare(String.from("clamp"), function_entry("clamp", "core", "core.math", true, true))
+    val imported = table.declare(String.from("clamp"), function_entry("clamp", "geometry", "geometry", true, false))
+    assert_eq(table.answer_in_application("clamp"), imported.raw, "the import names a module on purpose")
+}
+
+@test
+fun the_callers_own_function_answers_before_the_prelude(): void {
+    var table = table_importing("")
+    val _ambient = table.declare(String.from("clamp"), function_entry("clamp", "core", "core.math", true, true))
+    val own = table.declare(String.from("clamp"), function_entry("clamp", "application", "application", false, false))
+    assert_eq(table.answer_in_application("clamp"), own.raw, "a local definition shadows the prelude")
+}
+
+@test
+fun an_export_renames_a_function_for_the_file_importing_it(): void {
+    var table = new_decl_table()
+    var files = List.new<uint32>()
+    files.push(7)
+    var targets = List.new<Sym>()
+    targets.push(intern("library"))
+    var admitted = List.new<Sym>()
+    admitted.push(renamed_admission("shown", "helper"))
+    table.note_imports(&files, &targets, &admitted)
+    val helper = table.declare(String.from("helper"), function_entry("helper", "library", "library", true, false))
+    assert_eq(table.answer_in_application("shown"), helper.raw, "the written name reaches the function")
+    assert_eq(table.answer_in_application("helper"), 0, "its own name was not admitted")
+}
+
+@test
+fun an_alias_reaches_its_modules_functions(): void {
+    var table = new_decl_table()
+    var files = List.new<uint32>()
+    files.push(7)
+    var targets = List.new<Sym>()
+    targets.push(intern("library"))
+    var admitted = List.new<Sym>()
+    admitted.push(alias_admission("lib"))
+    table.note_imports(&files, &targets, &admitted)
+    val helper = table.declare(String.from("helper"), function_entry("helper", "library", "library", true, false))
+    val through = table.through_alias("helper", alias_admission("lib"), 7) ?: DeclId.new(0)
+    assert_eq(through.raw, helper.raw, "lib.helper is library's helper")
+    assert_eq(table.alias_target(7, alias_admission("lib")).as_str(), "library", "the alias names its module")
+    assert_eq(table.answer_in_application("helper"), 0, "an alias admits no bare name")
+}
+
+@test
+fun ungated_every_declaration_is_visible(): void {
+    var table = new_decl_table()
+    val helper = table.declare(String.from("helper"), function_entry("helper", "library", "library", false, false))
+    assert_eq(table.answer_in_application("helper"), helper.raw, "without imports nothing is filtered")
+}
+
+@test
+fun a_later_declaration_is_seen_after_an_earlier_answer(): void {
+    var table = table_importing_library()
+    assert_eq(table.answer_in_application("helper"), 0, "nothing yet")
+    val helper = table.declare(String.from("helper"), function_entry("helper", "library", "library", true, false))
+    assert_eq(table.answer_in_application("helper"), helper.raw, "the remembered answer is dropped")
+}

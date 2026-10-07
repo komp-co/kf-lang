@@ -206,7 +206,9 @@ fun Expr.expanded_access(owner: &Expr, member: Sym, x: &var Expansion): Expr {
         val field = x.fields.at(bound ?: 0)
         if member.as_str() == "name" { return self.fact(ExprKind.LitStr(field.name.as_string())) }
         if member.as_str() == "index" { return self.fact(ExprKind.LitInt(field.index as int64)) }
-        val facts = if x.on_enum { "`name`, `index` and `payloads`" } else { "`name`, `index` and `type`" }
+        if member.as_str() == "line" { return self.fact(ExprKind.LitInt(field.line as int64)) }
+        val last = if x.on_enum { "payloads" } else { "type" }
+        val facts = "`name`, `index`, `line` and `${last}`"
         if x.on_enum && member.as_str() == "payloads" {
             val uses = "loop over it, or `map`, `filter`, `all`, `any` or `size()` it"
             x.report(self.span, "`payloads` is a list only at compile time: ${uses}")
@@ -215,6 +217,7 @@ fun Expr.expanded_access(owner: &Expr, member: Sym, x: &var Expansion): Expr {
         x.report(self.span, "a ${x.member_word()} has no fact `${member.as_str()}`: it has ${facts}")
         return self.fact(ExprKind.Poison)
     }
+    if owner.is_variable(intern("site")) { return self.site_fact(member, x) }
     if owner.is_variable(intern("args")) {
         val value = x.argument(member)
         if value != null { return value ?: self.clone() }

@@ -1,0 +1,50 @@
+// Two modules each declare a private `helper`: a use means its own module's,
+// not whichever was declared first.
+
+import kf_integration.harness.typed_crate_for
+import core.assert.assert_eq
+import std.fs.scratch_path
+import kf_driver.editor.render_references_json
+import testing.test
+
+/// ```
+/// // a/a.kf and b/b.kf alike
+/// fun helper(): int32 {          // name at 4..10
+///     return 1
+/// }
+///
+/// pub fun from_a(): int32 {
+///     return helper()           // call at 75
+/// }
+/// ```
+fun prepare_two_helpers(): void {
+    val root = scratch_path("kf_two_helpers")
+    unsafe { system("rm -rf ${root} && mkdir -p ${root}/src/a ${root}/src/b") }
+    write_file(scratch_path("kf_two_helpers/kf.toml"), "[project]\nname = \"two_helpers\"\nkind = \"lib\"\n")
+    write_file(scratch_path("kf_two_helpers/src/a/a.kf"), helper_module("1", "from_a").as_str())
+    write_file(scratch_path("kf_two_helpers/src/b/b.kf"), helper_module("2", "from_b").as_str())
+}
+
+/// A private `helper` returning `value`, and a public `caller` using it.
+fun helper_module(value: str, caller: str): String {
+    return "fun helper(): int32 {\n    return ${value}\n}\n\npub fun ${caller}(): int32 {\n    return helper()\n}\n"
+}
+
+fun references_in_b(): String {
+    prepare_two_helpers()
+    val crate = typed_crate_for(scratch_path("kf_two_helpers/src/b/b.kf"))
+    return render_references_json("b.kf", 75, &crate)
+}
+
+@test
+fun a_call_names_its_own_modules_declaration(): void {
+    val json = references_in_b()
+    val declared = "\"declaration\":{\"file\":\"${scratch_path("kf_two_helpers/src/b/b.kf")}\",\"byte_start\":4"
+    assert_eq(json.as_str().contains(declared), true, "b's call means b's helper")
+}
+
+@test
+fun the_other_modules_call_is_not_a_reference(): void {
+    val json = references_in_b()
+    assert_eq(json.as_str().contains("a/a.kf"), false, "a's helper is another function")
+}

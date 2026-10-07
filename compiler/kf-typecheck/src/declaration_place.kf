@@ -2,6 +2,7 @@
 
 import kf_core.span.Span
 import kf_core.span.Location
+import kf_core.span.SourceMap
 import kf_core.span.path_file_stem
 import kf_core.ast.Sym
 import alloc.text_edit.replace
@@ -10,10 +11,14 @@ import alloc.text_edit.substring
 /// The file relative to the crate root, `src/parse/lexer_test.kf`, rebuilt
 /// from the module path `kf_parse.parse` and the file's stem, and the line
 /// of `span`. "" and 0 without a source map.
-pub fun SigTable.place_of(span: Span, module: Sym): Location {
+pub fun SigTable.place_of(span: Span, module: Sym): Location { return place_in(self.smap, span, module) }
+
+/// `SigTable.place_of` with the source map given, for template expansion,
+/// which runs before there is a table.
+pub fun place_in(smap: Ptr<SourceMap>, span: Span, module: Sym): Location {
     val unknown = Location { file_path: String.from(""), line: 0, col: 0 }
-    if ptr_is_null(self.smap) { return unknown }
-    val located = unsafe { self.smap.span_to_location(span) } ?: return unknown
+    if ptr_is_null(smap) { return unknown }
+    val located = unsafe { smap.span_to_location(span) } ?: return unknown
     var file = String.from("src/")
     val path = module.as_str()
     val dot = path.index_of(".")

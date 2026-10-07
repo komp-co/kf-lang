@@ -2,6 +2,7 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.no_span
+import kf_core.span.Location
 import kf_core.ast.intern
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
@@ -33,15 +34,16 @@ fun point_expansion_with(args: List<FieldInit>): Expansion {
     var fields = List.new<FieldFacts>()
     fields.push(FieldFacts {
         name: intern("x"), index: 0, ty: named("int32"), payloads: List.new<TypeRef>(),
-        annotations: List.new<Annotation>(), span: no_span()
+        annotations: List.new<Annotation>(), span: no_span(), line: 0
     })
     fields.push(FieldFacts {
         name: intern("label"), index: 1, ty: named("String"), payloads: List.new<TypeRef>(),
-        annotations: List.new<Annotation>(), span: no_span()
+        annotations: List.new<Annotation>(), span: no_span(), line: 0
     })
     return Expansion {
         annotation: intern("shown"), marked: intern("T"), type_name: intern("Point"), on_enum: false,
-        home: intern("app"), fields: fields, args: args, shapes: List.new<AnnotationShape>(), bound: on_label(),
+        home: intern("app"), site: Location { file_path: String.from("src/main.kf"), line: 3, col: 8 },
+        fields: fields, args: args, shapes: List.new<AnnotationShape>(), bound: on_label(),
         rests: List.new<Sym>(), diags: List.new<Diagnostic>()
     }
 }
