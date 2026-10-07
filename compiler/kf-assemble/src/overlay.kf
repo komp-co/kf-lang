@@ -3,6 +3,7 @@
 // FileId and place in the crate.
 
 import alloc.list.*
+import core.hash.*
 
 /// A staged file with empty text is a real, empty document, not an absent
 /// one.
@@ -45,6 +46,21 @@ pub fun Overlay.is_staged(path: str): bool {
 
 pub fun Overlay.staged_count(): uint64 {
     return self.paths.size()
+}
+
+/// Each staged file under one of `dirs`, with a hash of its text: what
+/// anything assembled from those directories depends on, beyond the disk.
+pub fun Overlay.staged_under(dirs: &List<String>): String {
+    var out = String.from("")
+    while i in 0..self.paths.size() {
+        val path = self.paths[i].as_str()
+        var under = false
+        while dir in &dirs {
+            if path.starts_with("${dir}/".as_str()) { under = true }
+        }
+        if under { out.append("${path}#${self.contents[i].hash()}\n".as_str()) }
+    }
+    return out
 }
 
 /// CONSTRAINT: `path` is compared by exact spelling, as SourceMap path

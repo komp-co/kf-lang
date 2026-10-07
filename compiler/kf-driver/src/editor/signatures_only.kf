@@ -18,6 +18,14 @@ pub fun drop_bodies(modules: &var List<Module>): void {
     }
 }
 
+/// Empties the bodies of the declarations written outside file `file_id`:
+/// a question about one file reads no other file's bodies.
+pub fun drop_bodies_outside(decls: &var List<TopDecl>, file_id: uint32): void {
+    while i in 0..decls.size() {
+        if decls.at(i).span.file_id != file_id { decls.at_mut(i).drop_body() }
+    }
+}
+
 fun drop_bodies_in(decls: &var List<TopDecl>): void {
     while i in 0..decls.size() {
         decls.at_mut(i).drop_body()

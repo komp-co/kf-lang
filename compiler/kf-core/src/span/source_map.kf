@@ -3,6 +3,7 @@ import alloc.text_edit.*
 import core.text.*
 
 /// Where one file's lines sit inside the shared `line_starts` buffer.
+@derive(Clone)
 pub struct FileLines {
     pub val first: uint64
     pub val count: uint64
@@ -48,6 +49,19 @@ pub fun new_source_map(): SourceMap {
 }
 
 impl SourceMap {
+    /// The first `count` files under the same ids, which further files follow.
+    pub fun copy_files(count: uint64): SourceMap {
+        var out = new_source_map()
+        out.interface_files = self.interface_files.clone()
+        while i in 0..count {
+            out.files.push(self.files.at(i).clone())
+            val lines = *self.file_lines.at(i)
+            out.file_lines.push(lines)
+            while j in 0..lines.count { out.line_starts.push(self.line_starts.get(lines.first + j)) }
+        }
+        return out
+    }
+
     pub mutating fun add_file(file: SourceFile): uint32 {
         val first = self.line_starts.size()
         val src = file.content.as_str()

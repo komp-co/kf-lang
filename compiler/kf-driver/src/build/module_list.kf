@@ -45,16 +45,33 @@ pub fun report_config_diags(diags: &List<Diagnostic>, smap: Ptr<SourceMap>, as_j
 }
 
 pub fun merge_module_list(modules: List<Module>): Module {
-    val path = if modules.size() > 0 { modules.at(0).path.clone() } else { List.new<String>() }
+    return merge_module_lists(&modules, modules.size(), &List.new<Module>())
+}
+
+/// The first `count` of `first`'s modules, then `then`'s, as one module.
+pub fun merge_module_lists(first: &List<Module>, count: uint64, then: &List<Module>): Module {
+    val path = if count > 0 {
+        first.at(0).path.clone()
+    } else if then.size() > 0 {
+        then.at(0).path.clone()
+    } else {
+        List.new<String>()
+    }
     var all_decls = List.new<TopDecl>()
     var all_imports = List.new<Import>()
-    while m in &modules {
+    first.add_modules_to(count, &var all_decls, &var all_imports)
+    then.add_modules_to(then.size(), &var all_decls, &var all_imports)
+    return Module { crate: crate_id_poison(), path: path, decls: all_decls, imports: all_imports }
+}
+
+fun List<Module>.add_modules_to(count: uint64, decls: &var List<TopDecl>, imports: &var List<Import>): void {
+    while i in 0..count {
+        val m = self.at(i)
         while j in 0..m.decls.size() {
-            all_decls.push(deep_clone_top_decl(m.decls.at(j)))
+            decls.push(deep_clone_top_decl(m.decls.at(j)))
         }
         while k in 0..m.imports.size() {
-            all_imports.push((m.imports.at(k)).deep_clone_import())
+            imports.push((m.imports.at(k)).deep_clone_import())
         }
     }
-    return Module { crate: crate_id_poison(), path: path, decls: all_decls, imports: all_imports }
 }

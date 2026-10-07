@@ -38,6 +38,16 @@ pub fun render_references_json(path: str, offset: uint32, crate: &TypedCrate): S
     return out.finish()
 }
 
+/// The file declaring what the name at `offset` names: "" when no name is
+/// there, or its declaration is not found.
+pub fun TypedCrate.declaring_file(offset: uint32): String {
+    val names = self.module.every_name_span()
+    val target = names.target_at(self.file_id, offset) ?: return ""
+    val declared = self.module.target_declaration(&names, &target)
+    if declared.end <= declared.start { return "" }
+    return self.smap.file_path_of(declared.file_id)
+}
+
 /// Top-level names and members, type names in type positions, annotations,
 /// then parameters and locals.
 pub fun Module.every_name_span(): List<NameSpan> {
