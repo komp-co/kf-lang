@@ -18,9 +18,9 @@ fun ctx_with_one_sink(name: String, borrow_sink: bool): MoveCtx {
     muts.push(false)
     var lends = List.new<bool>()
     lends.push(borrow_sink)
-    var entries = List.new<ParamEntry>()
+    var entries = new_param_table()
     entries.push(ParamEntry { name: name, sinks: sinks, muts: muts, lends: lends, is_extern: false })
-    val table: Ptr<List<ParamEntry>> = unsafe { alloc<List<ParamEntry>>() }
+    val table: Ptr<ParamTable> = unsafe { alloc<ParamTable>() }
     unsafe { *table = entries }
     val count: Ptr<MobCount> = unsafe { alloc<MobCount>() }
     unsafe { *count = MobCount { n: 0 } }
@@ -33,8 +33,8 @@ fun ctx_with_one_sink(name: String, borrow_sink: bool): MoveCtx {
         prune: false, clone_names: List.new<String>(), lints: List.new<Diagnostic>()
     } }
     // Normally filled from core's `impl Drop for String`.
-    var names = List.new<String>()
-    names.push(String.from("String"))
+    var names = new_type_name_set()
+    names.add(String.from("String"))
     return new_move_ctx(unsafe { &var *fresh_diag_ptr() }, names, table, count, String.from("sink_test"), map, wp)
 }
 

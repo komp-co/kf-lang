@@ -68,7 +68,7 @@ fun collect_mutating_in_impl(owner: str, methods: &List<TopDecl>, out: &var List
     }
 }
 
-fun bl_check_top_decl(td: &TopDecl, facts: &LivenessFacts, ptable: Ptr<List<ParamEntry>>, diags: &var Diagnostics): void {
+fun bl_check_top_decl(td: &TopDecl, facts: &LivenessFacts, ptable: Ptr<ParamTable>, diags: &var Diagnostics): void {
     when (td.kind) {
         Function(params, _r, body, _pub, _u, _mut, _st) => {
             var names = List.new<String>()
@@ -93,7 +93,7 @@ fun bl_check_top_decl(td: &TopDecl, facts: &LivenessFacts, ptable: Ptr<List<Para
 }
 
 /// A borrow is checked within the block that declared it.
-fun check_stmt_list(stmts: &List<Stmt>, facts: &LivenessFacts, ptable: Ptr<List<ParamEntry>>, params: &List<String>, diags: &var Diagnostics): void {
+fun check_stmt_list(stmts: &List<Stmt>, facts: &LivenessFacts, ptable: Ptr<ParamTable>, params: &List<String>, diags: &var Diagnostics): void {
     while i in 0..stmts.size() {
         (stmts.at(i)).check_nested_blocks(facts, ptable, params, diags)
         val origin = owning_origin(stmts, i, (stmts.at(i)).borrow_binding_origin(&facts.views), &facts.views)
@@ -239,7 +239,7 @@ fun Type.bl_ty_base_name(): String {
     }
 }
 
-fun Stmt.check_nested_blocks(facts: &LivenessFacts, ptable: Ptr<List<ParamEntry>>, params: &List<String>, diags: &var Diagnostics): void {
+fun Stmt.check_nested_blocks(facts: &LivenessFacts, ptable: Ptr<ParamTable>, params: &List<String>, diags: &var Diagnostics): void {
     when (self.kind) {
         If(_c, then_body, else_body) => {
             check_stmt_list(&then_body, facts, ptable, params, diags)

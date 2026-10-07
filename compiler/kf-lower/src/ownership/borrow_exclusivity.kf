@@ -35,7 +35,7 @@ pub fun Module.borrow_exclusivity_module(diags: &var Diagnostics): void {
     }
 }
 
-fun TopDecl.bx_check_top_decl(ptable: Ptr<List<ParamEntry>>, diags: &var Diagnostics): void {
+fun TopDecl.bx_check_top_decl(ptable: Ptr<ParamTable>, diags: &var Diagnostics): void {
     when (self.kind) {
         Function(_p, _r, body, _pub, _u, _mut, _st) => {
             bx_check_stmts(&body, ptable, diags)
@@ -54,13 +54,13 @@ fun TopDecl.bx_check_top_decl(ptable: Ptr<List<ParamEntry>>, diags: &var Diagnos
     }
 }
 
-fun bx_check_stmts(stmts: &List<Stmt>, ptable: Ptr<List<ParamEntry>>, diags: &var Diagnostics): void {
+fun bx_check_stmts(stmts: &List<Stmt>, ptable: Ptr<ParamTable>, diags: &var Diagnostics): void {
     while stmt in &stmts {
         (stmt).bx_check_stmt(ptable, diags)
     }
 }
 
-fun Stmt.bx_check_stmt(ptable: Ptr<List<ParamEntry>>, diags: &var Diagnostics): void {
+fun Stmt.bx_check_stmt(ptable: Ptr<ParamTable>, diags: &var Diagnostics): void {
     when (self.kind) {
         Expression(e) => bx_check_expr(unsafe { &*e }, self.span, ptable, diags)
         LetVal(_n, _t, init) => bx_check_init(init.view(), self.span, ptable, diags)
@@ -114,12 +114,12 @@ fun Stmt.bx_check_stmt(ptable: Ptr<List<ParamEntry>>, diags: &var Diagnostics): 
 }
 
 /// A declaration without an initializer has a null pointer.
-fun bx_check_init(init_opt: Ptr<Expr>?, at: Span, ptable: Ptr<List<ParamEntry>>, diags: &var Diagnostics): void {
+fun bx_check_init(init_opt: Ptr<Expr>?, at: Span, ptable: Ptr<ParamTable>, diags: &var Diagnostics): void {
     val init = init_opt ?: return
     bx_check_expr(unsafe { &*init }, at, ptable, diags)
 }
 
-fun Expr.bx_check_expr(at: Span, ptable: Ptr<List<ParamEntry>>, diags: &var Diagnostics): void {
+fun Expr.bx_check_expr(at: Span, ptable: Ptr<ParamTable>, diags: &var Diagnostics): void {
     when (self.kind) {
         Call(name, args) => {
             var claims = List.new<Claim>()
@@ -149,14 +149,14 @@ fun Expr.bx_check_expr(at: Span, ptable: Ptr<List<ParamEntry>>, diags: &var Diag
     }
 }
 
-fun bx_check_exprs(args: &List<Expr>, at: Span, ptable: Ptr<List<ParamEntry>>, diags: &var Diagnostics): void {
+fun bx_check_exprs(args: &List<Expr>, at: Span, ptable: Ptr<ParamTable>, diags: &var Diagnostics): void {
     while arg in &args {
         arg.bx_check_expr(at, ptable, diags)
     }
 }
 
 /// A by-value argument aliases nothing the callee holds.
-fun collect_arg_claims(args: &List<Expr>, callee: String, ptable: Ptr<List<ParamEntry>>, out: &var List<Claim>): void {
+fun collect_arg_claims(args: &List<Expr>, callee: String, ptable: Ptr<ParamTable>, out: &var List<Claim>): void {
     while i in 0..args.size() {
         val pl = param_lookup(unsafe { &*ptable }, callee.clone(), i)
         if pl.found && pl.is_lend {

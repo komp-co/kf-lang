@@ -15,7 +15,7 @@ import testing.test
 // Normally filled from core's `impl Drop for String`; these tests state it.
 fun rc_ctx_for_test(fn_name: str): RcCtx {
     var ctx = new_rc_ctx(String.from(fn_name))
-    ctx.move_only_names.push(String.from("String"))
+    ctx.move_only_names.add(String.from("String"))
     ctx.string_name = intern("String")
     return ctx
 }
@@ -449,7 +449,7 @@ fun mk_ref_string_param(name: str): Param {
 
 @test fun canonical_struct_matches_move_only_display_name(): void {
     var ctx = rc_ctx_for_test("m")
-    ctx.move_only_names.push(String.from("Unique"))
+    ctx.move_only_names.add(String.from("Unique"))
     val identity = TypeIdentity.new(new_crate_id("model"), intern("types"), intern("Unique"))
     val ty = named_struct_ty(identity, no_span())
     assert_eq(ty.is_move_only(&var ctx), true, "canonical type matches move-only display name")

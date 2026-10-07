@@ -10,7 +10,6 @@ import kf_core.ast.expression.ExprKind
 import kf_core.ast.expression.coerce_clone
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
-import kf_lower.ownership.names_contains
 
 /// A hand-written `.clone()` is fresh whatever its receiver.
 fun Expr.expr_is_clone_call(): bool {
@@ -253,9 +252,9 @@ fun Type.is_move_only(ctx: &var RcCtx): bool {
         BoxOf(_) => return true
         Struct(n) => {
             val name = type_identity_display(n)
-            return names_contains(ctx.move_only_names, name.as_str())
+            return ctx.move_only_names.contains(name.as_str())
         }
-        EnumTy(n) => return names_contains(ctx.move_only_names, type_identity_display(n).as_str())
+        EnumTy(n) => return ctx.move_only_names.contains(type_identity_display(n).as_str())
         _ => return false
     }
 }

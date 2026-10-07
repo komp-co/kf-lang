@@ -22,10 +22,8 @@ pub fun insert_fn_sig(sigs: Ptr<SigTable>, owner: Ptr<TopDecl>, sig: FnSignature
     if (owner as uint64) != 0 {
         val ext_name = unsafe { owner.ext_name }
         if !ext_name.as_str().equals("") {
-            unsafe { (*sigs).ext_names.push(ext_name) }
-            unsafe { (*sigs).ext_links.push(intern(sig.name.as_str())) }
             val trait_param = (unsafe { &*owner }).annotation_word("receiver_trait")
-            unsafe { (*sigs).ext_trait_params.push(intern(trait_param.as_str())) }
+            unsafe { (*sigs).insert_extension(ext_name, intern(sig.name.as_str()), intern(trait_param.as_str())) }
         }
     }
     // Hidden support arrives `pub` only when written `internal`, so its own

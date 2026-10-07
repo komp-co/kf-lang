@@ -25,9 +25,10 @@ pub struct LocalEnv {
     // and returns nothing. From the signature: Mono leaves `Expr.ty`
     // unsubstituted.
     pub var ret_ctype: String
-    // Release function per enum payload, for `when` arm binders. Empty
-    // without a Module, so no payload is dropped.
-    pub var arm_payloads: ArmPayloads
+    // Release function per enum payload, for `when` arm binders: the
+    // module's one table, which outlives every env. Null without a Module,
+    // so no payload is dropped.
+    pub var arm_payloads: Ptr<ArmPayloads>?
 }
 
 pub fun new_local_env(): LocalEnv {
@@ -39,7 +40,7 @@ pub fun new_local_env(): LocalEnv {
         loop_labels: List.new<String>(),
         label_counter: 0,
         ret_ctype: "",
-        arm_payloads: no_arm_payloads()
+        arm_payloads: null
     }
 }
 
@@ -113,4 +114,11 @@ pub fun box_or_normal_release(t: Type, ct: String): String {
         }
         _ => return release_fn_for_ctype(ct.as_str())
     }
+}
+
+/// What drops a `when` arm binder taking that payload: "" when none is
+/// needed, or without the module's table.
+pub fun LocalEnv.payload_release(ename: str, vname: str, idx: uint64): String {
+    val table = self.arm_payloads ?: return ""
+    return unsafe { (*table).arm_payload_release(ename, vname, idx) }
 }

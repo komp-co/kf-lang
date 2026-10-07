@@ -11,6 +11,8 @@ import alloc.list.*
 
 import kf_core.ast.Intrinsic
 import kf_core.ast.Module
+import kf_core.ast.NameIndex
+import kf_core.ast.decl_index
 import kf_core.ast.view
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
@@ -19,12 +21,13 @@ import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
 
 pub fun Module.derive_clone_check_module(diags: &var Diagnostics): void {
+    val index = self.decl_index()
     while td in &self.decls {
         when (td.kind) {
             Struct(fields, _p) => {
                 val name = td.name.as_string()
-                if !self.type_clones(name.as_str()) {
-                    val freed = self.fields_freed_by_drop(name.as_str())
+                if !self.type_clones(&index, name.as_str()) {
+                    val freed = self.fields_freed_by_drop(&index, name.as_str())
                     report_freed_ptr_fields(fields, &freed, td.span, diags)
                 }
             }
@@ -61,24 +64,24 @@ fun TypeRef.tref_is_raw_ptr(): bool {
 /// The fields `drop` passes to a deallocator. A drop that only writes through
 /// a pointer (a drop counter) is fine; an unrecognised indirect free errs on
 /// the side of accepting.
-fun Module.fields_freed_by_drop(name: str): List<String> {
+fun Module.fields_freed_by_drop(index: &NameIndex, name: str): List<String> {
     var out = List.new<String>()
-    while td in &self.decls {
-        if td.name.as_str().equals(name) {
-            when (td.kind) {
-                ImplBlock(methods) => {
-                    while j in 0..methods.size() {
-                        val mth = methods.at(j)
-                        if mth.name.as_str().equals("drop") {
-                            when (mth.kind) {
-                                Function(_p, _r, body, _pu, _u, _mu, _s) => collect_freed_in_stmts(&body, &var out)
-                                _ => { }
-                            }
+    val positions = index.positions(name)
+    while p in 0..positions.size() {
+        val td = self.decls.at(positions.get(p))
+        when (td.kind) {
+            ImplBlock(methods) => {
+                while j in 0..methods.size() {
+                    val mth = methods.at(j)
+                    if mth.name.as_str().equals("drop") {
+                        when (mth.kind) {
+                            Function(_p, _r, body, _pu, _u, _mu, _s) => collect_freed_in_stmts(&body, &var out)
+                            _ => { }
                         }
                     }
                 }
-                _ => { }
             }
+            _ => { }
         }
     }
     return out
@@ -189,22 +192,22 @@ fun collect_self_fields(e: &Expr, out: &var List<String>): void {
     }
 }
 
-fun Module.type_clones(name: str): bool {
-    return self.type_has_method(name, "clone")
+fun Module.type_clones(index: &NameIndex, name: str): bool {
+    return self.type_has_method(index, name, "clone")
 }
 
 /// Post-mono, `impl Drop for X` and `impl X` are both ImplBlocks on X.
-fun Module.type_has_method(name: str, mname: str): bool {
-    while td in &self.decls {
-        if td.name.as_str().equals(name) {
-            when (td.kind) {
-                ImplBlock(methods) => {
-                    while j in 0..methods.size() {
-                        if methods.at(j).name.as_str().equals(mname) { return true }
-                    }
+fun Module.type_has_method(index: &NameIndex, name: str, mname: str): bool {
+    val positions = index.positions(name)
+    while p in 0..positions.size() {
+        val td = self.decls.at(positions.get(p))
+        when (td.kind) {
+            ImplBlock(methods) => {
+                while j in 0..methods.size() {
+                    if methods.at(j).name.as_str().equals(mname) { return true }
                 }
-                _ => { }
             }
+            _ => { }
         }
     }
     return false

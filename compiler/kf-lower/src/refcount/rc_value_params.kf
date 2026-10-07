@@ -10,7 +10,6 @@ import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.Param
 import kf_core.ast.subst.mangle_tyref
 import kf_lower.ownership.tref_is_borrow_sink
-import kf_lower.ownership.names_contains
 
 fun track_value_params(params: &List<Param>, ctx: &var RcCtx): void {
     while p in &params {
@@ -29,7 +28,7 @@ fun TypeRef.tref_is_move_only(ctx: &var RcCtx): bool {
     when (self.kind) {
         Named(n, _args) => {
             if n.as_str().equals("Box") { return true }
-            return names_contains(&ctx.move_only_names, mangle_tyref(self).as_str())
+            return ctx.move_only_names.contains(mangle_tyref(self).as_str())
         }
         _ => { }
     }

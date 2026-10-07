@@ -99,11 +99,7 @@ pub fun callee_surface_name(name: str, sigs: Ptr<SigTable>): String {
 }
 
 fun has_extension_named(name: str, ctx: &var TypeCtx): bool {
-    val names = unsafe { (*ctx.sigs).ext_names }
-    while n in &names {
-        if n.as_str().equals(name) { return true }
-    }
-    return false
+    return unsafe { (*ctx.sigs).has_extension(name) }
 }
 
 /// `Display.display` takes a sink, so `v.display()` is alloc's rendering as a
@@ -183,11 +179,11 @@ fun chosen_extension(name: str, recv: &Type, span: Span, ctx: &var TypeCtx): Str
 
 fun fitting_extensions(name: str, recv: &Type, ctx: &var TypeCtx): List<ExtensionFit> {
     var out = List.new<ExtensionFit>()
-    val names = unsafe { (*ctx.sigs).ext_names }
     val links = unsafe { (*ctx.sigs).ext_links }
-    while i in 0..names.size() {
-        val link = links.get(i)
-        if names.get(i).as_str().equals(name) && !fits_contain(&out, link.as_str()) {
+    val positions = unsafe { (*ctx.sigs).extensions_named(name) }
+    while k in 0..positions.size() {
+        val link = links.get(positions.get(k))
+        if !fits_contain(&out, link.as_str()) {
             when (unsafe { (*ctx.sigs).find_signature(link.as_str()) }) {
                 Some(sig) => {
                     val rank = sig.receiver_fit(recv, ctx)
@@ -303,18 +299,17 @@ fun nearest_with_extensions(type_name: str, wanted: str, budget: uint64, ctx: &v
 pub fun unimported_extension_note(wanted: str, ctx: &var TypeCtx): String {
     var found = ""
     val sigs = unsafe { &*ctx.sigs }
-    while i in 0..sigs.ext_names.size() {
-        if sigs.ext_names.get(i).as_str().equals(wanted) {
-            when (sigs.find_signature(sigs.ext_links.get(i).as_str())) {
-                Some(sig) => {
-                    if sig.is_pub && !sig.extension_visible(ctx) {
-                        val owner = sig.owner_module.as_str()
-                        if found.as_str() != "" && !found.as_str().equals(owner) { return "" }
-                        found = String.from(owner)
-                    }
+    val positions = sigs.extensions_named(wanted)
+    while k in 0..positions.size() {
+        when (sigs.find_signature(sigs.ext_links.get(positions.get(k)).as_str())) {
+            Some(sig) => {
+                if sig.is_pub && !sig.extension_visible(ctx) {
+                    val owner = sig.owner_module.as_str()
+                    if found.as_str() != "" && !found.as_str().equals(owner) { return "" }
+                    found = String.from(owner)
                 }
-                None => { }
             }
+            None => { }
         }
     }
     if found.as_str() == "" { return "" }

@@ -8,7 +8,7 @@ import kf_core.ast.new_module
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
-import kf_lower.ownership.names_contains
+import kf_lower.ownership.TypeNameSet
 import testing.test
 
 fun named_tref(n: str): Ptr<TypeRef> {
@@ -23,7 +23,7 @@ fun struct_of(name: str, field_type: str): TopDecl {
     return new_top_decl(no_span(), String.from(name), TopDeclKind.Struct(fields, true))
 }
 
-fun free_names_of(decls: List<TopDecl>): List<String> {
+fun free_names_of(decls: List<TopDecl>): TypeNameSet {
     var m = new_module(List.new<String>())
     m.decls = decls
     return m.borrow_free_names(intern("String"), intern("List"))
@@ -32,26 +32,26 @@ fun free_names_of(decls: List<TopDecl>): List<String> {
 @test fun a_struct_of_scalars_holds_no_borrow(): void {
     var decls = List.new<TopDecl>()
     decls.push(struct_of("Id", "uint32"))
-    assert_eq(names_contains(&free_names_of(decls), "Id"), true, "a uint32 cannot borrow")
+    assert_eq(free_names_of(decls).contains("Id"), true, "a uint32 cannot borrow")
 }
 
 @test fun a_struct_with_a_view_field_can_hold_a_borrow(): void {
     var decls = List.new<TopDecl>()
     decls.push(struct_of("Token", "str"))
-    assert_eq(names_contains(&free_names_of(decls), "Token"), false, "a str field borrows")
+    assert_eq(free_names_of(decls).contains("Token"), false, "a str field borrows")
 }
 
 @test fun a_struct_around_a_viewing_struct_can_hold_a_borrow(): void {
     var decls = List.new<TopDecl>()
     decls.push(struct_of("Outer", "Token"))
     decls.push(struct_of("Token", "str"))
-    assert_eq(names_contains(&free_names_of(decls), "Outer"), false, "Token borrows, so Outer does")
+    assert_eq(free_names_of(decls).contains("Outer"), false, "Token borrows, so Outer does")
 }
 
 @test fun the_lang_string_holds_no_borrow(): void {
     var decls = List.new<TopDecl>()
     decls.push(struct_of("String", "Ptr"))
-    assert_eq(names_contains(&free_names_of(decls), "String"), true, "the string owns its buffer")
+    assert_eq(free_names_of(decls).contains("String"), true, "the string owns its buffer")
 }
 
 fun list_of(name: str, element: str, lang: bool): TopDecl {
@@ -69,19 +69,19 @@ fun list_of(name: str, element: str, lang: bool): TopDecl {
 @test fun a_list_of_owned_strings_holds_no_borrow(): void {
     var decls = List.new<TopDecl>()
     decls.push(list_of("List__String", "String", true))
-    assert_eq(names_contains(&free_names_of(decls), "List__String"), true, "the list owns its elements")
+    assert_eq(free_names_of(decls).contains("List__String"), true, "the list owns its elements")
 }
 
 @test fun a_list_of_views_can_hold_a_borrow(): void {
     var decls = List.new<TopDecl>()
     decls.push(list_of("List__str", "str", true))
-    assert_eq(names_contains(&free_names_of(decls), "List__str"), false, "its elements borrow")
+    assert_eq(free_names_of(decls).contains("List__str"), false, "its elements borrow")
 }
 
 @test fun a_pointer_outside_a_list_can_hold_a_borrow(): void {
     var decls = List.new<TopDecl>()
     decls.push(list_of("Cursor", "String", false))
-    assert_eq(names_contains(&free_names_of(decls), "Cursor"), false, "a plain Ptr points at what another owns")
+    assert_eq(free_names_of(decls).contains("Cursor"), false, "a plain Ptr points at what another owns")
 }
 
 @test fun a_struct_holding_a_list_of_strings_holds_no_borrow(): void {
@@ -93,5 +93,5 @@ fun list_of(name: str, element: str, lang: bool): TopDecl {
     fields.push(new_field(no_span(), String.from("items"), items, true, true))
     var decls = List.new<TopDecl>()
     decls.push(new_top_decl(no_span(), String.from("Holder"), TopDeclKind.Struct(fields, true)))
-    assert_eq(names_contains(&free_names_of(decls), "Holder"), true, "a list of owned strings owns them")
+    assert_eq(free_names_of(decls).contains("Holder"), true, "a list of owned strings owns them")
 }

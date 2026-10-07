@@ -42,8 +42,8 @@ import testing.test
     //   move-only result   -> OwnedFresh
     //   otherwise          -> OwnedRetain
     var ctx = rc_ctx_for_test("m")
-    ctx.move_only_names.push(String.from("FieldInit"))
-    ctx.move_only_names.push(String.from("FieldList"))
+    ctx.move_only_names.add(String.from("FieldInit"))
+    ctx.move_only_names.add(String.from("FieldList"))
 
     // 1) move-only container receiver: still the result that decides
     var mo_recv = Expr.new(no_span(), ExprKind.Variable(intern("fields")))
@@ -111,7 +111,7 @@ import testing.test
     // The value reads storage `hoisted` owns without naming it, so the drop
     // waits for the value.
     var ctx = rc_ctx_for_test("f")
-    ctx.move_only_names.push(String.from("Report"))
+    ctx.move_only_names.add(String.from("Report"))
     val _i = ctx.push_frame(false)
     ctx.add_heap_local(String.from("hoisted"))
     var args = List.new<Expr>()
@@ -157,7 +157,7 @@ fun field_read_of(owner: str, field: str, ty: Type): Ptr<Expr> {
 
 @test fun an_if_choosing_between_fields_binds_a_view(): void {
     var ctx = rc_ctx_for_test("m")
-    ctx.move_only_names.push(String.from("Rows"))
+    ctx.move_only_names.add(String.from("Rows"))
     val cond: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *cond = Expr.new(no_span(), ExprKind.Variable(intern("c"))) }
     val then_read = field_read_of("p", "a", struct_ty_named("Rows"))
