@@ -3,6 +3,7 @@
 // repeats until no new instance appears, then strips the templates.
 
 import alloc.list.*
+import alloc.hash_map.*
 
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef
@@ -65,23 +66,23 @@ pub mutating fun Module.materialize_generics(): void {
         }
     }
 
-    var done = List.new<String>()
-    var deferred = List.new<String>()
+    var done = HashMap.new<String, bool>()
+    var deferred = HashMap.new<String, bool>()
     var w = 0
     while w < work.size() {
         val inst = *work.at(w)
         val mangled_name = monomorphized_type_name(String.from(inst.base.as_str()), &inst.args)
         val key = inst.inst_key()
-        val seen = str_name_list_contains(&done, key.as_str())
+        val seen = done.contains(&key)
         // A method whose owner's impl blocks are not minted yet waits, once,
         // behind the instances queued so far: one of them may mint them.
         val waits = !seen && !inst.owner.as_str().equals("") && !self.has_impl_block(inst.owner.as_str()) &&
-            !str_name_list_contains(&deferred, key.as_str())
+            !deferred.contains(&key)
         if waits {
-            deferred.push(key.clone())
+            deferred.insert(key.clone(), true)
             work.push(inst.clone())
         } else if !seen {
-            done.push(key.clone())
+            done.insert(key.clone(), true)
             // A generic method is materialized inside the impl block `owner`.
             if !inst.owner.as_str().equals("") {
                 self.materialize_impl_method(&inst, mangled_name.clone(), &gps, &marities, &var work, proj_sigs)
