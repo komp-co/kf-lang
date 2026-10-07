@@ -249,6 +249,12 @@ pub struct SigTable {
     /// Positions in `sigs` by name. `sigs` is append-only and lookups want the
     /// first match; the index keeps both true while making the hot lookup fast.
     pub var sig_index: HashMap<String, uint64>
+    /// Parallel to `sigs`: the next position registered under the same name,
+    /// or `none_index()`, so a name's registrations are walked in order
+    /// without the others.
+    pub var sig_next: List<uint64>
+    /// The last position registered under each name, where its chain grows.
+    pub var sig_last: HashMap<String, uint64>
     pub var structs: List<StructLayout>
     pub var enums: List<EnumLayout>
     pub var generic_infos: List<GenericInfo>
@@ -329,6 +335,8 @@ pub fun new_sig_table(): SigTable {
     return SigTable {
         sigs: List.new<FnSignature>(),
         sig_index: HashMap.new<String, uint64>(),
+        sig_next: List.new<uint64>(),
+        sig_last: HashMap.new<String, uint64>(),
         structs: List.new<StructLayout>(),
         enums: List.new<EnumLayout>(),
         generic_infos: List.new<GenericInfo>(),

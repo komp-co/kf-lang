@@ -25,13 +25,32 @@ fun AssocBindingInfo.assoc_binding_matches(type_name: str, assoc_name: str, trai
 
 impl SigTable {
     pub mutating fun insert(sig: FnSignature): void {
-        // Only a name's first registration is indexed; duplicates are still
-        // pushed to the list.
+        // A name's first registration is indexed; each later one is linked
+        // from the one before it.
         val key = String.from(sig.name.as_str())
-        if !self.sig_index.contains(&key) {
-            self.sig_index.insert(key, self.sigs.size())
+        val at = self.sigs.size()
+        var last = none_index()
+        when (self.sig_last.get(&key)) {
+            Some(previous) => last = *previous
+            None => {}
         }
+        if last == none_index() {
+            self.sig_index.insert(key.clone(), at)
+        } else {
+            self.sig_next[last] = at
+        }
+        self.sig_last.insert(key, at)
+        self.sig_next.push(none_index())
         self.sigs.push(sig)
+    }
+
+    /// The first position registered under `name`, or `none_index()`; the
+    /// rest follow through `sig_next`.
+    pub fun first_named(name: str): uint64 {
+        when (self.sig_index.get(&String.from(name))) {
+            Some(at) => return *at
+            None => return none_index()
+        }
     }
 
     pub mutating fun insert_struct(s: StructLayout): void {
@@ -51,11 +70,11 @@ impl SigTable {
     /// the two would be instantiated under one C name.
     pub fun has_generic_twin(sig: &FnSignature): bool {
         if sig.generics.size() == 0 { return false }
-        while other in &self.sigs {
-            if other.name.as_str().equals(sig.name.as_str()) && other.generics.size() > 0 &&
-                other.owner_crate.raw != sig.owner_crate.raw {
-                return true
-            }
+        var i = self.first_named(sig.name.as_str())
+        while i != none_index() {
+            val other = self.sigs.at(i)
+            if other.generics.size() > 0 && other.owner_crate.raw != sig.owner_crate.raw { return true }
+            i = *self.sig_next.at(i)
         }
         return false
     }
@@ -68,15 +87,19 @@ impl SigTable {
         // The caller's own crate shadows an imported definition, or every
         // library addition could break a program using that name. The runtime
         // prelude is exempt: its names are reserved and in every TU.
+        val first = self.first_named(name)
         if !runtime_prelude_declares(name) {
-            while mine in &self.sigs {
-                if mine.name.as_str().equals(name) && mine.owner_crate.raw == caller_crate.raw {
+            var at = first
+            while at != none_index() {
+                val mine = *self.sigs.at(at)
+                if mine.owner_crate.raw == caller_crate.raw {
                     // Own module: unrestricted. Same crate, other module: only
                     // `pub` and imported; keep scanning, since a later or
                     // imported definition may still answer.
                     if mine.owner_module.id == caller_module.id { return Option.Some(mine) }
                     if mine.is_pub && self.imports_admit(caller_file, &mine) { return Option.Some(mine) }
                 }
+                at = *self.sig_next.at(at)
             }
         }
         // `gate_visibility` alone decides; guarding on the import list too
@@ -86,25 +109,23 @@ impl SigTable {
         }
         var ambient: uint64 = 0
         var has_ambient = false
-        var i = 0
-        while i < self.sigs.size() {
+        var i = first
+        while i != none_index() {
             val s = *self.sigs.at(i)
-            if s.name.as_str().equals(name) {
-                // In every generated translation unit.
-                if runtime_prelude_declares(name) {
-                    return Option.Some(s)
-                }
-                if s.owner_crate.raw == caller_crate.raw {
-                    if s.owner_module.id == caller_module.id { return Option.Some(s) }
-                    if !s.is_pub { return Option.None }
-                }
-                if s.is_pub && self.imports_admit(caller_file, &s) { return Option.Some(s) }
-                if s.is_pub && s.is_prelude && !has_ambient {
-                    ambient = i
-                    has_ambient = true
-                }
+            // In every generated translation unit.
+            if runtime_prelude_declares(name) {
+                return Option.Some(s)
             }
-            i = i + 1
+            if s.owner_crate.raw == caller_crate.raw {
+                if s.owner_module.id == caller_module.id { return Option.Some(s) }
+                if !s.is_pub { return Option.None }
+            }
+            if s.is_pub && self.imports_admit(caller_file, &s) { return Option.Some(s) }
+            if s.is_pub && s.is_prelude && !has_ambient {
+                ambient = i
+                has_ambient = true
+            }
+            i = *self.sig_next.at(i)
         }
         when (self.find_renamed(name, caller_file)) {
             Some(renamed) => return Option.Some(renamed)
@@ -125,10 +146,12 @@ impl SigTable {
     /// instead; "" when the bare name is unambiguous.
     pub fun pinned_link_name(sig: &FnSignature): String {
         if sig.is_extern || sig.generics.size() > 0 { return "" }
-        while other in &self.sigs {
-            if other.owner_crate.raw != sig.owner_crate.raw && other.name.as_str().equals(sig.name.as_str()) {
+        var i = self.first_named(sig.name.as_str())
+        while i != none_index() {
+            if self.sigs.at(i).owner_crate.raw != sig.owner_crate.raw {
                 return "${sig.owner_crate.symbol_prefix().as_str()}${sig.name.as_str()}"
             }
+            i = *self.sig_next.at(i)
         }
         return ""
     }
