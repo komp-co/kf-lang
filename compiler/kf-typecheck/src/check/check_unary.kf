@@ -4,7 +4,7 @@ import kf_core.ast.expression.Expr
 import kf_core.ast.expression.UnaryOp
 import kf_typecheck.types.type_eq
 
-fun check_unary(op: UnaryOp, inner: Expr, span: Span, ctx: &var TypeCtx): Type {
+fun check_unary(op: UnaryOp, inner: &Expr, span: Span, ctx: &var TypeCtx): Type {
     if inner.ty.is_poison() { return Type.new_poison() }
     when (op) {
         Neg => {

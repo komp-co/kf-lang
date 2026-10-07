@@ -34,7 +34,7 @@ fun unwrap_receiver_ty(t: Type): Type {
 ///
 /// Only calls need it; wrapping a unit value would turn a place into a
 /// non-place.
-pub fun emit_value_expr(e: Expr): String {
+pub fun emit_value_expr(e: &Expr): String {
     if !e.ty.type_is_unit_valued() { return e.emit_expr() }
     if !expr_is_call_shaped(e) { return e.emit_expr() }
     var parts = List.new<String>()
@@ -46,7 +46,7 @@ pub fun emit_value_expr(e: Expr): String {
     return concat_all(parts)
 }
 
-fun expr_is_call_shaped(e: Expr): bool {
+fun expr_is_call_shaped(e: &Expr): bool {
     return when (e.kind) {
         Call(_n, _a) => true
         Intrinsic(_i, _a) => true
@@ -56,7 +56,7 @@ fun expr_is_call_shaped(e: Expr): bool {
     }
 }
 
-fun emit_call_arg(a: Expr): String {
+fun emit_call_arg(a: &Expr): String {
     val c = emit_value_expr(a)
     if !a.derefs_at_call { return c }
     var parts = List.new<String>()
@@ -66,7 +66,7 @@ fun emit_call_arg(a: Expr): String {
     return concat_all(parts)
 }
 
-fun emit_method_call(recv_p: Ptr<Expr>, mname: String, mangled: String, margs: List<Expr>): String {
+fun emit_method_call(recv_p: Ptr<Expr>, mname: String, mangled: String, margs: &List<Expr>): String {
     val recv = unsafe { *recv_p }
     val recv_c = recv.emit_expr()
     // Mono's mangled callee, with the raw name as a fallback.
@@ -185,7 +185,7 @@ fun box_inner_cg(t: Type): Type {
 }
 
 // `Box.new(e)` -> ({ <Tc>* __bx = (<Tc>*)kf_alloc(sizeof(<Tc>)); *__bx = <e>; __bx; })
-fun Expr.emit_box_new(margs: List<Expr>): String {
+fun Expr.emit_box_new(margs: &List<Expr>): String {
     val inner_ty = box_inner_cg(self.ty)
     val inner_c = inner_ty.c_type_of_type()
     val first_arg = *margs.at(0)
@@ -208,7 +208,7 @@ fun Expr.emit_field_or_enum_ctor(recv_p: Ptr<Expr>, fname: String): String {
     return emit_field_access(recv_p, fname)
 }
 
-fun Expr.emit_method_or_enum_ctor(recv_p: Ptr<Expr>, mname: String, margs: List<Expr>): String {
+fun Expr.emit_method_or_enum_ctor(recv_p: Ptr<Expr>, mname: String, margs: &List<Expr>): String {
     // `Type.method(args)`: no receiver argument.
     if self.is_static_call {
         return build_static_call(self.mangled_callee.as_string(), margs)

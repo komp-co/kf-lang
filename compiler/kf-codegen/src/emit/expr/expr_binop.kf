@@ -19,7 +19,7 @@ import kf_codegen.emit.c_type_of_type
 //     through `Compare`. Equality agrees.
 //   - Narrow integers: C promotes int8/int16 to `int`, so the result is cast
 //     back to restore wrapping.
-fun emit_primitive_binop(l: Expr, op: BinOp, r: Expr): String {
+fun emit_primitive_binop(l: &Expr, op: BinOp, r: &Expr): String {
     if !l.ty.is_scalar_primitive() { return "" }
     if !r.ty.is_scalar_primitive() && !r.ty.operand_type_is_unknown() { return "" }
     if op.binop_is_ordered() && l.ty.ty_is_float() { return "" }
@@ -31,9 +31,10 @@ fun emit_primitive_binop(l: Expr, op: BinOp, r: Expr): String {
 
 // Only a trait call takes its operand by address; a C comparison takes it by
 // value.
-fun emit_operand_value(e: Expr): String {
-    var value = e
-    if value.coerce == coerce_addr_of() { value.coerce = coerce_none() }
+fun emit_operand_value(e: &Expr): String {
+    if e.coerce != coerce_addr_of() { return e.emit_expr() }
+    var value = e.clone()
+    value.coerce = coerce_none()
     return value.emit_expr()
 }
 
@@ -104,34 +105,34 @@ fun BinOp.binop_is_c_exact(): bool {
 fun emit_binop(lp: Ptr<Expr>, op: BinOp, rp: Ptr<Expr>): String {
     val l = unsafe { *lp }
     val r = unsafe { *rp }
-    val po = emit_primitive_binop(l, op, r)
+    val po = emit_primitive_binop(&l, op, &r)
     if po.as_str().byte_len() > 0 { return po }
     // Raw pointers and `str` keep their own comparisons below.
-    val eo = emit_equal_binop(l, op, r)
+    val eo = emit_equal_binop(&l, op, &r)
     if eo.as_str().byte_len() > 0 { return eo }
-    val se = emit_str_equal_binop(l, op, r)
+    val se = emit_str_equal_binop(&l, op, &r)
     if se.as_str().byte_len() > 0 { return se }
     // The ordering is compared with zero for the relation asked.
-    val co = emit_compare_binop(l, op, r)
+    val co = emit_compare_binop(&l, op, &r)
     if co.as_str().byte_len() > 0 { return co }
-    val ao = emit_arith_binop(l, op, r)
+    val ao = emit_arith_binop(&l, op, &r)
     if ao.as_str().byte_len() > 0 { return ao }
-    val bo = emit_bitwise_binop(l, op, r)
+    val bo = emit_bitwise_binop(&l, op, &r)
     if bo.as_str().byte_len() > 0 { return bo }
     var parts = List.new<String>()
     parts.push(String.from("("))
-    parts.push(emit_operand_value(l))
+    parts.push(emit_operand_value(&l))
     parts.push(String.from(" "))
     parts.push(op.binop_to_c())
     parts.push(String.from(" "))
-    parts.push(emit_operand_value(r))
+    parts.push(emit_operand_value(&r))
     parts.push(String.from(")"))
     return concat_all(parts)
 }
 
 // `Base_<suffix>(&l, r)`. An rvalue `l` is bound to a temp inside a
 // statement-expression that spans the call. "" when there is no base name.
-fun emit_operator_trait_call(l: Expr, suffix: str, r: Expr, primitive: bool): String {
+fun emit_operator_trait_call(l: &Expr, suffix: str, r: &Expr, primitive: bool): String {
     var base = ""
     when (l.ty.kind) {
         Struct(n) => { base = String.from(type_identity_display(n).as_str()) }
@@ -153,7 +154,7 @@ fun emit_operator_trait_call(l: Expr, suffix: str, r: Expr, primitive: bool): St
     if base.as_str().byte_len() == 0 { return "" }
     val callee = "${base}${suffix}"
     var margs = List.new<Expr>()
-    margs.push(r)
+    margs.push(r.clone())
     val recv_c = l.emit_expr()
     if l.addr_operand_is_lvalue() {
         return build_method_call(callee, "&(${recv_c})", margs)
@@ -165,7 +166,7 @@ fun emit_operator_trait_call(l: Expr, suffix: str, r: Expr, primitive: bool): St
 // `l == r` on a struct calls `Name_equals(&l, r)` (negated for `!=`), with no
 // `__Equal` suffix: Mono exempts Clone, Drop and Equal from renaming. "" when
 // the left operand is not a struct.
-fun emit_equal_binop(l: Expr, op: BinOp, r: Expr): String {
+fun emit_equal_binop(l: &Expr, op: BinOp, r: &Expr): String {
     var negate = false
     when (op) {
         Eq => {}
@@ -183,7 +184,7 @@ fun emit_equal_binop(l: Expr, op: BinOp, r: Expr): String {
 }
 
 // `str` equality compares content; `String` goes through `Equal` above.
-fun emit_str_equal_binop(l: Expr, op: BinOp, r: Expr): String {
+fun emit_str_equal_binop(l: &Expr, op: BinOp, r: &Expr): String {
     var negate = false
     when (op) {
         Eq => {}
@@ -210,7 +211,7 @@ fun emit_str_equal_binop(l: Expr, op: BinOp, r: Expr): String {
 
 // `Name_add__Add(&l, r)` and friends, returning Self by value. "" when the
 // left operand is not a struct.
-fun emit_arith_binop(l: Expr, op: BinOp, r: Expr): String {
+fun emit_arith_binop(l: &Expr, op: BinOp, r: &Expr): String {
     var suffix = ""
     when (op) {
         Add => { suffix = String.from("_add__Add") }
@@ -223,7 +224,7 @@ fun emit_arith_binop(l: Expr, op: BinOp, r: Expr): String {
     return emit_operator_trait_call(l, suffix.as_str(), r, true)
 }
 
-fun emit_bitwise_binop(l: Expr, op: BinOp, r: Expr): String {
+fun emit_bitwise_binop(l: &Expr, op: BinOp, r: &Expr): String {
     var suffix = ""
     when (op) {
         BitAnd => { suffix = String.from("_bit_and__BitAnd") }
@@ -236,7 +237,7 @@ fun emit_bitwise_binop(l: Expr, op: BinOp, r: Expr): String {
     return emit_operator_trait_call(l, suffix.as_str(), r, true)
 }
 
-fun emit_compare_binop(l: Expr, op: BinOp, r: Expr): String {
+fun emit_compare_binop(l: &Expr, op: BinOp, r: &Expr): String {
     var cop = ""
     when (op) {
         Lt => { cop = String.from("<") }

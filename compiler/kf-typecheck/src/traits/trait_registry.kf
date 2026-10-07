@@ -187,7 +187,7 @@ pub fun TopDecl.register_assoc_bindings_decl(sigs: Ptr<SigTable>, diags: &var Di
     }
 }
 
-fun TopDecl.register_assoc_bindings(trait_ref: TypeRef, members: List<TopDecl>, impl_generics: List<String>, sigs: Ptr<SigTable>, diags: &var Diagnostics): void {
+fun TopDecl.register_assoc_bindings(trait_ref: &TypeRef, members: &List<TopDecl>, impl_generics: List<String>, sigs: Ptr<SigTable>, diags: &var Diagnostics): void {
     val trait_name = trait_ref_head_name(trait_ref)
     val trait_args = trait_ref_args_key(trait_ref)
     while member in &members {
@@ -215,7 +215,7 @@ fun TopDecl.register_assoc_bindings(trait_ref: TypeRef, members: List<TopDecl>, 
 }
 
 /// `Producer` from `Iterable<T>`-style refs: the head, half a binding's key.
-pub fun trait_ref_head_name(trait_ref: TypeRef): String {
+pub fun trait_ref_head_name(trait_ref: &TypeRef): String {
     return when (trait_ref.kind) {
         Named(name, _args) => name.as_string()
         _ => ""
@@ -224,7 +224,7 @@ pub fun trait_ref_head_name(trait_ref: TypeRef): String {
 
 /// `uint64` from `Index<uint64>`, "" from `Producer`: a binding belongs to one
 /// instantiation of a trait.
-pub fun trait_ref_args_key(trait_ref: TypeRef): String {
+pub fun trait_ref_args_key(trait_ref: &TypeRef): String {
     return when (trait_ref.kind) {
         Named(_name, args) => trait_args_key(&args)
         _ => ""

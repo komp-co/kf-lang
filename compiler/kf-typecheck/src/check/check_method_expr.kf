@@ -36,14 +36,14 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
     }
     // `EnumName.VariantName(args)` parses as a MethodCall; checked before the
     // receiver is walked as a value.
-    val recv_raw = receiver_naming_lang_types(recv_ptr, &method_name, ctx)
-    if reject_self_recursive_render(&recv_raw, &method_name, args, e.span, ctx) {
+    val recv_written = receiver_naming_lang_types(recv_ptr, &method_name, ctx)
+    if reject_self_recursive_render(recv_written, &method_name, args, e.span, ctx) {
         e.ty = Type.new_poison()
         return
     }
     // `Box.new(x)`: before the value-receiver path, so `Box` is not checked as
     // a Variable.
-    if is_box_new_recv(recv_raw.kind, method_name) {
+    if is_box_new_recv(recv_written, method_name.as_str()) {
         if args.size() > 0 {
             val a0 = args.at_mut(0)
             check_expr(a0, ctx)
@@ -58,7 +58,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
         // A variant wins a name it shares with a static, but only a real
         // variant: claiming every `Enum.name(...)` would make statics on enums
         // uncallable.
-        val direct_enum = try_get_enum_recv_name(recv_raw.kind, ctx)
+        val direct_enum = try_get_enum_recv_name(recv_written, ctx)
         if !direct_enum.as_str().equals("") {
             if enum_name_has_variant(direct_enum.clone(), method_name.clone(), ctx) {
                 e.ty = check_variant_construction(direct_enum, &var e.type_args, method_name, args, e.span, ctx)
@@ -66,7 +66,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                 handled = true
             }
         }
-        val qualified_trait = trait_recv_name(recv_raw.kind, ctx)
+        val qualified_trait = trait_recv_name(recv_written, ctx)
         if !handled && !qualified_trait.as_str().equals("") {
             while ai in 0..args.size() {
                 check_call_argument(args.at_mut(ai), ctx)
@@ -116,7 +116,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                 handled = true
             }
         }
-        val rname = static_recv_type_name(recv_raw.kind, ctx)
+        val rname = static_recv_type_name(recv_written, ctx)
         if !handled && !rname.as_str().equals("") {
             if !enum_name_has_variant(rname, method_name, ctx) {
                 // A type-argument list shorter than the type's parameters is
@@ -271,7 +271,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
         // `T.method(args)` with `T` a type parameter: marked static with a
         // placeholder callee `T_method` that materialize rewrites. Types as `T`.
         if !handled {
-            val gsr = generic_static_recv_name(recv_raw.kind, ctx)
+            val gsr = generic_static_recv_name(recv_written, ctx)
             if !gsr.as_str().equals("") {
                 while gai in 0..args.size() {
                     check_call_argument(args.at_mut(gai), ctx)
@@ -288,7 +288,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
             }
         }
         if !handled {
-            val enum_name = try_get_enum_recv_name(recv_raw.kind, ctx)
+            val enum_name = try_get_enum_recv_name(recv_written, ctx)
             if enum_name.as_str() != "" {
                 e.ty = check_variant_construction(enum_name, &var e.type_args, method_name, args, e.span, ctx)
                 e.is_variant_ctor = true

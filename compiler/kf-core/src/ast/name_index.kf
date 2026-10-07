@@ -32,12 +32,12 @@ impl NameIndex {
     }
 
     pub fun has(name: str): bool {
-        return self.slots.contains(&String.from(name))
+        return self.slots.contains(&String.from_literal(name))
     }
 
     /// The positions added under `name`, in order.
     pub fun positions(name: str): List<uint64> {
-        when (self.slots.get(&String.from(name))) {
+        when (self.slots.get(&String.from_literal(name))) {
             Some(slot) => return self.lists.at(*slot).clone()
             None => return List.new<uint64>()
         }
@@ -45,7 +45,7 @@ impl NameIndex {
 
     /// The first position added under `name`, or `none_index()`.
     pub fun first(name: str): uint64 {
-        when (self.slots.get(&String.from(name))) {
+        when (self.slots.get(&String.from_literal(name))) {
             Some(slot) => return self.lists.at(*slot).get(0)
             None => return none_index()
         }

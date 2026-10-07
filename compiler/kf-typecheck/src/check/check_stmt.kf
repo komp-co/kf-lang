@@ -277,7 +277,7 @@ fun emit_assign_mismatch(name: String, want: Type, got: Type, span: Span, ctx: &
     ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
 }
 
-fun is_lit_str_expr(e: Expr): bool {
+fun is_lit_str_expr(e: &Expr): bool {
     return when (e.kind) {
         LitStr(_) => true
         _ => false

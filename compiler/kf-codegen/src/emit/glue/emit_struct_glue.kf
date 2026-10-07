@@ -14,7 +14,7 @@ import kf_codegen.concat_all
 import kf_codegen.emit.*
 import kf_core.ast.c_local_name
 
-fun emit_struct_body(name: String, fields: List<Field>): String {
+fun emit_struct_body(name: String, fields: &List<Field>): String {
     var parts = List.new<String>()
     parts.push(String.from("typedef struct "))
     parts.push(name.clone())
@@ -48,7 +48,7 @@ pub fun Module.emit_struct_news(): String {
     return concat_all(parts)
 }
 
-fun emit_struct_new(name: String, fields: List<Field>): String {
+fun emit_struct_new(name: String, fields: &List<Field>): String {
     var parts = List.new<String>()
     parts.push("static inline ${name} __${name}_new(")
     var first = true
@@ -87,7 +87,7 @@ pub fun Module.emit_struct_drops(lookup: &Module): String {
     return concat_all(parts)
 }
 
-fun emit_struct_drop(name: String, fields: List<Field>, facts: &TypeFacts): String {
+fun emit_struct_drop(name: String, fields: &List<Field>, facts: &TypeFacts): String {
     var parts = List.new<String>()
     parts.push("static inline void ${name}__glue_drop(${name} v) {\n")
     if facts.has_user_drop(name.as_str()) {
@@ -134,7 +134,7 @@ pub fun Module.emit_struct_clones(): String {
 }
 
 // Deep copy: bit-copy, then replace each owned field with its own copy.
-fun emit_struct_clone(name: String, fields: List<Field>, facts: &TypeFacts): String {
+fun emit_struct_clone(name: String, fields: &List<Field>, facts: &TypeFacts): String {
     var parts = List.new<String>()
     parts.push("static inline ${name} ${name}__glue_clone(${name} v) {\n    ")
     if facts.has_user_clone(name.as_str()) {
@@ -172,7 +172,7 @@ fun emit_struct_clone(name: String, fields: List<Field>, facts: &TypeFacts): Str
     return concat_all(parts)
 }
 
-pub fun is_box_tref(fty: TypeRef): bool {
+pub fun is_box_tref(fty: &TypeRef): bool {
     when (fty.kind) {
         Named(n, args) => {
             if !n.as_str().equals("Box") { return false }
@@ -184,7 +184,7 @@ pub fun is_box_tref(fty: TypeRef): bool {
 
 /// A Box anywhere in a type argument (`Option<Box<T>>`) owns heap at any
 /// glue depth.
-pub fun tref_wraps_box(t: TypeRef): bool {
+pub fun tref_wraps_box(t: &TypeRef): bool {
     when (t.kind) {
         Named(_n, args) => {
             while a in &args {
@@ -198,7 +198,7 @@ pub fun tref_wraps_box(t: TypeRef): bool {
 }
 
 // `Inner` of `Box<Inner>`, or a poison TypeRef.
-fun box_inner_tref(fty: TypeRef): TypeRef {
+fun box_inner_tref(fty: &TypeRef): TypeRef {
     when (fty.kind) {
         Named(n, args) => {
             if n.as_str().equals("Box") {
@@ -224,7 +224,7 @@ pub fun Module.emit_struct_retains(lookup: &Module): String {
     return concat_all(parts)
 }
 
-fun emit_struct_retain(name: String, fields: List<Field>, facts: &TypeFacts): String {
+fun emit_struct_retain(name: String, fields: &List<Field>, facts: &TypeFacts): String {
     var parts = List.new<String>()
     parts.push(String.from("static inline "))
     parts.push(name.clone())

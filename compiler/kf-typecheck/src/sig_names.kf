@@ -40,7 +40,7 @@ impl SigTable {
     /// The first position registered under `name`, or `none_index()`; the
     /// rest follow through `sig_next`.
     pub fun first_named(name: str): uint64 {
-        when (self.sig_index.get(&String.from(name))) {
+        when (self.sig_index.get(&String.from_literal(name))) {
             Some(at) => return *at
             None => return none_index()
         }

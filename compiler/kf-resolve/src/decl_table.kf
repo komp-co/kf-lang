@@ -41,8 +41,7 @@ impl DeclTable {
     /// None for anything that is not a top-level declaration: a parameter,
     /// a local, a method.
     pub fun lookup(name: str): DeclId? {
-        val key = String.from(name)
-        when (self.index.get(&key)) {
+        when (self.index.get(&String.from_literal(name))) {
             Some(d) => { return *d }
             None => { return null }
         }

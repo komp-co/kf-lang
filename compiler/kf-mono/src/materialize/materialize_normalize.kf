@@ -9,6 +9,7 @@ import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TopDeclKind
+import kf_core.ast.declaration.keep_flagged
 import kf_core.ast.declaration.new_top_decl
 import kf_core.ast.subst.mangle_tyref
 import kf_core.ast.dyn_meta.clone_dyn_layout_list
@@ -62,7 +63,7 @@ mutating fun Module.normalize_trait_impls(): void {
 
 /// CONSTRAINT: runs while the trait declaration still exists. `index` is
 /// `self.decl_index()`.
-fun Module.append_default_trait_methods(index: &NameIndex, owner: &TopDecl, tref: TypeRef, methods: List<TopDecl>,
+fun Module.append_default_trait_methods(index: &NameIndex, owner: &TopDecl, tref: &TypeRef, methods: List<TopDecl>,
     suffix: str): List<TopDecl> {
     var completed = methods
     val positions = index.positions(tref.trait_ref_principal().as_str())
@@ -129,7 +130,7 @@ fun TypeRef.trait_ref_principal(): String {
     }
 }
 
-pub fun trait_ref_arg_suffix(tref: TypeRef, m: &Module): String {
+pub fun trait_ref_arg_suffix(tref: &TypeRef, m: &Module): String {
     when (tref.kind) {
         Named(name, args) => {
             if args.size() == 0 && m.is_auto_trait(name.as_str()) { return "" }
@@ -146,20 +147,20 @@ pub fun trait_ref_arg_suffix(tref: TypeRef, m: &Module): String {
 }
 
 mutating fun Module.strip_templates(): void {
-    var kept = List.new<TopDecl>()
+    var keep = List.new<bool>()
     while td in &self.decls {
-        var keep = td.generics.size() == 0
+        var kept = td.generics.size() == 0
         when (td.kind) {
             // Kept until normalize_trait_impls: default methods still need them.
-            TraitDecl(_methods, _pub, _) => { keep = true }
+            TraitDecl(_methods, _pub, _) => { kept = true }
             _ => { }
         }
-        if keep { kept.push(td) }
+        keep.push(kept)
     }
-    self.decls = kept
+    val _dropped = self.decls.keep_flagged(&keep)
 }
 
-fun is_poison_decl(td: TopDecl): bool {
+fun is_poison_decl(td: &TopDecl): bool {
     return when (td.kind) {
         Poison => true
         _ => false

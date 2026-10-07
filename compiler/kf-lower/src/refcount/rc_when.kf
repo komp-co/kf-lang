@@ -121,7 +121,7 @@ internal fun stmts_move_out(stmts: &List<Stmt>, name: str): bool {
     return false
 }
 
-fun stmt_moves_out(s: Stmt, name: str): bool {
+fun stmt_moves_out(s: &Stmt, name: str): bool {
     when (s.kind) {
         // `val s = <binder>` then `return Option.Some(s)`: the two-step escape
         // `?` and `?:` emit.
