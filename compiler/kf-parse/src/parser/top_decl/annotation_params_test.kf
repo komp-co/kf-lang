@@ -1,0 +1,39 @@
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.ast.declaration.MarkKind
+import kf_core.ast.declaration.Param
+import kf_core.ast.declaration.TopDecl
+import kf_core.ast.annotation.*
+import kf_parse.parser.parser_for
+import testing.test
+
+fun TopDecl.declared_params(): List<Param> {
+    return when (self.kind) {
+        AnnotationDecl(params, _target, _pub) => params.clone()
+        _ => List.new<Param>()
+    }
+}
+
+@test fun a_kind_word_is_a_parameter_type_taking_a_name(): void {
+    var p = parser_for("annotation paired(with: struct, rule: fun) on struct")
+    val params = p.parse_top_decl().declared_params()
+    assert_eq(p.diags.size(), 0, "no errors")
+    assert_eq((*params.at(0).ty).named_kind() == MarkKind.Struct, true, "`with` takes a struct's name")
+    assert_eq((*params.at(1).ty).named_kind() == MarkKind.Function, true, "`rule` a function's")
+}
+
+@test fun the_last_parameter_takes_the_rest_with_dots(): void {
+    var p = parser_for("annotation derive(traits: trait..) on struct")
+    val params = p.parse_top_decl().declared_params()
+    assert_eq(p.diags.size(), 0, "no errors")
+    val element = (*params.at(0).ty).variadic_element()
+    assert_eq(element != null, true, "`traits` is variadic")
+    assert_eq((*params.at(0).ty).argument_type().named_kind() == MarkKind.Trait, true, "of trait names")
+}
+
+@test fun a_function_parameter_with_dots_is_an_error(): void {
+    var p = parser_for("fun total(values: int64..): int64 { return 0 }")
+    val _td = p.parse_top_decl()
+    assert_eq(p.diags.size(), 1, "a function takes a list instead")
+}

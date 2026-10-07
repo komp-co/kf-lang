@@ -89,6 +89,37 @@ parameter, and that struct is the type of `entry.args`. An annotation without
 parameters declares an empty one. The struct shares the annotation's name,
 so nothing else in the crate may be called `bench`.
 
+#### Names and the rest
+
+A parameter's type may instead be one of the kinds `trait`, `struct`, `enum`
+and `fun`. Its argument is then a declaration's name, `Equal` or `geo.Point`,
+checked to name a declaration of that kind, and `entry.args` holds it as
+written, a `str`. Only a bare name is taken, never one with type arguments.
+
+An annotation's last parameter may be variadic, written `T..`: it takes the
+positional arguments left over, each a `T`, and none is fine. It cannot be
+given by name, takes no default, and a parameter taking a name takes none
+either:
+
+```kflat
+annotation checked(rules: fun..) on struct
+
+fun positive(n: int64): bool { return n > 0 }
+fun small(n: int64): bool { return n < 100 }
+
+@checked(positive, small)
+struct Reading {
+    val level: int64
+}
+
+fun main(): int32 { return annotated<checked>().size() as int32 - 1 }
+```
+
+A [template](templates.md#arguments-as-code) reads both, and uses a name as
+code. `entry.args` has no field for a variadic parameter yet: nothing could
+keep its list once the query returns ([#187](https://github.com/komp-co/kf-lang/issues/187)). A function's parameter is never
+variadic; it takes a list.
+
 ### Targets
 
 `on` says what an annotation marks. A function type marks functions of

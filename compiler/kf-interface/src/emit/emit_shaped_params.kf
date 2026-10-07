@@ -1,0 +1,39 @@
+// An annotation's parameters an importer cannot read off the argument
+// struct: one taking a declaration's name, held there as a `str`, and a
+// variadic last one, which has no field (#187). Each crosses as
+// `{"name":"rules","type":"fun","variadic":true}`, `type` the kind word or
+// the element type's source.
+
+import alloc.list.*
+
+import kf_core.ast.types.TypeRef
+import kf_core.ast.declaration.Param
+import kf_core.ast.annotation.*
+import json.writer.*
+
+fun List<Param>.has_shaped(): bool {
+    while p in &self {
+        if (*p.ty).is_shaped() { return true }
+    }
+    return false
+}
+
+fun TypeRef.is_shaped(): bool { return self.named_kind() != null || self.variadic_element() != null }
+
+fun emit_shaped_params(params: &List<Param>): String {
+    var arr = JsonWriter.array()
+    while p in &params {
+        if !(*p.ty).is_shaped() { continue }
+        val element = (*p.ty).argument_type()
+        val written = when (element.named_kind()) {
+            Some(kind) => String.from(kind.word())
+            None => element.tyref_to_source()
+        }
+        var po = JsonWriter.object()
+        po.field_string("name", p.name.as_str())
+        po.field_string("type", written.as_str())
+        po.field_bool("variadic", (*p.ty).variadic_element() != null)
+        arr.write_raw(po.finish().as_str())
+    }
+    return arr.finish()
+}

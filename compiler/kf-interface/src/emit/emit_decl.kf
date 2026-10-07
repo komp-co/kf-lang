@@ -151,6 +151,7 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             o.field_raw("kinds", target.kinds_json().as_str())
             o.field_raw("params", type_params_json(td.generics).as_str())
             if params.has_default() { o.field_raw("defaults", emit_interface_params(params).as_str()) }
+            if params.has_shaped() { o.field_raw("shaped", emit_shaped_params(&params).as_str()) }
             return o.finish()
         }
         _ => return String.from("{}")

@@ -7,6 +7,8 @@ import kf_core.ast.CrateId
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.*
 import kf_core.ast.annotation.mark_kind_of
+import kf_core.ast.annotation.name_param_type
+import kf_core.ast.annotation.variadic_param_type
 import json.reader.*
 import kf_interface.parse.*
 
@@ -24,11 +26,19 @@ mutating fun JsonReader.load_annotation(crate: CrateId, path: str, hidden: bool)
     if !self.expect_key("params") { return poison_decl() }
     val type_params = self.read_type_params() ?: return poison_decl()
     var defaults = List.new<Param>()
-    if self.object_has_next() {
-        if self.read_key().as_str() != "defaults" { return poison_decl() }
+    var key = if self.object_has_next() { self.read_key() } else { String.from("") }
+    if key.as_str() == "defaults" {
         defaults = self.load_params()
-        if self.object_has_next() { return poison_decl() }
+        key = if self.object_has_next() { self.read_key() } else { String.from("") }
     }
+    if key.as_str() == "shaped" {
+        val shaped = self.load_shaped_params() ?: return poison_decl()
+        while param in &shaped {
+            defaults.push(param.clone())
+        }
+        key = if self.object_has_next() { self.read_key() } else { String.from("") }
+    }
+    if key.byte_len() > 0 { return poison_decl() }
     val target = if function.byte_len() > 0 {
         parse_signature_source(function.as_str())
     } else if kinds.size() > 0 {
@@ -39,6 +49,30 @@ mutating fun JsonReader.load_annotation(crate: CrateId, path: str, hidden: bool)
     var decl = new_top_decl(no_span(), name, TopDeclKind.AnnotationDecl(defaults, target, is_pub))
     decl.generics = type_params
     return stamp_imported(decl, crate, path, "", hidden)
+}
+
+/// `[{"name":"rules","type":"fun","variadic":true}]`: the parameters taking
+/// a name, or variadic; null when malformed.
+mutating fun JsonReader.load_shaped_params(): List<Param>? {
+    var params = List.new<Param>()
+    if !self.begin_array() { return null }
+    while self.array_has_next() {
+        if !self.begin_object() || !self.expect_key("name") { return null }
+        val name = self.read_string()
+        if !self.expect_key("type") { return null }
+        // CONSTRAINT: a local, as for the function type above.
+        val written = self.read_string()
+        if !self.expect_key("variadic") { return null }
+        val variadic = self.read_bool()
+        if self.object_has_next() { return null }
+        var ty = when (mark_kind_of(written.as_str())) {
+            Some(kind) => name_param_type(no_span(), kind)
+            None => parse_type_value(written.as_str())
+        }
+        if variadic { ty = variadic_param_type(no_span(), ty) }
+        params.push(new_param(no_span(), name, Box.new(ty)))
+    }
+    return params
 }
 
 /// `[{"kind":"struct","bounds":["Plugin"]}]`; null when malformed.

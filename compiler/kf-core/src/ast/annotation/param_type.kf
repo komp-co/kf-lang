@@ -1,0 +1,54 @@
+// An annotation parameter's type beyond a value's: `trait`, `struct`, `enum`
+// or `fun`, taking a declaration's name, and `T..` on the last parameter,
+// taking every remaining positional argument. Each is a `Named` type no
+// source can write as one: a keyword, or `..` around the element type.
+
+import alloc.list.*
+
+import kf_core.span.Span
+import kf_core.ast.Sym
+import kf_core.ast.intern
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.MarkKind
+
+/// `trait` as a parameter type: an argument names a trait.
+pub fun name_param_type(span: Span, kind: MarkKind): TypeRef {
+    return TypeRef.new(span, TypeRefKind.Named(intern(kind.word()), List.new<TypeRef>()))
+}
+
+/// `T..`: the rest of the positional arguments, each a `T`.
+pub fun variadic_param_type(span: Span, element: TypeRef): TypeRef {
+    var args = List.new<TypeRef>()
+    args.push(element)
+    return TypeRef.new(span, TypeRefKind.Named(intern(".."), args))
+}
+
+impl TypeRef {
+    /// The kind a parameter of this type names, or null for a value type.
+    pub fun named_kind(): MarkKind? {
+        return when (self.kind) {
+            Named(name, args) => if args.size() > 0 { null } else {
+                when name.as_str() {
+                    "trait" => MarkKind.Trait
+                    "struct" => MarkKind.Struct
+                    "enum" => MarkKind.Enum
+                    "fun" => MarkKind.Function
+                    _ => null
+                }
+            }
+            _ => null
+        }
+    }
+
+    /// `T` of `T..`, or null when the parameter takes one argument.
+    pub fun variadic_element(): TypeRef? {
+        return when (self.kind) {
+            Named(name, args) => if name.as_str() == ".." && args.size() == 1 { args.at(0).clone() } else { null }
+            _ => null
+        }
+    }
+
+    /// The type of one argument: `T` of `T..`, or the type itself.
+    pub fun argument_type(): TypeRef { return self.variadic_element() ?: self.clone() }
+}

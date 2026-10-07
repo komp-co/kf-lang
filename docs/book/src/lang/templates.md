@@ -364,6 +364,50 @@ fun main(): int32 { return if Shape.default() == Shape.Empty { 0 } else { 1 } }
 An enum with no such variant gets a `default` that does not return, which is
 reported with a note naming the enum.
 
+## Arguments as code
+
+`args.p` is the value the annotation's use gave `p`. A parameter taking a
+[name](annotations.md#names-and-the-rest) gives code: `args.by(x)` calls the
+function it names, `args.with` in a type is the type, and `${args.t}` writes
+the name where one goes, so `impl ${args.t} for T` implements the trait. A
+variadic argument is a list, and a loop over it is written out once per value,
+like a member loop, with the binder standing for that value:
+
+```kflat
+annotation checked(rules: fun..) on struct
+
+fun positive(n: int64): bool { return n > 0 }
+fun small(n: int64): bool { return n < 100 }
+
+template checked on struct T {
+    fun T.valid(): bool {
+        while field in T.fields {
+            while rule in args.rules {
+                if !rule(field.of(self)) { return false }
+            }
+        }
+        return true
+    }
+}
+
+@checked(positive, small)
+struct Reading {
+    val level: int64
+}
+
+fun main(): int32 {
+    val ok = Reading { level: 5 }
+    val high = Reading { level: 500 }
+    return if ok.valid() && !high.valid() { 0 } else { 1 }
+}
+```
+
+`rule(field.of(self))` becomes `positive(self.level)`, then `small(self.level)`.
+A function an argument names is called as the use wrote it, so a private one in
+the user's module is reached, wherever the template is written. A loop over an
+argument goes where statements go; to add declarations for each name, a
+template is keyed on it.
+
 ## Where the code lives
 
 What a template adds belongs to the marked struct's module: an extension
