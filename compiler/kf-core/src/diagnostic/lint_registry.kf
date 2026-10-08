@@ -139,6 +139,8 @@ pub fun lint_registry(): List<LintInfo> {
         "`.clone()` on a value whose type derives `Copy`, which copies anyway"))
     out.push(lint_info("redundant_cast", "complexity", LintLevel.Warn,
         "a cast to the type the value already has"))
+    out.push(lint_info("needless_deref", "style", LintLevel.Warn,
+        "`x.as_str()` and its like where `x` reaches the slot through its `Deref` anyway"))
     out.push(lint_info("needless_bool", "style", LintLevel.Warn,
         "branches that give `true` and `false`, which the condition already is"))
     out.push(lint_info("manual_index_loop", "style", LintLevel.Allow,

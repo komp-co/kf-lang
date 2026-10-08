@@ -112,7 +112,7 @@ impl Parser {
         val span: Span = subject.span.merge(default.span)
         val binder = "__elv_${self.elv_ctr}"
         self.elv_ctr = self.elv_ctr + 1
-        val bsym = intern(binder.as_str())
+        val bsym = intern(binder)
 
         var some_payloads = List.new<Pattern>()
         some_payloads.push(new_pattern(span, PatternKind.Identifier(bsym)))

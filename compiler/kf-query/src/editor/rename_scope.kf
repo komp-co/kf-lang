@@ -16,8 +16,8 @@ pub fun TypedCrate.text_at(span: Span): String {
     } else {
         read_file(path_for_file_id(self.smap, span.file_id).as_str())
     }
-    if (span.end as uint64) > text.as_str().byte_len() { return "" }
-    return text.as_str().substring(span.start as uint64, span.end as uint64)
+    if (span.end as uint64) > text.byte_len() { return "" }
+    return text.substring(span.start as uint64, span.end as uint64)
 }
 
 /// Why an edit would land on one name written for two, as `x` in

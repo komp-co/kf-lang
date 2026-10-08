@@ -160,10 +160,10 @@ pub fun Module.collect_hidden_support(crate: CrateId): List<String> {
     while q < queue.size() {
         val name = queue.at(q).clone()
         q = q + 1
-        if is_runtime_type_name(name.as_str()) ||
-            is_container_type_name(name.as_str(), list_name, option_name) { continue }
-        if is_mangled_decl_name(name.as_str()) { continue }
-        if hidden_name_in(&hidden, name.as_str()) { continue }
+        if is_runtime_type_name(name) ||
+            is_container_type_name(name, list_name, option_name) { continue }
+        if is_mangled_decl_name(name) { continue }
+        if hidden_name_in(&hidden, name) { continue }
         var matched = false
         while other in &self.decls {
             if other.crate.raw == crate.raw {
@@ -201,11 +201,11 @@ pub fun Module.collect_hidden_support(crate: CrateId): List<String> {
     while x < extra.size() {
         val name = extra.at(x).clone()
         x = x + 1
-        if is_runtime_type_name(name.as_str()) ||
-            is_container_type_name(name.as_str(), list_name, option_name) { continue }
-        if is_mangled_decl_name(name.as_str()) { continue }
-        if hidden_name_in(&hidden, name.as_str()) { continue }
-        if self.same_crate_private_type_exists(crate, name.as_str()) {
+        if is_runtime_type_name(name) ||
+            is_container_type_name(name, list_name, option_name) { continue }
+        if is_mangled_decl_name(name) { continue }
+        if hidden_name_in(&hidden, name) { continue }
+        if self.same_crate_private_type_exists(crate, name) {
             hidden.push(name)
         }
     }

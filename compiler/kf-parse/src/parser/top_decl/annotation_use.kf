@@ -47,7 +47,7 @@ impl Parser {
             self.parse_annotation_args(&var args)
         }
         val whole = self.span_through_last(span)
-        return Annotation { name: intern(name.as_str()), args: args, has_parens: has_parens, span: whole }
+        return Annotation { name: intern(name), args: args, has_parens: has_parens, span: whole }
     }
 
     mutating fun parse_annotation_args(args: &var List<AnnotationArg>): void {
@@ -55,7 +55,7 @@ impl Parser {
             self.skip_newlines()
             if is_op(self.peek(), Operator.RParen) || self.at_eof() { break }
             val arg_name = self.named_argument_label()
-            args.push(AnnotationArg { name: intern(arg_name.as_str()), value: Box.new(self.parse_expr()) })
+            args.push(AnnotationArg { name: intern(arg_name), value: Box.new(self.parse_expr()) })
             self.skip_newlines()
             if !is_op(self.peek(), Operator.Comma) { break }
             unsafe { self.advance() }

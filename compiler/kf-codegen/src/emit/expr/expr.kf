@@ -51,8 +51,8 @@ pub fun Expr.emit_expr(): String {
             _ => { }
         }
         val ct = self.ty.c_type_of_type()
-        val cf = clone_fn_for_ctype(ct.as_str())
-        if cf.as_str().byte_len() == 0 {
+        val cf = clone_fn_for_ctype(ct)
+        if cf.byte_len() == 0 {
             return base
         }
         var parts = List.new<String>()
@@ -68,9 +68,9 @@ pub fun Expr.emit_expr(): String {
 /// A copied `Box` owns a fresh copy of its pointee: two owners of one
 /// allocation would each free it.
 fun emit_box_copy(base: String, box_ct: String): String {
-    val ct = box_ct.as_str().substring(0, box_ct.byte_len() - 1)
-    val cf = clone_fn_for_ctype(ct.as_str())
-    val value = if cf.as_str().byte_len() > 0 { "${cf}(*__src)" } else { String.from("*__src") }
+    val ct = box_ct.substring(0, box_ct.byte_len() - 1)
+    val cf = clone_fn_for_ctype(ct)
+    val value = if cf.byte_len() > 0 { "${cf}(*__src)" } else { String.from("*__src") }
     return "({ ${ct}* __src = ${base}; ${ct}* __copy = __src ? (${ct}*)kf_alloc(sizeof(${ct})) : NULL; " +
         "if (__copy) { *__copy = ${value}; } __copy; })"
 }
@@ -211,7 +211,7 @@ fun c_octal_escape(b: uint8): String {
 }
 
 fun prefix_local(name: String): String {
-    return c_local_name(name.as_str())
+    return c_local_name(name)
 }
 
 pub fun struct_ty_name(t: Type): String {

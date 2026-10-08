@@ -203,9 +203,9 @@ fun entry_type_args(declared: &DeclaredAnnotation, shape: &EntryShape, span: Spa
 fun annotated_entry(listed: &AnnotationUse, declared: &DeclaredAnnotation, shape: &EntryShape, span: Span,
     ctx: &var TypeCtx): Expr {
     var fields = List.new<FieldInit>()
-    fields.push(string_field("name", listed.name.as_str(), span))
+    fields.push(string_field("name", listed.name, span))
     fields.push(string_field("module", listed.module.as_str(), span))
-    fields.push(string_field("file", listed.file.as_str(), span))
+    fields.push(string_field("file", listed.file, span))
     val line = Expr.new(span, ExprKind.LitInt(listed.line as int64))
     fields.push(FieldInit { span: span, name: intern("line"), value: Box.new(line) })
     val arguments = arguments_literal(listed, declared, span)

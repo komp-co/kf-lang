@@ -172,7 +172,7 @@ mutating fun SwitchArm.name_declined(ename: str, ctx: &var RcCtx): void {
     val vname = self.arm_variant_name()
     // A wildcard arm keeps the whole-subject drop.
     if vname.as_str().equals("") { return }
-    val n = variant_payload_count(unsafe { &*ctx.variants }, ename, vname.as_str())
+    val n = variant_payload_count(unsafe { &*ctx.variants }, ename, vname)
     if n == 0 { return }
 
     var binders = List.new<Sym>()
@@ -181,8 +181,8 @@ mutating fun SwitchArm.name_declined(ename: str, ctx: &var RcCtx): void {
         if self.arm_binds_real(i) {
             binders.push(self.binders.get(i))
         } else {
-            val ty = variant_payload_type(unsafe { &*ctx.variants }, ename, vname.as_str(), i)
-            if payload_owns(ty.as_str(), ctx) {
+            val ty = variant_payload_type(unsafe { &*ctx.variants }, ename, vname, i)
+            if payload_owns(ty, ctx) {
                 val id = ctx.block_counter
                 ctx.block_counter = id + 1
                 binders.push(intern("__declined_${u64_to_str(id)}"))
@@ -204,25 +204,25 @@ pub fun Expr.when_consumes_subject(arms: &List<SwitchArm>, ctx: &var RcCtx): boo
     if sname.as_str().equals("") { return false }
     val ename = self.when_subject_enum()
     if ename.as_str().equals("") { return false }
-    if !variant_payloads_knows(unsafe { &*ctx.variants }, ename.as_str()) { return false }
+    if !variant_payloads_knows(unsafe { &*ctx.variants }, ename) { return false }
     // A binder lent to the `when`'s value must outlive the arm, so the
     // subject stays the enclosing scope's and the binders are views of it.
     if arms_lend_a_binder(arms, ctx) && !arms_let_a_binder_out(arms, ctx) { return false }
     // CONSTRAINT: the move check gives the binders of a fresh subject its
     // payload, so a hoisted one is always consumed.
-    if is_hoisted_subject(sname.as_str()) { return true }
+    if is_hoisted_subject(sname) { return true }
     // A subject the scope does not own, such as a copy read through a
     // pointer, is never consumed: its payloads belong to someone else.
-    if ctx.rc_owning_frame(sname.as_str()) < 0 { return false }
+    if ctx.rc_owning_frame(sname) < 0 { return false }
     var escapes = false
     while arm in &arms {
         val vname = arm.arm_variant_name()
         if !vname.as_str().equals("") {
-            val n = variant_payload_count(unsafe { &*ctx.variants }, ename.as_str(), vname.as_str())
+            val n = variant_payload_count(unsafe { &*ctx.variants }, ename, vname)
             var p = 0
             while p < n {
-                val ty = variant_payload_type(unsafe { &*ctx.variants }, ename.as_str(), vname.as_str(), p)
-                if payload_owns(ty.as_str(), ctx) && arm.arm_binds_real(p) {
+                val ty = variant_payload_type(unsafe { &*ctx.variants }, ename, vname, p)
+                if payload_owns(ty, ctx) && arm.arm_binds_real(p) {
                     if stmts_move_out(&arm.body, arm.binders.at(p).as_str()) { escapes = true }
                 }
                 p = p + 1
@@ -237,11 +237,11 @@ pub fun SwitchArm.arm_owned_names(ename: str, subject: str, ctx: &var RcCtx): Li
     var out = List.new<String>()
     val vname = self.arm_variant_name()
     if !vname.as_str().equals("") {
-        val n = variant_payload_count(unsafe { &*ctx.variants }, ename, vname.as_str())
+        val n = variant_payload_count(unsafe { &*ctx.variants }, ename, vname)
         var i = 0
         while i < n {
-            val ty = variant_payload_type(unsafe { &*ctx.variants }, ename, vname.as_str(), i)
-            if payload_owns(ty.as_str(), ctx) && self.arm_binds_real(i) {
+            val ty = variant_payload_type(unsafe { &*ctx.variants }, ename, vname, i)
+            if payload_owns(ty, ctx) && self.arm_binds_real(i) {
                 out.push(self.binders.at(i).as_string())
             }
             i = i + 1

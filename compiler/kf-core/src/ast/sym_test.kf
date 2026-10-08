@@ -32,7 +32,7 @@ fun test_interner_grows_without_changing_existing_symbols(): void {
     var i: uint64 = 0
     while i < 70000 {
         val name = String.of(&(i))
-        val _symbol = intern(name.as_str())
+        val _symbol = intern(name)
         i = i + 1
     }
     val same_anchor = intern("growth-anchor")

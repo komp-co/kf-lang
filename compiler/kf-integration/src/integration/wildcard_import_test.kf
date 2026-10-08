@@ -18,18 +18,18 @@ extern "C" fun system(cmd: str): int32
 fun prepare_wildcard_fixture(name: str, import_line: str, body: str): int32 {
     var cmd = "rm -rf ${scratch_root()}/${name}_dep ${scratch_root()}/${name}_app"
     cmd.append(" && mkdir -p ${scratch_root()}/${name}_dep/src ${scratch_root()}/${name}_app/src")
-    val prep = unsafe { system(cmd.as_str()) }
+    val prep = unsafe { system(cmd) }
     if prep != 0 { return prep }
 
     val dep_toml = "${scratch_root()}/${name}_dep/kf.toml"
-    write_file(dep_toml.as_str(), """[project]
+    write_file(dep_toml, """[project]
 name = "wi_dep"
 version = "0.1.0"
 kind = "lib"
 """)
 
     val dep_src = "${scratch_root()}/${name}_dep/src/lib.kf"
-    write_file(dep_src.as_str(), """pub struct Pair {
+    write_file(dep_src, """pub struct Pair {
     pub val left:  int32
     pub val right: int32
 }
@@ -41,7 +41,7 @@ pub fun four(): int32 { return 4 }
 """)
 
     val app_toml = "${scratch_root()}/${name}_app/kf.toml"
-    write_file(app_toml.as_str(), """[project]
+    write_file(app_toml, """[project]
 name = "wi_app"
 version = "0.1.0"
 kind = "bin"
@@ -55,13 +55,13 @@ wi_dep = { path = "../${name}_dep" }
     main_src.append("\nfun main(): int32 { return ")
     main_src.append(body)
     main_src.append(" }\n")
-    write_file(main_path.as_str(), main_src.as_str())
+    write_file(main_path, main_src)
     return 0
 }
 
 fun check_wildcard_fixture(name: str): int32 {
     val dir = "${scratch_root()}/${name}_app"
-    return check_project(dir.as_str())
+    return check_project(dir)
 }
 
 /// As the driver builds them: the lint needs `Module.crate`.
@@ -69,7 +69,7 @@ fun wildcard_fixture_diags(name: str): List<Diagnostic> {
     val dir = "${scratch_root()}/${name}_app"
     val smap = fresh_source_map()
     var pdiags = new_diagnostics()
-    var merged = assemble_project(dir.as_str(), smap, &var pdiags)
+    var merged = assemble_project(dir, smap, &var pdiags)
     return merged.collect_module_diags(smap)
 }
 

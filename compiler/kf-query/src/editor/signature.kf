@@ -32,16 +32,16 @@ pub fun render_signature_json(path: str, offset: uint32, crate: &TypedCrate): St
         out.field_uint32("active_parameter", 0)
         return out.finish()
     }
-    val decl = crate.module.callee_decl(&call, crate.source.as_str())
+    val decl = crate.module.callee_decl(&call, crate.source)
     if !decl.found {
         out.field_null("label")
         out.field_raw("parameters", "[]")
         out.field_uint32("active_parameter", 0)
         return out.finish()
     }
-    out.field_string("label", decl.label.as_str())
-    out.field_raw("parameters", decl.parameters.as_str())
-    out.field_uint32("active_parameter", active_parameter(crate.source.as_str(), &call.span, offset))
+    out.field_string("label", decl.label)
+    out.field_raw("parameters", decl.parameters)
+    out.field_uint32("active_parameter", active_parameter(crate.source, &call.span, offset))
     return out.finish()
 }
 
@@ -163,9 +163,9 @@ fun rendered_signature(name: str, params: &List<Param>, ret: &TypeRef): Signatur
         one.append(": ")
         val pty: TypeRef = unsafe { *p.ty }
         one.append(pty.tyref_to_source().as_str())
-        label.append(one.as_str())
+        label.append(one)
         var o = JsonWriter.object()
-        o.field_string("label", one.as_str())
+        o.field_string("label", one)
         arr.write_raw(o.finish().as_str())
     }
     label.append("): ")
@@ -176,15 +176,15 @@ fun rendered_signature(name: str, params: &List<Param>, ret: &TypeRef): Signatur
 /// The impl target: `Pair__int32` and `Pair<int32>` both give `Pair`.
 pub fun Type.type_base_name(): String {
     val spelled = type_identity_display(self.type_name_of())
-    val n = spelled.as_str().byte_len()
+    val n = spelled.byte_len()
     var i = 0
     while i < n {
-        val b = spelled.as_str().byte_at(i)
+        val b = spelled.byte_at(i)
         // `<` or `__` opens type arguments.
-        if b == 60 { return spelled.as_str().substring(0, i) }
+        if b == 60 { return spelled.substring(0, i) }
         if b == 95 && i + 1 < n {
-            if spelled.as_str().byte_at(i + 1) == 95 {
-                return spelled.as_str().substring(0, i)
+            if spelled.byte_at(i + 1) == 95 {
+                return spelled.substring(0, i)
             }
         }
         i = i + 1

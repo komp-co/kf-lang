@@ -64,7 +64,7 @@ fun a_projection_outside_every_impl_is_reported_ambiguous(): void {
     val out = resolve_bag_out("")
     assert_eq(out.diags, 1, "an unqualifiable projection is diagnosed")
     // The message, not just that something was reported.
-    assert_eq(out.message.as_str().contains("is ambiguous"), true, "and diagnosed as ambiguous")
+    assert_eq(out.message.contains("is ambiguous"), true, "and diagnosed as ambiguous")
     assert_eq(out.mangled.as_str(), "poison", "an ambiguous projection resolves to nothing")
 }
 

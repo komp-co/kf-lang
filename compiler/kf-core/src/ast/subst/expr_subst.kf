@@ -61,6 +61,7 @@ fun Expr.rebuild_expr(new_kind: ExprKind, names: &var List<String>, repls: &var 
         derefs_at_call: self.derefs_at_call,
         constant: self.constant,
         arg_name: self.arg_name,
+        needless_view: self.needless_view,
         scope_module: self.scope_module,
         scope_file: self.scope_file
     }
@@ -89,7 +90,7 @@ pub fun Expr.subst_expr(names: &var List<String>, repls: &var List<TypeRef>): Ex
         Call(nm, args) => {
             val nnm = subst_mangled_name(nm.as_str(), names, repls)
             val nargs = subst_expr_list(args, names, repls)
-            var call = self.rebuild_expr(ExprKind.Call(intern(nnm.as_str()), nargs), names, repls)
+            var call = self.rebuild_expr(ExprKind.Call(intern(nnm), nargs), names, repls)
             call.mangled_callee = intern(subst_mangled_name(self.mangled_callee.as_str(), names, repls).as_str())
             return call
         }
@@ -147,7 +148,7 @@ pub fun Expr.subst_expr(names: &var List<String>, repls: &var List<TypeRef>): Ex
         DynCoerce(ip, vtable) => {
             val ni = clone_expr_ptr(ip, names, repls)
             val concrete_vtable = subst_mangled_name(vtable.as_str(), names, repls)
-            return self.rebuild_expr(ExprKind.DynCoerce(ni, intern(concrete_vtable.as_str())), names, repls)
+            return self.rebuild_expr(ExprKind.DynCoerce(ni, intern(concrete_vtable)), names, repls)
         }
         Retain(ip) => {
             val ni = clone_expr_ptr(ip, names, repls)
@@ -210,15 +211,15 @@ pub fun subst_static_callee(callee: str, names: &var List<String>, repls: &var L
     // `&int32`. Only a bare one; `List__T_push` genuinely is
     // `List__kf__ref__Square`.
     var result = ""
-    if name_is_bare_param(prefix.as_str(), names) {
+    if name_is_bare_param(prefix, names) {
         var through = repls_through_borrow(repls)
-        result = subst_mangled_name(prefix.as_str(), names, &var through)
+        result = subst_mangled_name(prefix, names, &var through)
     } else {
-        result = subst_mangled_name(prefix.as_str(), names, repls)
+        result = subst_mangled_name(prefix, names, repls)
     }
     result.append("_")
-    val suffix = subst_mangled_name(method.as_str(), names, repls)
-    result.append(suffix.as_str())
+    val suffix = subst_mangled_name(method, names, repls)
+    result.append(suffix)
     return result
 }
 
@@ -252,11 +253,11 @@ fun tyref_through_borrow(t: TypeRef): TypeRef {
 fun Type.mark_self_shaped_args(args: &List<Expr>, out: &var List<Expr>, names: &var List<String>, repls: &var List<TypeRef>): void {
     val pname = self.generic_param_name()
     if pname.as_str().equals("") { return }
-    if !replacement_is_a_borrow(pname.as_str(), names, repls) { return }
+    if !replacement_is_a_borrow(pname, names, repls) { return }
     while i in 0..args.size() {
         if i < out.size() {
             val arg_param = generic_param_name(&args.at(i).ty)
-            if arg_param.as_str().equals(pname.as_str()) {
+            if arg_param.as_str().equals(pname) {
                 unsafe { out.at_mut(i).derefs_at_call = true }
             }
         }
@@ -299,8 +300,8 @@ pub fun subst_mangled_name(name: str, names: &var List<String>, repls: &var List
         if d0 == 95 && d1 == 95 {
             val seg = s.substring(seg_start, i)
             if emitted_any { out.append("__") }
-            val chosen = if out.replacement_is_suffix(seg.as_str(), repls) { String.from(seg.as_str()) } else { pick_seg(seg.as_str(), names, repls) }
-            out.append(chosen.as_str())
+            val chosen = if out.replacement_is_suffix(seg, repls) { String.from(seg.as_str()) } else { pick_seg(seg, names, repls) }
+            out.append(chosen)
             emitted_any = true
             i = i + 2
             seg_start = i
@@ -310,8 +311,8 @@ pub fun subst_mangled_name(name: str, names: &var List<String>, repls: &var List
     }
     val tail = s.substring(seg_start, n)
     if emitted_any { out.append("__") }
-    val chosen_tail = if out.replacement_is_suffix(tail.as_str(), repls) { String.from(tail.as_str()) } else { pick_seg(tail.as_str(), names, repls) }
-    out.append(chosen_tail.as_str())
+    val chosen_tail = if out.replacement_is_suffix(tail, repls) { String.from(tail.as_str()) } else { pick_seg(tail, names, repls) }
+    out.append(chosen_tail)
     return out
 }
 
@@ -323,14 +324,14 @@ fun str.has_param_segment(names: &List<String>): bool {
     var i: uint64 = 0
     while i + 1 < n {
         if self.byte_at(i) == 95 && self.byte_at(i + 1) == 95 {
-            if self.substring(seg_start, i).as_str().is_one_of(names) { return true }
+            if self.substring(seg_start, i).is_one_of(names) { return true }
             i = i + 2
             seg_start = i
         } else {
             i = i + 1
         }
     }
-    return self.substring(seg_start, n).as_str().is_one_of(names)
+    return self.substring(seg_start, n).is_one_of(names)
 }
 
 fun str.is_one_of(names: &List<String>): bool {
@@ -347,19 +348,19 @@ fun String.replacement_is_suffix(segment: str, repls: &var List<TypeRef>): bool 
     candidate.append(segment)
     while repl in &repls {
         val replacement = repl.mangle_tyref()
-        val candidate_len = candidate.as_str().byte_len()
-        val replacement_len = replacement.as_str().byte_len()
+        val candidate_len = candidate.byte_len()
+        val replacement_len = replacement.byte_len()
         if replacement_len <= candidate_len {
             val start = candidate_len - replacement_len
             var boundary = start == 0
             if start >= 2 {
-                boundary = candidate.as_str().byte_at(start - 1) == 95 && candidate.as_str().byte_at(start - 2) == 95
+                boundary = candidate.byte_at(start - 1) == 95 && candidate.byte_at(start - 2) == 95
             }
             if boundary {
                 var same = true
                 var j = 0
                 while j < replacement_len {
-                    if candidate.as_str().byte_at(start + j) != replacement.as_str().byte_at(j) { same = false }
+                    if candidate.byte_at(start + j) != replacement.byte_at(j) { same = false }
                     j = j + 1
                 }
                 if same { return true }

@@ -31,14 +31,14 @@ fun key_test_ref(inner: TypeRef, mutable: bool): TypeRef {
     var args = List.new<TypeRef>()
     args.push(key_test_named("String"))
     val declared = (&TypeRef.new(no_span(), TypeRefKind.Named(intern("Ref"), args))).tref_name_key()
-    assert_eq(borrowed.as_str().equals(declared.as_str()), false, "`&String` and `Ref<String>` are different keys")
+    assert_eq(borrowed.as_str().equals(declared), false, "`&String` and `Ref<String>` are different keys")
 }
 
 // A borrow and the bare type key differently.
 @test fun a_borrow_does_not_key_as_the_bare_type(): void {
     val borrowed = (&key_test_ref(key_test_named("String"), false)).tref_name_key()
     val bare = (&key_test_named("String")).tref_name_key()
-    assert_eq(borrowed.as_str().equals(bare.as_str()), false, "`&String` and `String` are different keys")
+    assert_eq(borrowed.as_str().equals(bare), false, "`&String` and `String` are different keys")
     assert_eq(borrowed.as_str().equals(""), false, "`&String` does not key as the empty string")
 }
 
@@ -48,7 +48,7 @@ fun key_test_ref(inner: TypeRef, mutable: bool): TypeRef {
     val mutable = (&key_test_ref(key_test_named("Point"), true)).tref_name_key()
     assert_eq(shared.as_str(), "kf__ref__Point", "`&Point` keys shared")
     assert_eq(mutable.as_str(), "kf__mut__Point", "`&var Point` keys mutable")
-    assert_eq(shared.as_str().equals(mutable.as_str()), false, "the two do not collapse onto one name")
+    assert_eq(shared.as_str().equals(mutable), false, "the two do not collapse onto one name")
 }
 
 @test fun a_borrowed_generic_argument_keys_through(): void {
@@ -58,15 +58,15 @@ fun key_test_ref(inner: TypeRef, mutable: bool): TypeRef {
 
 @test fun ref_key_inner_reads_back_what_tref_name_key_wrote(): void {
     val key = (&key_test_ref(key_test_named("String"), false)).tref_name_key()
-    assert_eq(ref_key_inner(key.as_str()).as_str(), "String", "`kf__ref__String` borrows `String`")
-    assert_eq(ref_key_is_mut(key.as_str()), false, "and borrows it shared")
+    assert_eq(ref_key_inner(key).as_str(), "String", "`kf__ref__String` borrows `String`")
+    assert_eq(ref_key_is_mut(key), false, "and borrows it shared")
 }
 
 // The decode reports mutability.
 @test fun ref_key_reads_back_a_mutable_borrow(): void {
     val key = (&key_test_ref(key_test_named("String"), true)).tref_name_key()
-    assert_eq(ref_key_inner(key.as_str()).as_str(), "String", "`kf__mut__String` borrows `String`")
-    assert_eq(ref_key_is_mut(key.as_str()), true, "and borrows it mutably")
+    assert_eq(ref_key_inner(key).as_str(), "String", "`kf__mut__String` borrows `String`")
+    assert_eq(ref_key_is_mut(key), true, "and borrows it mutably")
 }
 
 @test fun ref_key_inner_ignores_a_key_that_is_not_a_borrow(): void {

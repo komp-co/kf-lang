@@ -42,7 +42,7 @@ fun above_annotations(src: str, edge: uint32): uint32 {
     while at > 0 {
         val above = line_start_before(src, at - 1)
         val line = src.substring(above as uint64, (at - 1) as uint64)
-        if !line.as_str().trim().starts_with("@") { return at }
+        if !line.trim().starts_with("@") { return at }
         at = above
     }
     return at

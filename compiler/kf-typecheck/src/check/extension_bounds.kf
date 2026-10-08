@@ -41,7 +41,7 @@ fun bound_blocked_extension(name: str, recv: &Type, ctx: &var TypeCtx): String {
 
 fun blocked_extension_owner(name: str, recv: &Type, ctx: &var TypeCtx): String {
     val sig = bound_blocked_signature(name, recv, ctx) ?: return ""
-    val on = extension_receiver_shown(sig.name.as_str(), &autoderef_ty(*sig.params.at(0)), ctx)
+    val on = extension_receiver_shown(sig.name, &autoderef_ty(*sig.params.at(0)), ctx)
     return "`${on.as_str()}.${name}`"
 }
 
@@ -67,7 +67,7 @@ fun extension_receiver_shown(link: str, receiver: &Type, ctx: &var TypeCtx): Str
     if param.byte_len() == 0 { return receiver.display_type(ctx) }
     val bounds = unsafe { (*ctx.sigs).bounds }
     while b in &bounds {
-        if b.owner.as_str().equals(link) && b.param.as_str().equals(param.as_str()) { return b.bound_shown() }
+        if b.owner.as_str().equals(link) && b.param.as_str().equals(param) { return b.bound_shown() }
     }
     return param
 }
@@ -94,8 +94,8 @@ fun FnSignature.unmet_bound(param: str, binding: &Type, ctx: &var TypeCtx): Stri
                     return b.bound_shown()
                 }
             } else {
-                val args = subst_trait_args(b.trait_args.as_str(), &no_names, &no_types, false)
-                if !bound_type_implements_here(binding, b.trait_name.as_str(), args, &self.generics, no_span(), ctx) {
+                val args = subst_trait_args(b.trait_args, &no_names, &no_types, false)
+                if !bound_type_implements_here(binding, b.trait_name, args, &self.generics, no_span(), ctx) {
                     return b.bound_shown()
                 }
             }
@@ -108,9 +108,9 @@ fun FnSignature.unmet_bound(param: str, binding: &Type, ctx: &var TypeCtx): Stri
 fun FnSignature.first_unmet_bound(have: &Type, ctx: &var TypeCtx): String {
     val want = autoderef_ty(*self.params.at(0))
     while g in &self.generics {
-        val binding = want.bind_generic_from_param(have, g.as_str(), ctx)
+        val binding = want.bind_generic_from_param(have, g, ctx)
         if !binding.is_poison() {
-            val trait_name = self.unmet_bound(g.as_str(), &binding, ctx)
+            val trait_name = self.unmet_bound(g, &binding, ctx)
             if trait_name.byte_len() > 0 { return trait_name }
         }
     }
@@ -124,10 +124,10 @@ fun FnSignature.bound_narrowing(param: str, ctx: &var TypeCtx): uint64 {
     var seen = false
     var closed = true
     while b in &bounds {
-        if b.owner.as_str().equals(self.name.as_str()) && b.param.as_str().equals(param) {
+        if b.owner.as_str().equals(self.name) && b.param.as_str().equals(param) {
             seen = true
-            while seg in &key_segments(b.trait_args.as_str()) {
-                if str_list_has(&self.generics, seg.as_str()) { closed = false }
+            while seg in &key_segments(b.trait_args) {
+                if str_list_has(&self.generics, seg) { closed = false }
             }
         }
     }
@@ -138,7 +138,7 @@ fun FnSignature.bound_narrowing(param: str, ctx: &var TypeCtx): uint64 {
 
 /// Suggests a bound; for a trait receiver's parameter, names the trait.
 fun report_no_parameter_method(param: str, method: str, span: Span, ctx: &var TypeCtx): void {
-    val trait_param = unsafe { (*ctx.sigs).receiver_trait_param(ctx.fn_owner.as_str()) }
+    val trait_param = unsafe { (*ctx.sigs).receiver_trait_param(ctx.fn_owner) }
     val fix = "declare a bound whose trait provides it: `${param}: SomeTrait`"
     var message = "no method `${method}` on type parameter `${param}` (${fix})"
     if trait_param.as_str().equals(param) {

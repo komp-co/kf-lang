@@ -46,8 +46,8 @@ pub fun projection_close_index(segs: &List<String>, open: uint64): uint64 {
     var i: uint64 = open
     while i < segs.size() {
         val seg = *segs.at(i)
-        if is_projection_open(seg.as_str()) { depth = depth + 1 }
-        if is_projection_close(seg.as_str()) {
+        if is_projection_open(seg) { depth = depth + 1 }
+        if is_projection_close(seg) {
             if depth <= 1 { return i }
             depth = depth - 1
         }
@@ -107,7 +107,7 @@ pub fun projection_mangle_display(mangled: str): String {
     while i < segs.size() {
         var seg = *segs.at(i)
         var step = 1
-        if is_projection_open(seg.as_str()) {
+        if is_projection_open(seg) {
             val close = projection_close_index(&segs, i)
             if close > i + 2 {
                 var text = ""
@@ -125,7 +125,7 @@ pub fun projection_mangle_display(mangled: str): String {
             }
         }
         if emitted { out.append("__") }
-        out.append(seg.as_str())
+        out.append(seg)
         emitted = true
         i = i + step
     }

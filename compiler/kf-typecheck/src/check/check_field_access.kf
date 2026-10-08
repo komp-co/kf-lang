@@ -33,16 +33,16 @@ pub fun check_field_access(receiver_ty: Type, field_name: String, _span: Span, c
     // An instance only ever named inside another's fields, `Pair<I, M>` holding
     // a `Residue<I, M>`, gets its layout on first use.
     recv_ty.register_returned_instance(_span, ctx)
-    val layout = unsafe { sp.find_struct(sname.as_str(), ctx.owner_crate) } ?: {
+    val layout = unsafe { sp.find_struct(sname, ctx.owner_crate) } ?: {
         // Enums resolve to Struct(name), so a missing struct layout may name a
         // known enum. An unmaterialized layout stays silent.
-        if unsafe { sp.find_enum(sname.as_str(), ctx.owner_crate) }.is_some() {
+        if unsafe { sp.find_enum(sname, ctx.owner_crate) }.is_some() {
             emit_field_on_enum(sname, field_name, _span, ctx)
         }
         return Type.new_poison()
     }
     while f in &layout.fields {
-        if f.name.as_str().equals(field_name.as_str()) {
+        if f.name.as_str().equals(field_name) {
             return f.ty
         }
     }
@@ -57,17 +57,17 @@ pub fun check_field_access(receiver_ty: Type, field_name: String, _span: Span, c
 fun emit_field_on_enum(ename: String, field_name: String, span: Span, ctx: &var TypeCtx): void {
     val sp = ctx.sigs
     var optional = false
-    when (unsafe { sp.find_inst(ename.as_str()) }) {
+    when (unsafe { sp.find_inst(ename) }) {
         Some(inst) => { optional = inst.base.as_str().equals(ctx.option_name().as_str()) }
         None => { }
     }
     var msg = String.from("the field `")
-    msg.append(field_name.as_str())
+    msg.append(field_name)
     if optional {
         msg.append("` is read through an optional — unwrap it first with `?.`, `!!`, or a `when`")
     } else {
         msg.append("` is read on `")
-        msg.append(ename.as_str())
+        msg.append(ename)
         msg.append("`, which is an enum — its payload is reached by matching, not by a field")
     }
     ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
@@ -77,19 +77,19 @@ fun emit_field_on_enum(ename: String, field_name: String, span: Span, ctx: &var 
 /// message says so rather than offering a near miss.
 fun emit_no_such_field(type_name: String, field_name: String, layout: &StructLayout, span: Span, ctx: &var TypeCtx): void {
     var msg = "no field `${field_name.as_str()}` on `${type_name.as_str()}`"
-    if type_has_method_named(type_name.as_str(), field_name.as_str(), ctx) {
+    if type_has_method_named(type_name, field_name, ctx) {
         msg.append(" — `")
-        msg.append(field_name.as_str())
+        msg.append(field_name)
         msg.append("` is a method; call it as `")
-        msg.append(field_name.as_str())
+        msg.append(field_name)
         msg.append("()`")
         ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
         return
     }
-    val near_f = layout.nearest_field(field_name.as_str())
+    val near_f = layout.nearest_field(field_name)
     if !near_f.as_str().equals("") {
         msg.append(" (did you mean `")
-        msg.append(near_f.as_str())
+        msg.append(near_f)
         msg.append("`?)")
     }
     ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
@@ -106,7 +106,7 @@ fun StructLayout.nearest_field(wanted: str): String {
     var best_d = budget + 1
     while field in &self.fields {
         val cand = field.name
-        val d = edit_distance(wanted, cand.as_str(), best_d)
+        val d = edit_distance(wanted, cand, best_d)
         if d < best_d {
             best_d = d
             best = cand.clone()

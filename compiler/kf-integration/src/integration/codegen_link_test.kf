@@ -58,7 +58,7 @@ fun ret_op(p: Ptr<Expr>): Box<Expr>? {
 
 @test fun integration_empty_main_exit_zero(): void {
     val out = empty_main()
-    write_scratch(scratch_path("kf_codegen_link/komp_int_1.c"), out.as_str())
+    write_scratch(scratch_path("kf_codegen_link/komp_int_1.c"), out)
     val gcc_rc = gcc_link(scratch_path("kf_codegen_link/komp_int_1.c"), scratch_path("kf_codegen_link/komp_int_1"), false)
     assert_eq(gcc_rc == 0, true, "gcc accepts empty-main output")
     val run_rc = run_program(scratch_path("kf_codegen_link/komp_int_1"))
@@ -108,7 +108,7 @@ fun ret_op(p: Ptr<Expr>): Box<Expr>? {
     val m = Module { crate: crate_id_poison(), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 
     val out = emit_module(&m)
-    write_scratch(scratch_path("kf_codegen_link/komp_loop_print.c"), out.as_str())
+    write_scratch(scratch_path("kf_codegen_link/komp_loop_print.c"), out)
     val gcc_rc = gcc_link(scratch_path("kf_codegen_link/komp_loop_print.c"), scratch_path("kf_codegen_link/komp_loop_print"), false)
     assert_eq(gcc_rc == 0, true, "gcc accepts loop+println program")
     val rc = run_program_to_file(scratch_path("kf_codegen_link/komp_loop_print"), scratch_path("kf_codegen_link/komp_loop_print.out"), false)
@@ -150,7 +150,7 @@ fun ret_op(p: Ptr<Expr>): Box<Expr>? {
     val m = Module { crate: crate_id_poison(), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 
     val out = emit_module(&m)
-    write_scratch(scratch_path("kf_codegen_link/komp_while.c"), out.as_str())
+    write_scratch(scratch_path("kf_codegen_link/komp_while.c"), out)
     val gcc_rc = gcc_link(scratch_path("kf_codegen_link/komp_while.c"), scratch_path("kf_codegen_link/komp_while"), false)
     assert_eq(gcc_rc == 0, true, "gcc accepts while program")
     val run_rc = run_program(scratch_path("kf_codegen_link/komp_while"))
@@ -191,7 +191,7 @@ fun ret_op(p: Ptr<Expr>): Box<Expr>? {
     val m = Module { crate: crate_id_poison(), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 
     val out = emit_module(&m)
-    write_scratch(scratch_path("kf_codegen_link/komp_int_3.c"), out.as_str())
+    write_scratch(scratch_path("kf_codegen_link/komp_int_3.c"), out)
 
     val gcc_rc = gcc_link(scratch_path("kf_codegen_link/komp_int_3.c"), scratch_path("kf_codegen_link/komp_int_3"), true)
     assert_eq(gcc_rc == 0, true, "gcc asan accepts the program")
@@ -242,7 +242,7 @@ fun ret_op(p: Ptr<Expr>): Box<Expr>? {
     val m = Module { crate: crate_id_poison(), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 
     val out = emit_module(&m)
-    write_scratch(scratch_path("kf_codegen_link/komp_struct.c"), out.as_str())
+    write_scratch(scratch_path("kf_codegen_link/komp_struct.c"), out)
     val gcc_rc = gcc_link(scratch_path("kf_codegen_link/komp_struct.c"), scratch_path("kf_codegen_link/komp_struct"), false)
     assert_eq(gcc_rc == 0, true, "gcc accepts struct program")
     val rc = run_program(scratch_path("kf_codegen_link/komp_struct"))
@@ -274,7 +274,7 @@ fun ret_op(p: Ptr<Expr>): Box<Expr>? {
     val m = Module { crate: crate_id_poison(), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 
     val out = emit_module(&m)
-    write_scratch(scratch_path("kf_codegen_link/komp_int_2.c"), out.as_str())
+    write_scratch(scratch_path("kf_codegen_link/komp_int_2.c"), out)
 
     val gcc_rc = gcc_link(scratch_path("kf_codegen_link/komp_int_2.c"), scratch_path("kf_codegen_link/komp_int_2"), false)
     assert_eq(gcc_rc == 0, true, "gcc accepts add program")
@@ -315,7 +315,7 @@ fun ret_op(p: Ptr<Expr>): Box<Expr>? {
     val m = Module { crate: crate_id_poison(), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 
     val out = emit_module(&m)
-    write_scratch(scratch_path("kf_codegen_link/komp_enum_when.c"), out.as_str())
+    write_scratch(scratch_path("kf_codegen_link/komp_enum_when.c"), out)
     val rc = gcc_link(scratch_path("kf_codegen_link/komp_enum_when.c"), scratch_path("kf_codegen_link/komp_enum_when"), false)
     assert_eq(rc == 0, true, "enum when+construct gcc-compiles")
     val run_rc = run_program(scratch_path("kf_codegen_link/komp_enum_when"))

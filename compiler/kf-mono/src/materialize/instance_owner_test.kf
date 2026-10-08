@@ -14,7 +14,7 @@ fun owners_after_owning(from: uint64): String {
     work.own_self_calls(from, "Holder", "Holder__int32")
     var out = String.from("")
     while inst in &work {
-        out.append(inst.owner.as_str())
+        out.append(inst.owner)
         out.append(" ")
     }
     return out

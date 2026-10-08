@@ -106,19 +106,19 @@ fun emit_binop(lp: Ptr<Expr>, op: BinOp, rp: Ptr<Expr>): String {
     val l = unsafe { *lp }
     val r = unsafe { *rp }
     val po = emit_primitive_binop(&l, op, &r)
-    if po.as_str().byte_len() > 0 { return po }
+    if po.byte_len() > 0 { return po }
     // Raw pointers and `str` keep their own comparisons below.
     val eo = emit_equal_binop(&l, op, &r)
-    if eo.as_str().byte_len() > 0 { return eo }
+    if eo.byte_len() > 0 { return eo }
     val se = emit_str_equal_binop(&l, op, &r)
-    if se.as_str().byte_len() > 0 { return se }
+    if se.byte_len() > 0 { return se }
     // The ordering is compared with zero for the relation asked.
     val co = emit_compare_binop(&l, op, &r)
-    if co.as_str().byte_len() > 0 { return co }
+    if co.byte_len() > 0 { return co }
     val ao = emit_arith_binop(&l, op, &r)
-    if ao.as_str().byte_len() > 0 { return ao }
+    if ao.byte_len() > 0 { return ao }
     val bo = emit_bitwise_binop(&l, op, &r)
-    if bo.as_str().byte_len() > 0 { return bo }
+    if bo.byte_len() > 0 { return bo }
     var parts = List.new<String>()
     parts.push(String.from("("))
     parts.push(emit_operand_value(&l))
@@ -151,7 +151,7 @@ fun emit_operator_trait_call(l: &Expr, suffix: str, r: &Expr, primitive: bool): 
         Char => { if primitive { base = String.from("char") } }
         _ => return ""
     }
-    if base.as_str().byte_len() == 0 { return "" }
+    if base.byte_len() == 0 { return "" }
     val callee = "${base}${suffix}"
     var margs = List.new<Expr>()
     margs.push(r.clone())
@@ -174,7 +174,7 @@ fun emit_equal_binop(l: &Expr, op: BinOp, r: &Expr): String {
         _ => return ""
     }
     val call = emit_operator_trait_call(l, "_equals", r, true)
-    if call.as_str().byte_len() == 0 { return "" }
+    if call.byte_len() == 0 { return "" }
     if !negate { return call }
     var np = List.new<String>()
     np.push(String.from("(!"))
@@ -221,7 +221,7 @@ fun emit_arith_binop(l: &Expr, op: BinOp, r: &Expr): String {
         Mod => { suffix = String.from("_mod__Mod") }
         _ => return ""
     }
-    return emit_operator_trait_call(l, suffix.as_str(), r, true)
+    return emit_operator_trait_call(l, suffix, r, true)
 }
 
 fun emit_bitwise_binop(l: &Expr, op: BinOp, r: &Expr): String {
@@ -234,7 +234,7 @@ fun emit_bitwise_binop(l: &Expr, op: BinOp, r: &Expr): String {
         Shr => { suffix = String.from("_shr__Shr") }
         _ => return ""
     }
-    return emit_operator_trait_call(l, suffix.as_str(), r, true)
+    return emit_operator_trait_call(l, suffix, r, true)
 }
 
 fun emit_compare_binop(l: &Expr, op: BinOp, r: &Expr): String {
@@ -247,7 +247,7 @@ fun emit_compare_binop(l: &Expr, op: BinOp, r: &Expr): String {
         _ => return ""
     }
     val call = emit_operator_trait_call(l, "_compare__Compare", r, true)
-    if call.as_str().byte_len() == 0 { return "" }
+    if call.byte_len() == 0 { return "" }
     var parts = List.new<String>()
     parts.push(String.from("("))
     parts.push(call)

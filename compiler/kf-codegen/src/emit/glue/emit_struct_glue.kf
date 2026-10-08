@@ -66,7 +66,7 @@ fun emit_struct_new(name: String, fields: &List<Field>): String {
     while field in &fields {
         if field.is_array_storage() { continue }
         val fsrc = field.name.as_string()
-        val fname = c_field_name(fsrc.as_str())
+        val fname = c_field_name(fsrc)
         parts.push("    v.${fname} = ${c_local_name(fsrc.as_str())};\n")
     }
     parts.push(String.from("    return v;\n}\n\n"))
@@ -90,7 +90,7 @@ pub fun Module.emit_struct_drops(lookup: &Module): String {
 fun emit_struct_drop(name: String, fields: &List<Field>, facts: &TypeFacts): String {
     var parts = List.new<String>()
     parts.push("static inline void ${name}__glue_drop(${name} v) {\n")
-    if facts.has_user_drop(name.as_str()) {
+    if facts.has_user_drop(name) {
         parts.push("    ${name}_drop(&v);\n")
     }
     while f in &fields {
@@ -102,7 +102,7 @@ fun emit_struct_drop(name: String, fields: &List<Field>, facts: &TypeFacts): Str
             val inner_drop = release_fn_for_ctype(inner.c_type().as_str())
             val fname = c_field_name(f.name.as_str())
             parts.push("    if (v.${fname}) { ")
-            if inner_drop.as_str().byte_len() > 0 {
+            if inner_drop.byte_len() > 0 {
                 parts.push("${inner_drop}((*v.${fname})); ")
             }
             parts.push("kf_free(v.${fname}); }\n")
@@ -137,7 +137,7 @@ pub fun Module.emit_struct_clones(): String {
 fun emit_struct_clone(name: String, fields: &List<Field>, facts: &TypeFacts): String {
     var parts = List.new<String>()
     parts.push("static inline ${name} ${name}__glue_clone(${name} v) {\n    ")
-    if facts.has_user_clone(name.as_str()) {
+    if facts.has_user_clone(name) {
         parts.push("return ${name}_clone(&v);\n}\n\n")
         return concat_all(parts)
     }
@@ -148,10 +148,10 @@ fun emit_struct_clone(name: String, fields: &List<Field>, facts: &TypeFacts): St
         if is_box_tref(fty) {
             val inner = box_inner_tref(fty)
             val inner_ct = inner.c_type()
-            val inner_clone = clone_fn_for_ctype(inner_ct.as_str())
+            val inner_clone = clone_fn_for_ctype(inner_ct)
             val fname = c_field_name(f.name.as_str())
             parts.push("    if (v.${fname}) { r.${fname} = (${inner_ct}*)kf_alloc(sizeof(${inner_ct})); *r.${fname} = ")
-            if inner_clone.as_str().byte_len() > 0 {
+            if inner_clone.byte_len() > 0 {
                 parts.push("${inner_clone}(*v.${fname})")
             } else {
                 parts.push("*v.${fname}")
@@ -160,7 +160,7 @@ fun emit_struct_clone(name: String, fields: &List<Field>, facts: &TypeFacts): St
         } else {
             val slot = f.glue_slot()
             val cf = clone_fn_for_ctype(slot.ty.c_type().as_str())
-            if cf.as_str().byte_len() > 0 {
+            if cf.byte_len() > 0 {
                 val fname = c_field_name(f.name.as_str())
                 parts.push("    ${slot.open}r.${fname}${slot.index} = ${cf}(v.${fname}${slot.index});${slot.close}\n")
             }
@@ -229,12 +229,12 @@ fun emit_struct_retain(name: String, fields: &List<Field>, facts: &TypeFacts): S
     parts.push(String.from("static inline "))
     parts.push(name.clone())
     parts.push(String.from(" "))
-    parts.push(type_retain_fn(name.as_str()))
+    parts.push(type_retain_fn(name))
     parts.push(String.from("("))
     parts.push(name.clone())
     parts.push(String.from(" v) {\n"))
     // A user-written `clone` is used as is.
-    if facts.has_user_clone(name.as_str()) {
+    if facts.has_user_clone(name) {
         parts.push(String.from("    return "))
         parts.push(name.clone())
         parts.push(String.from("__glue_clone(v);\n}\n\n"))

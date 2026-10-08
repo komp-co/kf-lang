@@ -21,7 +21,7 @@ impl SigTable {
             while bound in &tp.bounds {
                 when (bound.kind) {
                     Named(name, _args) => {
-                        if names.as_str().byte_len() > 0 { names.append("+") }
+                        if names.byte_len() > 0 { names.append("+") }
                         names.append(name.as_str())
                     }
                     _ => { }

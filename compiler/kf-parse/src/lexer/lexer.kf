@@ -22,7 +22,7 @@ impl Lexer {
         if self.pos >= self.len {
             return 0
         }
-        return self.src.as_str().byte_at_in(self.len, self.pos)
+        return self.src.byte_at_in(self.len, self.pos)
     }
 
     pub fun peek_at(offset: uint64): uint8 {
@@ -30,7 +30,7 @@ impl Lexer {
         if p >= self.len {
             return 0
         }
-        return self.src.as_str().byte_at_in(self.len, p)
+        return self.src.byte_at_in(self.len, p)
     }
 
     pub fun at_end(): bool {
@@ -116,13 +116,13 @@ impl Lexer {
             }
         }
         val end: uint32 = self.pos as uint32
-        val lex_str = slice_to_string(self.src.as_str(), start, end)
+        val lex_str = slice_to_string(self.src, start, end)
         val span = Span { file_id: fid, start: start, end: end }
         // CONSTRAINT: one return, so `lex_str` reaches the end of scope and is
         // dropped; returning from the arms skips its drop.
-        val kind = when (keyword_from_str(lex_str.as_str())) {
+        val kind = when (keyword_from_str(lex_str)) {
             Some(kw) => TokenKind.KeywordTok(kw)
-            None => TokenKind.Identifier(intern(lex_str.as_str()))
+            None => TokenKind.Identifier(intern(lex_str))
         }
         return new_token(kind, span)
     }
@@ -159,8 +159,8 @@ impl Lexer {
         val span = Span { file_id: fid, start: start, end: end }
         if digits == 0 {
             var msg = String.from("expected at least one digit after `")
-            val prefix = slice_to_string(self.src.as_str(), start, start + 2)
-            msg.append(prefix.as_str())
+            val prefix = slice_to_string(self.src, start, start + 2)
+            msg.append(prefix)
             msg.append("`")
             return new_token(TokenKind.LexError(msg), span)
         }
@@ -181,7 +181,7 @@ impl Lexer {
         if has_fraction || has_exponent {
             val fend: uint32 = self.pos as uint32
             val fspan = Span { file_id: fid, start: start, end: fend }
-            return new_token(TokenKind.FloatLiteral(digits_text(self.src.as_str(), start, fend)), fspan)
+            return new_token(TokenKind.FloatLiteral(digits_text(self.src, start, fend)), fspan)
         }
         val end: uint32 = self.pos as uint32
         val span = Span { file_id: fid, start: start, end: end }
@@ -260,7 +260,7 @@ impl Lexer {
     /// A malformed sequence yields whatever was read; the closing-`'` test
     /// that follows rejects it with a span.
     mutating fun read_utf8_scalar(): uint32 {
-        val d = self.src.as_str().decode_at(self.pos)
+        val d = self.src.decode_at(self.pos)
         self.pos = self.pos + d.width
         return d.scalar as uint32
     }
@@ -286,12 +286,12 @@ impl Lexer {
         unsafe { self.advance() }
         val end: uint32 = self.pos as uint32
         val span = Span { file_id: fid, start: start, end: end }
-        val bad = literal_bad_escape_at(self.src.as_str(), content_start, content_end)
+        val bad = literal_bad_escape_at(self.src, content_start, content_end)
         if bad >= 0 {
             val bad_span = Span { file_id: fid, start: bad as uint32, end: end }
             return new_token(TokenKind.LexError(String.from("unknown escape in string literal")), bad_span)
         }
-        return new_token(TokenKind.StringLiteral(literal_body(self.src.as_str(), content_start, content_end)), span)
+        return new_token(TokenKind.StringLiteral(literal_body(self.src, content_start, content_end)), span)
     }
 
     // `"a ${x} b"` expands here into the tokens of the concatenation it means:
@@ -383,10 +383,10 @@ impl Lexer {
         self.push_op(toks, Operator.Dot)
         toks.push(new_token(TokenKind.Identifier(intern("from")), sp))
         self.push_op(toks, Operator.LParen)
-        if literal_bad_escape_at(self.src.as_str(), from, to) >= 0 {
+        if literal_bad_escape_at(self.src, from, to) >= 0 {
             toks.push(new_token(TokenKind.LexError(String.from("unknown escape in string literal")), sp))
         } else {
-            toks.push(new_token(TokenKind.StringLiteral(literal_body(self.src.as_str(), from, to)), sp))
+            toks.push(new_token(TokenKind.StringLiteral(literal_body(self.src, from, to)), sp))
         }
         self.push_op(toks, Operator.RParen)
     }
@@ -471,7 +471,7 @@ impl Lexer {
         val span = Span { file_id: fid, start: start, end: self.pos as uint32 }
         // `\$` reduces to `$` here too, so a literal `${` is spelled the same
         // with or without slots.
-        val body = raw_literal_body(self.src.as_str(), content_start, content_end)
+        val body = raw_literal_body(self.src, content_start, content_end)
         return new_token(TokenKind.StringLiteral(body), span)
     }
 

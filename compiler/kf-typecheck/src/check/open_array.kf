@@ -26,9 +26,9 @@ fun Type.list_target(ctx: &var TypeCtx): Type? {
 mutating fun Expr.narrow_open_array(expected: Type, ctx: &var TypeCtx): bool {
     val name = self.variable_name()
     if name.byte_len() == 0 { return false }
-    val init_ptr = ctx.open_init(name.as_str()) ?: return self.conflicts_with_list_decision(expected, ctx)
+    val init_ptr = ctx.open_init(name) ?: return self.conflicts_with_list_decision(expected, ctx)
     if autoderef_ty(expected.clone()).array_shape(ctx) != null {
-        ctx.narrow_binding(name.as_str(), self.span)
+        ctx.narrow_binding(name, self.span)
         return false
     }
     val target = expected.list_target(ctx) ?: return false
@@ -42,7 +42,7 @@ mutating fun Expr.narrow_open_array(expected: Type, ctx: &var TypeCtx): bool {
 mutating fun Expr.narrow_open_array_receiver(method: str, ctx: &var TypeCtx): void {
     val name = self.variable_name()
     if name.byte_len() == 0 || ctx.list_name().as_str() == "" { return }
-    val init_ptr = ctx.open_init(name.as_str()) ?: return
+    val init_ptr = ctx.open_init(name) ?: return
     val shape = self.ty.array_shape(ctx) ?: return
     val array_name = ctx.array_name()
     val list_name = ctx.list_name()

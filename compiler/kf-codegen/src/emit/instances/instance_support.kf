@@ -132,7 +132,7 @@ fun classify_out_of_view(td: &TopDecl, callees: &NameSet, type_refs: &NameSet, c
             var matched = List.new<TopDecl>()
             while method in &methods {
                 val symbol = td.name.as_string() + String.from("_") + method.name.as_string()
-                if callees.has(symbol.as_str()) {
+                if callees.has(symbol) {
                     matched.push(method.deep_clone_top_decl())
                 }
             }

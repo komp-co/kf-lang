@@ -25,7 +25,7 @@ fun no_mangle_messages(decls: List<TopDecl>): uint64 {
     val diagnostics = module.typecheck_module(&var table)
     var count: uint64 = 0
     while diagnostic in &diagnostics {
-        if diagnostic.primary.message.as_str().contains("no_mangle") { count = count + 1 }
+        if diagnostic.primary.message.contains("no_mangle") { count = count + 1 }
     }
     return count
 }

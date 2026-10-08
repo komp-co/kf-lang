@@ -26,11 +26,11 @@ pub fun Diagnostic.render_colored(smp: Ptr<SourceMap>, color: bool): String {
             out.append(":")
             out.append_uint32(loc.col)
             out.append(": ")
-            out.append_head(self.severity, self.primary.message.as_str(), color)
+            out.append_head(self.severity, self.primary.message, color)
             out.append_source_echo(smp, self.primary.span, loc.col, primary_indent(), severity_color(self.severity, color), color)
         }
         None => {
-            out.append_head(self.severity, self.primary.message.as_str(), color)
+            out.append_head(self.severity, self.primary.message, color)
         }
     }
 
@@ -67,7 +67,7 @@ mutating fun String.append_source_echo(smp: Ptr<SourceMap>, span: Span, col: uin
     self.append("\n")
     val caret = caret_line(col, span.len() as uint64, src_line.len(), pad)
     self.append(caret_color)
-    self.append(caret.as_str())
+    self.append(caret)
     self.append(sgr_reset(color))
 }
 

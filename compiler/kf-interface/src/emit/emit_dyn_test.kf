@@ -47,19 +47,19 @@ pub fun emitted_dyn_interface(): String {
 
 @test fun dyn_interface_emits_layout_identity_and_arguments(): void {
     val output = emitted_dyn_interface()
-    assert_eq(interface_contains(output.as_str(), "\"dyn_traits\":[{\"identity\":\"Sink__int32\",\"principal\":\"Sink\",\"args\":[\"int32\"]"), true, "dynamic layout identity and concrete arguments are serialized")
+    assert_eq(interface_contains(output, "\"dyn_traits\":[{\"identity\":\"Sink__int32\",\"principal\":\"Sink\",\"args\":[\"int32\"]"), true, "dynamic layout identity and concrete arguments are serialized")
 }
 
 @test fun dyn_interface_emits_slots_in_declaration_order(): void {
     val output = emitted_dyn_interface()
     val expected = "\"methods\":[{\"name\":\"send\",\"slot\":0,\"mutating\":false,\"params\":[\"int32\"],\"ret\":\"void\"},{\"name\":\"reset\",\"slot\":1,\"mutating\":true"
-    assert_eq(interface_contains(output.as_str(), expected), true, "dynamic methods preserve slot order and signatures")
+    assert_eq(interface_contains(output, expected), true, "dynamic methods preserve slot order and signatures")
 }
 
 @test fun dyn_interface_emits_vtable_ownership_and_symbols(): void {
     val output = emitted_dyn_interface()
     val expected = "\"dyn_vtables\":[{\"layout\":\"Sink__int32\",\"receiver\":\"Point\",\"receiver_identity\":\"Point\",\"symbol\":\"DynVTableInstance__Point__Sink__int32\",\"owner\":\"sample\",\"linkage\":\"exported\""
-    assert_eq(interface_contains(output.as_str(), expected), true, "vtable identity, owner, and linkage are serialized")
+    assert_eq(interface_contains(output, expected), true, "vtable identity, owner, and linkage are serialized")
 }
 
 @test fun dyn_interface_uses_the_exact_cross_crate_c_symbol(): void {
@@ -84,7 +84,7 @@ pub fun emitted_dyn_interface(): String {
     anchor.dyn_vtables = List.new<DynVTableInstance>()
     anchor.dyn_vtables.push(requirement)
     val output = module.emit_interface(String.from("sample"), &List.new<String>())
-    assert_eq(interface_contains(output.as_str(), "\"dyn_vtables\":[]"), true, "consumer-local vtable requirements do not become exported ABI")
+    assert_eq(interface_contains(output, "\"dyn_vtables\":[]"), true, "consumer-local vtable requirements do not become exported ABI")
 }
 
 @test fun dyn_interface_emission_is_byte_identical(): void {

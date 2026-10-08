@@ -61,14 +61,14 @@ fun SigTable.inline_edges(): HashMap<String, List<String>> {
     while s in &self.structs {
         var held = List.new<String>()
         while field in &s.fields { push_inline(&field.ty, &var held) }
-        insert_edges(&var edges, s.owner_crate, s.name.as_str(), held)
+        insert_edges(&var edges, s.owner_crate, s.name, held)
     }
     while e in &self.enums {
         var held = List.new<String>()
         while variant in &e.variants {
             while payload in &variant.payloads { push_inline(&payload, &var held) }
         }
-        insert_edges(&var edges, e.owner_crate, e.name.as_str(), held)
+        insert_edges(&var edges, e.owner_crate, e.name, held)
     }
     while inst in &self.insts {
         if inst.base.as_str() != self.lang_array.as_str() || inst.args.size() == 0 { continue }
@@ -116,7 +116,7 @@ pub fun Module.check_infinite_types(sigs: &SigTable, diags: &var Diagnostics): v
         if td.linkage.is_imported() || td.generics.size() > 0 { continue }
         val pointer = td.member_word()
         val start = layout_key(td.crate, td.name.as_str())
-        if pointer.is_empty() || !holds_itself(start.as_str(), "*|${td.name.as_str()}".as_str(), &edges) { continue }
+        if pointer.is_empty() || !holds_itself(start, "*|${td.name.as_str()}".as_str(), &edges) { continue }
         val name = td.name.as_str()
         val repair = "put ${pointer} behind a pointer, such as `Box<${name}>`"
         val message = "`${name}` holds itself by value, so it has no size; ${repair}"

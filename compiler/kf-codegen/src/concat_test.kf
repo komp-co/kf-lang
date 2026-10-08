@@ -63,5 +63,5 @@ import testing.test
     }
     val out = concat_all(parts)
     assert_eq(out.byte_len(), 20000, "every fragment lands exactly once")
-    assert_eq(out.as_str().byte_at(19999), 57, "and the last byte is the last fragment's")
+    assert_eq(out.byte_at(19999), 57, "and the last byte is the last fragment's")
 }

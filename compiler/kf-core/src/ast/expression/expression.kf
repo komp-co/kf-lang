@@ -54,6 +54,9 @@ pub struct Expr {
     /// The parameter a named argument binds, `retries` in
     /// `connect(host, retries = 5)`; the empty name when positional.
     pub var arg_name: Sym
+    /// `x.as_str()` where `x` would reach the same slot through its `Deref`
+    /// anyway. Set by TypeCheck; the `needless_deref` lint reports it.
+    pub var needless_view: bool
     /// A call whose name resolves where it was written rather than where
     /// its declaration's body does: a function an annotation's argument
     /// names, called in what a template adds. The module, and the file for
@@ -69,7 +72,8 @@ impl Expr {
             mangled_callee: intern(""), coerce: 0, type_args: List.new<TypeRef>(), type_args_written: false,
             is_static_call: false, is_dynamic_call: false, dynamic_slot: 0, dynamic_layout: intern(""),
             is_safe_call_value: false, is_variant_ctor: false, derefs_at_call: false,
-            constant: intern(""), arg_name: intern(""), scope_module: intern(""), scope_file: 0
+            constant: intern(""), arg_name: intern(""), needless_view: false, scope_module: intern(""),
+            scope_file: 0
         }
     }
 
@@ -230,6 +234,6 @@ pub struct FieldInit {
 
 impl FieldInit {
     pub static fun new(span: Span, name: String, value: Box<Expr>): Self {
-        return Self { span: span, name: intern(name.as_str()), value: value }
+        return Self { span: span, name: intern(name), value: value }
     }
 }

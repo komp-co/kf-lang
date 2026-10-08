@@ -17,11 +17,11 @@ mutating fun Expr.rebind_static_call(inst: &GenericInst, ctx: &var TypeCtx): boo
         MethodCall(recv_ptr, mname, margs) => {
             if margs.size() > 0 { return false }
             val recv_raw = unsafe { *recv_ptr }
-            if !kind_is_variable_named(recv_raw.kind, base.as_str()) { return false }
+            if !kind_is_variable_named(recv_raw.kind, base) { return false }
             var tmpl = base.clone()
             tmpl.append("_")
             tmpl.append(mname.as_str())
-            val found = unsafe { (*ctx.sigs).find_signature(tmpl.as_str()) }
+            val found = unsafe { (*ctx.sigs).find_signature(tmpl) }
             if found.is_none() { return false }
             val ssig = found ?: return false
             if !ssig.is_static { return false }
@@ -30,7 +30,7 @@ mutating fun Expr.rebind_static_call(inst: &GenericInst, ctx: &var TypeCtx): boo
             if n_recv == 0 || ssig.generics.size() != n_recv { return false }
             if inst.args.size() != n_recv { return false }
 
-            val recv_mono = mangle_type_name(base.as_str(), &inst.args, ctx)
+            val recv_mono = mangle_type_name(base, &inst.args, ctx)
             instantiate_generic_layout(base.clone(), &inst.args, String.from(recv_mono.as_str()), ctx)
             var ret = ssig.ret
             var gi = 0
@@ -46,7 +46,7 @@ mutating fun Expr.rebind_static_call(inst: &GenericInst, ctx: &var TypeCtx): boo
             callee.append(mname.as_str())
             self.type_args = clone_type_args(&inst.args)
             self.ty = ret
-            self.mangled_callee = intern(callee.as_str())
+            self.mangled_callee = intern(callee)
             self.is_static_call = true
             note_open_call_typed(self.span, ctx)
             return true

@@ -45,7 +45,7 @@ pub fun typed_result(method: str, params: &TypedParams, crate: &TypedCrate): Str
         "references" => render_references_json(path, offset, crate)
         "implementations" => render_implementations_json(path, offset, crate)
         "completion" => render_completion_json(path, offset, crate)
-        "rename" => render_rename_json(path, offset, params.new_name.as_str(), crate)
+        "rename" => render_rename_json(path, offset, params.new_name, crate)
         "inlays" => render_inlays_json(path, crate)
         _ => render_tokens_json(path, crate)
     }

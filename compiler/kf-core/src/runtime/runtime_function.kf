@@ -105,7 +105,7 @@ pub fun runtime_header_prototypes(): String {
     while runtime_function_row(index) != "" {
         val prototype = runtime_function_field(index, 1)
         if prototype.as_str() != "" {
-            out.append(prototype.as_str())
+            out.append(prototype)
             out.append("\n")
         }
         index = index + 1

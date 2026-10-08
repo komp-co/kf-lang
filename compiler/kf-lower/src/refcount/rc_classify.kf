@@ -224,7 +224,7 @@ fun apply_binding_mode(mode: BindingMode, name: String, init_ptr: Ptr<Expr>, ctx
         Moved => {
             val source = move_source_name(unsafe { *init_ptr })
             // Bound from a view, the binding is a view too.
-            if ctx.is_view_local(source.as_str()) {
+            if ctx.is_view_local(source) {
                 ctx.add_view_local(name)
                 return
             }
@@ -252,7 +252,7 @@ fun Type.is_move_only(ctx: &var RcCtx): bool {
         BoxOf(_) => return true
         Struct(n) => {
             val name = type_identity_display(n)
-            return ctx.move_only_names.contains(name.as_str())
+            return ctx.move_only_names.contains(name)
         }
         EnumTy(n) => return ctx.move_only_names.contains(type_identity_display(n).as_str())
         _ => return false

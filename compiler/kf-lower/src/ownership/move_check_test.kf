@@ -18,13 +18,13 @@ fun null_tref(): Ptr<TypeRef> {
 }
 
 fun mk_str_var(name: String): Expr {
-    var e = Expr.new(no_span(), ExprKind.Variable(intern(name.as_str())))
+    var e = Expr.new(no_span(), ExprKind.Variable(intern(name)))
     e.ty = intern("String").lang_struct_ty(no_span())
     return e
 }
 
 fun mk_int_var(name: String): Expr {
-    var e = Expr.new(no_span(), ExprKind.Variable(intern(name.as_str())))
+    var e = Expr.new(no_span(), ExprKind.Variable(intern(name)))
     e.ty = Type.new_int32(no_span())
     return e
 }
@@ -32,7 +32,7 @@ fun mk_int_var(name: String): Expr {
 fun mk_letval(name: String, init: Expr): Stmt {
     val ip: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *ip = init }
-    return Stmt.new(no_span(), StmtKind.LetVal(intern(name.as_str()), null, ip))
+    return Stmt.new(no_span(), StmtKind.LetVal(intern(name), null, ip))
 }
 
 fun mk_return(expr: Expr): Stmt {

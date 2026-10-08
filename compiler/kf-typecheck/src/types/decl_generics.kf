@@ -31,7 +31,7 @@ pub fun TypeRef.tref_name_key(): String {
         // different members would share a name.
         Projection(owner, member) => {
             val inner = (unsafe { &*owner }).tref_name_key()
-            return projection_mangle_frag(inner.as_str(), member.as_str())
+            return projection_mangle_frag(inner, member.as_str())
         }
         // `Call1<&T>` keys as `kf__ref__T`; otherwise it would key as "",
         // the same as no arguments.

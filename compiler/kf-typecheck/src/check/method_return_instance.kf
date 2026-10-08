@@ -30,13 +30,13 @@ fun Type.register_returned_instance(span: Span, ctx: &var TypeCtx): void {
         _ => { return }
     }
     val base = mangle_base_name(name.clone())
-    if base.as_str().equals(name.as_str()) { return }
+    if base.as_str().equals(name) { return }
     val sp = ctx.sigs
-    val known = unsafe { sp.find_inst(name.as_str()) }
+    val known = unsafe { sp.find_inst(name) }
     if known.is_some() { return }
-    val info = unsafe { sp.find_generic_info(base.as_str(), ctx.owner_crate) } ?: return
-    val base_len = base.as_str().byte_len()
-    val name_len = name.as_str().byte_len()
+    val info = unsafe { sp.find_generic_info(base, ctx.owner_crate) } ?: return
+    val base_len = base.byte_len()
+    val name_len = name.byte_len()
     if base_len + 2 >= name_len { return }
     val suffix = mangle_suffix(name.clone(), base_len + 2)
     // One parameter takes the whole suffix; several split only when the
@@ -45,7 +45,7 @@ fun Type.register_returned_instance(span: Span, ctx: &var TypeCtx): void {
     if info.type_params.size() == 1 {
         frags.push(suffix)
     } else {
-        frags = mangle_segments(suffix.as_str())
+        frags = mangle_segments(suffix)
         if frags.size() != info.type_params.size() { return }
     }
     var args = List.new<TypeRef>()
@@ -79,7 +79,7 @@ fun String.tref_from_frag(span: Span, ctx: &var TypeCtx): TypeRef {
     if unsafe { (*ctx.sigs).find_struct(self.as_str(), ctx.owner_crate) }.is_some() { return named }
     if unsafe { (*ctx.sigs).find_enum(self.as_str(), ctx.owner_crate) }.is_some() { return named }
     val inner = ref_key_inner(self.as_str())
-    if inner.as_str().byte_len() == 0 { return named }
+    if inner.byte_len() == 0 { return named }
     val is_mut = ref_key_is_mut(self.as_str())
     val inner_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *inner_ptr = inner.tref_from_frag(span, ctx) }
@@ -99,7 +99,7 @@ fun String.frag_names_a_type(ctx: &var TypeCtx): bool {
     // A borrow is never declared, so ask about what it borrows; otherwise
     // `Option<&T>` decodes to nothing and its payload binder goes untyped.
     val inner = ref_key_inner(self.as_str())
-    if inner.as_str().byte_len() > 0 { return inner.frag_names_a_type(ctx) }
+    if inner.byte_len() > 0 { return inner.frag_names_a_type(ctx) }
     return false
 }
 
@@ -116,16 +116,16 @@ fun materialize_method_return_instance(ret: Type, binding: &RecvBinding, method_
         _ => { return }
     }
     val base = mangle_base_name(name.clone())
-    if base.as_str().equals(name.as_str()) { return }
-    val info = unsafe { (*ctx.sigs).find_generic_info(base.as_str(), ctx.owner_crate) } ?: return
+    if base.as_str().equals(name) { return }
+    val info = unsafe { (*ctx.sigs).find_generic_info(base, ctx.owner_crate) } ?: return
     var args = List.new<TypeRef>()
     while param in &info.type_params {
         var found = false
         var j = 0
         while j < binding.names.size() {
-            if binding.names.at(j).as_str().equals(param.as_str()) {
+            if binding.names.at(j).as_str().equals(param) {
                 val ty_name = mangle_type(*binding.types.at(j))
-                args.push(TypeRef.new(span, TypeRefKind.Named(intern(ty_name.as_str()), List.new<TypeRef>())))
+                args.push(TypeRef.new(span, TypeRefKind.Named(intern(ty_name), List.new<TypeRef>())))
                 found = true
                 break
             }
@@ -133,9 +133,9 @@ fun materialize_method_return_instance(ret: Type, binding: &RecvBinding, method_
         }
         j = 0
         while !found && j < method_names.size() {
-            if method_names.at(j).as_str().equals(param.as_str()) {
+            if method_names.at(j).as_str().equals(param) {
                 val ty_name = mangle_type(*method_types.at(j))
-                args.push(TypeRef.new(span, TypeRefKind.Named(intern(ty_name.as_str()), List.new<TypeRef>())))
+                args.push(TypeRef.new(span, TypeRefKind.Named(intern(ty_name), List.new<TypeRef>())))
                 found = true
                 break
             }
@@ -145,7 +145,7 @@ fun materialize_method_return_instance(ret: Type, binding: &RecvBinding, method_
     }
     // Only an instance listing the parameters in the template's order:
     // `Pair<B, A>` from `Pair<A, B>` would get the layout of its transpose.
-    if !monomorphized_type_name(base.clone(), &args).as_str().equals(name.as_str()) { return }
+    if !monomorphized_type_name(base.clone(), &args).as_str().equals(name) { return }
     instantiate_generic_layout(base, &args, name, ctx)
 }
 
@@ -160,28 +160,28 @@ fun materialize_method_return_instance(ret: Type, binding: &RecvBinding, method_
 fun Type.register_substituted_return_row(post: &Type, binding: &RecvBinding, span: Span, ctx: &var TypeCtx): void {
     val pre_name = self.instance_name_of()
     val post_name = post.instance_name_of()
-    if pre_name.as_str().byte_len() == 0 { return }
-    if pre_name.as_str().equals(post_name.as_str()) { return }
+    if pre_name.byte_len() == 0 { return }
+    if pre_name.as_str().equals(post_name) { return }
     if binding.names.size() == 0 { return }
     // Only where the name cannot carry the arguments; otherwise
     // `register_returned_instance` already does better.
-    if !mangled_name_is_ambiguous(post_name.as_str(), ctx) { return }
+    if !mangled_name_is_ambiguous(post_name, ctx) { return }
     val sp = ctx.sigs
-    if unsafe { sp.find_inst(post_name.as_str()) }.is_some() { return }
-    val row = unsafe { sp.find_inst(pre_name.as_str()) } ?: return
+    if unsafe { sp.find_inst(post_name) }.is_some() { return }
+    val row = unsafe { sp.find_inst(pre_name) } ?: return
     var names = List.new<String>()
     var repls = List.new<TypeRef>()
     var i = 0
     while i < binding.names.size() {
         val flat = mangle_type(*binding.types.at(i))
-        if flat.as_str().byte_len() == 0 { return }
+        if flat.byte_len() == 0 { return }
         names.push(*binding.names.at(i))
-        repls.push(TypeRef.new(span, TypeRefKind.Named(intern(flat.as_str()), List.new<TypeRef>())))
+        repls.push(TypeRef.new(span, TypeRefKind.Named(intern(flat), List.new<TypeRef>())))
         i = i + 1
     }
     val args = subst_tref_list(&row.args, &var names, &var repls)
     // Only when the rebuilt name is exactly the substituted one.
-    if !monomorphized_type_name(row.base.clone(), &args).as_str().equals(post_name.as_str()) { return }
+    if !monomorphized_type_name(row.base.clone(), &args).as_str().equals(post_name) { return }
     unsafe { sp.insert_inst(GenericInst { mangled: post_name.clone(), base: row.base.clone(), args: args }) }
 }
 
@@ -200,9 +200,9 @@ pub fun instance_variant_payloads(inst_name: str, variant_name: str, ctx: &var T
     // Decodable names have layouts; only ambiguous ones need a row.
     if !mangled_name_is_ambiguous(inst_name, ctx) { return empty }
     val row = unsafe { (*ctx.sigs).find_inst(inst_name) } ?: return empty
-    val info = unsafe { (*ctx.sigs).find_generic_info(row.base.as_str(), ctx.owner_crate) } ?: return empty
+    val info = unsafe { (*ctx.sigs).find_generic_info(row.base, ctx.owner_crate) } ?: return empty
     if info.type_params.size() != row.args.size() { return empty }
-    val tpl = unsafe { (*ctx.sigs).find_enum(row.base.as_str(), ctx.owner_crate) } ?: return empty
+    val tpl = unsafe { (*ctx.sigs).find_enum(row.base, ctx.owner_crate) } ?: return empty
     while v in &tpl.variants {
         if v.name.as_str().equals(variant_name) {
             var out = List.new<Type>()
@@ -225,9 +225,9 @@ fun mangled_name_is_ambiguous(name: str, ctx: &var TypeCtx): bool {
     val owned = String.from(name)
     val base = mangle_base_name(owned.clone())
     if base.as_str().equals(name) { return false }
-    val info = unsafe { (*ctx.sigs).find_generic_info(base.as_str(), ctx.owner_crate) } ?: return false
+    val info = unsafe { (*ctx.sigs).find_generic_info(base, ctx.owner_crate) } ?: return false
     if info.type_params.size() < 2 { return false }
-    val base_len = base.as_str().byte_len()
+    val base_len = base.byte_len()
     val name_len = name.byte_len()
     if base_len + 2 >= name_len { return false }
     val frags = mangle_segments(mangle_suffix(owned, base_len + 2).as_str())

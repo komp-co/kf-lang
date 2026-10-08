@@ -182,8 +182,8 @@ fun aggregate_glue_drops_list_members(): void {
     val _p = prepare_list_glue_fixture()
     val _b = komp_build(scratch_path("kf_mm3_listglue"), "")
     val source = read_file(scratch_path("kf_mm3_listglue/target/kflat/listglue.c"))
-    assert_eq(box_glue_contains(source.as_str(), "List__listglue__W__glue_drop(v.u.V_Group._0);"), true, "enum drop glue drops the List payload")
-    assert_eq(box_glue_contains(source.as_str(), "List__String__glue_drop(v.kids);"), true, "struct drop glue drops the List field")
+    assert_eq(box_glue_contains(source, "List__listglue__W__glue_drop(v.u.V_Group._0);"), true, "enum drop glue drops the List payload")
+    assert_eq(box_glue_contains(source, "List__String__glue_drop(v.kids);"), true, "struct drop glue drops the List field")
 }
 
 // A lib crate's `pub enum` with a `List<T>` payload: public glue must see the
@@ -267,7 +267,7 @@ fun pub_lib_enum_glue_drops_its_list_payload(): void {
     val _p = prepare_pub_list_enum_fixture()
     val _b = komp_build(scratch_path("kf_mm3_publist_app"), "")
     val source = read_file(scratch_path("kf_mm3_publist_app/target/kflat/tree.c"))
-    assert_eq(box_glue_contains(source.as_str(), "List__tree__Node__glue_drop(v.u.V_Group._0);"), true, "the pub enum's drop glue frees its List payload")
+    assert_eq(box_glue_contains(source, "List__tree__Node__glue_drop(v.u.V_Group._0);"), true, "the pub enum's drop glue frees its List payload")
 }
 
 @test
@@ -275,6 +275,6 @@ fun enum_drop_glue_frees_box_payloads(): void {
     val _p = prepare_box_when_fixture()
     val _b = komp_build(scratch_path("kf_mm3_boxwhen"), "")
     val source = read_file(scratch_path("kf_mm3_boxwhen/target/kflat/boxwhen.c"))
-    assert_eq(box_glue_contains(source.as_str(), "kf_free(v.u.V_Node._0); }"), true, "enum drop glue frees the recursive Box payload")
-    assert_eq(box_glue_contains(source.as_str(), "kf_free(v.u.V_Tag._0); }"), true, "enum drop glue frees the Box<String> payload")
+    assert_eq(box_glue_contains(source, "kf_free(v.u.V_Node._0); }"), true, "enum drop glue frees the recursive Box payload")
+    assert_eq(box_glue_contains(source, "kf_free(v.u.V_Tag._0); }"), true, "enum drop glue frees the Box<String> payload")
 }

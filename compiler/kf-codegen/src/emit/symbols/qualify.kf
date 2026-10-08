@@ -99,7 +99,7 @@ mutating fun TopDecl.qualify_decl(names: &var List<String>, repls: &var List<Typ
 
 mutating fun TopDecl.rename_decl_if_mapped(names: &var List<String>, repls: &var List<TypeRef>): void {
     val hit = rename_lookup(self.name.as_str(), names, repls)
-    if hit.as_str().byte_len() == 0 { return }
+    if hit.byte_len() == 0 { return }
     self.name = intern_string(hit)
 }
 

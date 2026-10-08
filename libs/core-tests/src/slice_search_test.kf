@@ -60,7 +60,7 @@ fun min_is_a_copy_of_the_smallest(): void {
 @test
 fun max_of_an_empty_slice_is_null(): void {
     val xs = odds()
-    assert(xs.as_slice().slice(2..2).max() == null, "nothing to compare")
+    assert(xs.slice(2..2).max() == null, "nothing to compare")
 }
 
 @test

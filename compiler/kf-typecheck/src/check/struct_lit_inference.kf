@@ -24,7 +24,7 @@ mutating fun Expr.infer_struct_type_args(name: str, fields: &var List<FieldInit>
     val layout = template.layout
     var args = List.new<TypeRef>()
     while param in &template.type_params {
-        val bound = layout.bind_from_fields(fields, param.as_str(), ctx) ?: return self.report_unbound(name, param, ctx)
+        val bound = layout.bind_from_fields(fields, param, ctx) ?: return self.report_unbound(name, param, ctx)
         args.push(bound.type_to_type_ref(self.span))
     }
     self.type_args = args

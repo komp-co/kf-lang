@@ -21,7 +21,7 @@ pub struct TypeParam {
 }
 
 pub fun new_type_param(span: Span, name: String): TypeParam {
-    return TypeParam { span: span, name: intern(name.as_str()), bounds: List.new<TypeRef>() }
+    return TypeParam { span: span, name: intern(name), bounds: List.new<TypeRef>() }
 }
 
 @derive(Clone)
@@ -34,7 +34,7 @@ pub struct Param {
 }
 
 pub fun new_param(span: Span, name: String, ty: Ptr<TypeRef>): Param {
-    return Param { span: span, name: intern(name.as_str()), ty: ty, default: null }
+    return Param { span: span, name: intern(name), ty: ty, default: null }
 }
 
 impl Param {
@@ -74,7 +74,7 @@ pub struct Field {
 
 pub fun new_field(span: Span, name: String, ty: Ptr<TypeRef>, is_var: bool, is_pub: bool): Field {
     return Field {
-        span: span, name: intern(name.as_str()), ty: ty, is_var: is_var, is_pub: is_pub, is_internal: false,
+        span: span, name: intern(name), ty: ty, is_var: is_var, is_pub: is_pub, is_internal: false,
         annotations: List.new<Annotation>(), member_loop: null
     }
 }
@@ -88,7 +88,7 @@ pub struct Variant {
 }
 
 pub fun new_variant(span: Span, name: String, payloads: List<TypeRef>): Variant {
-    return Variant { span: span, name: intern(name.as_str()), payloads: payloads, annotations: List.new<Annotation>() }
+    return Variant { span: span, name: intern(name), payloads: payloads, annotations: List.new<Annotation>() }
 }
 
 /// One argument of `@name(...)`: `Clone`, `"string"`, `iterations = 100`.
@@ -198,6 +198,9 @@ pub struct TopDecl {
     pub var is_internal: bool
     /// The member loop the declaration is written in, in a template.
     pub var member_loop: MemberLoop?
+    /// The method a `Deref` or `DerefMut` impl forwards to, as an interface
+    /// records it; read through `deref_view`. Empty otherwise.
+    pub var deref_via: Sym
     /// `Equal` in `template derive(Equal) on struct T`: the name a keyed
     /// template is for. Empty otherwise.
     pub var template_key: Sym
@@ -280,13 +283,13 @@ impl TopDecl {
 
 pub fun new_top_decl(span: Span, name: String, kind: TopDeclKind): TopDecl {
     return TopDecl {
-        span: span, name: intern(name.as_str()), kind: kind, crate: crate_id_poison(),
+        span: span, name: intern(name), kind: kind, crate: crate_id_poison(),
         module_path: intern(""), decl: null, generics: List.new<TypeParam>(),
         annotations: List.new<Annotation>(), from_trait_impl: false, linkage: linkage_source(),
         link_name: intern(""), dyn_layouts: List.new<DynTraitLayout>(),
         dyn_vtables: List.new<DynVTableInstance>(), decl_end: 0, name_span: no_span(), ext_name: intern(""),
         resolves_in: intern(""), is_sealed: false, is_view: false, implemented_lang_trait: intern(""),
-        is_internal: false, member_loop: null, template_key: intern("")
+        is_internal: false, member_loop: null, deref_via: intern(""), template_key: intern("")
     }
 }
 

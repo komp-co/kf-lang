@@ -33,11 +33,11 @@ fun internal_messages(helpers: str, user: str): String {
     val checked = merged.checked_diagnostics(smap, &new_lint_config())
     var out = ""
     while d in &pdiags.items {
-        out.append(d.primary.message.as_str())
+        out.append(d.primary.message)
         out.append("\n")
     }
     while d in &checked {
-        out.append(d.primary.message.as_str())
+        out.append(d.primary.message)
         out.append("\n")
     }
     return out
@@ -54,7 +54,7 @@ fun another_module_of_the_crate_calls_an_internal_function(): void {
 fun a_module_without_an_import_still_cannot_call_it(): void {
     val said = internal_messages("internal fun double(n: int32): int32 { return n * 2 }\n",
         "pub fun quad(n: int32): int32 { return double(n) }\n")
-    val widens = said.as_str().contains("cannot find function `double`")
+    val widens = said.contains("cannot find function `double`")
     assert_eq(widens, true, "`internal` widens the import, not the scope")
 }
 

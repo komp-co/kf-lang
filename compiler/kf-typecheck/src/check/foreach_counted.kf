@@ -90,29 +90,29 @@ pub fun expand_foreach_counted(binder: Sym, binder_at: Span, start: Expr, end: E
 
     val start_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *start_ptr = start }
-    val let_ix = Stmt.new(span, StmtKind.LetVar(intern(ixname.as_str()), null, start_ptr))
+    val let_ix = Stmt.new(span, StmtKind.LetVar(intern(ixname), null, start_ptr))
 
     val end_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *end_ptr = end }
-    val let_end = Stmt.new(span, StmtKind.LetVal(intern(endname.as_str()), null, end_ptr))
+    val let_end = Stmt.new(span, StmtKind.LetVal(intern(endname), null, end_ptr))
 
     // `val name = __forix_N`.
     // CONSTRAINT: its span ends at the loop's first byte. A binding enclosing
     // the cursor stops `query scope` before the binder.
     val head = Span { file_id: span.file_id, start: span.start, end: span.start }
     val cur_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *cur_ptr = Expr.new(head, ExprKind.Variable(intern(ixname.as_str()))) }
+    unsafe { *cur_ptr = Expr.new(head, ExprKind.Variable(intern(ixname))) }
     var let_binder = Stmt.new(head, StmtKind.LetVal(binder, null, cur_ptr))
     let_binder.binder = binder_at
 
     // `__forix_N = __forix_N + 1`
     val bump_lhs: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *bump_lhs = Expr.new(span, ExprKind.Variable(intern(ixname.as_str()))) }
+    unsafe { *bump_lhs = Expr.new(span, ExprKind.Variable(intern(ixname))) }
     val bump_rhs: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *bump_rhs = Expr.new(span, ExprKind.LitInt(1)) }
     val bump_expr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *bump_expr = Expr.new(span, ExprKind.Binary(bump_lhs, BinOp.Add, bump_rhs)) }
-    val bump = Stmt.new(span, StmtKind.Assign(intern(ixname.as_str()), bump_expr))
+    val bump = Stmt.new(span, StmtKind.Assign(intern(ixname), bump_expr))
 
     var while_body = List.new<Stmt>()
     while_body.push(let_binder)
@@ -121,9 +121,9 @@ pub fun expand_foreach_counted(binder: Sym, binder_at: Span, start: Expr, end: E
 
     // `__forix_N < __forend_N`
     val cond_lhs: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *cond_lhs = Expr.new(span, ExprKind.Variable(intern(ixname.as_str()))) }
+    unsafe { *cond_lhs = Expr.new(span, ExprKind.Variable(intern(ixname))) }
     val cond_rhs: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *cond_rhs = Expr.new(span, ExprKind.Variable(intern(endname.as_str()))) }
+    unsafe { *cond_rhs = Expr.new(span, ExprKind.Variable(intern(endname))) }
     val cond: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *cond = Expr.new(span, ExprKind.Binary(cond_lhs, BinOp.Lt, cond_rhs)) }
     val while_stmt = Stmt.new(span, StmtKind.While(cond, while_body))

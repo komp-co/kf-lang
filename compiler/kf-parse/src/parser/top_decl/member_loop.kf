@@ -43,7 +43,7 @@ impl Parser {
         }
         val _open = self.expect_op(Operator.LBrace, "to open the member loop")
         self.loop_ctr = self.loop_ctr + 1
-        self.member_loop = MemberLoop { span: at, binder: intern(binder.as_str()), group: self.loop_ctr }
+        self.member_loop = MemberLoop { span: at, binder: intern(binder), group: self.loop_ctr }
     }
 
     /// At a list's `}`: whether it closes a member loop, consumed, rather

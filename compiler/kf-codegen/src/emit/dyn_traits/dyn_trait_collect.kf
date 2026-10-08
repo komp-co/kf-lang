@@ -36,14 +36,14 @@ fun Module.dyn_layout_is_concrete(layout: &DynTraitLayout): bool {
 /// unsubstituted type parameter.
 fun Module.dyn_arg_names_a_real_type(t: Type): bool {
     val name = t.mangle_frag()
-    if is_runtime_type_name(name.as_str()) { return true }
+    if is_runtime_type_name(name) { return true }
     val list_name = self.lang_type_name(lang_list_key())
     val option_name = self.lang_type_name(lang_option_key())
-    if is_container_type_name(name.as_str(), list_name, option_name) { return true }
+    if is_container_type_name(name, list_name, option_name) { return true }
     // A mangled instance (`List__int32`) is real whether or not it is declared.
-    if is_mangled_decl_name(name.as_str()) { return true }
+    if is_mangled_decl_name(name) { return true }
     while decl in &self.decls {
-        if decl.name.as_str().equals(name.as_str()) { return true }
+        if decl.name.as_str().equals(name) { return true }
     }
     return false
 }
@@ -184,8 +184,8 @@ fun codegen_dyn_vtable_has(tables: &List<DynVTableInstance>, layout: Sym, receiv
     val want_layout = layout.dyn_codegen_identity()
     val want_recv = receiver.dyn_codegen_identity()
     while table in &tables {
-        if table.layout.dyn_codegen_identity().as_str().equals(want_layout.as_str()) {
-            if table.receiver_identity.dyn_codegen_identity().as_str().equals(want_recv.as_str()) { return true }
+        if table.layout.dyn_codegen_identity().as_str().equals(want_layout) {
+            if table.receiver_identity.dyn_codegen_identity().as_str().equals(want_recv) { return true }
         }
     }
     return false

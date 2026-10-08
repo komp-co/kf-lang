@@ -136,7 +136,7 @@ fun TypeParam.check_bounds_name_traits(table: &SigTable, diags: &var List<Diagno
         val trait_name = bound.bare_name()
         if trait_name.as_str().equals("") {
             diags.push(error_at(bound.span, "an annotation's bound names a trait without type arguments"))
-        } else if table.find_trait(trait_name.as_str()) == null {
+        } else if table.find_trait(trait_name) == null {
             diags.push(error_at(bound.span, "cannot find trait `${trait_name.as_str()}` for this bound"))
         }
     }

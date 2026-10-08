@@ -38,21 +38,21 @@ fun mk_fn_no_params(name: str, ret: str): TopDecl {
 @test fun main_uses_platform_signature(): void {
     val td = mk_fn_no_params("main", "int32")
     val out = emit_fn(td, &no_arm_payloads())
-    val have = out.as_str().contains("int main(int argc, char** argv)")
+    val have = out.contains("int main(int argc, char** argv)")
     assert_eq(have, true, "main uses platform sig")
 }
 
 @test fun main_initializes_the_shared_runtime(): void {
     val td = mk_fn_no_params("main", "int32")
     val out = emit_fn(td, &no_arm_payloads())
-    val have = out.as_str().contains("kf_arg_init(argc, argv)")
+    val have = out.contains("kf_arg_init(argc, argv)")
     assert_eq(have, true, "main initializes runtime arguments")
 }
 
 @test fun non_main_uses_lowered_sig(): void {
     val td = mk_fn_no_params("greet", "void")
     val out = emit_fn(td, &no_arm_payloads())
-    val have = out.as_str().contains("void greet(void) {")
+    val have = out.contains("void greet(void) {")
     assert_eq(have, true, "non-main keeps lowered sig")
 }
 

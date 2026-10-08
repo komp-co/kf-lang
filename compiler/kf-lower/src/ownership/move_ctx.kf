@@ -21,7 +21,7 @@ fun span_is_in_a_dependency(span: Span, ctx: &var MoveCtx): bool {
     if root.byte_len() == 0 { return false }
     val path = unsafe { (*ctx.smap).file_path_of(span.file_id) }
     if path.as_str().equals("") { return false }
-    return !path.as_str().starts_with(root)
+    return !path.starts_with(root)
 }
 
 /// Per-function move-check state, in parallel lists.

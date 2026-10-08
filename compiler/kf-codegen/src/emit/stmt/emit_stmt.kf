@@ -173,7 +173,7 @@ mutating fun LocalEnv.emit_break(indent: uint64): String {
 fun emit_switch(sp: Ptr<Expr>, arms: &List<SwitchArm>, indent: uint64, env: &var LocalEnv): String {
     val subj = unsafe { *sp }
     val ename = when_subject_enum_name(subj.ty)
-    val enl = ename.as_str().byte_len()
+    val enl = ename.byte_len()
     // Enums arrive as Struct(name), so variant-tagged arms are what identify
     // an enum match.
     val is_enum = enl > 0 && arms_have_variant(arms)
@@ -272,7 +272,7 @@ fun emit_enum_arm(a: &SwitchArm, ename: String, through_ref: bool, by_address: b
                     // Records the binder's release function, since the C type
                     // is only known to C. A reference owns nothing.
                     var rel = String.from("")
-                    if !by_ref { rel = env.payload_release(ename.as_str(), name.as_str(), bi) }
+                    if !by_ref { rel = env.payload_release(ename, name, bi) }
                     env.env_bind(b.as_string(), rel)
                 }
             }
@@ -414,7 +414,7 @@ fun emit_let(name: String, ty_p: Ptr<TypeRef>?, init_p: Ptr<Expr>?, indent: uint
     parts.push(emit_indent(indent))
     parts.push(ct.clone())
     parts.push(String.from(" "))
-    parts.push(c_local_name(name.as_str()))
+    parts.push(c_local_name(name))
     parts.push(String.from(" = "))
     val init = unsafe { *ip }
     // A `void` initializer is still called for its effects, yielding the
@@ -448,7 +448,7 @@ fun emit_uninitialized_let(name: String, ty_p: Ptr<TypeRef>, indent: uint64, env
     parts.push(emit_indent(indent))
     parts.push(ct)
     parts.push(String.from(" "))
-    parts.push(c_local_name(name.as_str()))
+    parts.push(c_local_name(name))
     parts.push(String.from(" = {0};\n"))
     return concat_all(parts)
 }
@@ -499,7 +499,7 @@ fun emit_assign_to(pp: Ptr<Expr>, vp: Ptr<Expr>, indent: uint64): String {
 fun emit_assign(name: String, vp: Ptr<Expr>, indent: uint64): String {
     var parts = List.new<String>()
     parts.push(emit_indent(indent))
-    parts.push(c_local_name(name.as_str()))
+    parts.push(c_local_name(name))
     parts.push(String.from(" = "))
     val v = unsafe { *vp }
     parts.push(v.emit_expr())
@@ -548,31 +548,31 @@ fun emit_box_release(rel: String, name: String, indent: uint64): String {
     val innerdrop = rs.substring(7, n) // after "__BOX__"
     var parts = List.new<String>()
     parts.push(emit_indent(indent))
-    val has_inner = innerdrop.as_str().byte_len() > 0
+    val has_inner = innerdrop.byte_len() > 0
     if has_inner {
         parts.push(innerdrop.clone())
         parts.push(String.from("((*"))
-        parts.push(c_local_name(name.as_str()))
+        parts.push(c_local_name(name))
         parts.push(String.from(")); "))
     }
     parts.push(String.from("kf_free("))
-    parts.push(c_local_name(name.as_str()))
+    parts.push(c_local_name(name))
     parts.push(String.from(");\n"))
     return concat_all(parts)
 }
 
 fun emit_release(name: String, indent: uint64, env: &var LocalEnv): String {
     val rel = env.env_release_fn(name.clone())
-    if rel.as_str().starts_with("__BOX__") {
+    if rel.starts_with("__BOX__") {
         return emit_box_release(rel, name, indent)
     }
-    val rl = rel.as_str().byte_len()
+    val rl = rel.byte_len()
     if rl == 0 { return "" }
     var parts = List.new<String>()
     parts.push(emit_indent(indent))
     parts.push(rel.clone())
     parts.push(String.from("("))
-    parts.push(c_local_name(name.as_str()))
+    parts.push(c_local_name(name))
     parts.push(String.from(");\n"))
     return concat_all(parts)
 }

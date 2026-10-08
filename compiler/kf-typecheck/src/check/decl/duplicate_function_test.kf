@@ -41,7 +41,7 @@ fun dupfn_reported(decls: List<TopDecl>, needle: str): bool {
     resolve_module(&var module, &var declarations)
     val diagnostics = module.typecheck_module(&var declarations)
     while diagnostic in &diagnostics {
-        if (diagnostic.primary.message.as_str()).contains(needle) { return true }
+        if (diagnostic.primary.message).contains(needle) { return true }
     }
     return false
 }

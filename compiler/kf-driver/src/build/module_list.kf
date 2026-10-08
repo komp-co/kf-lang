@@ -25,7 +25,7 @@ pub fun report_parse_errors(pdiags: &var Diagnostics, smap: Ptr<SourceMap>, json
             d.print_json_diag(smap)
         } else {
             val text = render(d, smap)
-            runtime_println(text.as_str())
+            runtime_println(text)
         }
         n = n + 1
         i = i + 1

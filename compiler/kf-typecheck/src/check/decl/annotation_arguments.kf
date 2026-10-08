@@ -62,7 +62,7 @@ fun TypeRef.param_kind(table: &SigTable, crate: CrateId): ParamKind {
         _ => {
             if name.as_str().equals("") { return ParamKind.Unsupported }
             if name.as_str() == table.lang_string.as_str() { return ParamKind.Text }
-            if table.is_plain_enum(name.as_str(), crate) { ParamKind.Enum } else { ParamKind.Unsupported }
+            if table.is_plain_enum(name, crate) { ParamKind.Enum } else { ParamKind.Unsupported }
         }
     }
 }
@@ -299,7 +299,7 @@ fun Expr.names_variant_of(ty: &TypeRef, table: &SigTable, crate: CrateId): bool 
         }
         _ => String.from("")
     }
-    val layout = table.find_enum(enum_name.as_str(), crate) ?: return false
+    val layout = table.find_enum(enum_name, crate) ?: return false
     while known in &layout.variants {
         if known.name.as_str() == variant.as_str() { return true }
     }

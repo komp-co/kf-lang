@@ -45,7 +45,7 @@ impl SigTable {
         while ti in &self.trait_impls {
             if ti.type_name.as_str().equals(type_base) {
                 if ti.trait_name.as_str().equals(trait_name) {
-                    if trait_args_satisfy(trait_args, ti.trait_args.as_str(), ti.generics.as_str(), ti.arg_count, &List.new<String>()) {
+                    if trait_args_satisfy(trait_args, ti.trait_args, ti.generics, ti.arg_count, &List.new<String>()) {
                         return true
                     }
                 }
@@ -55,7 +55,7 @@ impl SigTable {
         // register under the display name; asked once more with it.
         if identity_is_canonical(type_base) {
             val bare = identity_display_of(type_base)
-            return self.type_implements(bare.as_str(), trait_name, trait_args)
+            return self.type_implements(bare, trait_name, trait_args)
         }
         return false
     }
@@ -76,7 +76,7 @@ impl SigTable {
         }
         if identity_is_canonical(type_base) {
             val bare = identity_display_of(type_base)
-            return self.type_implements_any(bare.as_str(), trait_name)
+            return self.type_implements_any(bare, trait_name)
         }
         return false
     }
@@ -85,7 +85,7 @@ impl SigTable {
         while ti in &self.trait_impls {
             if ti.receiver_identity.id == receiver.id {
                 if ti.trait_name.as_str().equals(trait_name) {
-                    if trait_args_satisfy(trait_args, ti.trait_args.as_str(), ti.generics.as_str(), ti.arg_count, &List.new<String>()) { return true }
+                    if trait_args_satisfy(trait_args, ti.trait_args, ti.generics, ti.arg_count, &List.new<String>()) { return true }
                 }
             }
         }

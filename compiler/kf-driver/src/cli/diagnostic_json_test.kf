@@ -30,16 +30,16 @@ fun a_diagnostic_with_a_repair_serializes_it(): void {
     val where = Span { file_id: file_id, start: 2, end: 6 }
     val diag = with_fix(error_at(where, String.from("no method")), where, String.from("sum"), String.from("change to `sum`"))
     val json = diag.render_json_diag(smap)
-    assert_eq(json.as_str().contains("\"fix\":{\"title\":\"change to `sum`\""), true, "the title a menu shows")
-    assert_eq(json.as_str().contains("\"replacement\":\"sum\""), true, "what to write")
-    assert_eq(json.as_str().contains("\"byte_start\":2,\"byte_end\":6"), true, "and exactly where")
+    assert_eq(json.contains("\"fix\":{\"title\":\"change to `sum`\""), true, "the title a menu shows")
+    assert_eq(json.contains("\"replacement\":\"sum\""), true, "what to write")
+    assert_eq(json.contains("\"byte_start\":2,\"byte_end\":6"), true, "and exactly where")
 }
 
 @test
 fun the_json_names_the_lint_that_fired(): void {
     val d = lint_at("unused_import", no_span(), String.from("unused import `x`"))
     val json = d.render_json_diag(fresh_source_map())
-    assert_eq(json.as_str().contains("\"code\":\"unused_import\""), true,
+    assert_eq(json.contains("\"code\":\"unused_import\""), true,
         "a client filters and suppresses on this")
 }
 
@@ -79,5 +79,5 @@ fun the_json_says_null_for_an_ordinary_error(): void {
     // Null, not an empty string.
     val d = error_at(no_span(), String.from("something is wrong"))
     val json = d.render_json_diag(fresh_source_map())
-    assert_eq(json.as_str().contains("\"code\":null"), true, "no lint produced it")
+    assert_eq(json.contains("\"code\":null"), true, "no lint produced it")
 }

@@ -42,7 +42,7 @@ impl Parser {
             unsafe { self.advance() } // consume `for`
             val written_args = trait_args.clone()
             val trait_ref_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-            unsafe { *trait_ref_ptr = TypeRef.new(first_at, TypeRefKind.Named(intern(first.as_str()), trait_args)) }
+            unsafe { *trait_ref_ptr = TypeRef.new(first_at, TypeRefKind.Named(intern(first), trait_args)) }
             val target = self.expect_name("impl target")
             val target_at = unsafe { self.peek().span }
             unsafe { self.advance() }
@@ -62,7 +62,7 @@ impl Parser {
             // The impl's generics are the target's parameters.
             val trait_args = type_params_to_refs(first_tps)
             val trait_ref_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-            unsafe { *trait_ref_ptr = TypeRef.new(first_at, TypeRefKind.Named(intern(first.as_str()), trait_args)) }
+            unsafe { *trait_ref_ptr = TypeRef.new(first_at, TypeRefKind.Named(intern(first), trait_args)) }
             val target = self.expect_name("impl target")
             val target_at = unsafe { self.peek().span }
             unsafe { self.advance() }

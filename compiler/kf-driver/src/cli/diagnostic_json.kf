@@ -14,16 +14,16 @@ pub fun Diagnostic.render_json_diag(smap: Ptr<SourceMap>): String {
     writer.field_string("severity", json_severity(self.severity))
     // The lint, or null; clients filter and suppress on it.
     if diag_is_lint(self) {
-        writer.field_string("code", self.code.as_str())
+        writer.field_string("code", self.code)
     } else {
         writer.field_null("code")
     }
-    writer.field_string("message", self.primary.message.as_str())
+    writer.field_string("message", self.primary.message)
     writer.field_uint32("byte_start", self.primary.span.start)
     writer.field_uint32("byte_end", self.primary.span.end)
     when (unsafe { smap.span_to_location(self.primary.span) }) {
         Some(location) => {
-            writer.field_string("file", location.file_path.as_str())
+            writer.field_string("file", location.file_path)
             writer.field_uint32("line", location.line)
             writer.field_uint32("column", location.col)
         }
@@ -55,12 +55,12 @@ fun Diagnostic.render_secondary_labels(smap: Ptr<SourceMap>): String {
 
 fun Label.render_label(smap: Ptr<SourceMap>): String {
     var w = JsonWriter.object()
-    w.field_string("message", self.message.as_str())
+    w.field_string("message", self.message)
     w.field_uint32("byte_start", self.span.start)
     w.field_uint32("byte_end", self.span.end)
     when (unsafe { smap.span_to_location(self.span) }) {
         Some(location) => {
-            w.field_string("file", location.file_path.as_str())
+            w.field_string("file", location.file_path)
             w.field_uint32("line", location.line)
             w.field_uint32("column", location.col)
         }
@@ -77,13 +77,13 @@ fun Label.render_label(smap: Ptr<SourceMap>): String {
 /// The exact bytes to overwrite; a fix names its own file.
 fun Fix.render_fix(smap: Ptr<SourceMap>): String {
     var w = JsonWriter.object()
-    w.field_string("title", self.title.as_str())
-    w.field_string("replacement", self.replacement.as_str())
+    w.field_string("title", self.title)
+    w.field_string("replacement", self.replacement)
     w.field_string("applicability", json_applicability(self.applicability))
     w.field_uint32("byte_start", self.span.start)
     w.field_uint32("byte_end", self.span.end)
     when (unsafe { smap.span_to_location(self.span) }) {
-        Some(location) => w.field_string("file", location.file_path.as_str())
+        Some(location) => w.field_string("file", location.file_path)
         None => w.field_null("file")
     }
     return w.finish()
@@ -91,7 +91,7 @@ fun Fix.render_fix(smap: Ptr<SourceMap>): String {
 
 pub fun Diagnostic.print_json_diag(smap: Ptr<SourceMap>): void {
     val line = self.render_json_diag(smap)
-    runtime_println(line.as_str())
+    runtime_println(line)
 }
 
 /// Only `machine-applicable` may be written unattended.

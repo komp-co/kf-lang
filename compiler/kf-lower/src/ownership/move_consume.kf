@@ -22,7 +22,7 @@ mutating fun Expr.check_consumed_arg(callee: String, idx: uint64, ctx: &var Move
     if !pl.found {
         // Lambda call methods are synthesized after the table is built; their
         // non-borrow arguments are by value.
-        if callee.as_str().contains("Lambda_") {
+        if callee.contains("Lambda_") {
             self.mark_auto_clone(callee, idx, ctx)
         }
         return

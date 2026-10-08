@@ -102,7 +102,7 @@ mutating fun Expr.name_constant(name: Sym, ctx: &var TypeCtx): bool {
     note_import_use_named(ctx.sigs, ctx.owner_file, sig.owner_module, name)
     self.kind = value.kind
     self.ty = value.ty
-    self.constant = intern(sig.name.as_str())
+    self.constant = intern(sig.name)
     return true
 }
 

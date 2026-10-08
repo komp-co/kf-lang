@@ -19,7 +19,7 @@ pub fun run(cmd: str, args: List<str>): int32 {
 
 fun range_build_and_run(src: str, exe: str): int32 {
     val c = compile_source(src)
-    write_file(scratch_path("komp_for.c"), c.as_str())
+    write_file(scratch_path("komp_for.c"), c)
     var gargs = List.new<str>()
     gargs.push(scratch_path("komp_for.c"))
     gargs.push("-o")

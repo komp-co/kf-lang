@@ -87,7 +87,7 @@ fun TopDecl.fits_signature(kind: str, declared: &DeclaredAnnotation, owner: &Met
         while trait_bound in &param.bounds {
             val trait_name = trait_bound.bare_name()
             val type_name = ty.kind.trait_impl_owner_name()
-            if !table.type_implements(type_name.as_str(), trait_name.as_str(), "") {
+            if !table.type_implements(type_name, trait_name, "") {
                 val stands = "to stand for `${param.name.as_str()}` in `@${kind}`"
                 diags.push(error_at(at, "`${type_name.as_str()}` must implement `${trait_name.as_str()}` ${stands}"))
                 fits = false

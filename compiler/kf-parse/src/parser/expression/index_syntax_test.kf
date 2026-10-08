@@ -57,7 +57,7 @@ fun index_accessor(src: str): String {
 
 @test fun an_unclosed_subscript_is_reported(): void {
     val m = index_msg("fun f(): int32 {\nreturn xs[0\n}")
-    assert_eq(m.as_str().contains("to close the index"), true, "the `]` is named")
+    assert_eq(m.contains("to close the index"), true, "the `]` is named")
 }
 
 // Which accessor a store borrows through is typecheck's call.

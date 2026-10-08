@@ -74,60 +74,60 @@ fun codegen_dyn_module(): Module {
 @test fun dyn_trait_codegen_emits_forward_declarations(): void {
     val module = codegen_dyn_module()
     val output = module.emit_dyn_forward_decls()
-    assert_eq(output.as_str().contains("typedef struct DynVTable__Display DynVTable__Display;") && output.as_str().contains("typedef struct Dyn__Display Dyn__Display;"), true, "dynamic wrapper types are forward-declared")
+    assert_eq(output.contains("typedef struct DynVTable__Display DynVTable__Display;") && output.contains("typedef struct Dyn__Display Dyn__Display;"), true, "dynamic wrapper types are forward-declared")
 }
 
 @test fun dyn_trait_codegen_emits_vtable_layout_in_slot_order(): void {
     val module = codegen_dyn_module()
     val output = module.emit_dyn_layouts()
-    val display = dyn_text_find(output.as_str(), "String (*display)(void *data)")
-    val compare = dyn_text_find(output.as_str(), "bool (*compare)(void *data, int32_t arg0)")
-    assert_eq(compare > display && display < output.as_str().byte_len(), true, "vtable fields follow declaration order")
+    val display = dyn_text_find(output, "String (*display)(void *data)")
+    val compare = dyn_text_find(output, "bool (*compare)(void *data, int32_t arg0)")
+    assert_eq(compare > display && display < output.byte_len(), true, "vtable fields follow declaration order")
 }
 
 @test fun dyn_trait_codegen_emits_fat_wrapper_layout(): void {
     val module = codegen_dyn_module()
     val output = module.emit_dyn_layouts()
-    assert_eq(output.as_str().contains("void *data;") && output.as_str().contains("const DynVTable__Display *vtable;"), true, "dynamic wrapper stores data and vtable pointers")
+    assert_eq(output.contains("void *data;") && output.contains("const DynVTable__Display *vtable;"), true, "dynamic wrapper stores data and vtable pointers")
 }
 
 @test fun dyn_trait_codegen_emits_trivial_wrapper_clone(): void {
     val module = codegen_dyn_module()
     val output = module.emit_dyn_layouts()
-    assert_eq(output.as_str().contains("Dyn__Display__glue_clone(Dyn__Display value) { return value; }"), true, "borrowed dynamic wrappers clone by copying two pointers")
+    assert_eq(output.contains("Dyn__Display__glue_clone(Dyn__Display value) { return value; }"), true, "borrowed dynamic wrappers clone by copying two pointers")
 }
 
 @test fun dyn_trait_codegen_emits_concrete_adapter_cast(): void {
     val module = codegen_dyn_module()
     val output = module.emit_dyn_adapters()
-    assert_eq(output.as_str().contains("Point_display__Display((Point *)data)"), true, "adapter casts erased data to its concrete receiver")
+    assert_eq(output.contains("Point_display__Display((Point *)data)"), true, "adapter casts erased data to its concrete receiver")
 }
 
 // The recorded symbol is used as-is.
 @test fun dyn_trait_codegen_forwards_to_the_recorded_symbol(): void {
     val module = codegen_dyn_module()
     val output = module.emit_dyn_adapters()
-    assert_eq(output.as_str().contains("Point_compare__Display((Point *)data"), true, "the adapter target is read from the table, not reconstructed")
+    assert_eq(output.contains("Point_compare__Display((Point *)data"), true, "the adapter target is read from the table, not reconstructed")
 }
 
 @test fun dyn_trait_codegen_emits_vtable_initializer_order(): void {
     val module = codegen_dyn_module()
     val output = module.emit_dyn_vtables()
-    val display = dyn_text_find(output.as_str(), ".display = DynAdapter__Point__Display__display")
-    val compare = dyn_text_find(output.as_str(), ".compare = DynAdapter__Point__Display__compare")
-    assert_eq(compare > display && display < output.as_str().byte_len(), true, "vtable initializer follows slot order")
+    val display = dyn_text_find(output, ".display = DynAdapter__Point__Display__display")
+    val compare = dyn_text_find(output, ".compare = DynAdapter__Point__Display__compare")
+    assert_eq(compare > display && display < output.byte_len(), true, "vtable initializer follows slot order")
 }
 
 @test fun dyn_trait_codegen_exports_non_generic_vtable(): void {
     val module = codegen_dyn_module()
     val output = module.emit_dyn_vtables()
-    assert_eq(output.as_str().contains("const DynVTable__Display DynVTableInstance__Point__Display") && !output.as_str().contains("static const DynVTable__Display"), true, "implementation-owned vtables have external linkage")
+    assert_eq(output.contains("const DynVTable__Display DynVTableInstance__Point__Display") && !output.contains("static const DynVTable__Display"), true, "implementation-owned vtables have external linkage")
 }
 
 @test fun dyn_trait_codegen_declares_exported_vtable(): void {
     val module = codegen_dyn_module()
     val output = module.emit_owned_dyn_vtable_declarations()
-    assert_eq(output.as_str().contains("extern const DynVTable__Display DynVTableInstance__Point__Display;"), true, "implementation headers declare exported vtables")
+    assert_eq(output.contains("extern const DynVTable__Display DynVTableInstance__Point__Display;"), true, "implementation headers declare exported vtables")
 }
 
 @test fun dyn_trait_codegen_records_exported_vtable_symbol(): void {
@@ -139,7 +139,7 @@ fun codegen_dyn_module(): Module {
 @test fun dyn_trait_codegen_emits_by_value_dispatch_helper(): void {
     val module = codegen_dyn_module()
     val output = emit_dyn_dispatch_helpers(&module)
-    assert_eq(output.as_str().contains("Dyn__Display__display(Dyn__Display self)") && output.as_str().contains("self.vtable->display(self.data)"), true, "dispatch helper receives the fat object once by value")
+    assert_eq(output.contains("Dyn__Display__display(Dyn__Display self)") && output.contains("self.vtable->display(self.data)"), true, "dispatch helper receives the fat object once by value")
 }
 
 @test fun dyn_trait_codegen_renders_reference_as_fat_value(): void {
@@ -156,7 +156,7 @@ fun codegen_dyn_module(): Module {
     var coercion = Expr.new(no_span(), ExprKind.DynCoerce(source_ptr, intern("DynVTableInstance__Point__Display")))
     coercion.ty = codegen_dyn_ref()
     val output = coercion.emit_expr()
-    assert_eq(output.as_str().contains("(Dyn__Display){") && output.as_str().contains(".data = (void *)((&__point))") && output.as_str().contains(".vtable = &DynVTableInstance__Point__Display"), true, "coercion emits a fat-reference literal")
+    assert_eq(output.contains("(Dyn__Display){") && output.contains(".data = (void *)((&__point))") && output.contains(".vtable = &DynVTableInstance__Point__Display"), true, "coercion emits a fat-reference literal")
 }
 
 @test fun dyn_trait_codegen_emits_indirect_call_helper(): void {
@@ -193,7 +193,7 @@ fun unselected_trait_decl_module(layout_identity: str, args: List<Type>): Module
     args.push(Type.new_int32(no_span()))
     val module = unselected_trait_decl_module("Iterator__int32", args)
     val output = module.emit_dyn_layouts()
-    assert_eq(output.as_str().contains("struct DynVTable__Iterator__int32 {"), false, "an instantiated layout is materialized per consumer, so nothing outside can be relying on it")
+    assert_eq(output.contains("struct DynVTable__Iterator__int32 {"), false, "an instantiated layout is materialized per consumer, so nothing outside can be relying on it")
 }
 
 // An argument-less trait's layout is its crate's published ABI, so it is
@@ -201,7 +201,7 @@ fun unselected_trait_decl_module(layout_identity: str, args: List<Type>): Module
 @test fun an_unselected_plain_trait_layout_is_still_published(): void {
     val module = unselected_trait_decl_module("Iterator", List.new<Type>())
     val output = module.emit_dyn_layouts()
-    assert_eq(output.as_str().contains("struct DynVTable__Iterator {"), true, "a trait's own crate publishes its layout whether or not it dispatches")
+    assert_eq(output.contains("struct DynVTable__Iterator {"), true, "a trait's own crate publishes its layout whether or not it dispatches")
 }
 
 /// A vtable supplied by another crate's impl, with that declaration's

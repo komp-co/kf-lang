@@ -43,7 +43,7 @@ pub fun load_corpus(dir: str): List<Fixture> {
         val read = read_to_string("${dir}/${name}".as_str())
         if read.is_err() { continue }
         val text = read.unwrap()
-        fixtures.push(Fixture { name: name.clone(), deps: deps_of(text.as_str()), source: text })
+        fixtures.push(Fixture { name: name.clone(), deps: deps_of(text), source: text })
     }
     return fixtures
 }

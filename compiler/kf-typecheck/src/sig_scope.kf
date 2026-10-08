@@ -3,6 +3,7 @@
 import alloc.list.*
 
 import kf_core.ast.*
+import kf_core.ast.Module
 import kf_core.ast.declaration.DeclId
 import kf_resolve.DeclTable
 import kf_typecheck.types.runtime_prelude_declares
@@ -45,9 +46,25 @@ impl SigTable {
     }
 }
 
-/// A signature table that reads `decls`, which must outlive it.
-pub fun sig_table_over(decls: &var DeclTable): SigTable {
+/// A signature table that reads `decls`, which must outlive it, knowing
+/// what each of `m`'s `Deref` impls forwards to.
+pub fun sig_table_over(decls: &var DeclTable, m: &Module): SigTable {
     var sigs = new_sig_table()
     sigs.decls = decls
+    while td in &m.decls {
+        val view = td.deref_view()
+        if view.as_str() == "" { continue }
+        when (td.kind) {
+            TraitImpl(trait_ref, _methods) => {
+                when (trait_ref.kind) {
+                    Named(trait_name, _args) => {
+                        sigs.deref_views.insert("${trait_name.as_str()} ${td.name.as_str()}", view)
+                    }
+                    _ => { }
+                }
+            }
+            _ => { }
+        }
+    }
     return sigs
 }

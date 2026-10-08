@@ -76,9 +76,9 @@ fun check_expr_kind(e: &var Expr, ctx: &var TypeCtx): void {
                 val lhs_open = checked_lhs.operand_takes_other_type(ctx)
                 val rhs_open = checked_rhs.operand_takes_other_type(ctx)
                 if lhs_open && !rhs_open {
-                    apply_expected(unsafe { &var *lhs_ptr }, checked_rhs.ty.clone(), ctx)
+                    apply_operand_type(unsafe { &var *lhs_ptr }, checked_rhs.ty.clone(), ctx)
                 } else if !lhs_open || !rhs_open {
-                    apply_expected(unsafe { &var *rhs_ptr }, checked_lhs.ty.clone(), ctx)
+                    apply_operand_type(unsafe { &var *rhs_ptr }, checked_lhs.ty.clone(), ctx)
                 }
             }
             e.ty = op.check_binary_operands(lhs_ptr, rhs_ptr, e.span, ctx)
@@ -126,11 +126,11 @@ fun check_expr_kind(e: &var Expr, ctx: &var TypeCtx): void {
                 e.ty = check_call(callee_name.as_string(), args, e.type_args, e.span, e.decl, ctx)
                 if ctx.qualified_callee.byte_len() > 0 {
                     val kept = args.clone()
-                    e.kind = ExprKind.Call(intern(ctx.qualified_callee.as_str()), kept)
+                    e.kind = ExprKind.Call(intern(ctx.qualified_callee), kept)
                     ctx.qualified_callee = String.from("")
                 }
                 if ctx.pinned_callee.byte_len() > 0 {
-                    e.mangled_callee = intern(ctx.pinned_callee.as_str())
+                    e.mangled_callee = intern(ctx.pinned_callee)
                     ctx.pinned_callee = String.from("")
                 }
             }
@@ -176,9 +176,9 @@ fun check_expr_kind(e: &var Expr, ctx: &var TypeCtx): void {
             if n_targs > 0 || struct_name.as_str().equals("Self") {
                 e.ty = e.check_generic_struct_lit(struct_name, &var fields, false, ctx)
             } else {
-                val inferred = e.infer_struct_type_args(struct_name.as_str(), &var fields, ctx)
+                val inferred = e.infer_struct_type_args(struct_name, &var fields, ctx)
                 if inferred == null {
-                    e.ty = check_struct_lit(struct_name.as_str(), &var fields, e.span, false, ctx)
+                    e.ty = check_struct_lit(struct_name, &var fields, e.span, false, ctx)
                 } else if inferred == Option.Some(true) {
                     e.ty = e.check_generic_struct_lit(struct_name, &var fields, true, ctx)
                 } else {
@@ -403,7 +403,7 @@ fun operator_type_implements(ty: Type, trait_name: str, ctx: &var TypeCtx): bool
     }
     val base = ty.ty_base_name()
     if base.as_str().equals("") { return false }
-    return unsafe { (*ctx.sigs).type_implements(base.as_str(), trait_name, "") }
+    return unsafe { (*ctx.sigs).type_implements(base, trait_name, "") }
 }
 
 fun comparison_op(lhs: &Expr, rhs: &Expr, span: Span, ctx: &var TypeCtx): Type {
@@ -496,6 +496,6 @@ fun Type.type_is_enum_layout(ctx: &var TypeCtx): bool {
     if tag != TAG_STRUCT() { return false }
     val sp = ctx.sigs
     val name = self.kind.struct_name()
-    if unsafe { sp.find_struct(name.as_str(), ctx.owner_crate) }.is_some() { return false }
-    return unsafe { sp.find_enum(name.as_str(), ctx.owner_crate) }.is_some()
+    if unsafe { sp.find_struct(name, ctx.owner_crate) }.is_some() { return false }
+    return unsafe { sp.find_enum(name, ctx.owner_crate) }.is_some()
 }

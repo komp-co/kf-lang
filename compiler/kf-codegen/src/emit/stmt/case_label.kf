@@ -13,7 +13,7 @@ import kf_codegen.concat_all
 pub fun SwitchTag.case_labels(ename: str): String {
     return when (self) {
         Variant(name) => {
-            val label = if ename.byte_len() > 0 { enum_tag_const(ename, name.as_str()) } else { name.clone() }
+            val label = if ename.byte_len() > 0 { enum_tag_const(ename, name) } else { name.clone() }
             "case ${label}: "
         }
         IntLit(n) => "case ${emit_case_value(n)}: "

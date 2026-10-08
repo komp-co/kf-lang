@@ -180,7 +180,7 @@ fun Expr.name_expr(found: &var List<NameSpan>): void {
         StructLit(_name, fields) => {
             val owner = self.ty.type_base_name()
             while field in &fields {
-                found.push(member_name(field.span, "field", owner.as_str(), field.name.as_str(), false))
+                found.push(member_name(field.span, "field", owner, field.name.as_str(), false))
                 name_expr_ptr(field.value, found)
             }
         }

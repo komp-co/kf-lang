@@ -30,6 +30,6 @@ pub fun compile_unity_crates(crates: &List<CrateSource>, is_bin: bool, with_test
     var merged = merge_module_list(modules)
     val generated = merged.run_pipeline(is_bin || with_tests || entry_file.byte_len() > 0, &var errors, smap)
     val error_count = errors.error_count()
-    if error_count == 0 && !publish_text(out, generated.as_str()) { return 1 }
+    if error_count == 0 && !publish_text(out, generated) { return 1 }
     return error_count
 }

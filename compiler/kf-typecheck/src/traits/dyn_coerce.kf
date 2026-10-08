@@ -56,7 +56,7 @@ pub fun Type.could_dyn_coerce(expected: &Type, ctx: &var TypeCtx): bool {
     }
     val trait_info = unsafe { (*ctx.sigs).find_trait_identity(dyn_trait_name(&dynamic_type)) } ?: return false
     val trait_args = dynamic_type.dyn_trait_args_key()
-    return unsafe { (*ctx.sigs).identity_implements(concrete.dyn_receiver_identity(), trait_info.name.as_str(), trait_args.as_str()) }
+    return unsafe { (*ctx.sigs).identity_implements(concrete.dyn_receiver_identity(), trait_info.name, trait_args) }
 }
 
 pub fun try_dyn_coerce(e: &var Expr, expected: Type, ctx: &var TypeCtx): bool {
@@ -73,7 +73,7 @@ pub fun try_dyn_coerce(e: &var Expr, expected: Type, ctx: &var TypeCtx): bool {
     val trait_info = unsafe { (*ctx.sigs).find_trait_identity(dyn_trait_name(&dynamic_type)) } ?: return false
     val trait_args = dynamic_type.dyn_trait_args_key()
     val receiver_identity = source.concrete.dyn_receiver_identity()
-    if !unsafe { (*ctx.sigs).identity_implements(receiver_identity, trait_info.name.as_str(), trait_args.as_str()) } {
+    if !unsafe { (*ctx.sigs).identity_implements(receiver_identity, trait_info.name, trait_args) } {
         source.concrete.emit_missing_dyn_impl(&dynamic_type, e.span, ctx)
         return false
     }
@@ -93,7 +93,7 @@ pub fun try_dyn_coerce(e: &var Expr, expected: Type, ctx: &var TypeCtx): bool {
 
 pub fun Type.dyn_vtable_symbol(layout: &DynTraitLayout): Sym {
     val result = "DynVTableInstance__${self.dyn_receiver_identity().as_str()}__${layout.identity.as_str()}"
-    return intern(result.as_str())
+    return intern(result)
 }
 
 fun Type.dyn_target_type(): Type {

@@ -20,6 +20,7 @@ import kf_typecheck.check.control.yield_ref_binder_value
 
 /// True when the node was transformed or coerced.
 pub mutating fun Expr.apply_expected(expected: Type, ctx: &var TypeCtx): bool {
+    self.note_view_in_slot(&expected, ctx)
     if self.yield_ref_binder_value(&expected, ctx) { return true }
     if self.narrow_open_number(expected.clone(), ctx) { return true }
     if self.narrow_open_text(expected.clone(), ctx) { return true }

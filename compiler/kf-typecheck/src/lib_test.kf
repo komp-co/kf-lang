@@ -901,7 +901,7 @@ fun check_decls(a: TopDecl, b: TopDecl, c: TopDecl, d: TopDecl): List<Diagnostic
         no_span()))
     val g_out = mangle_type(Type.new_projection(Type.new_generic(String.from("G"), no_span()), intern("Out"),
         no_span()))
-    assert_eq(f_out.as_str().equals(g_out.as_str()), false, "F.Out and G.Out are different names")
+    assert_eq(f_out.as_str().equals(g_out), false, "F.Out and G.Out are different names")
 }
 
 /// An empty `bound` declares it unbounded.
@@ -1283,7 +1283,7 @@ fun mk_chained_probe(trait_name: str, m: str, m2: str): TopDecl {
 
 fun diag_mentions(diags: &List<Diagnostic>, needle: str): bool {
     while diag in &diags {
-        if (diag.primary.message.as_str()).contains(needle) { return true }
+        if (diag.primary.message).contains(needle) { return true }
     }
     return false
 }
@@ -1311,8 +1311,8 @@ pub fun ret_op(p: Ptr<Expr>): Box<Expr>? {
 
     assert_eq(diags.size(), 1, "one diagnostic")
     val msg = diags.at(0).primary.message.clone()
-    assert_eq(msg.as_str().contains("impl Equal for Wrap<T>"), true, "the target carries the template's parameters")
-    assert_eq(msg.as_str().contains("`Wrap<int32>` has none"), true, "the operand carries its argument")
+    assert_eq(msg.contains("impl Equal for Wrap<T>"), true, "the target carries the template's parameters")
+    assert_eq(msg.contains("`Wrap<int32>` has none"), true, "the operand carries its argument")
 }
 
 /// A non-generic type's message is unchanged.
@@ -1327,6 +1327,6 @@ pub fun ret_op(p: Ptr<Expr>): Box<Expr>? {
 
     assert_eq(diags.size(), 1, "one diagnostic")
     val msg = diags.at(0).primary.message.clone()
-    assert_eq(msg.as_str().contains("impl Equal for Point"), true, "the plain name is the whole message")
-    assert_eq(msg.as_str().contains("has none"), false, "nothing to add when there is no argument")
+    assert_eq(msg.contains("impl Equal for Point"), true, "the plain name is the whole message")
+    assert_eq(msg.contains("has none"), false, "nothing to add when there is no argument")
 }

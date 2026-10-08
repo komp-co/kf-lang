@@ -37,7 +37,7 @@ fun main(): int32 {
     if input.is_empty() || predicate.is_empty() { return usage() }
     if output.is_empty() { output = "${input}.reduced" }
 
-    val read = read_to_string(input.as_str())
+    val read = read_to_string(input)
     if read.is_err() {
         println("kf-reduce: cannot read ${input}")
         return 2

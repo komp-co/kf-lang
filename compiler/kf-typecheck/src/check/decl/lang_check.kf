@@ -16,7 +16,7 @@ pub fun may_declare_lang_items(crate: CrateId): bool {
 /// The registry already checked placement; this checks key and crate.
 pub fun TopDecl.validate_lang_annotation(diags: &var Diagnostics): void {
     val key = self.lang_key_of()
-    if !is_known_lang_key(key.as_str()) {
+    if !is_known_lang_key(key) {
         self.report("unknown lang item `${key.as_str()}`: expected ${known_lang_keys_summary().as_str()}", diags)
     } else if !may_declare_lang_items(self.crate) {
         self.report(String.from("`@lang(...)` is reserved for the standard library (core, alloc and std)"), diags)
@@ -36,7 +36,7 @@ pub fun Module.reject_duplicate_lang_items(diags: &var Diagnostics): void {
     while td in &self.decls {
         val key = (&td).lang_key_of()
         if !key.as_str().equals("") && may_declare_lang_items(td.crate) {
-            if key_seen(&seen, key.as_str()) {
+            if key_seen(&seen, key) {
                 td.report("`@lang(\"${key.as_str()}\")` is declared more than once", diags)
             } else {
                 seen.push(key)

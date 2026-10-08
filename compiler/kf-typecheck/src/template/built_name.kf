@@ -34,7 +34,7 @@ mutating fun Expansion.built(name: Sym, at: Span): Sym {
         out.append(self.name_fact(text.substring(open + 2, close).as_str(), at).as_str())
         from = close + 1
     }
-    return intern(out.as_str())
+    return intern(out)
 }
 
 /// The text `${fact}` stands for in a name, or "" with the reason reported.
@@ -43,10 +43,10 @@ mutating fun Expansion.name_fact(fact: str, at: Span): String {
     val owner = fact.substring(0, dot)
     val member = if dot < fact.byte_len() { fact.substring(dot + 1, fact.byte_len()) } else { String.from("") }
     if owner.as_str() == self.marked.as_str() && member.as_str() == "name" { return self.type_name.as_string() }
-    val bound = self.member_of(intern(owner.as_str()))
+    val bound = self.member_of(intern(owner))
     if bound != null && member.as_str() == "name" { return self.fields.at(bound ?: 0).name.as_string() }
     if owner.as_str() == "args" {
-        val value = self.argument(intern(member.as_str()))
+        val value = self.argument(intern(member))
         if value != null {
             val given = value ?: return String.from("")
             val text = given.text_literal()
