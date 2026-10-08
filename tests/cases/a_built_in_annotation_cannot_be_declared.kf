@@ -1,7 +1,8 @@
 //! build: fail
 //! deps: core
-// `derive` is built in; declaring it again would give `@derive` two meanings.
+// `allow` is built in; declaring it again would give `@allow` two meanings.
+// `derive` is the one built-in a crate may declare.
 
-annotation derive
+annotation allow
 
 fun main(): int32 { return 0 }
