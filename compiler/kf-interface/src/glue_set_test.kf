@@ -24,7 +24,7 @@ fun glue_type_ptr(name: str): Ptr<TypeRef> {
 }
 
 fun String.glue_name_view(): str {
-    return self.as_str()
+    return self
 }
 
 fun glue_closure_module(): Module {

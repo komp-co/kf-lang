@@ -1,0 +1,28 @@
+//! run: exit 0
+//! deps: core, alloc
+// In a trait impl, `self` is a pointer the body reads through, so a slot's
+// conversion applies to what it points at: `self` fills a `str` or a
+// `&String` parameter as any `String` would (#189).
+
+import alloc.string.*
+
+fun takes(s: str): uint64 { return s.byte_len() }
+
+fun borrows(s: &String): uint64 { return s.byte_len() }
+
+trait Measured {
+    fun measure(): uint64
+    fun lent(): uint64
+}
+
+impl Measured for String {
+    fun measure(): uint64 { return takes(self) }
+    fun lent(): uint64 { return borrows(&self) }
+}
+
+fun main(): int32 {
+    val s = String.from("hi")
+    if s.measure() != 2 { return 1 }
+    if s.lent() != 2 { return 2 }
+    return 0
+}

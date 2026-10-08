@@ -133,9 +133,9 @@ pub fun str.replace(from: str, to: str): String {
 /// again; the rest of the `str` surface is reached through `Deref`.
 @prelude
 pub fun String.substring(start: uint64, end: uint64): String {
-    return self.as_str().substring_in(self.byte_len(), start, end)
+    return self.substring_in(self.byte_len(), start, end)
 }
 @prelude
 pub fun String.slice_from(start: uint64): String {
-    return self.as_str().substring_in(self.byte_len(), start, self.byte_len())
+    return self.substring_in(self.byte_len(), start, self.byte_len())
 }
