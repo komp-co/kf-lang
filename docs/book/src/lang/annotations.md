@@ -1,9 +1,10 @@
 # Annotations
 
 Annotations start with `@` and apply to the declaration that follows. KFlat
-has `@allow(...)`, `@derive(...)`, `@no_mangle`, `@lang(...)` and `@prelude`
-built in, a crate may [declare its own](#declaring-an-annotation), and the
-`testing` library declares [`@test` and `@disabled`](#test) this way. Any other
+has `@allow(...)`, `@no_mangle`, `@lang(...)` and `@prelude` built in, a crate
+may [declare its own](#declaring-an-annotation), core declares
+[`@derive(...)`](#derive) this way, and the `testing` library
+[`@test` and `@disabled`](#test). Any other
 annotation is an error.
 
 A declaration may carry several, one per line.
@@ -416,8 +417,7 @@ calling `annotated<bench>()` sees `measure`'s functions, not the ones of the
 crate that imported `bench`. A [template's](templates.md#where-the-code-lives)
 code is written into each crate it expands in, so there it sees that crate's.
 
-The name of a built-in annotation cannot be declared, except
-[`derive`](#declaring-derive). `annotation`, `on`, `any` and `unique` are not
+The name of a built-in annotation cannot be declared. `annotation`, `on`, `any` and `unique` are not
 reserved words; they are read this way only in an annotation's declaration.
 
 ### Used once
@@ -499,44 +499,53 @@ report lists it as ignored, with its reason. A test main is
 
 ## @derive
 
-`@derive(...)` synthesizes implementations for the listed traits:
+`@derive(...)` implements the listed traits for a struct or an enum:
 
 ```kflat
 @derive(Default, Equal)
 struct Counter { pub var value: int32 }
+
+fun main(): int32 { return if Counter.default() == Counter { value: 0 } { 0 } else { 1 } }
 ```
 
-It may annotate a struct or an enum, though not every trait reaches both:
+`derive` is declared in core like any other annotation, as
+`annotation derive(traits: trait..) on <struct, enum>`, and each trait it takes
+has a [keyed template](templates.md#keyed-templates) beside it there:
 
 | Trait | Struct | Enum | Generated behavior |
 | --- | --- | --- | --- |
-| `Default` | yes | — | Builds a value with each field's default value. |
+| `Default` | yes | yes | Each field's default; on an enum, the first variant without payloads. |
 | `Equal` | yes | yes | Compares every field, or matching enum payloads, with `==`. |
-| `Hash` | yes | — | Combines every field's hash. |
+| `Hash` | yes | yes | Combines every field's hash, or the variant's place and its payloads'. |
 | `Clone` | yes | yes | States that copying the value is allowed. |
 | `Copy` | yes | yes | States that the value may be copied bitwise; also derives `Clone`. |
 
-Every field used by a derived `Equal` implementation must itself implement
-`Equal`.
+A trait with no template is an error at its name. A library makes its own trait
+derivable the same way, with a `template derive(Trait)` beside the trait, and
+nothing about core's derives is special.
+
+On a [generic](templates.md#generic-structs-and-enums) struct or enum, a derived
+impl bounds each type parameter a field uses: `@derive(Equal)` on `Pair<A, B>`
+implements `Equal` for `Pair<A, B>` when `A` and `B` do. A field whose type
+lacks the trait is reported at the field, and an enum with no variant without
+payloads cannot derive `Default`.
 
 `Clone` is the odd one: it generates no copying code, because there is none to
 generate. The compiler already knows how to deep-copy any type — it synthesizes
 that alongside the drop glue. What `@derive(Clone)` adds is the *permission*:
 the type now satisfies a `T: Clone` bound, and `.clone()` on it is something
-you asked for rather than something that happened to work.
+you asked for rather than something that happened to work. Its template is
+empty, and the compiler reads the permission from the use.
 
 `Copy` is checked where it is derived: every field must itself be `Copy`, and
 the type must not implement `Drop`. See [Copy](memory.md#copy).
 
 ### Declaring `derive`
 
-`derive` is the one built-in a crate may declare itself, as an ordinary
-annotation taking trait names, with a [keyed template](templates.md#keyed-templates)
-for each trait it derives. A use that sees the declaration expands those
-templates instead, and a listed trait with no template is an error at its name.
-`Clone` and `Copy` still come from the compiler, which does the copying, but a
-declared `derive` lists them only if it has a template for them, which may be
-empty:
+A crate may declare a `derive` of its own, which its uses then mean instead of
+core's. It is an ordinary annotation taking trait names, with a keyed template
+for each trait it derives; `Clone` and `Copy` still come from the compiler,
+which does the copying, when it has a template for them, which may be empty:
 
 ```kflat
 annotation derive(traits: trait..) on <struct, enum>
@@ -559,10 +568,6 @@ struct Point {
 
 fun main(): int32 { return (Point { x: 1, y: 2 }.count() - 2) as int32 }
 ```
-
-Core is to declare `derive` this way, with a template for each trait the table
-above lists, so that deriving is code a library writes rather than the
-compiler's.
 
 ## @allow
 
@@ -634,8 +639,8 @@ answers first, then its imports, then any `@prelude` function. A name the
 caller's module defines or imports still shadows a prelude name.
 
 Only `core`, `alloc` and `std` may use it, on a function or on an annotation
-declaration. A `@prelude` annotation is used without an import, as `@derive` will
-be once core declares it; a crate's own annotation of the name, or one its file
+declaration. A `@prelude` annotation, such as `@derive`, is used without an
+import; a crate's own annotation of the name, or one its file
 imports, still comes first. Every *other* `pub` function in the standard library
 is no longer ambient — it is reachable only by importing its module. The prelude
 is deliberately small; helpers like `str.last_index_of` or `str.replace` are not

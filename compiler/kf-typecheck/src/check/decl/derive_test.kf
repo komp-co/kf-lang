@@ -1,5 +1,5 @@
 // The synthesized impl carries the struct's crate and module path, or
-// `T: Default` misses it.
+// `T: Clone` misses it.
 
 import core.assert.assert_eq
 import alloc.list.*
@@ -14,7 +14,6 @@ import kf_core.ast.annotation.Annotation
 import kf_core.diagnostic.*
 import testing.test
 import kf_core.intern.*
-import kf_core.lang.lang_annotation
 
 fun derive_of(names: List<String>): Annotation {
     return Annotation.new(Span.none(), "derive", names)
@@ -25,7 +24,7 @@ fun allow_of(lint: str): Annotation {
 }
 
 fun derived_struct_module(): Module {
-    return derived_struct_module_with_annotation(Annotation.new(Span.none(), "derive", [String.from("Default")]))
+    return derived_struct_module_with_annotation(Annotation.new(Span.none(), "derive", [String.from("Clone")]))
 }
 
 fun derived_struct_module_with_annotation(annotation: Annotation): Module {
@@ -50,27 +49,13 @@ fun Module.synthesized_impl(): TopDecl {
 }
 
 @test
-fun derived_impl_is_synthesized(): void {
+fun a_derived_clone_is_synthesized_for_the_struct(): void {
     var m = derived_struct_module()
     m.expand_derives()
     val impl_decl = m.synthesized_impl()
     assert_eq(impl_decl.name.as_str().equals("Config"), true, "the impl is synthesized for the struct")
-}
-
-@test
-fun derived_impl_inherits_the_struct_module_path(): void {
-    var m = derived_struct_module()
-    m.expand_derives()
-    val impl_decl = m.synthesized_impl()
-    assert_eq(impl_decl.module_path.as_str().equals("app.settings"), true, "the impl shares the struct's module path")
-}
-
-@test
-fun derived_impl_inherits_the_struct_crate(): void {
-    var m = derived_struct_module()
-    m.expand_derives()
-    val impl_decl = m.synthesized_impl()
-    assert_eq(impl_decl.crate.raw == CrateId.new("app").raw, true, "the impl shares the struct's crate")
+    assert_eq(impl_decl.module_path.as_str().equals("app.settings"), true, "in the struct's module")
+    assert_eq(impl_decl.crate.raw == CrateId.new("app").raw, true, "and its crate")
 }
 
 @test
@@ -85,11 +70,11 @@ fun a_plain_struct_derives_nothing(): void {
 }
 
 @test
-fun multiple_derive_options_synthesize_multiple_impls(): void {
-    val all_three = derive_of([String.from("Default"), String.from("Equal"), String.from("Clone")])
-    var m = derived_struct_module_with_annotation(all_three)
+fun core_s_templates_derive_the_rest(): void {
+    val written = derive_of([String.from("Default"), String.from("Equal"), String.from("Hash"), String.from("Clone")])
+    var m = derived_struct_module_with_annotation(written)
     m.expand_derives()
-    assert_eq(m.decls.size(), 4, "each supported derive option adds its impl")
+    assert_eq(m.decls.size(), 2, "only `Clone` is the compiler's; core's templates write the others")
 }
 
 @test
@@ -100,26 +85,6 @@ fun enum_clone_derive_synthesizes_an_impl(): void {
     m.decls.push(td)
     m.expand_derives()
     assert_eq(m.decls.size(), 2, "an enum Clone derive adds its impl")
-}
-
-@test
-fun an_enum_derives_equal_and_clone_together(): void {
-    var m = Module.new(List.new<String>())
-    var td = TopDecl.new(Span.none(), String.from("Token"), TopDeclKind.EnumDecl(List.new<Variant>(), true))
-    td.annotations.push(Annotation.new(Span.none(), "derive", [String.from("Equal"), String.from("Clone")]))
-    m.decls.push(td)
-    m.expand_derives()
-    assert_eq(m.decls.size(), 3, "each option adds its own impl")
-}
-
-@test
-fun enum_equal_derive_synthesizes_an_impl(): void {
-    var m = Module.new(List.new<String>())
-    var td = TopDecl.new(Span.none(), String.from("Token"), TopDeclKind.EnumDecl(List.new<Variant>(), true))
-    td.annotations.push(Annotation.new(Span.none(), "derive", [String.from("Equal")]))
-    m.decls.push(td)
-    m.expand_derives()
-    assert_eq(m.decls.size(), 2, "an enum Equal derive adds its impl")
 }
 
 @test
@@ -157,65 +122,4 @@ fun an_allow_naming_a_registered_lint_is_accepted(): void {
 @test
 fun an_allow_naming_an_unknown_lint_is_rejected(): void {
     assert_eq(annotated_function(allow_of("unused_importt")).size() > 0, true, "a typo'd suppression is not accepted")
-}
-
-// A field-less struct must still produce a `uint64` hash body.
-
-/// The trait a synthesized TraitImpl names, or "" when there is none.
-fun Module.synthesized_trait_name(): String {
-    while d in &self.decls {
-        when (d.kind) {
-            TraitImpl(t, _ms) => {
-                when (unsafe { (*t).kind }) {
-                    Named(n, _args) => return n.as_string()
-                    _ => return ""
-                }
-            }
-            _ => {}
-        }
-    }
-    return ""
-}
-
-@test
-fun hash_is_an_accepted_derive_option(): void {
-    val m = derived_struct_module_with_annotation(Annotation.new(Span.none(), "derive", [String.from("Hash")]))
-    var diags = Diagnostics.new()
-    m.validate_annotations(&var diags)
-    assert_eq(diags.size(), 0, "`@derive(Hash)` is accepted")
-}
-
-@test
-fun an_unknown_derive_option_is_still_rejected(): void {
-    val m = derived_struct_module_with_annotation(Annotation.new(Span.none(), "derive", [String.from("Hashish")]))
-    var diags = Diagnostics.new()
-    m.validate_annotations(&var diags)
-    assert_eq(diags.size() > 0, true, "a near-miss option is not accepted")
-}
-
-@test
-fun deriving_hash_synthesizes_a_hash_impl(): void {
-    var m = derived_struct_module_with_annotation(Annotation.new(Span.none(), "derive", [String.from("Hash")]))
-    var hash_td = TopDecl.new(Span.none(), String.from("Hash"),
-        TopDeclKind.TraitDecl(List.new<TopDecl>(), true, List.new<TypeRef>()))
-    hash_td.crate = CrateId.new("core")
-    hash_td.annotations.push(lang_annotation("hash"))
-    m.decls.push(hash_td)
-    m.expand_derives()
-    assert_eq(m.synthesized_trait_name().as_str(), "Hash", "the impl is for Hash")
-}
-
-@test
-fun deriving_hash_and_equal_synthesizes_both(): void {
-    var m = derived_struct_module_with_annotation(derive_of([String.from("Hash"), String.from("Equal")]))
-    m.expand_derives()
-    var impls: uint64 = 0
-    while decl in &m.decls {
-        when (decl.kind) {
-            TraitImpl(_t, _ms) => { impls = impls + 1 }
-            _ => {}
-        }
-    }
-    // A key needs both `Hash` and `Equal`.
-    assert_eq(impls, 2, "one impl per derived trait")
 }

@@ -1,6 +1,7 @@
-// Validates annotations and expands `@derive(...)` into impls before
-// registration. The names come from kf-core's registries; the impl builders
-// are in derive_synth.kf and derive_equal_enum.kf.
+// Validates annotations, and adds the impls `@derive(Clone)` and
+// `@derive(Copy)` stand for before registration: the compiler copies, so
+// those two are its own, while core's `derive` templates write every other
+// trait. The impl builders are in derive_synth.kf.
 
 import alloc.list.*
 
@@ -10,15 +11,11 @@ import kf_core.diagnostic.*
 import kf_core.intern.*
 import kf_core.lang.*
 import kf_core.ast.annotation.*
-import kf_typecheck.template.sees_declared_annotation
 
 pub fun Module.validate_annotations(diags: &var Diagnostics): void {
     while td in &self.decls {
         // Each annotation is judged on its own.
         while item in &td.annotations {
-            // A declared `derive` is checked as any declared annotation is.
-            val kind = item.name.as_str()
-            if AnnotationInfo.may_be_declared(kind) && self.sees_declared_annotation(td, kind) { continue }
             td.validate_one_annotation(item, diags)
         }
         if td.crate.raw == self.crate.raw { td.validate_member_annotations(diags) }
@@ -38,32 +35,9 @@ fun TopDecl.validate_one_annotation(annotation: &Annotation, diags: &var Diagnos
     when kind.as_str() {
         "lang" => self.validate_lang_annotation(diags)
         "prelude" => self.validate_prelude_annotation(diags)
-        "derive" => self.validate_derive_options(&annotation.words(), diags)
         "allow" => self.validate_allow_names(&annotation.words(), diags)
         _ => { }
     }
-}
-
-/// Options are checked against the derive registry.
-fun TopDecl.validate_derive_options(options: &List<String>, diags: &var Diagnostics): void {
-    var bad = false
-    while item in &options {
-        val name = item.as_str()
-        val ok = when (self.kind) {
-            Struct(_fields, _pub) => (DeriveInfo.named(name)?.struct_ok ?: false)
-            EnumDecl(_variants, _pub) => (DeriveInfo.named(name)?.enum_ok ?: false)
-            _ => false
-        }
-        if !ok { bad = true }
-    }
-    if !bad { return }
-    val expected = when (self.kind) {
-        Struct(_fields, _pub) => DeriveInfo.expected_on_structs()
-        EnumDecl(_variants, _pub) => DeriveInfo.expected_on_enums()
-        _ => String.from("")
-    }
-    val message = "unsupported `@derive` option: expected ${expected.as_str()}"
-    diags.emit(Diagnostic.new(Severity.Error, Label.new(self.decl_name_span(), message)))
 }
 
 /// An `@allow` naming no registered lint suppresses nothing silently.
@@ -82,25 +56,30 @@ pub mutating fun Module.expand_derives(): void {
     var synth = List.new<TopDecl>()
     while td in &self.decls {
         val options = (&td).annotation_words("derive")
-        // A declared `derive` expands its templates; `Clone` and `Copy`
-        // stay the compiler's, as copying is.
-        val declared = options.size() > 0 && self.sees_declared_annotation(&td, "derive")
-        while option in &options {
-            val entry = DeriveInfo.named(option.as_str()) ?: continue
-            if declared && !entry.is_copying() { continue }
-            if derive_admits(entry, &td) {
-                val trait_sym = self.lang_trait_name(entry.lang)
-                synth.push(expand_one_derive(entry.expander, &td, trait_sym))
-            }
-        }
+        if !td.derives_copying() { continue }
+        val copy = names_option(&options, "Copy")
         // Copy requires Clone, and a bitwise copy is already a correct clone,
         // so `@derive(Copy)` supplies the Clone impl unless one is written.
-        if names_option(&options, "Copy") && !names_option(&options, "Clone") && !syms_contain(&cloned, td.name) {
+        if names_option(&options, "Clone") || (copy && !syms_contain(&cloned, td.name)) {
             synth.push(synth_clone_impl(td.name.as_string(), td.span, td.crate, td.module_path, clone_sym))
+        }
+        if copy {
+            val copy_sym = self.lang_trait_name(LangItem.Copy)
+            synth.push(synth_copy_impl(td.name.as_string(), td.span, td.decl_name_span(), td.crate, td.module_path,
+                copy_sym))
         }
     }
     while item in &synth {
         self.decls.push(item)
+    }
+}
+
+/// A struct or enum, which is what `Clone` and `Copy` are derived for.
+fun TopDecl.derives_copying(): bool {
+    return when (self.kind) {
+        Struct(_fields, _pub) => true
+        EnumDecl(_variants, _pub) => true
+        _ => false
     }
 }
 
@@ -133,35 +112,4 @@ fun syms_contain(names: &List<Sym>, name: Sym): bool {
         if each.id == name.id { return true }
     }
     return false
-}
-
-/// Re-checked, since tests call `expand_derives` directly.
-fun derive_admits(entry: DeriveInfo, td: &TopDecl): bool {
-    return when (td.kind) {
-        Struct(_fields, _pub) => entry.struct_ok
-        EnumDecl(_variants, _pub) => entry.enum_ok
-        _ => false
-    }
-}
-
-/// The pair was admitted, so the poison arms are unreachable.
-fun expand_one_derive(expander: DeriveExpander, td: &TopDecl, trait_sym: Sym): TopDecl {
-    return when (td.kind) {
-        Struct(fields, _p) => when (expander) {
-            Default => synth_default_impl(td.name.as_string(), &fields, td.span, td.crate, td.module_path, trait_sym)
-            Equal => synth_equal_impl(td.name.as_string(), &fields, td.span, td.crate, td.module_path, trait_sym)
-            Clone => synth_clone_impl(td.name.as_string(), td.span, td.crate, td.module_path, trait_sym)
-            Copy => synth_copy_impl(td.name.as_string(), td.span, td.decl_name_span(), td.crate,
-                td.module_path, trait_sym)
-            Hash => synth_hash_impl(td.name.as_string(), &fields, td.span, td.crate, td.module_path, trait_sym)
-        }
-        EnumDecl(variants, _p) => when (expander) {
-            Equal => synth_enum_equal_impl(td.name.as_string(), &variants, td.span, td.crate, td.module_path, trait_sym)
-            Clone => synth_clone_impl(td.name.as_string(), td.span, td.crate, td.module_path, trait_sym)
-            Copy => synth_copy_impl(td.name.as_string(), td.span, td.decl_name_span(), td.crate,
-                td.module_path, trait_sym)
-            _ => TopDecl.new(td.span, String.from(""), TopDeclKind.Poison)
-        }
-        _ => TopDecl.new(td.span, String.from(""), TopDeclKind.Poison)
-    }
 }

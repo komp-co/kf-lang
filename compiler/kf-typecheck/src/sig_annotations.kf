@@ -2,7 +2,6 @@
 
 import kf_core.intern.CrateId
 import kf_core.intern.Sym
-import kf_core.lang.AnnotationInfo
 
 /// The annotation `name` as a declaration in `file`, in `crate`'s `module`,
 /// sees it: one declared in its own module, a `pub` one its imports admit, or
@@ -26,11 +25,4 @@ pub fun SigTable.find_annotation(name: str, file: uint32, crate: CrateId, module
         if found == null { found = i }
     }
     return if found != null { found } else { in_prelude }
-}
-
-/// Whether a use of `kind` is a built-in annotation: one the compiler
-/// defines, unless a crate may declare it and the use sees a declaration.
-pub fun SigTable.is_built_in_use(kind: str, file: uint32, crate: CrateId, module: Sym): bool {
-    if !AnnotationInfo.is_known(kind) { return false }
-    return !AnnotationInfo.may_be_declared(kind) || self.find_annotation(kind, file, crate, module) == null
 }
