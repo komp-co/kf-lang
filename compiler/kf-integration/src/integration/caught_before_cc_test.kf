@@ -106,7 +106,7 @@ fun main(): int32 {
 
 @test
 fun a_returned_view_of_a_temporary_array_is_an_error(): void {
-    val errors = errors_of("caught_returned_array_view", """view struct Numbers {
+    val errors = check_messages("caught_returned_array_view", """view struct Numbers {
     val values: &int64[]
 }
 
