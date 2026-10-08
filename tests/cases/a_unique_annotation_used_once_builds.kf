@@ -1,0 +1,12 @@
+//! run: exit 0
+//! deps: core
+// One use of a `unique` annotation is what it allows.
+
+annotation registry unique on struct
+
+@registry
+struct First {
+    val x: int32
+}
+
+fun main(): int32 { return First { x: 0 }.x }

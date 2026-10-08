@@ -47,10 +47,12 @@ impl Parser {
             val target_at = unsafe { self.peek().span }
             unsafe { self.advance() }
             val tps = self.parse_type_params()
+            val bounds = self.parse_member_bounds()
             var methods = self.parse_brace_methods()
             val by_trait = lift_trait_arg_params(&declared, &tps, &written_args, &var methods)
             var td = TopDecl.new(span, target, TopDeclKind.TraitImpl(trait_ref_ptr, methods))
             td.name_span = target_at
+            td.member_bounds = bounds
             td.generics = if has_list { self.merge_declared_params(&declared, &tps, &by_trait) } else { tps }
             return td
         }
@@ -67,9 +69,11 @@ impl Parser {
             val target_at = unsafe { self.peek().span }
             unsafe { self.advance() }
             val tps = self.parse_type_params()
+            val bounds = self.parse_member_bounds()
             val methods = self.parse_brace_methods()
             var td = TopDecl.new(span, target, TopDeclKind.TraitImpl(trait_ref_ptr, methods))
             td.name_span = target_at
+            td.member_bounds = bounds
             td.generics = if has_list {
                 self.merge_declared_params(&declared, &tps, &List.new<TypeParam>())
             } else {
@@ -78,9 +82,11 @@ impl Parser {
             return td
         }
 
+        val bounds = self.parse_member_bounds()
         val methods = self.parse_brace_methods()
         var td = TopDecl.new(span, first, TopDeclKind.ImplBlock(methods))
         td.name_span = first_at
+        td.member_bounds = bounds
         td.generics = if has_list {
             self.merge_declared_params(&declared, &first_tps, &List.new<TypeParam>())
         } else {

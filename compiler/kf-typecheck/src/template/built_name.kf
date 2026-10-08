@@ -42,9 +42,14 @@ mutating fun Expansion.name_fact(fact: str, at: Span): String {
     val dot = fact.index_of(".") ?: fact.byte_len()
     val owner = fact.substring(0, dot)
     val member = if dot < fact.byte_len() { fact.substring(dot + 1, fact.byte_len()) } else { String.from("") }
-    if owner.as_str() == self.marked.as_str() && member.as_str() == "name" { return self.type_name.as_string() }
+    val case = case_suffix(member)
+    if owner.as_str() == self.marked.as_str() && case != null {
+        return in_case(self.type_name.as_str(), (case ?: String.from("")).as_str())
+    }
     val bound = self.member_of(intern(owner))
-    if bound != null && member.as_str() == "name" { return self.fields.at(bound ?: 0).name.as_string() }
+    if bound != null && case != null {
+        return in_case(self.fields.at(bound ?: 0).name.as_str(), (case ?: String.from("")).as_str())
+    }
     if owner.as_str() == "args" {
         val value = self.argument(intern(member))
         if value != null {

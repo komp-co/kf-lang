@@ -1,0 +1,21 @@
+//! build: fail
+//! deps: core
+// Without `where`, the code a template adds for a generic struct may not ask
+// `A` for `Equal`: it is reported at the field.
+
+annotation same on struct
+
+template same on struct T {
+    impl Equal for T {
+        fun equals(other: &T): bool {
+            return T.fields.all(|field| field.of(self) == field.of(other))
+        }
+    }
+}
+
+@same
+struct Wrap<A> {
+    val a: A
+}
+
+fun main(): int32 { return 0 }

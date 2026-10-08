@@ -1,0 +1,128 @@
+// `@main` or `@test_main`: the function carrying it is the program's entry,
+// for a normal build or a `--tests` one. Unless it is already `main`, the
+// crate gets a `main` calling it, and a `main` of its own is set aside as
+// `__user_main`, so the passes after this still find the entry by its name.
+// A bare `fun main` stays shorthand for `@main`.
+
+import alloc.list.*
+
+import kf_core.ast.Module
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.declaration.*
+import kf_core.ast.statement.Stmt
+import kf_core.ast.statement.StmtKind
+import kf_core.diagnostic.*
+import kf_core.intern.CrateId
+import kf_core.intern.Sym
+import kf_core.intern.intern
+
+/// Where the entry an annotation chose is, by module and declaration.
+struct EntryAt {
+    val module: uint64
+    val decl: uint64
+}
+
+/// The annotation choosing the entry of a build: `test_main` with tests.
+fun entry_annotation(tests: bool): str { return if tests { "test_main" } else { "main" } }
+
+/// Gives `crate`'s annotated entry the name `main`, reporting an `@main` in
+/// a crate not built as the program; true when it chose an entry, so a test
+/// build's supplied entry file is not wanted.
+pub fun choose_annotated_entry(modules: &var List<Module>, crate: CrateId, tests: bool, is_program: bool,
+    diags: &var Diagnostics): bool {
+    if !tests && !is_program {
+        modules.report_library_entries(crate, diags)
+        return false
+    }
+    val marker = entry_annotation(tests)
+    if modules.declares_annotation(crate, marker) { return false }
+    val found = modules.annotated_entry(crate, marker) ?: return false
+    val chosen = modules.at(found.module).decls.at(found.decl).clone()
+    if chosen.name.as_str() == "main" { return true }
+    rename_main_decls(modules)
+    val m = modules.at_mut(found.module)
+    m.decls.push(chosen.entry_calling())
+    return true
+}
+
+/// The first function of `crate` carrying `@marker`; a second is the
+/// annotation's `unique` error.
+fun List<Module>.annotated_entry(crate: CrateId, marker: str): EntryAt? {
+    while mi in 0..self.size() {
+        val m = self.at(mi)
+        while di in 0..m.decls.size() {
+            val td = m.decls.at(di)
+            if td.crate.raw == crate.raw && td.is_function() && td.has_annotation(marker) {
+                return EntryAt { module: mi, decl: di }
+            }
+        }
+    }
+    return null
+}
+
+/// Whether `crate` declares an annotation `name` of its own, which its uses
+/// mean instead.
+fun List<Module>.declares_annotation(crate: CrateId, name: str): bool {
+    while m in &self {
+        while td in &m.decls {
+            if td.crate.raw != crate.raw || td.name.as_str() != name { continue }
+            when (td.kind) {
+                AnnotationDecl(_params, _target, _pub) => return true
+                _ => {}
+            }
+        }
+    }
+    return false
+}
+
+/// Each `@main` in a library: only the crate built as the program has an
+/// entry, and a library supplies one through a template that expands there.
+fun List<Module>.report_library_entries(crate: CrateId, diags: &var Diagnostics): void {
+    if self.declares_annotation(crate, "main") { return }
+    while m in &self {
+        while td in &m.decls {
+            if td.crate.raw != crate.raw || !td.is_function() || !td.has_annotation("main") { continue }
+            val why = "only the crate built as the program has an entry"
+            diags.emit(Diagnostic.error_at(td.decl_name_span(), "`@main` in a library: ${why}"))
+        }
+    }
+}
+
+fun TopDecl.is_function(): bool {
+    return when (self.kind) {
+        Function(_params, _ret, _body, _pub, _unsafe, _mutating, _static) => true
+        _ => false
+    }
+}
+
+/// `fun main(): R { return chosen() }`, beside `chosen` in its module.
+fun TopDecl.entry_calling(): TopDecl {
+    val span = self.decl_name_span()
+    val ret = when (self.kind) {
+        Function(_params, written, _body, _pub, _unsafe, _mutating, _static) => (*written).clone()
+        _ => TypeRef.new(span, TypeRefKind.Named(intern("int32"), List.new<TypeRef>()))
+    }
+    val call = Box.new(Expr.new(span, ExprKind.Call(self.name, List.new<Expr>())))
+    var body = List.new<Stmt>()
+    if ret.is_void() {
+        body.push(Stmt.new(span, StmtKind.Expression(call)))
+    } else {
+        val value: Box<Expr>? = call
+        body.push(Stmt.new(span, StmtKind.Return(value)))
+    }
+    val kind = TopDeclKind.Function(List.new<Param>(), Box.new(ret), body, false, false, false, false)
+    var entry = TopDecl.new(span, String.from("main"), kind)
+    entry.crate = self.crate
+    entry.module_path = self.module_path
+    return entry
+}
+
+fun TypeRef.is_void(): bool {
+    return when (self.kind) {
+        Named(name, args) => name.as_str() == "void" && args.size() == 0
+        _ => false
+    }
+}

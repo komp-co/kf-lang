@@ -137,6 +137,8 @@ impl LintInfo {
                 "a copy is inserted into a type that does not implement `Clone`"),
             LintInfo.new("deref_through_temporary", "suspicious", LintLevel.Warn,
                 "`*` through a `Box` owned by a call's result, freed at the end of the statement"),
+            LintInfo.new("template_warning", "suspicious", LintLevel.Warn,
+                "a warning a template reports with `compile_warning`, at the code it adds to"),
             LintInfo.new("empty_if", "suspicious", LintLevel.Warn,
                 "an `if` whose branches are both empty"),
             LintInfo.new("self_assignment", "suspicious", LintLevel.Warn,

@@ -372,6 +372,52 @@ fun main(): int32 { return if Shape.default() == Shape.Empty { 0 } else { 1 } }
 An enum with no such variant gets a `default` that does not return, which is
 reported with a note naming the enum.
 
+## Generic structs and enums
+
+On a generic struct or enum, what a template adds is generic over the same
+parameters: `T` is `Pair<A, B>`, and an impl or extension function on `T`
+takes `<A, B>`. The code it adds is checked once for every `A`, so it may only
+ask of `A` what its bounds promise. `where` on the impl states them per member:
+
+```kflat
+annotation same on struct
+annotation skip on field
+
+template same on struct T {
+    impl Equal for T where T.fields.filter(|field| !field.has<skip>()): Equal {
+        fun equals(other: &T): bool {
+            return T.fields.filter(|field| !field.has<skip>()).all(|field| field.of(self) == field.of(other))
+        }
+    }
+}
+
+struct Handle {
+    val fd: int32
+}
+
+@same
+struct Tagged<V, M> {
+    val value: V
+    @skip
+    val meta: M
+}
+
+fun main(): int32 {
+    val a = Tagged { value: 7, meta: Handle { fd: 1 } }
+    val b = Tagged { value: 7, meta: Handle { fd: 2 } }
+    return if a == b { 0 } else { 1 }
+}
+```
+
+`where LIST: Trait + Trait` bounds each type parameter that a kept member's
+type names, here `V`, so `impl<V: Equal, M> Equal for Tagged<V, M>` is added.
+`M` is named only by a skipped field and gets nothing, which is why `Handle`,
+with no `Equal`, may sit there. On an enum, `T.variants` bounds what its
+payloads name. A field whose type is not a parameter needs no `where`: the code
+written for it is checked as it is. A bound the code needs and no `where` gives
+is reported at the field, with the template's note. A struct's own bounds come
+along, and several `where` lists are separated by commas.
+
 ## Arguments as code
 
 `args.p` is the value the annotation's use gave `p`. A parameter taking a
@@ -558,12 +604,53 @@ fun main(): int32 {
 ```
 
 A name is built from `T.name`, a member loop's `field.name` or
-`variant.name`, and text in
-`args`; nothing else, and no casing or other change to them. Any name in a
+`variant.name`, either in a [case](#names-in-another-case), and text in
+`args`; nothing else. Any name in a
 template may be built: a declaration, a parameter or a field, a variable, and
 a name that refers to one of them, in a type too. A type is never built from a
 field: `field.type` is the field's type. Outside a template a built name is an
 error, since nothing writes it out.
+
+### Names in another case
+
+`T.name`, `field.name` and `variant.name` can be had in another case, written
+out as the template expands: `snake_case()`, `kebab_case()`, `camel_case()`,
+`pascal_case()`, `shouting_snake_case()`, `lower_case()` and `upper_case()`.
+`in_case(c)` takes the case as a value known while the program compiles, a
+`NameCase` variant from `Snake` to `Upper`, or `AsWritten`, so an annotation
+can let its user choose:
+
+```kflat
+enum NameCase { AsWritten, Snake, Kebab, Camel, Pascal, ShoutingSnake, Lower, Upper }
+
+annotation spelled(case: NameCase = NameCase.AsWritten) on enum
+
+template spelled on enum T {
+    fun T.spelling(): str {
+        return when (self) {
+            while variant in T.variants {
+                ${variant.name} => variant.name.in_case(args.case)
+            }
+        }
+    }
+}
+
+@spelled(case = NameCase.Kebab)
+enum Flag {
+    DryRun
+    HTTPProxy
+}
+
+fun main(): int32 {
+    return if Flag.DryRun.spelling() == "dry-run" && Flag.HTTPProxy.spelling() == "http-proxy" { 0 } else { 1 }
+}
+```
+
+A name splits into words at `_` and `-`, where a lower-case letter or a digit
+meets an upper-case one, and before the last letter of an upper-case run that
+a lower-case letter follows: `HTTPProxy` is `HTTP` and `Proxy`. A digit stays
+with the word before it, so `Utf8Error` is `utf8_error`. A built name may use
+a case too, `get_${field.name.snake_case()}`.
 
 ## Errors
 
@@ -582,8 +669,51 @@ src/main.kf:20:9: error: operator requires `impl Equal for Handle`
 Any other error in a template's code is reported in the template, with a note
 naming the struct it was adding to.
 
+### Reporting from a template
+
+A template can say what is wrong in its own words. `compile_error(message)`
+stops the build and `compile_warning(message)` warns, both while the template
+expands, at the field or variant a member loop is on, or else at the marked
+struct or enum:
+
+```kflat
+annotation summed on struct
+annotation label on field
+
+template summed on struct T {
+    fun T.total(): int64 {
+        var sum: int64 = 0
+        while field in T.fields {
+            if field.has<label>() {
+                compile_error("`${field.name}` is a label, which `@summed` cannot add")
+            } else {
+                sum = sum + field.of(self) as int64
+            }
+        }
+        if T.fields.size() > 8 {
+            compile_warning("`${T.name}` sums ${T.fields.size()} fields")
+        }
+        return sum
+    }
+}
+
+@summed
+struct Point {
+    val x: int32
+    val y: int32
+}
+
+fun main(): int32 { return (Point { x: 1, y: 2 }.total() - 3) as int32 }
+```
+
+Only a branch the facts decide may hold one, so it reports for the fields
+whose facts take it: `@label` on a field of `Point` would stop the build there.
+In a branch decided when the program runs, or with a message that is not
+literals and facts, either is an error, and outside a template neither exists.
+A warning is the lint `template_warning`, which `@allow` and `lint.toml` turn
+down like any other.
+
 ## Limits
 
-A template does not add to a generic struct or enum. A `pub` extension function a
-template adds cannot be imported by another module. [Limitations](../limitations.md#templates)
-lists each with its issue.
+A `pub` extension function a template adds cannot be imported by another
+module. [Limitations](../limitations.md#templates) lists each with its issue.
