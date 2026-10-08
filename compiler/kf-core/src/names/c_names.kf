@@ -58,6 +58,12 @@ impl CName {
         return if C_KEYWORDS.contains(&name) { "kf__f__${name}" } else { String.from(name) }
     }
 
+    /// A name C has taken for itself: the program's entry or a keyword. A type
+    /// spelled bare in C, as a unity build spells them, must not be one.
+    pub static fun is_taken_by_c(name: str): bool {
+        return name == "main" || C_KEYWORDS.contains(&name)
+    }
+
     /// `kf__tag__<E>`, reserved-prefixed so it cannot collide with a method.
     pub static fun enum_tag_type(name: str): String {
         return "kf__tag__${name}"

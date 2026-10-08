@@ -1,0 +1,40 @@
+// A unity build spells types bare in C, so a type whose name C has taken
+// for itself is spelled as a separate build spells it, with its crate.
+
+import core.assert.assert_eq
+import kf_integration.harness.FixtureGraph
+import kf_integration.harness.komp_build_unity
+import std.fs.scratch_path
+import testing.test
+
+extern "C" fun system(cmd: str): int32
+
+// `struct main` beside `int main`, as every annotation's argument struct is
+// named for the annotation (#215).
+@test
+fun a_type_named_main_compiles_in_the_unity_output(): void {
+    val root = scratch_path("kf_unity_main_type")
+    val prepared = unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
+    assert_eq(prepared, 0, "the fixture is prepared")
+    write_file("${root}/kf.toml", "[project]\nname = \"unity_main_type\"\nversion = \"0.1.0\"\nkind = \"bin\"\n")
+    write_file("${root}/src/main.kf", """struct main {
+    val x: int32
+}
+
+impl main {
+    fun twice(): int32 { return self.x * 2 }
+}
+
+fun main(): int32 {
+    val m = main { x: 21 }
+    return m.twice()
+}
+""")
+    assert_eq(komp_build_unity(root), 0, "the whole-program build succeeds")
+    val out = "${FixtureGraph.of(root).target_dir}/komp_out.c"
+    val binary = "${root}/unity_main_type"
+    val compiled = unsafe { system("cc -std=gnu17 -w -o ${binary} ${out} -lm") }
+    assert_eq(compiled, 0, "the struct is not C's `main`")
+    val ran = unsafe { system("${binary}; test \"$?\" -eq 42") }
+    assert_eq(ran, 0, "its method runs")
+}
