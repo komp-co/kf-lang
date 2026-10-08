@@ -4,10 +4,12 @@ import kf_core.intern.CrateId
 import kf_core.intern.Sym
 
 /// The annotation `name` as a declaration in `file`, in `crate`'s `module`,
-/// sees it: one declared in its own module, or a `pub` one its imports admit.
-/// The crate's own declarations shadow a dependency's.
+/// sees it: one declared in its own module, a `pub` one its imports admit, or
+/// a `pub` one in the prelude. The crate's own declarations shadow a
+/// dependency's, and an imported one shadows the prelude's.
 pub fun SigTable.find_annotation(name: str, file: uint32, crate: CrateId, module: Sym): uint64? {
     var found: uint64? = null
+    var in_prelude: uint64? = null
     while i in 0..self.annotations.size() {
         val declared = self.annotations.at(i)
         if declared.name.as_str() != name { continue }
@@ -15,9 +17,12 @@ pub fun SigTable.find_annotation(name: str, file: uint32, crate: CrateId, module
         // own module, a template's home module included.
         val own_module = declared.module.id == module.id
         val admitted = declared.is_pub && (!self.gate_visibility || self.file_admits(file, declared.module, name))
-        if !own_module && !admitted { continue }
+        if !own_module && !admitted {
+            if declared.is_pub && declared.is_prelude && in_prelude == null { in_prelude = i }
+            continue
+        }
         if declared.crate.raw == crate.raw { return i }
         if found == null { found = i }
     }
-    return found
+    return if found != null { found } else { in_prelude }
 }

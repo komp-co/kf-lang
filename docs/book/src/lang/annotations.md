@@ -568,7 +568,10 @@ Resolution asks the mark, never the crate name: the caller's own module
 answers first, then its imports, then any `@prelude` function. A name the
 caller's module defines or imports still shadows a prelude name.
 
-Only `core`, `alloc` and `std` may use it, and only on a function. Every
-*other* `pub` function in the standard library is no longer ambient — it is
-reachable only by importing its module. The prelude is deliberately small;
-helpers like `str.last_index_of` or `str.replace` are not in it.
+Only `core`, `alloc` and `std` may use it, on a function or on an annotation
+declaration. A `@prelude` annotation is used without an import, as `@derive` will
+be once core declares it; a crate's own annotation of the name, or one its file
+imports, still comes first. Every *other* `pub` function in the standard library
+is no longer ambient — it is reachable only by importing its module. The prelude
+is deliberately small; helpers like `str.last_index_of` or `str.replace` are not
+in it.

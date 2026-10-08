@@ -48,7 +48,8 @@ pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: &var Di
                     }
                     val function_type = own_target.function_type(&td, if own { decls } else { null }, sigs, diags)
                     val declared = DeclaredAnnotation {
-                        name: td.name, crate: td.crate, module: td.module_path, is_pub: is_pub, params: params,
+                        name: td.name, crate: td.crate, module: td.module_path, is_pub: is_pub,
+                        is_prelude: (&td).has_annotation("prelude"), params: params,
                         target: own_target.clone(), function_type: function_type, type_params: td.generics.clone()
                     }
                     table.annotations.push(declared)
