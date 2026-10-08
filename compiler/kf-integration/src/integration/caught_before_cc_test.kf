@@ -134,3 +134,20 @@ fun main(): int32 {
     assert_eq(errors.contains("wrong type for argument 2 of `Tag.pair`: expected `bool`, found `int32`"), true,
         "each argument, not the first alone")
 }
+
+@test
+fun a_returned_view_of_a_temporary_array_is_an_error(): void {
+    val errors = errors_of("caught_returned_array_view", """view struct Numbers {
+    val values: &int64[]
+}
+
+fun numbers(): Numbers {
+    return Numbers { values: &[1, 2, 3] }
+}
+
+fun main(): int32 {
+    return numbers().values.size() as int32 - 3
+}
+""")
+    assert_eq(errors.contains("this array is built in the function and freed as it returns"), true, "(#187)")
+}
