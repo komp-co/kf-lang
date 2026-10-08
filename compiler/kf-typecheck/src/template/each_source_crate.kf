@@ -1,0 +1,54 @@
+// A unity build checks every crate's source in one module, so what a
+// template adds is expanded once per crate, each as the crate it marks:
+// a dependency's `@derive` expands into the dependency, as it would when the
+// crate is compiled on its own.
+
+import alloc.list.*
+
+import kf_core.ast.Module
+import kf_core.ast.declaration.Linkage
+import kf_core.intern.CrateId
+import kf_core.span.SourceMap
+import kf_core.diagnostic.Diagnostic
+import kf_resolve.DeclTable
+
+/// The crates with source here, in the order their declarations come.
+fun Module.source_crates(): List<CrateId> {
+    var out = List.new<CrateId>()
+    while td in &self.decls {
+        val source = when (td.linkage) {
+            Source => true
+            _ => false
+        }
+        if !source { continue }
+        var seen = false
+        while each in &out {
+            if each.raw == td.crate.raw { seen = true }
+        }
+        if !seen { out.push(td.crate) }
+    }
+    return out
+}
+
+/// `expand_templates` and the `unique` check for each crate with source
+/// here, the module's own last.
+pub mutating fun Module.expand_templates_per_crate(table: &var DeclTable, diags: &var List<Diagnostic>,
+    smap: Ptr<SourceMap>): List<ExpansionSite> {
+    val own = self.crate
+    var sites = List.new<ExpansionSite>()
+    var crates = List.new<CrateId>()
+    while each in &self.source_crates() {
+        if each.raw != own.raw { crates.push(each) }
+    }
+    crates.push(own)
+    while each in &crates {
+        self.crate = each
+        val expanded = self.expand_templates(table, diags, smap)
+        while site in &expanded {
+            sites.push(site.clone())
+        }
+        self.reject_repeated_unique(diags)
+    }
+    self.crate = own
+    return sites
+}

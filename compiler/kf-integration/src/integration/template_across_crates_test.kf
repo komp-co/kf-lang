@@ -5,6 +5,7 @@
 import core.assert.assert_eq
 import alloc.path.Path
 import kf_integration.harness.komp_build
+import kf_integration.harness.komp_build_unity
 import std.fs.create_dir_all
 import std.fs.remove_dir_all
 import std.fs.scratch_path
@@ -267,4 +268,45 @@ fun main(): int32 {
     val app = across_dir("tw_generic_app")
     assert_eq(komp_build(app, ""), 0, "the bound reaches `V` through the interface's template")
     assert_eq(unsafe { system("${app}/target/kflat/tw_generic_app") }, 0, "and `M` asks for nothing")
+}
+
+@test
+fun a_unity_build_expands_a_dependency_s_templates_for_its_own_types(): void {
+    write_across_crate("tw_unity_lib", "lib", "", """pub trait Counted {
+    fun count(): int64
+}
+
+pub trait Named {
+    fun first(): str
+}
+
+pub annotation counted(names: trait..) on enum
+
+template counted(Named) on enum T {
+    impl Named for T {
+        fun first(): str { return "Left" }
+    }
+}
+
+template counted(Counted) on enum T {
+    impl Counted for T {
+        fun count(): int64 { return T.variants.size() }
+    }
+}
+
+@counted(Named, Counted)
+pub enum Side {
+    Left
+    Right
+}
+""")
+    val deps = "\n[dependencies]\ntw_unity_lib = { path = \"../kf_template_across_tw_unity_lib\" }\n"
+    write_across_crate("tw_unity_app", "bin", deps, """import tw_unity_lib.Counted
+import tw_unity_lib.Side
+
+fun main(): int32 { return (Side.Left.count() - 2) as int32 }
+""")
+    val app = across_dir("tw_unity_app")
+    assert_eq(komp_build_unity(app), 0, "the library's own enum gets its impl in one unit, its second key too")
+    assert_eq(komp_build(app, ""), 0, "and crate by crate")
 }

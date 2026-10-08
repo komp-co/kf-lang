@@ -73,7 +73,9 @@ fun List<String>.joined_path(): String {
 /// fields of the argument struct beside it.
 fun Module.annotation_params(index: uint64): List<Sym> {
     val declared = self.decls.at(index)
-    if declared.crate.raw == self.crate.raw { return declared.param_names() }
+    // A unity build has every crate's source, so another crate's annotation
+    // may still carry its parameters.
+    if declared.crate.raw == self.crate.raw || declared.is_source() { return declared.param_names() }
     var names = List.new<Sym>()
     while td in &self.decls {
         if td.crate.raw != declared.crate.raw || td.module_path.id != declared.module_path.id { continue }
@@ -146,4 +148,11 @@ fun methods_written_here(methods: &List<TopDecl>): List<TopDecl> {
         out.push(copy)
     }
     return out
+}
+
+fun TopDecl.is_source(): bool {
+    return when (self.linkage) {
+        Source => true
+        _ => false
+    }
 }

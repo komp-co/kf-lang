@@ -9,6 +9,7 @@ import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 import kf_core.intern.Sym
 
+@derive(Clone)
 pub struct ExpansionSite {
     /// The field a member loop's copy was checked at, or the template's
     /// whole text when `exact` is false.
