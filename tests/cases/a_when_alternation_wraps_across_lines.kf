@@ -1,0 +1,35 @@
+//! run: exit 0
+//! deps: core
+// A long `A | B` alternation in a `when` arm wraps: a trailing `|` continues
+// it on the next line, and so does one that starts the next line (#136).
+
+enum Op {
+    Lt
+    Gt
+    LtEq
+    GtEq
+    Add
+}
+
+fun trailing(op: Op): int32 {
+    return when (op) {
+        Lt | Gt |
+        LtEq | GtEq => 1
+        _ => 0
+    }
+}
+
+fun leading(op: Op): int32 {
+    return when (op) {
+        Lt | Gt
+        | LtEq
+        | GtEq => 1
+        _ => 0
+    }
+}
+
+fun main(): int32 {
+    if trailing(Op.GtEq) != 1 || trailing(Op.Add) != 0 { return 1 }
+    if leading(Op.LtEq) != 1 || leading(Op.Add) != 0 { return 2 }
+    return 0
+}

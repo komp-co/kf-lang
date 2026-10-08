@@ -324,22 +324,32 @@ impl Parser {
     }
 
     /// `p | p | ...`. `|` binds looser than a range's `..`, so `1..5 | 9` is
-    /// two alternatives.
+    /// two alternatives. A long alternation wraps: a trailing `|` continues
+    /// on the next line, and a line may start with one, as no pattern does.
     mutating fun parse_arm_pattern(): Pattern {
         val first = self.parse_pattern()
-        if !is_op(self.peek(), Operator.Pipe) { return first }
+        if !self.at_alternative() { return first }
         val start = first.span
         var end = first.span
         var alternatives = List.new<Pattern>()
         alternatives.push(first)
-        while is_op(self.peek(), Operator.Pipe) {
+        while self.at_alternative() {
+            self.skip_newlines()
             unsafe { self.advance() }
+            self.skip_newlines()
             val next = self.parse_pattern()
             end = next.span
             alternatives.push(next)
         }
         val span = Span { file_id: start.file_id, start: start.start, end: end.end }
         return Pattern.new(span, PatternKind.Or(alternatives))
+    }
+
+    /// A `|`, here or first on a following line.
+    fun at_alternative(): bool {
+        var offset: uint64 = 0
+        while self.peek_at(offset).ends_line() { offset = offset + 1 }
+        return is_op(self.peek_at(offset), Operator.Pipe)
     }
 
     /// A literal already read, or the low bound of `low..high` / `low..=high`.
@@ -399,5 +409,12 @@ impl Parser {
             if self.at_eof() { return }
             unsafe { self.advance() }
         }
+    }
+}
+
+fun Token.ends_line(): bool {
+    return when (self.kind) {
+        Newline => true
+        _ => false
     }
 }
