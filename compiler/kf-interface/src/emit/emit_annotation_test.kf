@@ -168,6 +168,31 @@ fun type_parameters_cross_with_their_bounds(): void {
     assert_eq(round_trip_params(m).as_str(), "T:Display,S", "in order, with the bound")
 }
 
+/// Whether the one `bench` annotation reads back `unique`.
+fun unique_round_trips(unique: bool): bool {
+    val kind = TopDeclKind.AnnotationDecl(List.new<Param>(), MarkTarget.new_default(Span.none()), true)
+    var decl = TopDecl.new(Span.none(), String.from("bench"), kind)
+    decl.crate = CrateId.new("sample")
+    decl.module_path = intern("sample.api")
+    decl.is_unique = unique
+    val m = Module {
+        crate: CrateId.new("sample"), path: List.new<String>(), decls: [decl], imports: List.new<Import>()
+    }
+    val loaded = parse_interface(m.emit_interface(String.from("sample"), &List.new<String>()))
+    while each in &loaded.modules {
+        while td in &each.decls {
+            if td.name.as_str() == "bench" { return td.is_unique }
+        }
+    }
+    return false
+}
+
+@test
+fun a_unique_annotation_stays_unique_across_the_interface(): void {
+    assert_eq(unique_round_trips(true), true, "`unique` crosses with its annotation")
+    assert_eq(unique_round_trips(false), false, "and is not invented")
+}
+
 /// Whether the one `bench` annotation reads back marked `@prelude`.
 fun prelude_round_trips(marked: bool): bool {
     val kind = TopDeclKind.AnnotationDecl(List.new<Param>(), MarkTarget.new_default(Span.none()), true)

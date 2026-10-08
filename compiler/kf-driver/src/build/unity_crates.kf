@@ -9,6 +9,7 @@ import kf_assemble.stamp_module_owner
 import kf_driver.fresh_source_map
 import kf_driver.run_pipeline
 import kf_core.diagnostic.Diagnostics
+import kf_core.intern.CrateId
 
 /// Compiles `crates`, dependencies first and the root last, into the C at
 /// `out`. `with_tests` adds the root's `_test.kf` files, and `entry_file`,
@@ -20,10 +21,12 @@ pub fun compile_unity_crates(crates: &List<CrateSource>, is_bin: bool, with_test
     var pdiags = Diagnostics.new()
     val none = no_overlay()
     var modules = assemble_crate_list(crates, smap, &var pdiags, with_tests, &none)
+    val root = CrateId.new(crates.at(crates.size() - 1).name.as_str())
+    val chose = choose_annotated_entry(&var modules, root, with_tests, is_bin, &var pdiags)
     val parse_errors = report_parse_errors(&var pdiags, smap, false)
     // A test build stops here, before a parse error becomes a C compiler one.
     if with_tests && parse_errors != 0 { return parse_errors }
-    add_entry_file(&var modules, entry_file, crates.at(crates.size() - 1).name.as_str(), smap)
+    if !chose { add_entry_file(&var modules, entry_file, crates.at(crates.size() - 1).name.as_str(), smap) }
     var errors = Diagnostics.new()
     errors.count_errors(parse_errors)
     var merged = merge_module_list(modules)

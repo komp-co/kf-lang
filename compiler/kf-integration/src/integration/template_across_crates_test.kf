@@ -229,3 +229,42 @@ fun main(): int32 {
     assert_eq(komp_build(app, ""), 0, "the app's private `positive` is called where the use names it")
     assert_eq(unsafe { system("${app}/target/kflat/tn_app") }, 0, "the rule runs per field")
 }
+
+@test
+fun a_template_with_where_adds_to_a_generic_struct_of_a_crate_importing_it(): void {
+    write_across_crate("tw_generic_lib", "lib", "", """pub annotation same on struct
+pub annotation skip on field
+
+template same on struct T {
+    impl Equal for T where T.fields.filter(|field| !field.has<skip>()): Equal {
+        fun equals(other: &T): bool {
+            return T.fields.filter(|field| !field.has<skip>()).all(|field| field.of(self) == field.of(other))
+        }
+    }
+}
+""")
+    val deps = "\n[dependencies]\ntw_generic_lib = { path = \"../kf_template_across_tw_generic_lib\" }\n"
+    write_across_crate("tw_generic_app", "bin", deps, """import tw_generic_lib.same
+import tw_generic_lib.skip
+
+struct Handle {
+    val fd: int32
+}
+
+@same
+struct Tagged<V, M> {
+    val value: V
+    @skip
+    val meta: M
+}
+
+fun main(): int32 {
+    val a = Tagged { value: 7, meta: Handle { fd: 1 } }
+    val b = Tagged { value: 7, meta: Handle { fd: 2 } }
+    return if a == b { 0 } else { 1 }
+}
+""")
+    val app = across_dir("tw_generic_app")
+    assert_eq(komp_build(app, ""), 0, "the bound reaches `V` through the interface's template")
+    assert_eq(unsafe { system("${app}/target/kflat/tw_generic_app") }, 0, "and `M` asks for nothing")
+}

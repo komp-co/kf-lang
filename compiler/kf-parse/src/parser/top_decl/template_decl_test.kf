@@ -63,3 +63,30 @@ fun TopDecl.template_shape(): String {
     assert_eq(td.template_key.as_str(), "Counted", "the key")
     assert_eq(td.name.as_str(), "deriving", "the annotation")
 }
+
+/// How many `where` bounds the template's one impl carries, and its traits.
+fun TopDecl.impl_bound_shape(): String {
+    return when (self.kind) {
+        Template(_kind, _marked, body) => {
+            if body.size() != 1 { return String.from("") }
+            var out = "${body.at(0).member_bounds.size()}:"
+            while bound in &body.at(0).member_bounds {
+                out.append(" ${bound.traits.size()}")
+            }
+            out
+        }
+        _ => String.from("")
+    }
+}
+
+@test fun an_impl_in_a_template_takes_where_bounds_per_member_list(): void {
+    val source = """template same on struct T {
+    impl Equal for T where T.fields.filter(|field| !field.has<skip>()): Equal + Hash, T.fields: Copy {
+        fun equals(other: &T): bool { return true }
+    }
+}"""
+    var p = parser_for(source)
+    val td = p.parse_top_decl()
+    assert_eq(p.diags.size(), 0, "`where` lists parse")
+    assert_eq(td.impl_bound_shape().as_str(), "2: 2 1", "two lists, with two traits and one")
+}

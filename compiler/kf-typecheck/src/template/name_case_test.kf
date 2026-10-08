@@ -1,0 +1,20 @@
+import core.assert.assert_eq
+
+import testing.test
+
+@test
+fun a_name_splits_at_separators_case_changes_and_acronyms(): void {
+    assert_eq(in_case("IntLiteral", "snake_case").as_str(), "int_literal", "a lower then an upper")
+    assert_eq(in_case("HTTPServer", "snake_case").as_str(), "http_server", "an acronym before a word")
+    assert_eq(in_case("Utf8Error", "kebab_case").as_str(), "utf8-error", "a digit stays with its word")
+    assert_eq(in_case("user_id", "pascal_case").as_str(), "UserId", "underscores split")
+    assert_eq(in_case("dry-run", "camel_case").as_str(), "dryRun", "dashes split")
+}
+
+@test
+fun each_case_joins_the_words_its_own_way(): void {
+    assert_eq(in_case("userId", "shouting_snake_case").as_str(), "USER_ID", "shouting")
+    assert_eq(in_case("userId", "lower_case").as_str(), "userid", "lower, no separator")
+    assert_eq(in_case("userId", "upper_case").as_str(), "USERID", "upper, no separator")
+    assert_eq(in_case("userId", "").as_str(), "userId", "as written")
+}

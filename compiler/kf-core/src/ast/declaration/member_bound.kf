@@ -1,0 +1,15 @@
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.types.TypeRef
+
+/// `where T.fields: Equal` on an impl a template adds: each type parameter
+/// a kept member's type names is bounded by the traits. `members` is
+/// `T.fields`, `T.variants` (their payloads), or a `filter` of either.
+@derive(Clone)
+pub struct MemberBound {
+    pub val span: Span
+    pub val members: Expr
+    pub val traits: List<TypeRef>
+}

@@ -1,0 +1,35 @@
+//! run: exit 0
+//! deps: core
+// `where T.variants: Equal` bounds each parameter a variant's payloads name.
+
+annotation same on enum
+
+template same on enum T {
+    impl Equal for T where T.variants: Equal {
+        fun equals(other: &T): bool {
+            return when (self) {
+                while variant in T.variants {
+                    ${variant.name}(..a) => when (other) {
+                        ${variant.name}(..b) => variant.payloads.all(|payload| payload.of(a) == payload.of(b))
+                        _ => false
+                    }
+                }
+            }
+        }
+    }
+}
+
+@same
+enum Maybe<V> {
+    Has(V)
+    Nothing
+}
+
+fun main(): int32 {
+    val one: Maybe<int32> = Maybe.Has(1)
+    val also: Maybe<int32> = Maybe.Has(1)
+    val two: Maybe<int32> = Maybe.Has(2)
+    val none: Maybe<int32> = Maybe.Nothing
+    if !(one == also) || one == two || one == none { return 1 }
+    return 0
+}

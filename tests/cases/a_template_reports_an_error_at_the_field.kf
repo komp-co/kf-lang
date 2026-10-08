@@ -1,0 +1,30 @@
+//! build: fail
+//! deps: core, alloc
+// `compile_error` in a branch the facts decide stops the build, at the field
+// the member loop is on.
+
+annotation summed on struct
+annotation label on field
+
+template summed on struct T {
+    fun T.total(): int64 {
+        var sum: int64 = 0
+        while field in T.fields {
+            if field.has<label>() {
+                compile_error("`${field.name}` is a label, which `@summed` cannot add")
+            } else {
+                sum = sum + field.of(self) as int64
+            }
+        }
+        return sum
+    }
+}
+
+@summed
+struct Point {
+    val x: int32
+    @label
+    val name: int32
+}
+
+fun main(): int32 { return (Point { x: 1, name: 2 }.total() - 1) as int32 }

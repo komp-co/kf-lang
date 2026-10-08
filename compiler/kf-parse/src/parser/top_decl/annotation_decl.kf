@@ -21,7 +21,7 @@ impl Parser {
     }
 
     /// `annotation NAME`, with optional `<T: Bound>` before the name,
-    /// `(p: T, ...)` and `on TARGET`, consuming `annotation`.
+    /// `(p: T, ...)`, `unique` and `on TARGET`, consuming `annotation`.
     mutating fun parse_annotation_decl(span: Span, is_pub: bool): TopDecl {
         unsafe { self.advance() } // consume `annotation`
         val type_params = self.parse_type_params()
@@ -30,10 +30,13 @@ impl Parser {
         unsafe { self.advance() }
         val has_params = is_op(self.peek(), Operator.LParen)
         val params = if has_params { self.parse_annotation_params() } else { List.new<Param>() }
+        val unique = self.at_word("unique")
+        if unique { self.advance() }
         val target = if self.at_word("on") { self.parse_mark_target() } else { MarkTarget.new_default(name_at) }
         var td = TopDecl.new(span, name, TopDeclKind.AnnotationDecl(params, target, is_pub))
         td.name_span = name_at
         td.generics = type_params
+        td.is_unique = unique
         return td
     }
 

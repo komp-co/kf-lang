@@ -65,6 +65,10 @@ pub struct TopDecl {
     /// `Equal` in `template derive(Equal) on struct T`: the name a keyed
     /// template is for. Empty otherwise.
     pub var template_key: Sym
+    /// `where T.fields: Equal` on an impl in a template. Empty otherwise.
+    pub var member_bounds: List<MemberBound>
+    /// `annotation NAME unique`: used at most once in a crate.
+    pub var is_unique: bool
 }
 
 pub enum TopDeclKind {
@@ -120,7 +124,8 @@ impl TopDecl {
             link_name: intern(""), dyn_layouts: [],
             dyn_vtables: [], decl_end: 0, name_span: Span.none(), ext_name: intern(""),
             resolves_in: intern(""), is_sealed: false, is_view: false, implemented_lang_trait: intern(""),
-            is_internal: false, member_loop: null, deref_via: intern(""), template_key: intern("")
+            is_internal: false, member_loop: null, deref_via: intern(""), template_key: intern(""),
+            member_bounds: [], is_unique: false
         }
     }
 
