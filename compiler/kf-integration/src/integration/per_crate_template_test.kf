@@ -1,0 +1,60 @@
+// A dependency's `per crate` template writes its declarations once into each
+// crate that uses its annotation, and into none that only depends on it.
+
+import core.assert.assert_eq
+import kf_integration.harness.komp_build
+import kf_integration.harness.komp_build_unity
+import kf_integration.harness.komp_run
+import testing.test
+
+fun counting_library(): str {
+    return """pub annotation counted on () -> void
+
+template counted per crate {
+    fun count_all(): int32 { return annotated<counted>().size() as int32 }
+}
+"""
+}
+
+fun counting_deps(lib: str): String {
+    return "\n[dependencies]\n${lib} = { path = \"../kf_template_across_${lib}\" }\n"
+}
+
+@test
+fun a_dependency_s_per_crate_template_expands_in_the_crate_using_it(): void {
+    write_across_crate("pc_lib", "lib", "", counting_library())
+    write_across_crate("pc_app", "bin", counting_deps("pc_lib").as_str(), """import pc_lib.counted
+
+@counted
+fun first(): void {}
+
+@counted
+fun second(): void {}
+
+fun main(): int32 { return count_all() - 2 }
+""")
+    val app = across_dir("pc_app")
+    assert_eq(komp_run(app), 0, "the app gets one `count_all`, counting its two uses")
+}
+
+@test
+fun a_unity_build_expands_a_per_crate_template_once_per_using_crate(): void {
+    write_across_crate("pcu_lib", "lib", "", counting_library())
+    write_across_crate("pcu_app", "bin", counting_deps("pcu_lib").as_str(), """import pcu_lib.counted
+
+@counted
+fun only(): void {}
+
+fun main(): int32 { return count_all() - 1 }
+""")
+    assert_eq(komp_build_unity(across_dir("pcu_app")), 0, "the declaring crate never uses it, so only the app has one")
+}
+
+@test
+fun depending_on_a_per_crate_template_adds_nothing(): void {
+    write_across_crate("pci_lib", "lib", "", counting_library())
+    val source = "fun main(): int32 { return count_all() }\n"
+    write_across_crate("pc_idle", "bin", counting_deps("pci_lib").as_str(), source)
+    val built = komp_build(across_dir("pc_idle"), "")
+    assert_eq(built != 0, true, "without a `@counted`, there is no `count_all` to call")
+}

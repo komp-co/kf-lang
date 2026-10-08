@@ -1,0 +1,19 @@
+//! run: exit 0
+//! deps: core, alloc
+// A `per crate` template writes its declarations once into a crate that uses
+// its annotation, however many uses there are; they list the uses with
+// `annotated<>`.
+
+annotation counted on () -> void
+
+template counted per crate {
+    fun count_all(): int32 { return annotated<counted>().size() as int32 }
+}
+
+@counted
+fun first(): void {}
+
+@counted
+fun second(): void {}
+
+fun main(): int32 { return count_all() - 2 }

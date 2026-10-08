@@ -1,5 +1,6 @@
 // `template NAME on struct T { ... }` or `on enum T`: its declarations,
-// expanded for each struct or enum of this crate marked `@NAME`, join the module and the decl table. A
+// expanded for each struct or enum of this crate marked `@NAME`, or once
+// `per crate`, join the module and the decl table. A
 // template stays, for the interface to carry. Runs before anything
 // registers, so what it adds is checked like code written by hand.
 
@@ -32,6 +33,13 @@ pub mutating fun Module.expand_templates(table: &var DeclTable, diags: &var List
     val templates = self.checked_templates(diags)
     while found in &templates {
         val template = self.decls.at(found.template)
+        if template.is_per_crate() {
+            val expanded = self.expand_per_crate(template, found.annotation, diags, &var sites, smap)
+            while item in &expanded {
+                added.push(item.clone())
+            }
+            continue
+        }
         while td in &self.decls {
             if !self.is_marked_by(td, template, found.annotation) { continue }
             val expanded = self.expand_for(template, td, found.annotation, diags, &var sites, smap)
@@ -77,11 +85,11 @@ fun Module.checked_templates(diags: &var List<Diagnostic>): List<TemplateAt> {
         var duplicate = false
         while earlier in &out {
             val first = self.decls.at(earlier.template)
-            val same_kind = first.template_kind() == td.template_kind()
+            val same_kind = first.template_kind() == td.template_kind() && first.is_per_crate() == td.is_per_crate()
             if earlier.annotation == annotation && same_kind && first.template_key.id == td.template_key.id {
-                val kind = td.template_kind().word()
+                val kind = if td.is_per_crate() { "per crate" } else { "on `${td.template_kind().word()}`" }
                 val keyed = if td.is_keyed() { "(${td.template_key.as_str()})" } else { "" }
-                var diag = Diagnostic.error_at(at, "`@${td.name.as_str()}${keyed}` already has a template on `${kind}`")
+                var diag = Diagnostic.error_at(at, "`@${td.name.as_str()}${keyed}` already has a template ${kind}")
                 diag.secondary.push(Label.new(self.decls.at(earlier.template).decl_name_span(), "the first"))
                 diags.push(diag)
                 duplicate = true
@@ -105,7 +113,7 @@ fun Module.template_annotation(template: &TopDecl, diags: &var List<Diagnostic>)
     val at = template.decl_name_span()
     val name = template.name.as_str()
     val kind = template.template_kind()
-    if kind != MarkKind.Struct && kind != MarkKind.Enum {
+    if !template.is_per_crate() && kind != MarkKind.Struct && kind != MarkKind.Enum {
         val message = "a template cannot add to `${kind.word()}`: it adds to a `struct` or an `enum`"
         diags.push(Diagnostic.error_at(at, message))
         return null
@@ -117,7 +125,7 @@ fun Module.template_annotation(template: &TopDecl, diags: &var List<Diagnostic>)
         return null
     }
     val index = found ?: return null
-    if !self.decls.at(index).marks(kind) {
+    if !template.is_per_crate() && !self.decls.at(index).marks(kind) {
         val word = kind.word()
         val declare = "declare it `on ${word}` for a template on `${word}`"
         diags.push(Diagnostic.error_at(at, "`@${name}` does not mark ${word}s: ${declare}"))

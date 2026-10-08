@@ -1,0 +1,12 @@
+//! build: fail
+//! deps: core, alloc
+// A crate that never writes `@counted` gets nothing from its `per crate`
+// template, so `count_all` does not exist.
+
+annotation counted on () -> void
+
+template counted per crate {
+    fun count_all(): int32 { return annotated<counted>().size() as int32 }
+}
+
+fun main(): int32 { return count_all() }

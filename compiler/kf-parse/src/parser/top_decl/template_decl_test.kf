@@ -90,3 +90,16 @@ fun TopDecl.impl_bound_shape(): String {
     assert_eq(p.diags.size(), 0, "`where` lists parse")
     assert_eq(td.impl_bound_shape().as_str(), "2: 2 1", "two lists, with two traits and one")
 }
+
+@test fun a_per_crate_template_marks_no_declaration(): void {
+    var p = parser_for("template tested per crate {\n    fun run_all(): int32 { return 0 }\n}")
+    val td = p.parse_top_decl()
+    val shape = "${td.name.as_str()} ${td.template_shape().as_str()} ${p.diags.size()}"
+    assert_eq(shape.as_str(), "tested fun : 1 0", "no `T`, one declaration, no error")
+}
+
+@test fun per_stays_an_identifier_after_template(): void {
+    var p = parser_for("fun f(per: int32): int32 { val template = per\n    return template }")
+    val _f = p.parse_top_decl()
+    assert_eq(p.diags.size(), 0, "`template per` without `crate` is not a template")
+}

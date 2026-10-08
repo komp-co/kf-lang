@@ -1,0 +1,19 @@
+//! build: fail
+//! deps: core, alloc
+// Two `per crate` templates for one annotation would write the crate's code
+// twice.
+
+annotation counted on () -> void
+
+template counted per crate {
+    fun count_all(): int32 { return 1 }
+}
+
+template counted per crate {
+    fun count_twice(): int32 { return 2 }
+}
+
+@counted
+fun first(): void {}
+
+fun main(): int32 { return 0 }
