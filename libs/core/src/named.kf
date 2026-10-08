@@ -1,0 +1,57 @@
+// `@named`: an enum's variants as text and back, `name()` and
+// `from_name(s)`, in the case the use chooses. `@spelled("+")` spells one
+// variant its own way.
+
+/// How `@named` spells a variant's name: `IntLiteral` as written, or as
+/// `int_literal`, `int-literal`, `intLiteral`, `IntLiteral`, `INT_LITERAL`,
+/// `intliteral` or `INTLITERAL`.
+@derive(Copy, Equal)
+pub enum NameCase {
+    AsWritten
+    Snake
+    Kebab
+    Camel
+    Pascal
+    ShoutingSnake
+    Lower
+    Upper
+}
+
+/// `fun T.name(): str` and `static fun T.from_name(s: str): T?` for the enum.
+@prelude
+pub annotation named(case: NameCase = NameCase.AsWritten) on enum
+
+/// The spelling `@named` gives this variant, in place of its name.
+@prelude
+pub annotation spelled(text: str) on variant
+
+template named on enum T {
+    impl T {
+        /// The variant's name, as `@named` spells it.
+        fun name(): str {
+            return when (self) {
+                while variant in T.variants {
+                    ${variant.name}(..a) => if variant.has<spelled>() {
+                        variant.get<spelled>().text
+                    } else {
+                        variant.name.in_case(args.case)
+                    }
+                }
+            }
+        }
+
+        /// The variant without payloads `s` spells, or null; the first one
+        /// when two spell it the same.
+        static fun from_name(s: str): T? {
+            while variant in T.variants.filter(|variant| variant.payloads.size() == 0) {
+                val spelled = if variant.has<spelled>() {
+                    variant.get<spelled>().text
+                } else {
+                    variant.name.in_case(args.case)
+                }
+                if s == spelled { return T.${variant.name} }
+            }
+            return null
+        }
+    }
+}

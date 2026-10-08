@@ -1,0 +1,27 @@
+//! run: exit 0
+//! deps: core
+// `@named` gives an enum `name()` and `from_name(s)` in the case its use
+// chooses, `@spelled` a variant its own spelling; `from_name` never builds a
+// variant with payloads.
+
+@named(case = NameCase.Snake)
+enum Token {
+    IntLiteral
+    HTTPServer
+}
+
+@named(case = NameCase.Kebab)
+enum Flag {
+    DryRun
+    @spelled("-v")
+    Verbose
+    Jobs(int32)
+}
+
+fun main(): int32 {
+    if Flag.DryRun.name() != "dry-run" || Flag.Jobs(4).name() != "jobs" { return 1 }
+    val verbose = Flag.from_name("-v") ?: return 2
+    if verbose.name() != "-v" { return 3 }
+    if Token.HTTPServer.name() != "http_server" || Token.IntLiteral.name() != "int_literal" { return 5 }
+    return if Flag.from_name("jobs") == null { 0 } else { 4 }
+}
