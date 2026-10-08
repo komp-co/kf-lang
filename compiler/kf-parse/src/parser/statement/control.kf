@@ -131,7 +131,7 @@ impl Parser {
         val body = self.parse_block()
         val subj: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *subj = subject }
-        return Stmt.new_binding(span, name_span, StmtKind.ForEach(intern(name.as_str()), subj, body))
+        return Stmt.new_binding(span, name_span, StmtKind.ForEach(intern(name), subj, body))
     }
 
     /// `for` only opens a trait impl; as a loop it gets one diagnostic and is
@@ -310,9 +310,9 @@ impl Parser {
                         unsafe { self.advance() }
                     }
                 }
-                return Pattern.new(pat_span, PatternKind.Variant(intern(name.as_str()), subs))
+                return Pattern.new(pat_span, PatternKind.Variant(intern(name), subs))
             }
-            return Pattern.new(pat_span, PatternKind.Identifier(intern(name.as_str())))
+            return Pattern.new(pat_span, PatternKind.Identifier(intern(name)))
         }
 
         // Unsupported here: reported, then resynced on the arm's `=>` so it

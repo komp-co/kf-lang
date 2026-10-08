@@ -90,7 +90,7 @@ pub fun Module.emit_enum_drops(lookup: &Module): String {
 fun emit_enum_drop(name: String, variants: &List<Variant>, facts: &TypeFacts): String {
     var parts = List.new<String>()
     parts.push("static inline void ${name}__glue_drop(${name} v) {\n")
-    if facts.has_user_drop(name.as_str()) {
+    if facts.has_user_drop(name) {
         parts.push("    ${name}_drop(&v);\n")
     }
     parts.push(String.from("    switch (v.tag) {\n"))
@@ -106,7 +106,7 @@ fun emit_enum_drop(name: String, variants: &List<Variant>, facts: &TypeFacts): S
                 val inner = box_inner_tref(pt)
                 val inner_drop = release_fn_for_ctype(inner.c_type().as_str())
                 parts.push("            if (${lval}) { ")
-                if inner_drop.as_str().byte_len() > 0 {
+                if inner_drop.byte_len() > 0 {
                     parts.push("${inner_drop}((*${lval})); ")
                 }
                 parts.push("kf_free(${lval}); }\n")
@@ -224,7 +224,7 @@ fun emit_enum_clone(name: String, variants: &List<Variant>, facts: &TypeFacts): 
             if is_box_tref(pt) {
                 val inner = box_inner_tref(pt)
                 val inner_ct = inner.c_type()
-                val inner_clone = clone_fn_for_ctype(inner_ct.as_str())
+                val inner_clone = clone_fn_for_ctype(inner_ct)
                 parts.push(String.from("            if ("))
                 parts.push(lval.clone())
                 parts.push(String.from(") { "))
@@ -234,7 +234,7 @@ fun emit_enum_clone(name: String, variants: &List<Variant>, facts: &TypeFacts): 
                 parts.push(String.from("*)kf_alloc(sizeof("))
                 parts.push(inner_ct.clone())
                 parts.push(String.from(")); *__c = "))
-                if inner_clone.as_str().byte_len() > 0 {
+                if inner_clone.byte_len() > 0 {
                     parts.push(inner_clone.clone())
                     parts.push(String.from("(*"))
                     parts.push(lval.clone())
@@ -248,7 +248,7 @@ fun emit_enum_clone(name: String, variants: &List<Variant>, facts: &TypeFacts): 
                 parts.push(String.from(" = __c; }\n"))
             } else {
                 val cf = clone_fn_for_ctype(pt.c_type().as_str())
-                if cf.as_str().byte_len() > 0 {
+                if cf.byte_len() > 0 {
                     parts.push(String.from("            "))
                     parts.push(lval.clone())
                     parts.push(String.from(" = "))
@@ -265,7 +265,7 @@ fun emit_enum_clone(name: String, variants: &List<Variant>, facts: &TypeFacts): 
     parts.push(String.from("    }\n    return v;\n}\n\n"))
     // The default by-pointer `<E>_clone`, which a `T: Clone` bound calls.
     // Skipped when the enum writes its own `clone`.
-    if !facts.has_user_clone(name.as_str()) {
+    if !facts.has_user_clone(name) {
         parts.push("static inline ${name} ${name}_clone(${name}* __self) { return ${name}__glue_clone(*__self); }\n\n")
     }
     return concat_all(parts)

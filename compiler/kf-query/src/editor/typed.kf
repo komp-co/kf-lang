@@ -50,7 +50,7 @@ pub fun typed_crate_staged(file_path: str, buffer: str, staged: bool, crates: &L
     every_body: bool): TypedCrate {
     // Keyed to the path the assembly will spell.
     val abs_file = absolute(file_path).raw
-    val overlay = if staged { overlay_for(abs_file.as_str(), buffer) } else { no_overlay() }
+    val overlay = if staged { overlay_for(abs_file, buffer) } else { no_overlay() }
     return typed_crate_with(file_path, &overlay, crates, every_body)
 }
 
@@ -88,7 +88,7 @@ pub fun no_dependency_signatures(): DependencySignatures {
 /// stages.
 fun crate_key(item: &CrateSource, overlay: &Overlay): String {
     var dirs = List.new<String>()
-    dirs.push(crate_source_dir(item.root.as_str(), item.src.as_str()))
+    dirs.push(crate_source_dir(item.root, item.src))
     return "${item.name}=${item.root}:${item.src}\n${overlay.staged_under(&dirs)}"
 }
 
@@ -150,7 +150,7 @@ pub fun typed_crate_cached(file_path: str, overlay: &Overlay, crates: &List<Crat
 /// and `ok` false, when it is not one.
 pub mutating fun TypedCrate.focus(file_path: str): bool {
     val abs_file = absolute(file_path).raw
-    val fid = file_id_for_path(self.smap, abs_file.as_str())
+    val fid = file_id_for_path(self.smap, abs_file)
     var text = ""
     when (unsafe { self.smap.get_file(fid) }) {
         Some(f) => text = f.content.clone()

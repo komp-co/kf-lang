@@ -15,7 +15,7 @@ import kf_core.ast.pattern.*
 fun synth_enum_equal_impl(name: String, variants: &List<Variant>, span: Span, owner: CrateId, module_path: Sym, trait_sym: Sym): TopDecl {
     var params = List.new<Param>()
     val other_named: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *other_named = TypeRef.new(span, TypeRefKind.Named(intern(name.as_str()), List.new<TypeRef>())) }
+    unsafe { *other_named = TypeRef.new(span, TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
     val other_type: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *other_type = TypeRef.new(span, TypeRefKind.Reference(false, other_named)) }
     params.push(Param.new(span, String.from("other"), other_type))

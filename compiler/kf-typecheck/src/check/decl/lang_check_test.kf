@@ -29,7 +29,7 @@ fun lang_messages(decls: List<TopDecl>): uint64 {
     val diagnostics = module.typecheck_module(&var table)
     var count: uint64 = 0
     while diagnostic in &diagnostics {
-        if diagnostic.primary.message.as_str().contains("lang") { count = count + 1 }
+        if diagnostic.primary.message.contains("lang") { count = count + 1 }
     }
     return count
 }
@@ -109,7 +109,7 @@ fun prelude_messages(decls: List<TopDecl>): uint64 {
     val diagnostics = module.typecheck_module(&var table)
     var count: uint64 = 0
     while diagnostic in &diagnostics {
-        if diagnostic.primary.message.as_str().contains("prelude") { count = count + 1 }
+        if diagnostic.primary.message.contains("prelude") { count = count + 1 }
     }
     return count
 }

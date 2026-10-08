@@ -33,7 +33,7 @@ shape_api = { path = "../kf_dyn_api" }
 
 """)
     implementation.append("pub fun draw_ref(holder: &ShapeHolder): &dyn Draw {\n    return holder.secret\n}\n")
-    write_file(scratch_path("kf_dyn_impl/src/lib.kf"), implementation.as_str())
+    write_file(scratch_path("kf_dyn_impl/src/lib.kf"), implementation)
     write_file(scratch_path("kf_dyn_app/kf.toml"), """[project]
 name = "shape_app"
 kind = "bin"
@@ -85,10 +85,10 @@ fun dyn_archive_contains(text: str, needle: str): bool {
     val implementation_header = read_file(scratch_path("kf_dyn_app/target/kflat/shape_impl.h"))
     val exported = unsafe { system("nm -g --defined-only ${scratch_path("kf_dyn_app/target/kflat/libshape_impl.a")} | grep -q ' DynVTableInstance__shape_impl__Secret__Draw$'") }
     val restored = unsafe { system("mv ${scratch_path("kf_dyn_api/src.hidden")} ${scratch_path("kf_dyn_api/src")} && mv ${scratch_path("kf_dyn_impl/src.hidden")} ${scratch_path("kf_dyn_impl/src")}") }
-    val dispatch = dyn_archive_contains(consumer.as_str(), "vtable->draw(self.data)")
-    val private_body = dyn_archive_contains(consumer.as_str(), "struct shape_impl__Secret {")
-    val trait_layout = dyn_archive_contains(trait_header.as_str(), "struct DynVTable__Draw {")
-    val external = dyn_archive_contains(implementation_header.as_str(), "extern const DynVTable__Draw DynVTableInstance__shape_impl__Secret__Draw;")
+    val dispatch = dyn_archive_contains(consumer, "vtable->draw(self.data)")
+    val private_body = dyn_archive_contains(consumer, "struct shape_impl__Secret {")
+    val trait_layout = dyn_archive_contains(trait_header, "struct DynVTable__Draw {")
+    val external = dyn_archive_contains(implementation_header, "extern const DynVTable__Draw DynVTableInstance__shape_impl__Secret__Draw;")
     assert_eq(prepared == 0 && first == 0 && hidden == 0 && rebuilt == 0 && ran == 0 && exported == 0 && restored == 0 && dispatch && !private_body && trait_layout && external, true, "dynamic dispatch links through archives with dependency sources absent")
 }
 
@@ -180,8 +180,8 @@ fun main(): int32 {
     val left = read_file(scratch_path("kf_dyn_gen_app/target/kflat/dyn_gen_left.c"))
     val right = read_file(scratch_path("kf_dyn_gen_app/target/kflat/dyn_gen_right.c"))
     val restored = unsafe { system("mv ${scratch_path("kf_dyn_gen_api/src.hidden")} ${scratch_path("kf_dyn_gen_api/src")} && mv ${scratch_path("kf_dyn_gen_dep/src.hidden")} ${scratch_path("kf_dyn_gen_dep/src")}") }
-    val left_static = dyn_archive_contains(left.as_str(), "static const DynVTable__Describe")
-    val right_static = dyn_archive_contains(right.as_str(), "static const DynVTable__Describe")
+    val left_static = dyn_archive_contains(left, "static const DynVTable__Describe")
+    val right_static = dyn_archive_contains(right, "static const DynVTable__Describe")
     assert_eq(prepared == 0 && first == 0 && hidden == 0 && rebuilt == 0 && ran == 0 && restored == 0 && left_static && right_static, true, "two consumers rebuild non-colliding generic vtables from artifacts")
 }
 
@@ -195,7 +195,7 @@ fun prepare_unused_dyn_archive_fixture(): int32 {
     library.append("pub struct Token {\n    pub val value: int32\n}\n\n")
     library.append("impl Score for Token {\n    pub fun score(): int32 { return self.value + 1 }\n}\n\n")
     library.append("pub fun token(value: int32): Token {\n    return Token { value: value }\n}\n")
-    write_file(scratch_path("kf_dyn_quiet_lib/src/lib.kf"), library.as_str())
+    write_file(scratch_path("kf_dyn_quiet_lib/src/lib.kf"), library)
     write_file(scratch_path("kf_dyn_quiet_app/kf.toml"), """[project]
 name = "quiet_app"
 kind = "bin"
@@ -224,8 +224,8 @@ fun main(): int32 {
     val ran = unsafe { system(scratch_path("kf_dyn_quiet_app/target/kflat/quiet_app")) }
     val library = read_file(scratch_path("kf_dyn_quiet_app/target/kflat/quiet_lib.c"))
     val library_header = read_file(scratch_path("kf_dyn_quiet_app/target/kflat/quiet_lib.h"))
-    val defined = dyn_archive_contains(library.as_str(), "const DynVTable__Score DynVTableInstance__quiet_lib__Token__Score = {")
-    val declared = dyn_archive_contains(library_header.as_str(), "extern const DynVTable__Score DynVTableInstance__quiet_lib__Token__Score;")
+    val defined = dyn_archive_contains(library, "const DynVTable__Score DynVTableInstance__quiet_lib__Token__Score = {")
+    val declared = dyn_archive_contains(library_header, "extern const DynVTable__Score DynVTableInstance__quiet_lib__Token__Score;")
     assert_eq(prepared == 0 && built == 0 && ran == 0 && defined && declared, true, "the crate that owns an impl defines its vtable whether or not it coerces one")
 }
 
@@ -235,6 +235,6 @@ fun main(): int32 {
     val prepared = prepare_unused_dyn_archive_fixture()
     val built = komp_build(scratch_path("kf_dyn_quiet_app"), "")
     val library = read_file(scratch_path("kf_dyn_quiet_app/target/kflat/quiet_lib.c"))
-    val forwards = dyn_archive_contains(library.as_str(), "return quiet_lib__Token_score__Score((quiet_lib__Token *)data);")
+    val forwards = dyn_archive_contains(library, "return quiet_lib__Token_score__Score((quiet_lib__Token *)data);")
     assert_eq(prepared == 0 && built == 0 && forwards, true, "an adapter calls the definition, not the unqualified template name")
 }

@@ -7,7 +7,9 @@ import alloc.list.*
 import kf_core.intern.CrateId
 import kf_core.ast.Module
 import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_core.ast.declaration.*
+import kf_core.ast.annotation.*
 
 /// The annotation a dependency's `template` belongs to: the public one of
 /// its name in the template's own crate and module, which an importer uses.
@@ -60,12 +62,39 @@ fun Module.annotation_params(index: uint64): List<Sym> {
                 while field in &fields {
                     names.push(field.name)
                 }
+                if self.annotation_variadic(index) { names.push(declared.last_param_name()) }
                 return names
             }
             _ => {}
         }
     }
     return names
+}
+
+fun TopDecl.last_param_name(): Sym {
+    return when (self.kind) {
+        AnnotationDecl(params, _target, _pub) => if params.size() > 0 { params.at(params.size() - 1).name } else {
+            intern("")
+        }
+        _ => intern("")
+    }
+}
+
+/// Whether the annotation at `index` takes the positional arguments left
+/// over in its last parameter.
+fun Module.annotation_variadic(index: uint64): bool {
+    return when (self.decls.at(index).kind) {
+        AnnotationDecl(params, _target, _pub) => {
+            params.size() > 0 && (*params.at(params.size() - 1).ty).variadic_element() != null
+        }
+        _ => false
+    }
+}
+
+fun Module.annotation_shape(index: uint64): AnnotationShape {
+    val name = self.decls.at(index).name
+    val params = self.annotation_params(index)
+    return AnnotationShape { name: name, params: params, variadic: self.annotation_variadic(index) }
 }
 
 /// What a template adds belongs to the marked struct's crate, written there as

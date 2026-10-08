@@ -22,7 +22,7 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             o.field_bool("pub", is_pub || td.is_internal)
             var link = td.crate.symbol_prefix()
             link.append(td.name.as_str())
-            o.field_string("link_name", link.as_str())
+            o.field_string("link_name", link)
             o.field_raw("params", emit_interface_params(params).as_str())
             val ret_tr: TypeRef = unsafe { *ret }
             o.field_string("ret", ret_tr.tyref_to_source().as_str())
@@ -39,7 +39,7 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             o.field_bool("pub", is_pub)
             var cname = if unmangled { String.from("") } else { String.from(td.crate.symbol_prefix().as_str()) }
             cname.append(td.name.as_str())
-            o.field_string("c_type_name", cname.as_str())
+            o.field_string("c_type_name", cname)
             o.field_bool("no_mangle", unmangled)
             o.field_string("lang", (&td).lang_key_of().as_str())
             o.field_bool("view", td.is_view_type())
@@ -65,7 +65,7 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             o.field_bool("pub", is_pub)
             var cname = if unmangled { String.from("") } else { String.from(td.crate.symbol_prefix().as_str()) }
             cname.append(td.name.as_str())
-            o.field_string("c_type_name", cname.as_str())
+            o.field_string("c_type_name", cname)
             o.field_bool("no_mangle", unmangled)
             o.field_string("lang", (&td).lang_key_of().as_str())
             o.field_bool("view", td.is_view_type())
@@ -138,6 +138,9 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             // Every method crosses, `pub` or not: an impl's methods are the
             // trait's contract.
             o.field_raw("methods", emit_interface_methods(td, methods, true, true, interface_trait_suffix(trait_type, m), unmangled, &views).as_str())
+            // Bodies stay home, so the method a `Deref` forwards to crosses
+            // as a fact.
+            o.field_string("deref_via", td.deref_view().as_str())
             return o.finish()
         }
         AnnotationDecl(params, target, is_pub) => {
@@ -150,6 +153,7 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             o.field_raw("kinds", target.kinds_json().as_str())
             o.field_raw("params", type_params_json(td.generics).as_str())
             if params.has_default() { o.field_raw("defaults", emit_interface_params(params).as_str()) }
+            if params.has_shaped() { o.field_raw("shaped", emit_shaped_params(&params).as_str()) }
             return o.finish()
         }
         _ => return String.from("{}")
@@ -164,7 +168,7 @@ fun interface_trait_suffix(trait_ref: TypeRef, m: &Module): String {
             while item in &args {
                 suffix.append("__")
                 val arg = mangle_tyref(item)
-                suffix.append(arg.as_str())
+                suffix.append(arg)
             }
             return suffix
         }
@@ -191,9 +195,9 @@ fun emit_interface_methods(owner: &TopDecl, methods: &List<TopDecl>, callable: b
                         link.append(method.name.as_str())
                         if !suffix.as_str().equals("") {
                             link.append("__")
-                            link.append(suffix.as_str())
+                            link.append(suffix)
                         }
-                        object.field_string("link_name", link.as_str())
+                        object.field_string("link_name", link)
                     } else {
                         object.field_string("link_name", "")
                     }

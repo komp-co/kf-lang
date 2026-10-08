@@ -97,7 +97,7 @@ mutating fun TopDecl.qualify_decl(subst: &Substitution, rename_types: bool): voi
 
 mutating fun TopDecl.rename_decl_if_mapped(subst: &Substitution): void {
     val hit = rename_lookup(self.name.as_str(), subst)
-    if hit.as_str().byte_len() == 0 { return }
+    if hit.byte_len() == 0 { return }
     self.name = intern_string(hit)
 }
 

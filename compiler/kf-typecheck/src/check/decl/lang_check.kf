@@ -38,7 +38,7 @@ pub fun Module.reject_duplicate_lang_items(diags: &var Diagnostics): void {
     while td in &self.decls {
         val key = (&td).lang_key_of()
         if !key.as_str().equals("") && may_declare_lang_items(td.crate) {
-            if key_seen(&seen, key.as_str()) {
+            if key_seen(&seen, key) {
                 td.report("`@lang(\"${key.as_str()}\")` is declared more than once", diags)
             } else {
                 seen.push(key)

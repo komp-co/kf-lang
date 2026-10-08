@@ -105,8 +105,8 @@ impl Parser {
         val receiver_at = self.peek().span
         val receiver_name = self.expect_name("receiver type")
         unsafe { self.advance() }
-        val receiver_args = self.parse_receiver_arguments(receiver_name.as_str())
-        val receiver = TypeRef.new(receiver_at, TypeRefKind.Named(intern(receiver_name.as_str()), receiver_args))
+        val receiver_args = self.parse_receiver_arguments(receiver_name)
+        val receiver = TypeRef.new(receiver_at, TypeRefKind.Named(intern(receiver_name), receiver_args))
         unsafe { self.advance() } // consume `.`
         val name_at = self.peek().span
         val name = self.expect_name("extension function")
@@ -135,7 +135,7 @@ impl Parser {
             generics.push(receiver_generic)
         }
         td.generics = generics
-        td.ext_name = intern(name.as_str())
+        td.ext_name = intern(name)
         return td
     }
 

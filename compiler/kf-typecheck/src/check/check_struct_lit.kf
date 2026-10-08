@@ -17,15 +17,15 @@ import kf_typecheck.note_import_use
 /// `prechecked` when the initializers were checked to infer the arguments.
 mutating fun Expr.check_generic_struct_lit(struct_name: String, fields: &var List<FieldInit>, prechecked: bool,
     ctx: &var TypeCtx): Type {
-    val ttr = TypeRef.new(self.span, TypeRefKind.Named(intern(struct_name.as_str()), self.type_args.clone()))
+    val ttr = TypeRef.new(self.span, TypeRefKind.Named(intern(struct_name), self.type_args.clone()))
     val rty = ttr.resolve_type_ref(ctx)
     val eff = struct_name_of(rty)
     val eff_empty = eff.as_str().equals("")
     if eff_empty {
-        return check_struct_lit(struct_name.as_str(), fields, self.span, prechecked, ctx)
+        return check_struct_lit(struct_name, fields, self.span, prechecked, ctx)
     }
-    self.mangled_callee = intern(eff.as_str())
-    return check_struct_lit(eff.as_str(), fields, self.span, prechecked, ctx)
+    self.mangled_callee = intern(eff)
+    return check_struct_lit(eff, fields, self.span, prechecked, ctx)
 }
 
 fun struct_name_of(t: Type): String {
@@ -81,7 +81,7 @@ fun check_struct_lit(struct_name: str, fields: &var List<FieldInit>, span: Span,
         var initialized = false
         var seen: uint64 = 0
         while fi in 0..fields.size() {
-            if fields.at(fi).name.as_str().equals(lf.name.as_str()) {
+            if fields.at(fi).name.as_str().equals(lf.name) {
                 initialized = true
                 seen = seen + 1
             }
@@ -111,11 +111,11 @@ fun check_struct_lit(struct_name: str, fields: &var List<FieldInit>, span: Span,
 fun reorder_field_inits(fields: &var List<FieldInit>, layout: &StructLayout): void {
     if fields.size() < 2 || fields.size() != layout.fields.size() { return }
     while field in &layout.fields {
-        if field_init_index(fields, field.name.as_str()) >= fields.size() { return }
+        if field_init_index(fields, field.name) >= fields.size() { return }
     }
     var out = List.new<FieldInit>()
     while field in &layout.fields {
-        val moved = fields.remove(field_init_index(fields, field.name.as_str())) ?: return
+        val moved = fields.remove(field_init_index(fields, field.name)) ?: return
         out.push(moved)
     }
     *fields = out

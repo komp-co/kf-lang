@@ -34,13 +34,16 @@ impl Parser {
         val member_at = self.peek().span
         val member = self.expect_name("member list")
         self.advance()
-        if owner.as_str() != self.template_param.as_str() || member.as_str() != members.as_str() {
+        if owner.as_str() == "args" {
+            val keyed = "to add declarations per name, key a template on it"
+            self.parse_err(member_at, "a loop over an argument's values goes where statements go; ${keyed}")
+        } else if owner.as_str() != self.template_param.as_str() || member.as_str() != members.as_str() {
             val kind = if members.as_str() == "variants" { "enum" } else { "struct" }
             self.parse_err(member_at, "a member loop walks ${list}, the marked ${kind}'s ${members}")
         }
         val _open = self.expect_op(Operator.LBrace, "to open the member loop")
         self.loop_ctr = self.loop_ctr + 1
-        self.member_loop = MemberLoop { span: at, binder: intern(binder.as_str()), group: self.loop_ctr }
+        self.member_loop = MemberLoop { span: at, binder: intern(binder), group: self.loop_ctr }
     }
 
     /// At a list's `}`: whether it closes a member loop, consumed, rather

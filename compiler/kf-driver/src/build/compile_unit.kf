@@ -16,7 +16,7 @@ pub struct CompileUnit {
 }
 
 pub fun CompileUnit.source_dir(): String {
-    return crate_source_dir(self.root.as_str(), self.src.as_str())
+    return crate_source_dir(self.root, self.src)
 }
 
 /// `src`, or `<root>/src` when it is "".

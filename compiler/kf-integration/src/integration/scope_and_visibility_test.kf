@@ -14,22 +14,22 @@ extern "C" fun system(cmd: str): int32
 /// `editor/scope_test.kf` has `prepare_scope_fixture`.
 fun prepare_arm_scope_fixture(name: str, body: str): int32 {
     val cmd = "rm -rf ${scratch_root()}/${name} && mkdir -p ${scratch_root()}/${name}/src"
-    val prep = unsafe { system(cmd.as_str()) }
+    val prep = unsafe { system(cmd) }
     if prep != 0 { return prep }
 
     val toml_path = "${scratch_root()}/${name}/kf.toml"
     val toml = "[project]\nname = \"${name}\"\nversion = \"0.1.0\"\nkind = \"bin\"\n"
-    write_file(toml_path.as_str(), toml.as_str())
+    write_file(toml_path, toml)
 
     val main_path = "${scratch_root()}/${name}/src/main.kf"
-    write_file(main_path.as_str(), body)
+    write_file(main_path, body)
     return 0
 }
 
 fun check_arm_scope_fixture(name: str): int32 {
     var dir = "${scratch_root()}/"
     dir.append(name)
-    return check_project(dir.as_str())
+    return check_project(dir)
 }
 
 /// `r` is bound by the first arm only.

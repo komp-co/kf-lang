@@ -53,7 +53,7 @@ pub fun parse_interface_mapped(src: str, smap: Ptr<SourceMap>): InterfaceLoad {
     }
     if !reader.expect_key("crate") { return load_error("interface names no crate") }
     val crate_name = reader.read_string()
-    if crate_name.as_str().byte_len() == 0 { return load_error("interface names no crate") }
+    if crate_name.byte_len() == 0 { return load_error("interface names no crate") }
     if !reader.expect_key("compiler_abi") { return load_error("missing compiler ABI") }
     if reader.read_string().as_str() != interface_compiler_abi() { return load_error("unsupported compiler ABI") }
     if !reader.expect_key("runtime_abi") { return load_error("missing runtime ABI") }
@@ -73,7 +73,7 @@ pub fun parse_interface_mapped(src: str, smap: Ptr<SourceMap>): InterfaceLoad {
     if !vtable_result.ok { return load_error("malformed dynamic vtable metadata") }
     if !reader.expect_key("modules") { return load_error("missing interface modules") }
     val crate = CrateId.new(crate_name.as_str())
-    var modules = reader.load_modules(crate, crate_name.as_str(), smap)
+    var modules = reader.load_modules(crate, crate_name, smap)
     if reader.has_error() { return load_error("malformed interface declaration") }
     if reader.object_has_next() { return load_error("malformed interface JSON") }
     if reader.has_error() { return load_error("malformed interface JSON") }
@@ -118,13 +118,13 @@ mutating fun JsonReader.load_ownership_glue(): OwnershipGlueLoad {
         if !self.expect_key("clone") { return OwnershipGlueLoad { ok: false, items: items } }
         val clone = self.read_string()
         if self.object_has_next() { return OwnershipGlueLoad { ok: false, items: items } }
-        if interface_string_empty(type_name.as_str()) || interface_string_empty(retain.as_str()) {
+        if interface_string_empty(type_name) || interface_string_empty(retain) {
             return OwnershipGlueLoad { ok: false, items: items }
         }
-        if interface_string_empty(drop.as_str()) || interface_string_empty(clone.as_str()) {
+        if interface_string_empty(drop) || interface_string_empty(clone) {
             return OwnershipGlueLoad { ok: false, items: items }
         }
-        if glue_type_exists(&items, type_name.as_str()) {
+        if glue_type_exists(&items, type_name) {
             return OwnershipGlueLoad { ok: false, items: items }
         }
         items.push(OwnershipGlue {
@@ -156,14 +156,14 @@ mutating fun JsonReader.load_modules(crate: CrateId, crate_name: str, smap: Ptr<
         if !self.expect_key("path") { return modules }
         val path = self.read_string()
         if !self.expect_key("files") { return modules }
-        if !self.load_module_files(path.as_str(), smap) { return modules }
+        if !self.load_module_files(path, smap) { return modules }
         if !self.expect_key("decls") { return modules }
         var imports = List.new<Import>()
-        val decls = self.load_decls(crate, crate_name, path.as_str(), smap, &var imports)
+        val decls = self.load_decls(crate, crate_name, path, smap, &var imports)
         if !self.expect_key("reexports") { return modules }
-        imports.extend(self.load_reexports(path.as_str()))
+        imports.extend(self.load_reexports(path))
         if self.object_has_next() { return modules }
-        modules.push(Module { crate: crate, path: split_dotted_path(path.as_str()), decls: decls, imports: imports })
+        modules.push(Module { crate: crate, path: split_dotted_path(path), decls: decls, imports: imports })
     }
     return modules
 }
@@ -176,7 +176,7 @@ mutating fun JsonReader.load_module_files(path: str, smap: Ptr<SourceMap>): bool
         if self.has_error() { return false }
         var dotted = String.from(path)
         dotted.append(".")
-        dotted.append(stem.as_str())
+        dotted.append(stem)
         unsafe { smap.interface_files.push(dotted) }
     }
     return true
@@ -232,7 +232,7 @@ mutating fun JsonReader.load_fun(crate: CrateId, path: str, hidden: bool): TopDe
     if !self.read_ext_name(&var ext_name) { return poison_decl() }
     val kind = TopDeclKind.Function(params, ret, List.new<Stmt>(), is_pub, false, false, false)
     var decl = TopDecl.new(Span.none(), name, kind)
-    decl.ext_name = intern(ext_name.as_str())
+    decl.ext_name = intern(ext_name)
     if is_prelude { decl.annotations.push(Annotation.new(Span.none(), "prelude", List.new<String>())) }
     return stamp_imported(decl, crate, path, link_name, hidden)
 }
@@ -332,14 +332,14 @@ mutating fun JsonReader.load_trait(crate: CrateId, path: str, hidden: bool): Top
         // CONSTRAINT: kept in a local. The parsed tokens slice this buffer, so
         // a temporary would be freed while the parse result still reads it.
         val super_src = self.read_string()
-        supers.push(parse_type_value(super_src.as_str()))
+        supers.push(parse_type_value(super_src))
     }
     if !self.expect_key("methods") { return poison_decl() }
     val methods = self.load_method_list(crate, path, false, hidden)
     if self.object_has_next() { return poison_decl() }
     var decl = TopDecl.new(Span.none(), name, TopDeclKind.TraitDecl(methods, is_pub, supers))
     decl.is_sealed = is_sealed
-    if !lang.as_str().equals("") { decl.annotations.push(lang_annotation(lang.as_str())) }
+    if !lang.as_str().equals("") { decl.annotations.push(lang_annotation(lang)) }
     return stamp_imported(decl, crate, path, "", hidden)
 }
 
@@ -350,10 +350,12 @@ mutating fun JsonReader.load_trait_impl(crate: CrateId, path: str, hidden: bool)
     val trait_ref = parse_type_ptr(self.read_string().as_str())
     if !self.expect_key("methods") { return poison_decl() }
     val methods = self.load_method_list(crate, path, true, hidden)
+    if !self.expect_key("deref_via") { return poison_decl() }
+    val deref_via = self.read_string()
     if self.object_has_next() { return poison_decl() }
-    return stamp_imported(
-        TopDecl.new(Span.none(), target, TopDeclKind.TraitImpl(trait_ref, methods)), crate, path, "", hidden
-    )
+    var loaded = TopDecl.new(Span.none(), target, TopDeclKind.TraitImpl(trait_ref, methods))
+    loaded.deref_via = intern(deref_via)
+    return stamp_imported(loaded, crate, path, "", hidden)
 }
 
 mutating fun JsonReader.load_method_list(crate: CrateId, path: str, requires_link_name: bool, hidden: bool): List<TopDecl> {
@@ -374,7 +376,7 @@ mutating fun JsonReader.load_method(crate: CrateId, path: str, requires_link_nam
     if !self.expect_key("link_name") { return poison_decl() }
     val link_name = self.read_string()
     if requires_link_name {
-        if link_name.as_str().byte_len() == 0 { return poison_decl() }
+        if link_name.byte_len() == 0 { return poison_decl() }
     }
     if !self.expect_key("pub") { return poison_decl() }
     val is_pub = self.read_bool()

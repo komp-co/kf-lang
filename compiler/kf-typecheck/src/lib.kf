@@ -100,7 +100,7 @@ fun diag_list_contains(seen: &List<Diagnostic>, d: &Diagnostic): bool {
         if prior.primary.span.file_id == d.primary.span.file_id {
             if prior.primary.span.start == d.primary.span.start {
                 if prior.primary.span.end == d.primary.span.end {
-                    if prior.primary.message.as_str().equals(d.primary.message.as_str()) { return true }
+                    if prior.primary.message.as_str().equals(d.primary.message) { return true }
                 }
             }
         }

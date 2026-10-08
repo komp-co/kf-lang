@@ -25,13 +25,21 @@ mutating fun JsonReader.load_annotation(crate: CrateId, path: str, hidden: bool)
     if !self.expect_key("params") { return poison_decl() }
     val type_params = self.read_type_params() ?: return poison_decl()
     var defaults = List.new<Param>()
-    if self.object_has_next() {
-        if self.read_key().as_str() != "defaults" { return poison_decl() }
+    var key = if self.object_has_next() { self.read_key() } else { String.from("") }
+    if key.as_str() == "defaults" {
         defaults = self.load_params()
-        if self.object_has_next() { return poison_decl() }
+        key = if self.object_has_next() { self.read_key() } else { String.from("") }
     }
+    if key.as_str() == "shaped" {
+        val shaped = self.load_shaped_params() ?: return poison_decl()
+        while param in &shaped {
+            defaults.push(param.clone())
+        }
+        key = if self.object_has_next() { self.read_key() } else { String.from("") }
+    }
+    if key.byte_len() > 0 { return poison_decl() }
     val target = if function.byte_len() > 0 {
-        parse_signature_source(function.as_str())
+        parse_signature_source(function)
     } else if kinds.size() > 0 {
         MarkTarget.Kinds(kinds)
     } else {
@@ -42,6 +50,30 @@ mutating fun JsonReader.load_annotation(crate: CrateId, path: str, hidden: bool)
     return stamp_imported(decl, crate, path, "", hidden)
 }
 
+/// `[{"name":"rules","type":"fun","variadic":true}]`: the parameters taking
+/// a name, or variadic; null when malformed.
+mutating fun JsonReader.load_shaped_params(): List<Param>? {
+    var params = List.new<Param>()
+    if !self.begin_array() { return null }
+    while self.array_has_next() {
+        if !self.begin_object() || !self.expect_key("name") { return null }
+        val name = self.read_string()
+        if !self.expect_key("type") { return null }
+        // CONSTRAINT: a local, as for the function type above.
+        val written = self.read_string()
+        if !self.expect_key("variadic") { return null }
+        val variadic = self.read_bool()
+        if self.object_has_next() { return null }
+        var ty = when (mark_kind_of(written)) {
+            Some(kind) => name_param_type(Span.none(), kind)
+            None => parse_type_value(written)
+        }
+        if variadic { ty = variadic_param_type(Span.none(), ty) }
+        params.push(Param.new(Span.none(), name, Box.new(ty)))
+    }
+    return params
+}
+
 /// `[{"kind":"struct","bounds":["Plugin"]}]`; null when malformed.
 mutating fun JsonReader.read_kind_targets(): List<KindTarget>? {
     var kinds = List.new<KindTarget>()
@@ -49,13 +81,13 @@ mutating fun JsonReader.read_kind_targets(): List<KindTarget>? {
     while self.array_has_next() {
         if !self.begin_object() || !self.expect_key("kind") { return null }
         val word = self.read_string()
-        val kind = mark_kind_of(word.as_str()) ?: return null
+        val kind = mark_kind_of(word) ?: return null
         if !self.expect_key("bounds") || !self.begin_array() { return null }
         var bounds = List.new<TypeRef>()
         while self.array_has_next() {
             // CONSTRAINT: a local, as for the function type above.
             val source = self.read_string()
-            bounds.push(parse_type_value(source.as_str()))
+            bounds.push(parse_type_value(source))
         }
         if self.object_has_next() { return null }
         kinds.push(KindTarget { kind: kind, bounds: bounds })
@@ -74,7 +106,7 @@ mutating fun JsonReader.read_type_params(): List<TypeParam>? {
         while self.array_has_next() {
             // CONSTRAINT: a local, as for the function type above.
             val source = self.read_string()
-            param.bounds.push(parse_type_value(source.as_str()))
+            param.bounds.push(parse_type_value(source))
         }
         if self.object_has_next() { return null }
         params.push(param)
@@ -90,7 +122,7 @@ mutating fun JsonReader.load_annotation_uses(): List<Annotation> {
     while self.array_has_next() {
         // CONSTRAINT: a local, as for the function type above.
         val source = self.read_string()
-        uses.push(parse_annotation_source(source.as_str()))
+        uses.push(parse_annotation_source(source))
     }
     return uses
 }

@@ -1,0 +1,92 @@
+// A call to the method a `Deref` forwards to, where the value would lend
+// itself anyway: `s.as_str()` passed to a `str` parameter, or used as a
+// receiver whose own type lacks the method. Marked for the `needless_deref`
+// lint, which kf-lints reports.
+
+import kf_core.intern.Sym
+import kf_core.span.Span
+import kf_core.lang.LangItem
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.Coercion
+import kf_typecheck.check.borrow.is_place
+import kf_typecheck.types.type_eq
+
+/// `x.m()` in a slot of type `expected`, where `m` is what `x`'s `Deref`
+/// forwards to and `x` alone would fill the slot the same way.
+pub mutating fun Expr.note_view_in_slot(expected: &Type, ctx: &var TypeCtx): void {
+    when (self.kind) {
+        MethodCall(receiver, name, args) => {
+            if args.size() != 0 || self.ty.is_poison() || !self.ty.type_eq(*expected) { return }
+            // `id(s.as_str())` makes `T` a `str`; without the call it would be
+            // a `String`.
+            if ctx.slot_inferred || ctx.in_deref_impl() || receiver.settled_by(self.span, ctx) { return }
+            // A temporary's view may be kept past the statement, which is its
+            // own error, and dropping the call would raise it.
+            if !receiver.is_place() { return }
+            if !receiver.views_through_deref(name, ctx) { return }
+            val code = coerce_code_for(receiver.ty.clone(), false, expected.clone(), ctx.string_name())
+            val coerced = code != Coercion.Identity
+            val lent = receiver.lends_as(LangItem.Deref, "deref", ctx)?.type_eq(*expected) ?: false
+            if coerced || lent { self.needless_view = true }
+        }
+        _ => { }
+    }
+}
+
+/// One operand typed by the other: its type is the other's, not a slot it
+/// is lent to.
+pub fun apply_operand_type(operand: &var Expr, other: Type, ctx: &var TypeCtx): void {
+    ctx.slot_inferred = true
+    val _applied = operand.apply_expected(other, ctx)
+    ctx.slot_inferred = false
+}
+
+/// `x.m()` as the receiver of `method`, where `x`'s own type lacks `method`
+/// and so would lend itself through its `Deref` to the same call.
+pub mutating fun Expr.note_view_as_receiver(method: str, ctx: &var TypeCtx): void {
+    when (self.kind) {
+        MethodCall(receiver, name, args) => {
+            if args.size() != 0 || self.ty.is_poison() || ctx.in_deref_impl() || receiver.settled_by(self.span, ctx) {
+                return
+            }
+            if !receiver.views_through_deref(name, ctx) { return }
+            if receiver.ty.answers(method, ctx) || !self.ty.answers(method, ctx) { return }
+            self.needless_view = true
+        }
+        _ => { }
+    }
+}
+
+/// A local whose type its uses decide, still open or decided within `call`:
+/// `var s = ""` is a `String` because `s.as_str()` asks for one.
+fun Expr.settled_by(call: Span, ctx: &var TypeCtx): bool {
+    val name = self.variable_name()
+    if name.byte_len() == 0 { return false }
+    // CONSTRAINT: `self` lent as a `str` emits a broken C cast today (#189),
+    // so the call stays until codegen handles it.
+    if name.as_str() == "self" { return true }
+    if ctx.open_init(name) != null { return true }
+    val at = ctx.binding_decided_at(name)
+    return !at.is_none() && at.file_id == call.file_id && at.start >= call.start && at.end <= call.end
+}
+
+/// A `Deref` or `DerefMut` impl's own body, where the view call is the
+/// forwarding the lint reads.
+fun TypeCtx.in_deref_impl(): bool {
+    val written = self.impl_trait.as_str()
+    if written == "" { return false }
+    return written == self.lang_trait_name(LangItem.Deref).as_str() ||
+        written == self.lang_trait_name(LangItem.DerefMut).as_str()
+}
+
+/// `name` is the method this value's type's `Deref` forwards to.
+fun Expr.views_through_deref(name: Sym, ctx: &var TypeCtx): bool {
+    if self.ty.is_poison() || !self.ty.deref_one().implements_lang_trait(LangItem.Deref, ctx) { return false }
+    val written = self.ty.deref_one().written_type_name(ctx)
+    val key = "${ctx.lang_trait_name(LangItem.Deref).as_str()} ${mangle_base_name(written.as_string()).as_str()}"
+    when (ctx.sig_table().deref_views.get(&key)) {
+        Some(view) => return view.id == name.id
+        None => return false
+    }
+}

@@ -26,7 +26,7 @@ fun lint_codes_with(src: str, options: &LintOptions): String {
     var codes = String.from("")
     while d in &found {
         if !codes.is_empty() { codes.append(" ") }
-        codes.append(d.code.as_str())
+        codes.append(d.code)
     }
     return codes
 }

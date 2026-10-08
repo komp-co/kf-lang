@@ -59,6 +59,7 @@ pub fun Module.exports_template(td: &TopDecl, crate: CrateId): bool {
         _ => false
     }
     if !is_template { return false }
+    if td.template_key.as_str().byte_len() > 0 { return self.exports_key(td, crate) }
     while other in &self.decls {
         if other.crate.raw != crate.raw || other.module_path.id != td.module_path.id { continue }
         if other.name.id != td.name.id { continue }
@@ -66,6 +67,16 @@ pub fun Module.exports_template(td: &TopDecl, crate: CrateId): bool {
             AnnotationDecl(_params, _target, is_pub) => return is_pub
             _ => {}
         }
+    }
+    return false
+}
+
+/// A keyed template crosses with its key: when this crate's declaration of
+/// that name is `pub`, wherever its annotation is declared.
+fun Module.exports_key(td: &TopDecl, crate: CrateId): bool {
+    while other in &self.decls {
+        if other.crate.raw != crate.raw || other.name.id != td.template_key.id { continue }
+        if decl_is_exported(other) || decl_is_exported_template(other) { return true }
     }
     return false
 }
@@ -153,9 +164,9 @@ pub fun Module.collect_hidden_support(crate: CrateId): List<String> {
         val name = queue.at(q).clone()
         q = q + 1
         if CName.is_runtime_type(name.as_str()) ||
-            is_container_type_name(name.as_str(), list_name, option_name) { continue }
+            is_container_type_name(name, list_name, option_name) { continue }
         if CName.is_mangled(name.as_str()) { continue }
-        if hidden_name_in(&hidden, name.as_str()) { continue }
+        if hidden_name_in(&hidden, name) { continue }
         var matched = false
         while other in &self.decls {
             if other.crate.raw == crate.raw {
@@ -194,10 +205,10 @@ pub fun Module.collect_hidden_support(crate: CrateId): List<String> {
         val name = extra.at(x).clone()
         x = x + 1
         if CName.is_runtime_type(name.as_str()) ||
-            is_container_type_name(name.as_str(), list_name, option_name) { continue }
+            is_container_type_name(name, list_name, option_name) { continue }
         if CName.is_mangled(name.as_str()) { continue }
-        if hidden_name_in(&hidden, name.as_str()) { continue }
-        if self.same_crate_private_type_exists(crate, name.as_str()) {
+        if hidden_name_in(&hidden, name) { continue }
+        if self.same_crate_private_type_exists(crate, name) {
             hidden.push(name)
         }
     }

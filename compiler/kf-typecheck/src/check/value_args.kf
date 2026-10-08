@@ -16,10 +16,10 @@ pub fun check_generic_arg_kinds(owner: str, params: &List<String>, args: &List<T
     while i < params.size() && i < args.size() {
         val param = params.at(i)
         val arg = args.at(i)
-        val value_type = ctx.value_param_type(owner, param.as_str())
+        val value_type = ctx.value_param_type(owner, param)
         if value_type != null {
             val written = value_type!!
-            if !arg.fits_value_param(owner, param.as_str(), &written, params, args, ctx) { ok = false }
+            if !arg.fits_value_param(owner, param, &written, params, args, ctx) { ok = false }
         } else if arg.is_value_argument(ctx) {
             val shown = arg.shown_argument()
             val message = "`${shown}` is a value, but `${param}` on `${ctx.shown_owner(owner)}` takes a type"
@@ -53,7 +53,7 @@ pub fun TypeCtx.value_params_of(owner: str): List<ValueParamInfo> {
 fun TypeRef.is_value_argument(ctx: &TypeCtx): bool {
     return when (self.kind) {
         Value(_v) => true
-        Named(name, args) => args.size() == 0 && ctx.value_param_type(ctx.fn_owner.as_str(), name.as_str()) != null
+        Named(name, args) => args.size() == 0 && ctx.value_param_type(ctx.fn_owner, name.as_str()) != null
         _ => false
     }
 }
@@ -85,13 +85,13 @@ fun TypeRef.fits_value_param(owner: str, param: str, written: &TypeRef, params: 
     }
     val holder = written.integer_type_among(params, args) ?: return true
     val v = value ?: 0
-    if !is_integer_type_name(holder.as_str()) {
+    if !is_integer_type_name(holder) {
         val message = "`${param}` on `${ctx.shown_owner(owner)}` is a value of type `${written.shown_argument()}`, " +
             "which must be a primitive integer type, not `${holder}`"
         ctx.emit(Diagnostic.error_at(self.span, message))
         return false
     }
-    if !fits_integer_type(v, holder.as_str()) {
+    if !fits_integer_type(v, holder) {
         val message = "`${v}` does not fit in `${holder}`, the type of `${param}` on `${ctx.shown_owner(owner)}`"
         ctx.emit(Diagnostic.error_at(self.span, message))
         return false
@@ -105,7 +105,7 @@ fun TypeRef.fits_value_param(owner: str, param: str, written: &TypeRef, params: 
 fun TypeRef.integer_type_among(params: &List<String>, args: &List<TypeRef>): String? {
     val name = self.bare_name()
     if name.byte_len() == 0 { return null }
-    if is_integer_type_name(name.as_str()) { return name }
+    if is_integer_type_name(name) { return name }
     while j in 0..params.size() {
         if params.at(j).as_str() == name.as_str() && j < args.size() {
             val given = args.at(j).bare_name()

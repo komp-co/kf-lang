@@ -35,7 +35,7 @@ fun member_module(kind: TopDeclKind): Module {
 /// The first member's uses as `m` reads back, each as written.
 fun round_trip_member_uses(m: Module): String {
     val out = m.emit_interface(String.from("sample"), &List.new<String>())
-    val loaded = parse_interface(out.as_str())
+    val loaded = parse_interface(out)
     var text = String.from("")
     while module in &loaded.modules {
         while td in &module.decls {

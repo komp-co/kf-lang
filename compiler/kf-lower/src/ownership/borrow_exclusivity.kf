@@ -181,7 +181,7 @@ fun report_conflicts(claims: &List<Claim>, at: Span, diags: &var Diagnostics): v
         while j < claims.size() {
             val a = claims.at(i)
             val b = claims.at(j)
-            if (a.is_mut || b.is_mut) && paths_overlap(a.path.as_str(), b.path.as_str()) {
+            if (a.is_mut || b.is_mut) && paths_overlap(a.path, b.path) {
                 a.emit_conflict(b, at, diags)
                 return
             }

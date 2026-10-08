@@ -39,7 +39,7 @@ impl Reader {
         if self.ended { return false }
         when (self.source.read_available(65536)) {
             Data(bytes) => {
-                self.buffer.append(bytes.as_str())
+                self.buffer.append(bytes)
                 return true
             }
             Pending => return false

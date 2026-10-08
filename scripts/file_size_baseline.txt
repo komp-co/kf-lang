@@ -11,7 +11,7 @@
 377 compiler/kf-driver/src/lint_levels_test.kf
 613 compiler/kf-integration/src/editor/typed_test.kf
 479 compiler/kf-integration/src/integration/generics_test.kf
-375 compiler/kf-interface/src/parse/parse.kf
+377 compiler/kf-interface/src/parse/parse.kf
 376 compiler/kf-lower/src/reachable.kf
 430 compiler/kf-lower/src/refcount/rc_insert_test.kf
 478 compiler/kf-mono/src/collect/mono_test.kf

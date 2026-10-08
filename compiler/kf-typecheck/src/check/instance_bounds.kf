@@ -14,7 +14,7 @@ import kf_typecheck.types.resolve_type_ref
 /// type that is not an instance, or an impl with no recorded bounds, passes.
 pub fun Type.instance_args_meet(trait_name: str, span: Span, ctx: &var TypeCtx): bool {
     val inst = unsafe { (*ctx.sigs).find_inst(self.kind.nominal_name().as_str()) } ?: return true
-    val impls = unsafe { (*ctx.sigs).impl_param_bounds_of(inst.base.as_str(), trait_name) }
+    val impls = unsafe { (*ctx.sigs).impl_param_bounds_of(inst.base, trait_name) }
     if impls.size() == 0 { return true }
     while each in &impls {
         if each.params_meet(&inst.args, span, ctx) { return true }
@@ -26,10 +26,10 @@ fun ImplParamBounds.params_meet(args: &List<TypeRef>, span: Span, ctx: &var Type
     if self.bounds.size() != args.size() { return true }
     while i in 0..args.size() {
         val bounds = self.bounds.at(i)
-        if bounds.as_str().byte_len() == 0 { continue }
+        if bounds.byte_len() == 0 { continue }
         val arg = resolve_type_ref(args.at(i), ctx)
         while bound in &bounds.split("+") {
-            if !arg.meets_bound(bound.as_str(), span, ctx) { return false }
+            if !arg.meets_bound(bound, span, ctx) { return false }
         }
     }
     return true
@@ -46,7 +46,7 @@ fun Type.meets_bound(trait_name: str, span: Span, ctx: &var TypeCtx): bool {
     }
     if trait_name.equals(ctx.lang_trait_name(LangItem.Copy).as_str()) { return self.type_is_copy(ctx) }
     val base = self.ty_base_name()
-    if base.as_str().byte_len() == 0 { return true }
-    if ty_satisfies_intrinsically(base.as_str(), trait_name, ctx) { return true }
+    if base.byte_len() == 0 { return true }
+    if ty_satisfies_intrinsically(base, trait_name, ctx) { return true }
     return bound_type_implements_here(self, trait_name, String.from(""), &List.new<String>(), span, ctx)
 }

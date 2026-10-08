@@ -24,14 +24,14 @@ pub fun providing_traits(receiver_ty: Type, method_name: String, args: &List<Exp
     while i < unsafe { (*ctx.sigs).trait_impls.size() } {
         val trait_impl = unsafe { *(*ctx.sigs).trait_impls.at(i) }
         i = i + 1
-        if !trait_impl.type_name.as_str().equals(base.as_str()) { continue }
-        if ctx.is_auto_trait(trait_impl.trait_name.as_str()) { continue }
+        if !trait_impl.type_name.as_str().equals(base) { continue }
+        if ctx.is_auto_trait(trait_impl.trait_name) { continue }
         var suffix = trait_impl.trait_name.clone()
         if !trait_impl.trait_args.as_str().equals("") {
             suffix = suffix + String.from("__") + trait_impl.trait_args.clone()
         }
         val candidate = type_name.clone() + String.from("_") + method_name.clone() + String.from("__") + suffix
-        val sig = unsafe { (*ctx.sigs).find_signature(candidate.as_str()) } ?: continue
+        val sig = unsafe { (*ctx.sigs).find_signature(candidate) } ?: continue
         if sig.is_static || sig.params.size() != args.size() + 1 { continue }
         var fits = true
         while j in 0..args.size() {

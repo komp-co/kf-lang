@@ -18,7 +18,7 @@ pub struct RecvBinding {
 
 /// A function type is found among those met; its fragment does not decode.
 fun recv_arg_from_frag(frag: String, span: Span, ctx: &var TypeCtx): Type {
-    val function = ctx.fn_type_for(frag.as_str())
+    val function = ctx.fn_type_for(frag)
     if function != null { return function!! }
     return ty_from_mangle_frag(frag, span, ctx.string_name())
 }
@@ -28,9 +28,9 @@ pub fun recv_type_bindings(sname: String, span: Span, ctx: &var TypeCtx): RecvBi
     var names = List.new<String>()
     var types = List.new<Type>()
     val base = mangle_base_name(sname.clone())
-    when (unsafe { (*ctx.sigs).find_generic_info(base.as_str(), ctx.owner_crate) }) {
+    when (unsafe { (*ctx.sigs).find_generic_info(base, ctx.owner_crate) }) {
         Some(gi) => {
-            when (unsafe { (*ctx.sigs).find_inst(sname.as_str()) }) {
+            when (unsafe { (*ctx.sigs).find_inst(sname) }) {
                 Some(inst) => {
                     // The registry holds the arguments as written, so nested receivers
                     // need no name splitting. Read quietly: the refs belong to another
@@ -62,8 +62,8 @@ pub fun recv_type_bindings(sname: String, span: Span, ctx: &var TypeCtx): RecvBi
                 None => {
                     // No registered instance: a name reached by substitution never was,
                     // so the name is all there is.
-                    val base_len = base.as_str().byte_len()
-                    val name_len = sname.as_str().byte_len()
+                    val base_len = base.byte_len()
+                    val name_len = sname.byte_len()
                     if base_len + 2 < name_len {
                         val suffix = mangle_suffix(sname, base_len + 2)
                         if gi.type_params.size() == 1 {
@@ -97,8 +97,8 @@ pub fun recv_type_bindings(sname: String, span: Span, ctx: &var TypeCtx): RecvBi
 /// parameter in scope here.
 pub fun identity_recv_binding(sname: String, span: Span, ctx: &var TypeCtx): RecvBinding {
     val base = mangle_base_name(sname.clone())
-    val gi = unsafe { (*ctx.sigs).find_generic_info(base.as_str(), ctx.owner_crate) } ?: return empty_recv_binding()
-    val inst = unsafe { (*ctx.sigs).find_inst(sname.as_str()) } ?: return empty_recv_binding()
+    val gi = unsafe { (*ctx.sigs).find_generic_info(base, ctx.owner_crate) } ?: return empty_recv_binding()
+    val inst = unsafe { (*ctx.sigs).find_inst(sname) } ?: return empty_recv_binding()
     if inst.args.size() != gi.type_params.size() { return empty_recv_binding() }
     var names = List.new<String>()
     var types = List.new<Type>()
@@ -109,8 +109,8 @@ pub fun identity_recv_binding(sname: String, span: Span, ctx: &var TypeCtx): Rec
         val want = *gi.type_params.at(i)
         val arg = (*inst.args.at(i)).resolve_type_ref(ctx)
         val frag = mangle_type(arg.clone())
-        if !frag.as_str().equals(want.as_str()) { ok = false }
-        if !str_list_has(&ctx.generics, frag.as_str()) { ok = false }
+        if !frag.as_str().equals(want) { ok = false }
+        if !str_list_has(&ctx.generics, frag) { ok = false }
         names.push(want)
         types.push(arg)
     }

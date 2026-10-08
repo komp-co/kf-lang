@@ -17,7 +17,7 @@ pub struct Variant {
 impl Variant {
     pub static fun new(span: Span, name: String, payloads: List<TypeRef>): Variant {
         return Variant {
-            span: span, name: intern(name.as_str()), payloads: payloads, annotations: []
+            span: span, name: intern(name), payloads: payloads, annotations: []
         }
     }
 }

@@ -17,7 +17,7 @@ pub struct Param {
 
 impl Param {
     pub static fun new(span: Span, name: String, ty: Ptr<TypeRef>): Param {
-        return Param { span: span, name: intern(name.as_str()), ty: ty, default: null }
+        return Param { span: span, name: intern(name), ty: ty, default: null }
     }
 
     /// The same parameter, default included, at another type.

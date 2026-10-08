@@ -11,7 +11,7 @@ extern "C" fun system(cmd: str): int32
 
 fun prepare_capturing_library(root: str): int32 {
     val cmd = "rm -rf ${root} && mkdir -p ${root}/reglib/src ${root}/app/src && cp -r libs ${root}/libs"
-    val prepared = unsafe { system(cmd.as_str()) }
+    val prepared = unsafe { system(cmd) }
     if prepared != 0 { return prepared }
     val libs = """core = { path = "../libs/core" }
 alloc = { path = "../libs/alloc" }
@@ -41,7 +41,7 @@ pub fun ranked_above(floor: int32): uint64 {
 """)
     val reglib = "reglib = { path = \"../reglib\" }\n"
     val app_toml = "[project]\nname = \"app\"\nkind = \"bin\"\n\n[dependencies]\n${libs}${reglib}"
-    write_file("${root}/app/kf.toml".as_str(), app_toml.as_str())
+    write_file("${root}/app/kf.toml".as_str(), app_toml)
     write_file("${root}/app/src/main.kf".as_str(), """import reglib.named
 import reglib.ranked_above
 
@@ -56,7 +56,7 @@ fun main(): int32 {
 @test
 fun a_dependent_builds_against_a_library_whose_lambdas_capture(): void {
     val root = "${scratch_root()}/kf_lambda_capture_library"
-    assert_eq(prepare_capturing_library(root.as_str()), 0, "the fixture is prepared")
+    assert_eq(prepare_capturing_library(root), 0, "the fixture is prepared")
     val built = komp_build("${root}/app".as_str(), "")
     assert_eq(built, 0, "the library's lambda structs are not judged a second time")
     val ran = unsafe { system("${root}/app/target/kflat/app; test \"$?\" -eq 42") }

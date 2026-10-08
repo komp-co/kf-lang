@@ -164,7 +164,7 @@ pub fun own_stored_captures(captures: &var List<LambdaCapture>, span: Span, ctx:
     while i in 0..captures.size() {
         val name = captures.at(i).name.clone()
         val mode = captures.at(i).mode
-        val ty = ctx.lookup(name.as_str())
+        val ty = ctx.lookup(name)
         if ty.capture_type_cannot_escape(ctx.sigs) {
             val message = "stored lambda cannot capture borrow-typed `${name}`; pass the lambda directly to a call instead"
             val label = Label.new(span, message)
@@ -260,7 +260,7 @@ fun classify_capture_expr(p_opt: Ptr<Expr>?, consumed: bool, captures: &var List
         MethodCall(recv_ptr, method, args) => {
             val root = place_root_name(unsafe { *recv_ptr })
             if method_is_mutating(unsafe { &recv_ptr.ty }, method.as_string(), args.size(), ctx) {
-                strengthen_capture(captures, root.as_str(), CaptureMode.Mutable)
+                strengthen_capture(captures, root, CaptureMode.Mutable)
             }
             classify_capture_expr(recv_ptr, false, captures, ctx)
             classify_capture_args(&args, captures, ctx)

@@ -1,0 +1,13 @@
+//! build: fail
+//! deps: core
+// A variadic parameter takes the positional arguments left over, so it
+// cannot be given by name.
+
+annotation tagged(names: str..) on struct
+
+@tagged(names = "a")
+struct Point {
+    val x: int32
+}
+
+fun main(): int32 { return 0 }

@@ -133,7 +133,7 @@ mutating fun Expr.stamp_expr(owner_name: str, suffix: str, siblings: &List<Strin
             val recv = unsafe { *recv_ptr }
             if is_self_receiver(&recv) && str_name_list_contains(siblings, method_sym.as_str()) {
                 val mangled = mangled_sibling_name(owner_name, method_sym.as_str(), suffix)
-                self.mangled_callee = intern(mangled.as_str())
+                self.mangled_callee = intern(mangled)
             }
         }
         FieldAccess(obj_ptr, _) => {

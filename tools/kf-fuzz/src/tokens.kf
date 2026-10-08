@@ -77,7 +77,7 @@ pub fun cut_pieces(text: str): List<Piece> {
 
 pub fun join_pieces(pieces: &List<Piece>): String {
     var out = String.from("")
-    while piece in &pieces { out.append(piece.text.as_str()) }
+    while piece in &pieces { out.append(piece.text) }
     return out
 }
 

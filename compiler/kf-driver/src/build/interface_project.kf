@@ -59,8 +59,8 @@ pub fun CompileUnit.check_crate(interfaces: &InterfaceLookup, overlay: &Overlay,
     var parse_diags = Diagnostics.new()
     var modules = List.new<Module>()
     while dependency in &self.loads {
-        val path = interfaces.path_of(dependency.as_str())
-        val loaded = load_compiled_crate(path.as_str(), smap)
+        val path = interfaces.path_of(dependency)
+        val loaded = load_compiled_crate(path, smap)
         if !loaded.ok {
             val failure = "failed to load ${path}: ${loaded.error}"
             return CrateCheck { failure: failure, diagnostics: List.new<Diagnostic>(), smap: smap }
@@ -117,11 +117,11 @@ fun CompileUnit.compile_crate_mode(artifacts: str, is_bin_root: bool, include_te
     var diagnostics = Diagnostics.new()
     var modules = List.new<Module>()
     while dependency in &self.loads {
-        val path = crate_interface_path(artifacts, dependency.as_str())
-        val loaded = load_compiled_crate(path.as_str(), smap)
+        val path = crate_interface_path(artifacts, dependency)
+        val loaded = load_compiled_crate(path, smap)
         if !loaded.ok {
             val message = "kflatc: failed to load ${path.as_str()}: ${loaded.error.as_str()}"
-            runtime_println(message.as_str())
+            runtime_println(message)
             errors.count_errors(1)
             return empty_compile_result()
         }
@@ -138,7 +138,7 @@ fun CompileUnit.compile_crate_mode(artifacts: str, is_bin_root: bool, include_te
         errors.count_errors(1)
         diagnostic_index = diagnostic_index + 1
     }
-    add_entry_file(&var modules, entry_file, self.name.as_str(), smap)
+    add_entry_file(&var modules, entry_file, self.name, smap)
     var merged = merge_module_list(modules)
     // Separate mode: instances become this TU's static support.
     merged.crate = CrateId.new(self.name.as_str())
@@ -146,7 +146,7 @@ fun CompileUnit.compile_crate_mode(artifacts: str, is_bin_root: bool, include_te
     val own = CrateId.new(self.name.as_str())
     val closure_errors = export_closure_diagnostics(&merged, own)
     while closure_error in &closure_errors {
-        runtime_println(closure_error.as_str())
+        runtime_println(closure_error)
         errors.count_errors(1)
     }
     val interface_text = emit_interface_full(&merged, String.from(self.name.as_str()), &self.deps, &self.dep_hashes, smap)

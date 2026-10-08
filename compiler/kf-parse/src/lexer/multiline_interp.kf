@@ -67,7 +67,7 @@ impl Lexer {
         self.push_op(toks, Operator.Dot)
         toks.push(new_token(TokenKind.Identifier(intern("from")), sp))
         self.push_op(toks, Operator.LParen)
-        toks.push(new_token(TokenKind.StringLiteral(raw_literal_body(self.src.as_str(), from, to)), sp))
+        toks.push(new_token(TokenKind.StringLiteral(raw_literal_body(self.src, from, to)), sp))
         self.push_op(toks, Operator.RParen)
     }
 

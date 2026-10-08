@@ -47,9 +47,9 @@ pub fun TypedCrate.scope_items_json(offset: uint32): String {
     var arr = JsonWriter.array()
     while it in &items {
         var o = JsonWriter.object()
-        o.field_string("label", it.label.as_str())
-        o.field_string("kind", it.kind.as_str())
-        o.field_string("detail", it.detail.as_str())
+        o.field_string("label", it.label)
+        o.field_string("kind", it.kind)
+        o.field_string("detail", it.detail)
         arr.write_raw(o.finish().as_str())
     }
     return arr.finish()

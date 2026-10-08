@@ -40,7 +40,7 @@ pub fun clone_subst_decl(tmpl: &TopDecl, args: &List<TypeRef>, mangled: String):
                 unsafe { *nty = subst_type_ref(&*f.ty, &subst) }
                 nf.push(Field.new(f.span, f.name.as_string(), nty, f.is_var, f.is_pub))
             }
-            val result = new_owned_top_decl(tmpl.crate, tmpl.span, mangled.as_str(), TopDeclKind.Struct(nf, is_pub))
+            val result = new_owned_top_decl(tmpl.crate, tmpl.span, mangled, TopDeclKind.Struct(nf, is_pub))
             val attached = tmpl.attach_subst_dyn_metadata(tmpl.carry_view(result), &subst)
             return attached
         }
@@ -56,13 +56,13 @@ pub fun clone_subst_decl(tmpl: &TopDecl, args: &List<TypeRef>, mangled: String):
                 }
                 nv.push(Variant.new(v.span, v.name.as_string(), npay))
             }
-            val result = new_owned_top_decl(tmpl.crate, tmpl.span, mangled.as_str(), TopDeclKind.EnumDecl(nv, is_pub))
+            val result = new_owned_top_decl(tmpl.crate, tmpl.span, mangled, TopDeclKind.EnumDecl(nv, is_pub))
             val attached = tmpl.attach_subst_dyn_metadata(tmpl.carry_view(result), &subst)
             return attached
         }
         Function(_params, _ret_ptr, _body, _pub, _u, _m, _s) => {
             var fn = clone_subst_method(tmpl, &subst)
-            fn.name = intern(mangled.as_str())
+            fn.name = intern(mangled)
             return fn
         }
         ImplBlock(methods) => {
@@ -72,7 +72,7 @@ pub fun clone_subst_decl(tmpl: &TopDecl, args: &List<TypeRef>, mangled: String):
             while method in &methods {
                 nm.push(clone_subst_member(method, &subst))
             }
-            val result = new_owned_top_decl(tmpl.crate, tmpl.span, mangled.as_str(), TopDeclKind.ImplBlock(nm))
+            val result = new_owned_top_decl(tmpl.crate, tmpl.span, mangled, TopDeclKind.ImplBlock(nm))
             val attached = tmpl.attach_subst_dyn_metadata(result, &subst)
             return attached
         }
@@ -86,9 +86,9 @@ pub fun clone_subst_decl(tmpl: &TopDecl, args: &List<TypeRef>, mangled: String):
             }
             val new_trait_ref: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
             unsafe { *new_trait_ref = subst_type_ref(&*tref, &subst) }
-            val result = new_owned_top_decl(tmpl.crate, tmpl.span, mangled.as_str(), TopDeclKind.TraitImpl(new_trait_ref, nm))
+            val result = new_owned_top_decl(tmpl.crate, tmpl.span, mangled, TopDeclKind.TraitImpl(new_trait_ref, nm))
             val attached = tmpl.attach_subst_dyn_metadata(result, &subst)
-            val retargeted = retarget_dyn_vtables(attached, mangled.as_str())
+            val retargeted = retarget_dyn_vtables(attached, mangled)
             return retargeted
         }
         Extern(_p, _r, _pub, _u) => {
@@ -117,8 +117,8 @@ fun retarget_dyn_vtables(declaration: TopDecl, receiver_name: str): TopDecl {
         tables.push(DynVTableInstance {
             layout: table.layout,
             receiver: Type { kind: TypeKind.Struct(intern(receiver_name)), provenance: table.receiver.provenance },
-            receiver_identity: intern(receiver_name), symbol: intern(symbol.as_str()),
-            adapters: retarget_dyn_adapters(&table.adapters, was.as_str(), receiver_name),
+            receiver_identity: intern(receiver_name), symbol: intern(symbol),
+            adapters: retarget_dyn_adapters(&table.adapters, was, receiver_name),
             owner: table.owner, linkage: table.linkage
         })
     }
@@ -151,8 +151,8 @@ fun Sym.retarget_dyn_adapter(was: str, now: str): Sym {
     if text.byte_at(n) != 95 { return Sym { id: self.id } }
     var out = String.from(now)
     val rest = text.substring(n, text.byte_len())
-    out.append(rest.as_str())
-    return intern(out.as_str())
+    out.append(rest)
+    return intern(out)
 }
 
 /// Members include associated-type bindings, which specialize like any type.

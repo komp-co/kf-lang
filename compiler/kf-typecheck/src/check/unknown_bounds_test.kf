@@ -64,7 +64,7 @@ fun bind_with_args(sp: Ptr<SigTable>, owner: str, param: str, trait_name: str, a
     val sp = bounds_table()
     bind(sp, "smaller", "T", "Bogus", 1)
     val d = *unknown_bound_diags(sp).at(0)
-    assert_eq(d.primary.message.as_str().contains("Bogus"), true, "the typo is what the reader has to find")
+    assert_eq(d.primary.message.contains("Bogus"), true, "the typo is what the reader has to find")
 }
 
 @test fun each_unknown_bound_is_reported_once(): void {

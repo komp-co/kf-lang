@@ -25,7 +25,7 @@ fun closure_super(name: str): SuperTraitReq {
 fun closure_supers_of(names: List<String>): List<SuperTraitReq> {
     var out = List.new<SuperTraitReq>()
     while name in &names {
-        out.push(closure_super(name.as_str()))
+        out.push(closure_super(name))
     }
     return out
 }

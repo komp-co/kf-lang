@@ -108,13 +108,13 @@ pub fun Type.lent_slice_name(param: &Type, ctx: &var TypeCtx): String? {
     val lend = param.slice_lend(ctx) ?: return null
     val target = param.expected_inst(ctx) ?: return null
     val source = self.deref_one()
-    if source.sliceable_element(lend.method.as_str(), ctx) == null { return null }
+    if source.sliceable_element(lend.method, ctx) == null { return null }
     val inst = source.expected_inst(ctx) ?: return null
     var args = List.new<TypeRef>()
     args.push(inst.args.at(0).clone())
     // Resolved rather than mangled, so the instance is recorded for the
     // coercion that follows.
-    val lent = TypeRef.new(Span.none(), TypeRefKind.Named(intern(target.base.as_str()), args)).resolve_type_ref(ctx)
+    val lent = TypeRef.new(Span.none(), TypeRefKind.Named(intern(target.base), args)).resolve_type_ref(ctx)
     return when (lent.kind) {
         Struct(name) => name.as_string()
         _ => null

@@ -260,7 +260,7 @@ fun crate_module_with(decls: List<TopDecl>, imports: List<Import>): Module {
     imports.push(Import.new(Span.none(), path, true))
     val diags = crate_module_with(decls, imports).validate_imports(no_files())
     val message = diags.at(0).primary.message
-    assert_eq(message.as_str().contains("`import my_crate.utils.*`"), true, "the hint names the crate-qualified path")
+    assert_eq(message.contains("`import my_crate.utils.*`"), true, "the hint names the crate-qualified path")
 }
 
 @test fun a_named_import_missing_the_crate_name_names_the_path_to_write(): void {
@@ -270,7 +270,7 @@ fun crate_module_with(decls: List<TopDecl>, imports: List<Import>): Module {
     imports.push(make_import(String.from("utils"), String.from("foo"), false))
     val diags = crate_module_with(decls, imports).validate_imports(no_files())
     val message = diags.at(0).primary.message
-    assert_eq(message.as_str().contains("`import my_crate.utils.foo`"), true, "the hint names the crate-qualified path")
+    assert_eq(message.contains("`import my_crate.utils.foo`"), true, "the hint names the crate-qualified path")
 }
 
 @test fun a_path_that_no_crate_qualification_rescues_gets_no_hint(): void {
@@ -280,7 +280,7 @@ fun crate_module_with(decls: List<TopDecl>, imports: List<Import>): Module {
     imports.push(make_import(String.from("nowhere"), String.from("stuff"), true))
     val diags = crate_module_with(decls, imports).validate_imports(no_files())
     val message = diags.at(0).primary.message
-    assert_eq(message.as_str().contains("starts with the crate's name"), false, "no hint without a real target")
+    assert_eq(message.contains("starts with the crate's name"), false, "no hint without a real target")
 }
 
 fun aliased_import(seg1: String, seg2: String, alias: str): Import {

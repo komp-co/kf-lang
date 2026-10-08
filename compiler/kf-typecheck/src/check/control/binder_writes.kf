@@ -209,7 +209,7 @@ pub mutating fun Expr.yield_ref_binder_value(expected: &Type, ctx: &var TypeCtx)
     if !ctx.ref_binders.contains(&name) { return false }
     val payload = autoderef_ty(self.ty.clone())
     if !payload.type_eq(expected.clone()) { return false }
-    var binder = Expr.new(self.span, ExprKind.Variable(intern(name.as_str())))
+    var binder = Expr.new(self.span, ExprKind.Variable(intern(name)))
     binder.ty = self.ty.clone()
     binder.decl = self.decl
     self.kind = ExprKind.Deref(Box.new(binder))

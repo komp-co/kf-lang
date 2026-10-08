@@ -25,6 +25,11 @@ fun expand_stmts(stmts: &List<Stmt>, x: &var Expansion): List<Stmt> {
 fun Stmt.expand_into(x: &var Expansion, out: &var List<Stmt>): void {
     when (self.kind) {
         ForEach(binder, subject, body) => {
+            val values = subject.argument_values(x)
+            if values != null {
+                self.unroll_values(binder, &(values ?: List.new<Expr>()), &body, x, out)
+                return
+            }
             val listed = subject.selected_fields(x)
             if listed != null {
                 val selection = listed ?: return

@@ -60,9 +60,9 @@ fun TypedCrate.collect_imported_sigs(out: &var List<ScopeItem>, seen: &var List<
     while i < sigs.sigs.size() {
         val sig = sigs.sigs.at(i)
         if sig.is_pub && !sig.is_static {
-            if !is_method_name(sig.name.as_str(), sigs) {
-                if unsafe { self.sigs.file_admits(self.file_id, sig.owner_module, sig.name.as_str()) } {
-                    add_item(out, seen, sig.name.as_str(), "function", sig.sig_detail(self).as_str())
+            if !is_method_name(sig.name, sigs) {
+                if unsafe { self.sigs.file_admits(self.file_id, sig.owner_module, sig.name) } {
+                    add_item(out, seen, sig.name, "function", sig.sig_detail(self).as_str())
                 }
             }
         }
@@ -112,7 +112,7 @@ fun fn_detail(params: &List<Param>, ret: Ptr<TypeRef>): String {
     val r = tyref_ptr_text(ret)
     if r.as_str() != "" {
         out.append(": ")
-        out.append(r.as_str())
+        out.append(r)
     }
     return out
 }

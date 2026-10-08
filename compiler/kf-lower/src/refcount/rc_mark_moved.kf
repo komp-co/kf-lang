@@ -11,9 +11,9 @@ import kf_lower.ownership.param_lookup
 pub mutating fun RcCtx.rc_mark_moved(name: String): void {
     while i in 0..self.frame_stack.size() {
         val f = self.frame_stack.at_mut(i)
-        if names_contains(&f.heap_locals, name.as_str()) {
-            f.heap_locals = without_name(&f.heap_locals, name.as_str())
-            if !names_contains(&f.moved_locals, name.as_str()) { f.moved_locals.push(name.clone()) }
+        if names_contains(&f.heap_locals, name) {
+            f.heap_locals = without_name(&f.heap_locals, name)
+            if !names_contains(&f.moved_locals, name) { f.moved_locals.push(name.clone()) }
         }
     }
 }

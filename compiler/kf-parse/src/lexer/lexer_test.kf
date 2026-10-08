@@ -253,7 +253,7 @@ fun begins_with_two_slashes(s: str): bool {
     var all_comments = r.comments.size() == 3
     while c in &r.comments {
         val text = src.substring(c.start as uint64, c.end as uint64)
-        if !begins_with_two_slashes(text.as_str()) { all_comments = false }
+        if !begins_with_two_slashes(text) { all_comments = false }
     }
     assert_eq(all_comments, true, "all three spans slice to text beginning with `//`")
 }

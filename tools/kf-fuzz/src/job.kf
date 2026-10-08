@@ -55,7 +55,7 @@ pub fun make_job(mode: Mode, seed: uint64, corpus: &List<Fixture>, interfaces: &
         }
         Source => {
             val fixture = corpus.at(rng.below(corpus.size()))
-            val mutant = mutate(fixture.source.as_str(), &var rng)
+            val mutant = mutate(fixture.source, &var rng)
             return Job {
                 seed: seed, fixture: fixture.name.clone(), deps: fixture.deps.clone(), mutation: mutant.name.clone(),
                 program: mutant.text.clone(), library: "", interface: ""
@@ -83,8 +83,8 @@ pub fun make_job(mode: Mode, seed: uint64, corpus: &List<Fixture>, interfaces: &
 pub fun Job.stage(slot: str, originals: &List<String>): bool {
     if !create_dir_all(Path.new("${slot}/case/src".as_str())) { return false }
     if !create_dir_all(Path.new("${slot}/out".as_str())) { return false }
-    if write_text("${slot}/case/src/main.kf".as_str(), self.program.as_str()).is_err() { return false }
-    return write_interfaces("${slot}/out".as_str(), originals, self.library.as_str(), self.interface.as_str())
+    if write_text("${slot}/case/src/main.kf".as_str(), self.program).is_err() { return false }
+    return write_interfaces("${slot}/out".as_str(), originals, self.library, self.interface)
 }
 
 pub fun Job.crate_run(slot: str): CrateRun {
@@ -98,8 +98,8 @@ pub fun Job.crate_run(slot: str): CrateRun {
 /// `NAME.LIBRARY.kfi`, in `dir`.
 pub fun Job.save(dir: str, name: str): void {
     val _made = create_dir_all(Path.new(dir))
-    val _program = write_text("${dir}/${name}.kf".as_str(), self.program.as_str())
+    val _program = write_text("${dir}/${name}.kf".as_str(), self.program)
     if !self.library.is_empty() {
-        val _interface = write_text("${dir}/${name}.${self.library}.kfi".as_str(), self.interface.as_str())
+        val _interface = write_text("${dir}/${name}.${self.library}.kfi".as_str(), self.interface)
     }
 }

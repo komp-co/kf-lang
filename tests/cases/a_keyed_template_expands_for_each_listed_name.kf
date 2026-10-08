@@ -1,0 +1,52 @@
+//! run: exit 0
+//! deps: core, alloc
+// `template deriving(Counted) on struct T` is keyed on one value of the
+// annotation's name parameter: a use expands the keyed template of each name
+// it lists, on the kind it marks.
+
+annotation deriving(traits: trait..) on <struct, enum>
+
+trait Counted {
+    fun count(): int64
+}
+
+trait Named {
+    fun label(): String
+}
+
+template deriving(Counted) on struct T {
+    impl Counted for T {
+        fun count(): int64 { return T.fields.size() }
+    }
+}
+
+template deriving(Counted) on enum T {
+    impl Counted for T {
+        fun count(): int64 { return T.variants.size() }
+    }
+}
+
+template deriving(Named) on struct T {
+    impl Named for T {
+        fun label(): String { return String.from(T.name) }
+    }
+}
+
+@deriving(Counted, Named)
+struct Point {
+    val x: int32
+    val y: int32
+}
+
+@deriving(Counted)
+enum Light {
+    Red
+    Green
+}
+
+fun main(): int32 {
+    val p = Point { x: 1, y: 2 }
+    if p.count() != 2 || p.label() != "Point" { return 1 }
+    if Light.Red.count() != 2 { return 2 }
+    return 0
+}

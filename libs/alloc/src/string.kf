@@ -183,14 +183,14 @@ impl Drop for String {
 impl Add for String {
     fun add(other: &String): String {
         var out = self.clone()
-        out.append(other.as_str())
+        out.append(other)
         return out
     }
 }
 
 impl Equal for String {
     fun equals(other: &String): bool {
-        return self.as_str().equals(other.as_str())
+        return self.as_str().equals(other)
     }
 }
 

@@ -26,7 +26,7 @@ mutating fun Expr.rebind_template_ctor(inst: &GenericInst, ctx: &var TypeCtx): b
     when (self.kind) {
         MethodCall(recv_ptr, mname, margs) => {
             val recv_raw = unsafe { *recv_ptr }
-            if !kind_is_variable_named(recv_raw.kind, base.as_str()) { return false }
+            if !kind_is_variable_named(recv_raw.kind, base) { return false }
             if !enum_name_has_variant(base.clone(), mname.as_string(), ctx) { return false }
             val concrete = concrete_enum_name(base.clone(), &inst.args, ctx)
             // A fresh, payload-coerced argument list, assigned to `self.kind`. The
@@ -41,7 +41,7 @@ mutating fun Expr.rebind_template_ctor(inst: &GenericInst, ctx: &var TypeCtx): b
         }
         FieldAccess(obj_ptr, fname) => {
             val obj_raw = unsafe { *obj_ptr }
-            if !kind_is_variable_named(obj_raw.kind, base.as_str()) { return false }
+            if !kind_is_variable_named(obj_raw.kind, base) { return false }
             if !enum_name_has_variant(base.clone(), fname.as_string(), ctx) { return false }
             val concrete = concrete_enum_name(base.clone(), &inst.args, ctx)
             self.type_args = clone_type_args(&inst.args)
@@ -54,14 +54,14 @@ mutating fun Expr.rebind_template_ctor(inst: &GenericInst, ctx: &var TypeCtx): b
 
 /// Mangled, with its layout materialized. `args` is never empty here.
 fun concrete_enum_name(base: String, args: &List<TypeRef>, ctx: &var TypeCtx): String {
-    val concrete = mangle_type_name(base.as_str(), args, ctx)
+    val concrete = mangle_type_name(base, args, ctx)
     val stored = String.from(concrete.as_str())
     instantiate_generic_layout(base.clone(), args, stored.clone(), ctx)
     return stored
 }
 
 fun enum_ty_of(name: String, span: Span): Type {
-    return Type { kind: TypeKind.EnumTy(intern(name.as_str())), provenance: Provenance.Inferred(span) }
+    return Type { kind: TypeKind.EnumTy(intern(name)), provenance: Provenance.Inferred(span) }
 }
 
 /// A fresh list whose payloads carry the coercions the concrete variant
@@ -74,8 +74,11 @@ fun coerce_ctor_payloads(concrete: String, variant: String, args: &List<Expr>, c
         var a = args.at(i).clone()
         if i < payloads.size() {
             val ptype = *payloads.at(i)
-            // `a` is this list's own, so every expectation applies.
+            // `a` is this list's own, so every expectation applies. The
+            // payload types came from the slot, through inference.
+            ctx.slot_inferred = true
             a.apply_expected(ptype, ctx)
+            ctx.slot_inferred = false
         }
         out.push(a)
     }
@@ -86,9 +89,9 @@ fun coerce_ctor_payloads(concrete: String, variant: String, args: &List<Expr>, c
 fun ctor_arity_matches(concrete: String, base: String, variant: String, args: &List<Expr>, span: Span, ctx: &var TypeCtx): bool {
     // Only with a real layout: `variant_payloads` returns empty for a missing
     // one too.
-    val layout = unsafe { (*ctx.sigs).find_enum(concrete.as_str(), ctx.owner_crate) } ?: return true
+    val layout = unsafe { (*ctx.sigs).find_enum(concrete, ctx.owner_crate) } ?: return true
     while v in &layout.variants {
-        if v.name.as_str().equals(variant.as_str()) {
+        if v.name.as_str().equals(variant) {
             if args.size() == v.payloads.size() { return true }
             // A trailing `void` payload may be omitted (`Result.Ok()`).
             if v.trailing_payloads_are_unit(args.size()) { return true }
@@ -101,9 +104,9 @@ fun ctor_arity_matches(concrete: String, base: String, variant: String, args: &L
 
 /// Empty if unknown.
 fun variant_payloads(concrete: String, variant: String, ctx: &var TypeCtx): List<Type> {
-    val layout = unsafe { (*ctx.sigs).find_enum(concrete.as_str(), ctx.owner_crate) } ?: return List.new<Type>()
+    val layout = unsafe { (*ctx.sigs).find_enum(concrete, ctx.owner_crate) } ?: return List.new<Type>()
     while v in &layout.variants {
-        if v.name.as_str().equals(variant.as_str()) { return v.payloads }
+        if v.name.as_str().equals(variant) { return v.payloads }
     }
     return List.new<Type>()
 }
@@ -130,7 +133,7 @@ mutating fun Expr.rebind_generic_call(expected: &Type, ctx: &var TypeCtx): bool 
         _ => return false
     }
     val name = callee.as_string()
-    val found = unsafe { (*ctx.sigs).find_imported_signature(name.as_str(), ctx.owner_file, ctx.owner_crate, ctx.owner_module) }
+    val found = unsafe { (*ctx.sigs).find_imported_signature(name, ctx.owner_file, ctx.owner_crate, ctx.owner_module) }
     if found.is_none() { return false }
     val sig = found ?: return false
 
@@ -169,7 +172,9 @@ mutating fun Expr.rebind_generic_call(expected: &Type, ctx: &var TypeCtx): bool 
         Call(_sym, args) => {
             while ai in 0..args.size() {
                 var a = args.at(ai).clone()
+                ctx.slot_inferred = true
                 a.apply_expected(*params.at(ai), ctx)
+                ctx.slot_inferred = false
                 rebuilt.push(a)
             }
         }
@@ -224,7 +229,7 @@ pub fun Expr.rebound_call_bindings(want: &Type, ctx: &var TypeCtx): List<Type> {
         _ => return none
     }
     val name = callee.as_string()
-    val found = unsafe { (*ctx.sigs).find_imported_signature(name.as_str(), ctx.owner_file, ctx.owner_crate, ctx.owner_module) }
+    val found = unsafe { (*ctx.sigs).find_imported_signature(name, ctx.owner_file, ctx.owner_crate, ctx.owner_module) }
     if found.is_none() { return none }
     val sig = found ?: return none
     if sig.generics.size() == 0 { return none }
@@ -232,7 +237,7 @@ pub fun Expr.rebound_call_bindings(want: &Type, ctx: &var TypeCtx): List<Type> {
     // The same matcher as argument inference, run against the return.
     var bindings = List.new<Type>()
     while generic in &sig.generics {
-        val bound = sig.ret.bind_generic_from_param(want, generic.as_str(), ctx)
+        val bound = sig.ret.bind_generic_from_param(want, generic, ctx)
         if bound.is_poison() { return none }
         bindings.push(bound)
     }

@@ -67,13 +67,13 @@ mutating fun Expr.lambda_type(ctx: &var TypeCtx): Type {
             var store_locals = List.new<String>()
             body.store_assigned_captures(&captures, span, &var store_locals)
             val name = ctx.fresh_lambda_name()
-            if stored_local { unsafe { ctx.sigs.stored_lambda_types.push(intern(name.as_str())) } }
+            if stored_local { unsafe { ctx.sigs.stored_lambda_types.push(intern(name)) } }
             val mutating_call = capture_needs_mutating_call(&captures)
             synth_lambda_decls(name.clone(), &params, fields, &body, ret_ref, mutating_call, ty_is_void(ret), span, ctx)
             // CONSTRAINT: `type_args` is cleared: on a struct literal it would
             // mangle the lambda's struct as an instance of itself.
             self.type_args = List.new<TypeRef>()
-            self.kind = ExprKind.StructLit(intern(name.as_str()), capture_inits(&captures, span, ctx))
+            self.kind = ExprKind.StructLit(intern(name), capture_inits(&captures, span, ctx))
             return lambda_struct_ty(name, span)
         }
         _ => return Type.new_poison()
@@ -81,7 +81,7 @@ mutating fun Expr.lambda_type(ctx: &var TypeCtx): Type {
 }
 
 fun lambda_struct_ty(name: String, span: Span): Type {
-    return Type { kind: TypeKind.Struct(intern(name.as_str())), provenance: Provenance.Inferred(span) }
+    return Type { kind: TypeKind.Struct(intern(name)), provenance: Provenance.Inferred(span) }
 }
 
 /// Per lambda, carrying the enclosing function's name for readable C.
@@ -125,7 +125,7 @@ fun capture_fields(captures: &List<LambdaCapture>, span: Span, ctx: &var TypeCtx
     var fields = List.new<Field>()
     while capture in &captures {
         val nm = capture.name
-        val cty = ctx.lookup(nm.as_str())
+        val cty = ctx.lookup(nm)
         val tref = cty.type_to_type_ref(span)
         if tref.type_ref_is_poison() {
             emit_lambda_err(span, "a lambda cannot capture `${nm}`: its type has no written form", ctx)
@@ -156,8 +156,8 @@ fun capture_inits(captures: &List<LambdaCapture>, span: Span, ctx: &var TypeCtx)
     while capture in &captures {
         val nm = capture.name
         val v: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *v = Expr.new(span, ExprKind.Variable(intern(nm.as_str()))) }
-        unsafe { v.ty = ctx.lookup(nm.as_str()) }
+        unsafe { *v = Expr.new(span, ExprKind.Variable(intern(nm))) }
+        unsafe { v.ty = ctx.lookup(nm) }
         when (capture.mode) {
             Shared => unsafe { v.coerce = Coercion.AddrOf }
             Mutable => unsafe { v.coerce = Coercion.AddrOf }
@@ -186,10 +186,10 @@ fun lambda_body_type(params: &List<Param>, captures: &List<LambdaCapture>, body:
     }
     while capture in &captures {
         val nm = capture.name
-        if ctx.lookup_is_var(nm.as_str()) {
-            inner.declare(nm.clone(), ctx.lookup(nm.as_str()))
+        if ctx.lookup_is_var(nm) {
+            inner.declare(nm.clone(), ctx.lookup(nm))
         } else {
-            inner.declare_val(nm.clone(), ctx.lookup(nm.as_str()))
+            inner.declare_val(nm.clone(), ctx.lookup(nm))
         }
     }
     // In order, so a `val` is in scope for the statements after it.

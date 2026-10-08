@@ -25,8 +25,8 @@ pub fun Module.derive_clone_check_module(diags: &var Diagnostics): void {
         when (td.kind) {
             Struct(fields, _p) => {
                 val name = td.name.as_string()
-                if !self.type_clones(&index, name.as_str()) {
-                    val freed = self.fields_freed_by_drop(&index, name.as_str())
+                if !self.type_clones(&index, name) {
+                    val freed = self.fields_freed_by_drop(&index, name)
                     report_freed_ptr_fields(fields, &freed, td.span, diags)
                 }
             }

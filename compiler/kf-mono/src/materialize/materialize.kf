@@ -45,7 +45,7 @@ fun Inst.inst_key(): String {
     if self.owner.as_str().equals("") { return mangled }
     var key = String.from(self.owner.as_str())
     key.append("_")
-    key.append(mangled.as_str())
+    key.append(mangled)
     return key
 }
 
@@ -82,7 +82,7 @@ pub mutating fun Module.materialize_generics(): void {
         val seen = done.contains(&key)
         // A method whose owner's impl blocks are not minted yet waits, once,
         // behind the instances queued so far: one of them may mint them.
-        val waits = !seen && !inst.owner.as_str().equals("") && !self.has_impl_block(inst.owner.as_str()) &&
+        val waits = !seen && !inst.owner.as_str().equals("") && !self.has_impl_block(inst.owner) &&
             !deferred.contains(&key)
         if waits {
             deferred.insert(key.clone(), true)
@@ -105,7 +105,7 @@ pub mutating fun Module.materialize_generics(): void {
                 val candidates = templates.positions(GenericTwin.name_of(inst.base.as_str()).as_str())
                 while c in 0..candidates.size() {
                     val tmpl = *self.decls.at(candidates.get(c))
-                    if tmpl.answers_to(inst.base.as_str()) {
+                    if tmpl.answers_to(inst.base) {
                         if tmpl.template_accepts_args(&inst.args, proj_sigs, copy_name) {
                             var newdecl = clone_subst_decl(tmpl, inst.args, mangled_name.clone())
                             if tmpl.name.id == array_name.id { newdecl.add_array_storage(&inst.args) }
@@ -123,7 +123,7 @@ pub mutating fun Module.materialize_generics(): void {
                                 subst_projections_in_decl(&var newdecl, proj_sigs)
                                 val queued = work.size()
                                 newdecl.collect_insts_in_decl(&gps, &marities, &var work)
-                                work.own_self_calls(queued, inst.base.as_str(), mangled_name.as_str())
+                                work.own_self_calls(queued, inst.base, mangled_name)
                                 self.decls.push(newdecl)
                             }
                         }
@@ -159,8 +159,8 @@ mutating fun Module.materialize_impl_method(inst: &Inst, mangled: String, gps: &
     if self.materialize_trait_arg_impl(inst, gps, marities, work, proj_sigs) { return }
     val crate = self.crate
     while i in 0..self.decls.size() {
-        if self.decls.at(i).name.as_str().equals(inst.owner.as_str()) {
-            self.decls.at_mut(i).add_method_instance(inst, mangled.as_str(), gps, marities, work, proj_sigs, crate)
+        if self.decls.at(i).name.as_str().equals(inst.owner) {
+            self.decls.at_mut(i).add_method_instance(inst, mangled, gps, marities, work, proj_sigs, crate)
         }
     }
 }
@@ -177,7 +177,7 @@ mutating fun TopDecl.add_method_instance(inst: &Inst, mangled: str, gps: &List<S
             while mi in 0..methods.size() {
                 val mth = methods.at(mi)
                 if mth.name.as_str().equals(mangled) { already = true }
-                if !found && mth.generics.size() > 0 && mth.name.as_str().equals(inst.base.as_str()) {
+                if !found && mth.generics.size() > 0 && mth.name.as_str().equals(inst.base) {
                     tmpl_idx = mi
                     found = true
                 }
@@ -193,7 +193,7 @@ mutating fun TopDecl.add_method_instance(inst: &Inst, mangled: str, gps: &List<S
                     val queued = work.size()
                     spec.collect_insts_in_decl(gps, marities, work)
                     val template = mangle_base_name(inst.owner.clone())
-                    work.own_self_calls(queued, template.as_str(), inst.owner.as_str())
+                    work.own_self_calls(queued, template, inst.owner)
                     methods.push(spec)
                     // CONSTRAINT: a binder is a copy of the payload, so the
                     // grown list is moved back into place.
@@ -207,7 +207,7 @@ mutating fun TopDecl.add_method_instance(inst: &Inst, mangled: str, gps: &List<S
 }
 
 /// The owner's impl blocks were rebuilt from these fields alone; the rest
-/// return to `new_top_decl`'s defaults, which the emitted C depends on.
+/// return to `TopDecl.new`'s defaults, which the emitted C depends on.
 mutating fun TopDecl.keep_rebuilt_block_fields(): void {
     self.from_trait_impl = false
     self.dyn_layouts = List.new<DynTraitLayout>()
@@ -232,7 +232,7 @@ mutating fun Module.materialize_trait_arg_impl(inst: &Inst, gps: &List<String>, 
         if td.name.as_str() != inst.owner.as_str() { continue }
         when (td.kind) {
             TraitImpl(tref, methods) => {
-                val lifted = tref.lifted_generics_of(&methods, inst.base.as_str()) ?: continue
+                val lifted = tref.lifted_generics_of(&methods, inst.base) ?: continue
                 var template = td.clone()
                 template.generics = lifted
                 spec = clone_subst_decl(&template, &inst.args, td.name.as_string())
@@ -349,7 +349,7 @@ mutating fun Module.collect_generic_param_names(): List<String> {
     while td in &self.decls {
         while item in &td.generics {
             val nm = item.name.as_string()
-            if !str_list_contains(out.clone(), nm.as_str()) { out.push(nm) }
+            if !str_list_contains(out.clone(), nm) { out.push(nm) }
         }
         // A generic method declares its parameters on the nested Function.
         when (td.kind) {
@@ -357,7 +357,7 @@ mutating fun Module.collect_generic_param_names(): List<String> {
                 while mth in &methods {
                     while item in &mth.generics {
                         val mn = item.name.as_string()
-                        if !str_list_contains(out.clone(), mn.as_str()) { out.push(mn) }
+                        if !str_list_contains(out.clone(), mn) { out.push(mn) }
                     }
                 }
             }

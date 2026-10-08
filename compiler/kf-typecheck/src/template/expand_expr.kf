@@ -16,6 +16,8 @@ import kf_core.intern.*
 import kf_core.ast.pattern.*
 
 fun TypeRef.expanded_type(x: &var Expansion): TypeRef {
+    val given = self.argument_type_name(x)
+    if given != null { return given ?: self.clone() }
     when (self.kind) {
         Named(name, args) => {
             if name.id == x.marked.id && args.size() == 0 {
@@ -94,6 +96,8 @@ fun Expr.moved_to(span: Span): Expr {
     out.is_static_call = self.is_static_call
     out.is_safe_call_value = self.is_safe_call_value
     out.is_variant_ctor = self.is_variant_ctor
+    out.scope_module = self.scope_module
+    out.scope_file = self.scope_file
     return out
 }
 
@@ -119,6 +123,8 @@ fun Expr.expanded_kind(x: &var Expansion): Expr {
             if receiver.is_variable(x.marked) && method.as_str() == "build" && !x.on_enum {
                 return self.built_struct(&args, x)
             }
+            val by_argument = self.argument_call(&*receiver, method, &args, x)
+            if by_argument != null { return by_argument ?: self.clone() }
             val listed = self.field_list_call(&*receiver, method.as_str(), &args, x)
             if listed != null { return listed ?: self.clone() }
             val fact = self.member_fact(&*receiver, method, &args, x)
@@ -131,7 +137,12 @@ fun Expr.expanded_kind(x: &var Expansion): Expr {
         }
         Unary(op, inner) => return self.rekinded(ExprKind.Unary(op, Box.new(inner.expanded(x))))
         Deref(inner) => return self.rekinded(ExprKind.Deref(Box.new(inner.expanded(x))))
-        Call(name, args) => return self.rekinded(ExprKind.Call(x.built(name, self.span), expanded_exprs(&args, x)))
+        Call(name, args) => {
+            val callee = x.built(x.called(name), self.span)
+            var call = self.rekinded(ExprKind.Call(callee, expanded_exprs(&args, x)))
+            if x.value_of(name) != null { call.written_at_use(x) }
+            return call
+        }
         Intrinsic(intrinsic, args) => return self.rekinded(ExprKind.Intrinsic(intrinsic, expanded_exprs(&args, x)))
         CallValue(callee, args) => {
             return self.rekinded(ExprKind.CallValue(Box.new(callee.expanded(x)), expanded_exprs(&args, x)))
@@ -176,12 +187,14 @@ fun Expr.expanded_kind(x: &var Expansion): Expr {
 /// `T` names the type; the member loop's binder is only for facts.
 fun Expr.expanded_name(name: Sym, x: &var Expansion): Expr {
     if name.id == x.marked.id { return self.rekinded(ExprKind.Variable(x.type_name)) }
+    val value = x.value_of(name)
+    if value != null { return value ?: self.clone() }
     if x.binding(name) != null {
-        val word = if x.payload_of(name) != null { "payload" } else { x.member_word() }
-        val facts = "`${name.as_str()}.name`, `.index`, `.has<A>()` or `.get<A>()`"
-        val read = "`${name.as_str()}.of(x)`"
+        val payload = x.payload_of(name) != null
+        val word = if payload { "payload" } else { x.member_word() }
+        val facts = listed_facts(x.binder_type(payload))
         val only = "`${name.as_str()}` is a ${word} only at compile time"
-        x.report(self.span, "${only}: use ${facts}, or read it with ${read}")
+        x.report(self.span, "${only}: use its facts, ${facts}")
         return self.fact(ExprKind.Poison)
     }
     return self.rekinded(ExprKind.Variable(x.built(name, self.span)))
@@ -207,8 +220,7 @@ fun Expr.expanded_access(owner: &Expr, member: Sym, x: &var Expansion): Expr {
         if member.as_str() == "name" { return self.fact(ExprKind.LitStr(field.name.as_string())) }
         if member.as_str() == "index" { return self.fact(ExprKind.LitInt(field.index as int64)) }
         if member.as_str() == "line" { return self.fact(ExprKind.LitInt(field.line as int64)) }
-        val last = if x.on_enum { "payloads" } else { "type" }
-        val facts = "`name`, `index`, `line` and `${last}`"
+        val facts = listed_facts(x.binder_type(false))
         if x.on_enum && member.as_str() == "payloads" {
             val uses = "loop over it, or `map`, `filter`, `all`, `any` or `size()` it"
             x.report(self.span, "`payloads` is a list only at compile time: ${uses}")
@@ -234,7 +246,8 @@ fun Expr.member_fact(receiver: &Expr, method: Sym, args: &List<Expr>, x: &var Ex
     if payload != null {
         val found = payload ?: return null
         if method.as_str() == "of" { return self.payload_of(&found, args, x) }
-        x.report(self.span, "a payload has no fact `${method.as_str()}()`: it has `of(a)`, `index` and `type`")
+        val facts = listed_facts("TemplatePayload")
+        x.report(self.span, "a payload has no fact `${method.as_str()}()`: it has ${facts}")
         return self.fact(ExprKind.Poison)
     }
     val bound = receiver.bound_member(x) ?: return null
@@ -256,9 +269,8 @@ fun Expr.member_fact(receiver: &Expr, method: Sym, args: &List<Expr>, x: &var Ex
         x.report(self.span, "${named} has no `@${annotation.as_str()}`: ${guard}")
         return self.fact(ExprKind.Poison)
     }
-    val last = if x.on_enum { "build(|payload| e)" } else { "of(x)" }
-    val facts = "it has `has<A>()`, `get<A>()` and `${last}`"
-    x.report(self.span, "a ${x.member_word()} has no fact `${method.as_str()}()`: ${facts}")
+    val facts = listed_facts(x.binder_type(false))
+    x.report(self.span, "a ${x.member_word()} has no fact `${method.as_str()}()`: it has ${facts}")
     return self.fact(ExprKind.Poison)
 }
 

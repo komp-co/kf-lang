@@ -50,9 +50,9 @@ fun TypeRef.resolve_quietly(ctx: &var TypeCtx): Type {
 pub fun Type.mentions_any(names: &List<String>): bool {
     if self.kind.kind_tag() == TAG_GENERIC() { return true }
     val mangled = mangle_type(self.clone())
-    while segment in &mangled.as_str().split("__") {
+    while segment in &mangled.split("__") {
         while name in &names {
-            if segment.as_str().equals(name.as_str()) { return true }
+            if segment.as_str().equals(name) { return true }
         }
     }
     return false

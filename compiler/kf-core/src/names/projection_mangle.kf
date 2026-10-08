@@ -90,7 +90,7 @@ impl MangledProjection {
                 }
             }
             if emitted { out.append("__") }
-            out.append(seg.as_str())
+            out.append(seg)
             emitted = true
             i = i + step
         }

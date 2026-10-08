@@ -16,8 +16,8 @@ import kf_typecheck.types.type_eq
 /// `ty` is the provisional type, the caller retypes in place instead.
 mutating fun Expr.decides_on_recheck(init: Span, ty: Type, ctx: &var TypeCtx): bool {
     val name = self.variable_name()
-    if ctx.binding_uses(name.as_str()) <= 1 || self.ty.type_eq(ty) { return false }
-    ctx.decide_binding_on_recheck(name.as_str(), init, ty.clone(), self.span)
+    if ctx.binding_uses(name) <= 1 || self.ty.type_eq(ty) { return false }
+    ctx.decide_binding_on_recheck(name, init, ty.clone(), self.span)
     self.ty = ty
     return true
 }
@@ -26,7 +26,7 @@ mutating fun Expr.decides_on_recheck(init: Span, ty: Type, ctx: &var TypeCtx): b
 /// both, and true. False when the binding was never open.
 mutating fun Expr.conflicts_with_decision(expected: Type, ctx: &var TypeCtx): bool {
     val name = self.variable_name()
-    val decided_at = ctx.binding_decided_at(name.as_str())
+    val decided_at = ctx.binding_decided_at(name)
     if decided_at.is_none() || self.ty.is_poison() || self.ty.type_eq(expected) { return false }
     val decided = self.ty.display_type(ctx)
     val message = "`${name}` is `${decided}`, as an earlier use decided, " +
@@ -70,7 +70,7 @@ mutating fun TypeCtx.decide_by_store(name: str, value: &Expr, span: Span, target
 /// `target` is not. True when reported.
 mutating fun Expr.conflicts_with_narrowing(target: &Type, needed: str, ctx: &var TypeCtx): bool {
     val name = self.variable_name()
-    val narrowed_at = ctx.binding_narrowed_at(name.as_str())
+    val narrowed_at = ctx.binding_narrowed_at(name)
     if narrowed_at.is_none() { return false }
     val shown = target.display_type(ctx)
     val message = "`${name}` cannot be `${shown}` here: an earlier use needs it as ${needed}, which `${shown}` is not"

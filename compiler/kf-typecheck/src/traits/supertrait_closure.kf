@@ -18,9 +18,9 @@ pub fun SigTable.supertrait_closure(name: str): List<String> {
         val head = *queue.at(qi)
         qi = qi + 1
         if head.as_str() == name { continue }
-        if super_name_listed(&found, head.as_str()) { continue }
+        if super_name_listed(&found, head) { continue }
         found.push(String.from(head.as_str()))
-        self.push_declared_supers(head.as_str(), &var queue)
+        self.push_declared_supers(head, &var queue)
     }
     return found
 }
@@ -35,9 +35,9 @@ pub fun SigTable.supertrait_cycle_from(name: str): bool {
         val head = *queue.at(qi)
         qi = qi + 1
         if head.as_str() == name { return true }
-        if super_name_listed(&seen, head.as_str()) { continue }
+        if super_name_listed(&seen, head) { continue }
         seen.push(String.from(head.as_str()))
-        self.push_declared_supers(head.as_str(), &var queue)
+        self.push_declared_supers(head, &var queue)
     }
     return false
 }
@@ -76,9 +76,9 @@ pub fun SigTable.supertrait_closure_reqs(name: str, args: str): List<SuperTraitR
         val hargs = *qargs.at(qi)
         qi = qi + 1
         if hname.as_str() == name { continue }
-        if super_req_listed(&found, hname.as_str(), hargs.as_str()) { continue }
+        if super_req_listed(&found, hname, hargs) { continue }
         found.push(SuperTraitReq { name: String.from(hname.as_str()), args: String.from(hargs.as_str()), span: Span.none() })
-        self.push_super_reqs(hname.as_str(), hargs.as_str(), &var qname, &var qargs)
+        self.push_super_reqs(hname, hargs, &var qname, &var qargs)
     }
     return found
 }
@@ -89,7 +89,7 @@ fun SigTable.push_super_reqs(name: str, args: str, outn: &var List<String>, outa
         Some(info) => {
             while supertrait in &info.supertraits {
                 outn.push(String.from(supertrait.name.as_str()))
-                outa.push(subst_key_by_params(supertrait.args.as_str(), &info.type_params, args))
+                outa.push(subst_key_by_params(supertrait.args, &info.type_params, args))
             }
         }
     }

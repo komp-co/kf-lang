@@ -19,7 +19,7 @@ pub fun unknown_bound_diags(sigs: Ptr<SigTable>): List<Diagnostic> {
             out.push(Diagnostic.new(Severity.Error, Label.new(b.span, m)))
         } else {
             // Wrong argument count: reported at the declaration too.
-            when (unsafe { sigs.find_trait(b.trait_name.as_str()) }) {
+            when (unsafe { sigs.find_trait(b.trait_name) }) {
                 Some(info) => {
                     if b.arg_names.size() != info.type_params.size() {
                         val expect = info.type_params.size()
@@ -39,12 +39,12 @@ pub fun unknown_bound_diags(sigs: Ptr<SigTable>): List<Diagnostic> {
 /// Dependency traits arrive with their interfaces and resolve the same way.
 fun BoundInfo.bound_names_no_trait(sigs: Ptr<SigTable>): bool {
     if self.trait_name.as_str().equals("") { return false }
-    return unsafe { sigs.find_trait(self.trait_name.as_str()) }.is_none()
+    return unsafe { sigs.find_trait(self.trait_name) }.is_none()
 }
 
 fun BoundInfo.note_bound_as_an_import_use(sigs: Ptr<SigTable>): void {
     if self.span.file_id == 0 { return }
-    when (unsafe { sigs.find_trait(self.trait_name.as_str()) }) {
+    when (unsafe { sigs.find_trait(self.trait_name) }) {
         Some(info) => {
             if info.module.id != 0 {
                 note_import_use(sigs, self.span.file_id, info.module)

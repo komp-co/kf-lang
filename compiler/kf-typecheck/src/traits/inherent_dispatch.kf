@@ -12,7 +12,7 @@ pub fun inherent_method_symbol(recv_ty: Type, method_name: String, arg_count: ui
     val type_name = recv.kind.nominal_name()
     if type_name.as_str().equals("") { return "" }
     val candidate = type_name + String.from("_") + method_name
-    when (unsafe { (*sigs).find_signature(candidate.as_str()) }) {
+    when (unsafe { (*sigs).find_signature(candidate) }) {
         Some(sig) => {
             // A static takes no receiver.
             if sig.is_static { return "" }

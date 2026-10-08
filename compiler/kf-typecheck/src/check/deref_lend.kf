@@ -68,7 +68,7 @@ fun Type.answers(method: str, ctx: &var TypeCtx): bool {
     if base.has_method_named(method, ctx) { return true }
     if receiver_declares_trait_method(base.clone(), String.from(method), ctx) { return true }
     val name = base.kind.nominal_name()
-    return name.byte_len() > 0 && type_has_method_named(name.as_str(), method, ctx)
+    return name.byte_len() > 0 && type_has_method_named(name, method, ctx)
 }
 
 /// An argument whose slot is its deref target, and which no plain coercion

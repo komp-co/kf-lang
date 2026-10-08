@@ -1,12 +1,17 @@
 // `annotation bench(iterations: int32)` also declares `struct bench`, one
 // field per parameter: the type of a use's arguments, and of the `args` an
-// `annotated<bench>()` entry carries.
+// `annotated<bench>()` entry carries. A parameter taking a name holds it as
+// written, a `str`; a variadic one has no field yet, as nothing could keep
+// its list once the query returns (#187).
 
 import alloc.list.*
 
 import kf_core.ast.Module
 import kf_core.ast.declaration.*
 import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.intern.intern
+import kf_core.ast.annotation.*
 import kf_core.diagnostic.*
 import kf_resolve.DeclTable
 
@@ -61,8 +66,10 @@ fun TopDecl.argument_struct(params: &List<Param>, is_pub: bool): TopDecl {
     var fields = List.new<Field>()
     var borrows = false
     while param in &params {
-        if (*param.ty).names_str() { borrows = true }
-        fields.push(Field.new(param.span, param.name.as_string(), Box.new((*param.ty).clone()), false, is_pub))
+        if (*param.ty).variadic_element() != null { continue }
+        val ty = (*param.ty).field_type()
+        if ty.names_str() { borrows = true }
+        fields.push(Field.new(param.span, param.name.as_string(), Box.new(ty), false, is_pub))
     }
     var decl = TopDecl.new(self.span, self.name.as_string(), TopDeclKind.Struct(fields, is_pub))
     decl.is_view = borrows
@@ -70,6 +77,12 @@ fun TopDecl.argument_struct(params: &List<Param>, is_pub: bool): TopDecl {
     decl.module_path = self.module_path
     decl.name_span = self.name_span
     return decl
+}
+
+/// A parameter's field type: `str` for a name, the type itself otherwise.
+fun TypeRef.field_type(): TypeRef {
+    if self.named_kind() == null { return self.clone() }
+    return TypeRef.new(self.span, TypeRefKind.Named(intern("str"), List.new<TypeRef>()))
 }
 
 fun TypeRef.names_str(): bool {

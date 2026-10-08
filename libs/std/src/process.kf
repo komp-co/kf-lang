@@ -63,7 +63,7 @@ impl Command {
     }
 
     pub fun status(): ExitStatus {
-        return ExitStatus { code: kf_process_status(self.program.as_str(), &self.args, self.working_dir.as_str(), &self.environment, self.stdout_path.as_str()) }
+        return ExitStatus { code: kf_process_status(self.program, &self.args, self.working_dir, &self.environment, self.stdout_path) }
     }
 
     /// Replaces this process with the program, which keeps its stdin,
@@ -71,9 +71,9 @@ impl Command {
     /// only when the program could not be started.
     pub fun exec(): IoError {
         kf_process_spawn_reset()
-        while arg in &self.args { val _pushed = kf_process_spawn_arg(arg.as_str()) }
-        while entry in &self.environment { val _pushed = kf_process_spawn_env(entry.as_str()) }
-        val code = kf_process_exec(self.program.as_str(), self.working_dir.as_str(), self.stdout_path.as_str())
+        while arg in &self.args { val _pushed = kf_process_spawn_arg(arg) }
+        while entry in &self.environment { val _pushed = kf_process_spawn_env(entry) }
+        val code = kf_process_exec(self.program, self.working_dir, self.stdout_path)
         return IoError { path: self.program.clone(), code: code, message: kf_process_error_text(code) }
     }
 
@@ -82,9 +82,9 @@ impl Command {
     /// not an exit code later.
     pub fun spawn(): Result<Child, IoError> {
         kf_process_spawn_reset()
-        while arg in &self.args { val _pushed = kf_process_spawn_arg(arg.as_str()) }
-        while entry in &self.environment { val _pushed = kf_process_spawn_env(entry.as_str()) }
-        val pid = kf_process_spawn(self.program.as_str(), self.working_dir.as_str())
+        while arg in &self.args { val _pushed = kf_process_spawn_arg(arg) }
+        while entry in &self.environment { val _pushed = kf_process_spawn_env(entry) }
+        val pid = kf_process_spawn(self.program, self.working_dir)
         if pid < 0 {
             val code = kf_process_spawn_error()
             val message = kf_process_error_text(code)

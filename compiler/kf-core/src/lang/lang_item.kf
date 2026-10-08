@@ -158,7 +158,7 @@ impl Module {
 pub fun lang_placeholder(item: LangItem): Sym {
     var text = "lang::"
     text.append(item.key())
-    return intern(text.as_str())
+    return intern(text)
 }
 
 impl Sym {

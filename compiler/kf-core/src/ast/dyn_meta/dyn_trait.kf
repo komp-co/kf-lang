@@ -27,16 +27,16 @@ impl Type {
     pub fun dyn_trait_identity(): Sym {
         var result = self.dyn_trait_name().as_string()
         val args = self.dyn_trait_args()
-        if unsafe { args as uint64 } == 0 { return intern(result.as_str()) }
+        if unsafe { args as uint64 } == 0 { return intern(result) }
         var i = 0
         while i < unsafe { args.size() } {
             result.append("__")
             val argument = unsafe { args.get(i) }
             val fragment = argument.dyn_type_mangle()
-            result.append(fragment.as_str())
+            result.append(fragment)
             i = i + 1
         }
-        return intern(result.as_str())
+        return intern(result)
     }
 
     fun dyn_wrapper_name(): Sym {
@@ -47,7 +47,7 @@ impl Type {
 fun dyn_prefixed_name(prefix: str, ty: &Type): Sym {
     var result = String.from(prefix)
     result.append(ty.dyn_trait_identity().as_str())
-    return intern(result.as_str())
+    return intern(result)
 }
 
 impl Type {

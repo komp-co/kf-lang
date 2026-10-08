@@ -54,7 +54,7 @@ impl Substitution {
     fun binds_one_of(segments: &List<String>): bool {
         if self.names.is_empty() { return false }
         while segment in &segments {
-            if self.binds(segment.as_str()) { return true }
+            if self.binds(segment) { return true }
         }
         return false
     }

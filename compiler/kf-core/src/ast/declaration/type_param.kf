@@ -16,6 +16,6 @@ pub struct TypeParam {
 
 impl TypeParam {
     pub static fun new(span: Span, name: String): TypeParam {
-        return TypeParam { span: span, name: intern(name.as_str()), bounds: [] }
+        return TypeParam { span: span, name: intern(name), bounds: [] }
     }
 }

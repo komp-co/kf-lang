@@ -70,13 +70,13 @@ pub fun static_callee_owner_mangled(callee: str): String {
 /// `Cel_from__From__int32` is `Cel`, `Box__int32_new` is `Box`.
 pub fun static_callee_owner(callee: str): String {
     val prefix = static_callee_owner_mangled(callee)
-    val pn = prefix.as_str().byte_len()
+    val pn = prefix.byte_len()
     var k: uint64 = 0
     while k + 1 < pn {
-        val d0 = prefix.as_str().byte_at(k)
-        val d1 = prefix.as_str().byte_at(k + 1)
+        val d0 = prefix.byte_at(k)
+        val d1 = prefix.byte_at(k + 1)
         if d0 == 95 && d1 == 95 {
-            return prefix.as_str().substring(0, k)
+            return prefix.substring(0, k)
         }
         k = k + 1
     }
@@ -94,7 +94,7 @@ pub fun callee_targets_receiver(callee: str, receiver: str, method: str): bool {
     if callee_method_tail(callee, receiver, method).matched { return true }
     // A monomorphized owner (`Box__int32`) needs the normalizing compare.
     val owner = static_callee_owner(callee)
-    if owner.as_str().byte_len() == 0 { return true }
+    if owner.byte_len() == 0 { return true }
     return owner.as_str().equals(receiver)
 }
 
@@ -118,16 +118,16 @@ pub fun callee_method_tail(callee: str, owner: str, method: str): CalleeTail {
     var needle = String.from(owner)
     needle.append("_")
     needle.append(method)
-    if !callee.starts_with(needle.as_str()) { return no_callee_tail() }
+    if !callee.starts_with(needle) { return no_callee_tail() }
     val n = callee.byte_len()
-    val m = needle.as_str().byte_len()
+    val m = needle.byte_len()
     val rest = callee.substring(m, n)
-    val rest_len = rest.as_str().byte_len()
+    val rest_len = rest.byte_len()
     if rest_len == 0 { return CalleeTail { matched: true, tail: rest } }
     // The method segment ends the name or is followed by `__`.
     if rest_len < 2 { return no_callee_tail() }
-    if rest.as_str().byte_at(0) != 95 { return no_callee_tail() }
-    if rest.as_str().byte_at(1) != 95 { return no_callee_tail() }
+    if rest.byte_at(0) != 95 { return no_callee_tail() }
+    if rest.byte_at(1) != 95 { return no_callee_tail() }
     return CalleeTail { matched: true, tail: rest }
 }
 
@@ -154,7 +154,7 @@ fun method_segment_at(callee: str, method: str): uint64? {
     val n = callee.byte_len()
     var needle = String.from("_")
     needle.append(method)
-    val m = needle.as_str().byte_len()
+    val m = needle.byte_len()
     if m > n { return null }
     var found: uint64? = null
     var i = 0
@@ -206,9 +206,9 @@ fun rebuild_static_callee(ep: Ptr<Expr>, recv: Ptr<Expr>, method: Sym, recv_befo
             // typecheck already split them from the method's own: folding the
             // whole written list in gave `B__int32_of__int32` for `B_of__int32`.
             val owner_mangled = static_callee_owner_before(unsafe { ep.mangled_callee.as_str() }, method.as_str())
-            val recv_suffix = mangle_suffix_after(owner_mangled.as_str(), recv_before.as_str())
+            val recv_suffix = mangle_suffix_after(owner_mangled, recv_before)
             if recv_suffix.matched {
-                concrete.append(subst_mangled_name(recv_suffix.text.as_str(), subst).as_str())
+                concrete.append(subst_mangled_name(recv_suffix.text, subst).as_str())
             } else {
                 // No callee to split: the written list, which is the receiver's
                 // whenever the method declares no parameters.
@@ -219,10 +219,10 @@ fun rebuild_static_callee(ep: Ptr<Expr>, recv: Ptr<Expr>, method: Sym, recv_befo
             }
             // The tail's type subst.names take the prefix too.
             val raw_tail = static_callee_tail(unsafe { ep.mangled_callee.as_str() }, method.as_str())
-            val tail = subst_mangled_name(raw_tail.as_str(), subst)
+            val tail = subst_mangled_name(raw_tail, subst)
             var rebuilt = concrete + String.from("_") + method.as_string()
-            rebuilt.append(tail.as_str())
-            unsafe { ep.mangled_callee = intern(rebuilt.as_str()) }
+            rebuilt.append(tail)
+            unsafe { ep.mangled_callee = intern(rebuilt) }
         }
         _ => {}
     }
@@ -284,7 +284,7 @@ fun qualify_type_ptr(p: Ptr<Type>, subst: &Substitution): void {
 // An exact table key, or a compound (`List__Point`) respelled per segment.
 fun Sym.qualify_type_name(subst: &Substitution): Sym {
     val hit = rename_lookup(self.as_str(), subst)
-    if hit.as_str().byte_len() > 0 {
+    if hit.byte_len() > 0 {
         return intern_string(hit)
     }
     if CName.is_mangled(self.as_str()) {

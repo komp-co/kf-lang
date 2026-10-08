@@ -37,12 +37,12 @@ pub mutating fun JsonReader.load_dyn_traits(crate: CrateId): DynTraitLoad {
         val methods = self.load_dyn_methods()
         if !methods.ok { return DynTraitLoad { ok: false, items: items } }
         if self.object_has_next() { return DynTraitLoad { ok: false, items: items } }
-        if dyn_string_empty(identity.as_str()) || dyn_string_empty(principal.as_str()) { return DynTraitLoad { ok: false, items: items } }
-        if dyn_layout_exists(&items, identity.as_str()) { return DynTraitLoad { ok: false, items: items } }
-        var layout_owner = canonical_identity_crate(intern(principal.as_str()))
+        if dyn_string_empty(identity) || dyn_string_empty(principal) { return DynTraitLoad { ok: false, items: items } }
+        if dyn_layout_exists(&items, identity) { return DynTraitLoad { ok: false, items: items } }
+        var layout_owner = canonical_identity_crate(intern(principal))
         if layout_owner.is_poison() { layout_owner = crate }
         items.push(DynTraitLayout {
-            identity: intern(identity.as_str()), principal: intern(principal.as_str()), args: args.items,
+            identity: intern(identity), principal: intern(principal), args: args.items,
             methods: methods.items, owner: layout_owner, imported: true
         })
     }
@@ -70,15 +70,15 @@ pub mutating fun JsonReader.load_dyn_vtables(crate: CrateId, layouts: &List<DynT
         val adapters = self.load_dyn_symbols()
         if !adapters.ok { return DynVTableLoad { ok: false, items: items } }
         if self.object_has_next() { return DynVTableLoad { ok: false, items: items } }
-        val layout_index = dyn_layout_index(layouts, layout_name.as_str())
+        val layout_index = dyn_layout_index(layouts, layout_name)
         if layout_index < 0 { return DynVTableLoad { ok: false, items: items } }
-        if receiver.is_poison() || dyn_string_empty(receiver_identity.as_str()) || dyn_string_empty(symbol.as_str()) { return DynVTableLoad { ok: false, items: items } }
-        if dyn_string_empty(owner.as_str()) || !dyn_linkage_valid(linkage.as_str()) { return DynVTableLoad { ok: false, items: items } }
+        if receiver.is_poison() || dyn_string_empty(receiver_identity) || dyn_string_empty(symbol) { return DynVTableLoad { ok: false, items: items } }
+        if dyn_string_empty(owner) || !dyn_linkage_valid(linkage) { return DynVTableLoad { ok: false, items: items } }
         if adapters.items.size() != layouts.at(layout_index as uint64).methods.size() { return DynVTableLoad { ok: false, items: items } }
-        if dyn_vtable_exists(&items, layout_name.as_str(), receiver_identity.as_str()) { return DynVTableLoad { ok: false, items: items } }
+        if dyn_vtable_exists(&items, layout_name, receiver_identity) { return DynVTableLoad { ok: false, items: items } }
         items.push(DynVTableInstance {
-            layout: intern(layout_name.as_str()), receiver: receiver, receiver_identity: intern(receiver_identity.as_str()),
-            symbol: intern(symbol.as_str()), adapters: adapters.items, owner: CrateId.new(owner.as_str()),
+            layout: intern(layout_name), receiver: receiver, receiver_identity: intern(receiver_identity),
+            symbol: intern(symbol), adapters: adapters.items, owner: CrateId.new(owner.as_str()),
             linkage: if linkage.as_str() == "generic" { Linkage.GenericTemplate } else { Linkage.ImportedCompiled }
         })
     }
@@ -128,9 +128,9 @@ mutating fun JsonReader.load_dyn_methods(): DynMethodLoad {
         if !self.expect_key("ret") { return DynMethodLoad { ok: false, items: items } }
         val ret = parse_dyn_metadata_type(self.read_string().as_str())
         if self.object_has_next() { return DynMethodLoad { ok: false, items: items } }
-        if dyn_string_empty(name.as_str()) || slot < 0 || slot as uint64 != items.size() || ret.is_poison() { return DynMethodLoad { ok: false, items: items } }
-        if dyn_method_name_exists(&items, name.as_str()) { return DynMethodLoad { ok: false, items: items } }
-        items.push(DynMethodSlot { name: intern(name.as_str()), params: params.items, ret: ret, is_mutating: mutable, slot: slot as uint64 })
+        if dyn_string_empty(name) || slot < 0 || slot as uint64 != items.size() || ret.is_poison() { return DynMethodLoad { ok: false, items: items } }
+        if dyn_method_name_exists(&items, name) { return DynMethodLoad { ok: false, items: items } }
+        items.push(DynMethodSlot { name: intern(name), params: params.items, ret: ret, is_mutating: mutable, slot: slot as uint64 })
     }
     return DynMethodLoad { ok: !self.has_error(), items: items }
 }
@@ -140,8 +140,8 @@ mutating fun JsonReader.load_dyn_symbols(): DynSymbolLoad {
     if !self.begin_array() { return DynSymbolLoad { ok: false, items: items } }
     while self.array_has_next() {
         val value = self.read_string()
-        if dyn_string_empty(value.as_str()) { return DynSymbolLoad { ok: false, items: items } }
-        items.push(intern(value.as_str()))
+        if dyn_string_empty(value) { return DynSymbolLoad { ok: false, items: items } }
+        items.push(intern(value))
     }
     return DynSymbolLoad { ok: !self.has_error(), items: items }
 }

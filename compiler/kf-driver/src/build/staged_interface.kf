@@ -27,8 +27,8 @@ pub fun CompileUnit.interface_from_source(interfaces: &InterfaceLookup, overlay:
     var parse_diags = Diagnostics.new()
     var modules = List.new<Module>()
     while dependency in &self.loads {
-        val path = interfaces.path_of(dependency.as_str())
-        val loaded = load_compiled_crate(path.as_str(), smap)
+        val path = interfaces.path_of(dependency)
+        val loaded = load_compiled_crate(path, smap)
         if !loaded.ok { return staged_failure("failed to load ${path}: ${loaded.error}") }
         append_modules(&var modules, &loaded.modules)
     }

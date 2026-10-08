@@ -14,7 +14,7 @@ pub fun lint_summary(diags: &List<Diagnostic>): String {
     while d in &diags {
         if d.diag_is_error() { errors = errors + 1 } else { warnings = warnings + 1 }
         if d.code.is_empty() { continue }
-        val at = names.position_of(d.code.as_str())
+        val at = names.position_of(d.code)
         if at < 0 {
             names.push(d.code.clone())
             counts.push(1)
@@ -34,7 +34,7 @@ pub fun lint_summary(diags: &List<Diagnostic>): String {
     }
     while name in &order {
         out.append("  ")
-        out.append(name.as_str())
+        out.append(name)
         while _ in name.byte_len()..width + 2 { out.push_byte(32) }
         out.append("${counts[names.position_of(name.as_str()) as uint64]}\n")
     }

@@ -60,7 +60,10 @@ fun Expr.rebuild_expr(new_kind: ExprKind, subst: &Substitution): Expr {
         is_variant_ctor: self.is_variant_ctor,
         derefs_at_call: self.derefs_at_call,
         constant: self.constant,
-        arg_name: self.arg_name
+        arg_name: self.arg_name,
+        needless_view: self.needless_view,
+        scope_module: self.scope_module,
+        scope_file: self.scope_file
     }
 }
 
@@ -208,14 +211,14 @@ pub fun subst_static_callee(callee: str, subst: &Substitution): String {
     // `&int32`. Only a bare one; `List__T_push` genuinely is
     // `List__kf__ref__Square`.
     var result = ""
-    if subst.binds(prefix.as_str()) {
+    if subst.binds(prefix) {
         var through = subst.through_borrows()
-        result = subst_mangled_name(prefix.as_str(), &through).display()
+        result = subst_mangled_name(prefix, &through).display()
     } else {
-        result = subst_mangled_name(prefix.as_str(), subst).display()
+        result = subst_mangled_name(prefix, subst).display()
     }
     result.append("_")
-    val suffix = subst_mangled_name(method.as_str(), subst)
+    val suffix = subst_mangled_name(method, subst)
     result.append(suffix.as_str())
     return result
 }
@@ -225,7 +228,7 @@ pub fun subst_static_callee(callee: str, subst: &Substitution): String {
 fun Type.mark_self_shaped_args(args: &List<Expr>, out: &var List<Expr>, subst: &Substitution): void {
     val pname = self.generic_param_name()
     if pname.as_str() == "" { return }
-    if !replacement_is_a_borrow(pname.as_str(), subst) { return }
+    if !replacement_is_a_borrow(pname, subst) { return }
     while i in 0..args.size() {
         if i < out.size() {
             val arg_param = generic_param_name(&args.at(i).ty)

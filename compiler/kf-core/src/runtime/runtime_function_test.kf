@@ -37,5 +37,5 @@ import testing.test
 
 @test fun the_header_lists_each_prototype(): void {
     val prototypes = runtime_header_prototypes()
-    assert_eq(prototypes.as_str().contains("void kf_free(void* ptr);\n"), true, "one declaration per line")
+    assert_eq(prototypes.contains("void kf_free(void* ptr);\n"), true, "one declaration per line")
 }

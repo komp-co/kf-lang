@@ -321,5 +321,5 @@ mutating fun BlockTemps.fresh_block_temp(): Sym {
     val n: int64 = self.n as int64
     name.append(String.of(&(n)).as_str())
     self.n = self.n + 1
-    return intern(name.as_str())
+    return intern(name)
 }

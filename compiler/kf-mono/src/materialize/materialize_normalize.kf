@@ -20,15 +20,15 @@ mutating fun Module.normalize_trait_impls(): void {
             TraitDecl(_methods, _pub, _) => { }
             TraitImpl(tref, methods) => {
                 val suffix = trait_ref_arg_suffix(unsafe { *tref }, self)
-                val completed = self.append_default_trait_methods(&index, &td, unsafe { *tref }, methods, suffix.as_str())
+                val completed = self.append_default_trait_methods(&index, &td, unsafe { *tref }, methods, suffix)
                 var renamed = List.new<TopDecl>()
                 while j in 0..completed.size() {
                     var method = *completed.at(j)
                     if !suffix.as_str().equals("") {
                         var renamed_name = String.from(method.name.as_str())
                         renamed_name.append("__")
-                        renamed_name.append(suffix.as_str())
-                        method.name = intern(renamed_name.as_str())
+                        renamed_name.append(suffix)
+                        method.name = intern(renamed_name)
                     }
                     // The last point where trait origin is known; codegen uses
                     // it for header declarations. A field write, so no payload
@@ -49,7 +49,7 @@ mutating fun Module.normalize_trait_impls(): void {
                 normalized.decl_end = td.decl_end
                 normalized.resolves_in = td.resolves_in
                 val principal = tref.trait_ref_principal()
-                normalized.implemented_lang_trait = self.lang_key_of_trait(&index, principal.as_str())
+                normalized.implemented_lang_trait = self.lang_key_of_trait(&index, principal)
                 kept.push(normalized)
             }
             _ => kept.push(td)
@@ -132,7 +132,7 @@ pub fun trait_ref_arg_suffix(tref: &TypeRef, m: &Module): String {
             while item in &args {
                 out.append("__")
                 val arg = mangle_tyref(item)
-                out.append(arg.as_str())
+                out.append(arg)
             }
             return out
         }

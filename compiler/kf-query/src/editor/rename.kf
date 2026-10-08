@@ -32,7 +32,7 @@ pub fun render_rename_json(path: str, offset: uint32, new_name: str, crate: &Typ
     val refusal = why_not(new_name, crate, &names, target)
     if refusal.as_str() != "" {
         out.field_bool("ok", false)
-        out.field_string("error", refusal.as_str())
+        out.field_string("error", refusal)
         out.field_null("range")
         out.field_raw("edits", "[]")
         return out.finish()
@@ -99,7 +99,7 @@ fun why_not(new_name: str, crate: &TypedCrate, names: &List<NameSpan>, target: N
             } else if named.member.as_str().starts_with("trait ") || named.member.as_str().starts_with("annotation ") {
                 if validate_only { String.from("") } else { crate.module.colliding_name(new_name) }
             } else {
-                crate.member_refusal(names, &named, old.as_str(), new_name)
+                crate.member_refusal(names, &named, old, new_name)
             }
         }
     }
@@ -170,5 +170,5 @@ fun owned_by_this_crate(home: Span, crate: &TypedCrate): bool {
     val here = path_for_file_id(crate.smap, crate.file_id)
     if decl_file.as_str() == "" || here.as_str() == "" { return false }
     if crate.root.as_str() == "" { return false }
-    return Path.new(decl_file.as_str()).starts_with(&absolute(crate.root.as_str()))
+    return Path.new(decl_file.as_str()).starts_with(&absolute(crate.root))
 }

@@ -68,7 +68,7 @@ fun frag_list(a: str, b: str): List<String> {
 
 @test fun a_nested_function_fragment_is_one_parameter(): void {
     val inner = Frag.function(&frag_list("int32", ""), "int32")
-    val outer = Frag.function(&frag_list(inner.as_str(), "int32"), "void")
+    val outer = Frag.function(&frag_list(inner, "int32"), "void")
     val parts = Frag.function_parts(outer.as_str()) ?: return
     assert_eq(parts.params.at(0).as_str(), inner.as_str(), "the inner function's markers are skipped over")
 }

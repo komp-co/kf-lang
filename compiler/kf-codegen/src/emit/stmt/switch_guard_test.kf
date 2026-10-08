@@ -77,8 +77,8 @@ fun guard_switch_c(arms: List<SwitchArm>): String {
     arms.push(guarded_arm(SwitchTag.IntLit(0), null))
     arms.push(guarded_arm(SwitchTag.Wildcard, null))
     val c = guard_switch_c(arms)
-    assert_eq(guard_contains(c.as_str(), "switch ("), true, "still a switch")
-    assert_eq(guard_contains(c.as_str(), "case 0:"), true, "still a case label")
+    assert_eq(guard_contains(c, "switch ("), true, "still a switch")
+    assert_eq(guard_contains(c, "case 0:"), true, "still a case label")
 }
 
 // Local copy: the crate's substring helpers are file-private.

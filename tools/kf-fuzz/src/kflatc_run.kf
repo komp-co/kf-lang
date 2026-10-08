@@ -45,24 +45,24 @@ pub fun Limits.scripted(script: str, run: &CrateRun, memory_mb: uint64): Command
     command.arg(script)
     command.arg("kf-fuzz")
     command.arg("${memory_mb}".as_str())
-    command.arg(run.log.as_str())
+    command.arg(run.log)
     command.arg("${self.timeout_seconds}".as_str())
-    command.arg(self.kflatc.as_str())
+    command.arg(self.kflatc)
     command.arg("compile")
     command.arg("--name")
-    command.arg(run.name.as_str())
+    command.arg(run.name)
     command.arg("--root")
-    command.arg(run.root.as_str())
+    command.arg(run.root)
     command.arg("--out")
-    command.arg(run.out.as_str())
+    command.arg(run.out)
     command.arg("--project")
-    command.arg(run.root.as_str())
+    command.arg(run.root)
     if run.is_bin { command.arg("--bin") }
     while dep in &run.deps {
         command.arg("--dep")
         command.arg("${dep}=0".as_str())
         command.arg("--load")
-        command.arg(dep.as_str())
+        command.arg(dep)
     }
     return command
 }
@@ -74,7 +74,7 @@ pub fun Limits.start(run: &CrateRun): Result<Child, IoError> {
 /// Runs to the end and judges it.
 pub fun Limits.run_now(run: &CrateRun): Verdict {
     val code = self.command(run).status().exit_code()
-    return self.refine(run, judge(code, read_log(run.log.as_str()).as_str()))
+    return self.refine(run, judge(code, read_log(run.log).as_str()))
 }
 
 /// A crash's or hang's signature, with where it happened when gdb can tell.

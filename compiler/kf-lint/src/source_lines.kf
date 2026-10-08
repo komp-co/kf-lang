@@ -45,10 +45,10 @@ fun columns_between(text: str, from: uint64, to: uint64): int64 {
 /// `todo_comment`: `TODO` or `FIXME` in a `//` comment.
 fun check_todo(file_id: uint32, text: str, from: uint64, to: uint64, out: &var List<Diagnostic>): void {
     val line = text.substring(from, to)
-    val comment = line.as_str().index_of("//") ?: return
-    val after = line.as_str().substring(comment, line.byte_len())
-    val todo = after.as_str().index_of("TODO")
-    val fixme = after.as_str().index_of("FIXME")
+    val comment = line.index_of("//") ?: return
+    val after = line.substring(comment, line.byte_len())
+    val todo = after.index_of("TODO")
+    val fixme = after.index_of("FIXME")
     if todo.is_none() && fixme.is_none() { return }
     val marker = if todo.is_some() { todo.unwrap() } else { fixme.unwrap() }
     val start = (from + comment + marker) as uint32

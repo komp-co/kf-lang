@@ -78,9 +78,9 @@ pub fun Expr.check_returned_borrow(span: Span, ctx: &var TypeCtx): void {
     if !ctx.return_ty.type_borrows(ctx.sigs) { return }
     val root = self.borrow_root()
     if root.as_str() == "" { return }
-    if ctx.ctx_is_param(root.as_str()) { return }
-    if !ctx.is_declared(root.as_str()) { return }
-    val bound = ctx.lookup(root.as_str())
+    if ctx.ctx_is_param(root) { return }
+    if !ctx.is_declared(root) { return }
+    val bound = ctx.lookup(root)
     if bound.type_borrows(ctx.sigs) { return }
     val message = "cannot return a borrow of `${root.as_str()}`: it is owned by this function and is dropped at the return"
     ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))

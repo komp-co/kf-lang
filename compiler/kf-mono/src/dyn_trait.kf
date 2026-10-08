@@ -93,7 +93,7 @@ fun normalize_dyn_vtable(table: DynVTableInstance, old_layouts: &List<DynTraitLa
     val symbol_text = "DynVTableInstance__${receiver_identity.as_str()}__${layout_identity.as_str()}"
     return DynVTableInstance {
         layout: layout_identity, receiver: receiver, receiver_identity: receiver_identity,
-        symbol: intern(symbol_text.as_str()), adapters: clone_dyn_sym_list(&table.adapters),
+        symbol: intern(symbol_text), adapters: clone_dyn_sym_list(&table.adapters),
         owner: table.owner, linkage: table.linkage
     }
 }

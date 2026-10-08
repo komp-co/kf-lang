@@ -201,7 +201,7 @@ fun Expr.visit(walk: &var LintWalk): void {
             if walk.numbers_checked() { check_magic_number(self.span, value, walk) }
         }
         LitFloat(spelling) => {
-            if walk.numbers_checked() { check_magic_float(self.span, spelling.as_str(), walk) }
+            if walk.numbers_checked() { check_magic_float(self.span, spelling, walk) }
         }
         Binary(left, op, right) => {
             if !left.may_be_optional() && !right.may_be_optional() {

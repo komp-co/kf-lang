@@ -27,7 +27,7 @@ fun concat_of_strings_has_nothing_between(): void {
     var words = List.new<String>()
     words.push(String.from("x"))
     words.push(String.from("y"))
-    assert(words.as_slice().concat().equals("xy"), "glued")
+    assert(words.concat().equals("xy"), "glued")
 }
 
 @test

@@ -32,7 +32,7 @@ pub mutating fun Module.compute_move_only_names(list_name: Sym): TypeNameSet {
         changed = false
         while td in &self.decls {
             val nm = td.name.as_string()
-            if !out.contains(nm.as_str()) {
+            if !out.contains(nm) {
                 var hit = false
                 when (td.kind) {
                     Struct(fields, _p) => { hit = fields_infect(fields, &out, list_name) }

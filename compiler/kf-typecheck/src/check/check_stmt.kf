@@ -227,8 +227,8 @@ fun check_assign(name: String, expr_ptr: Ptr<Expr>, span: Span, ctx: &var TypeCt
     check_expr(unsafe { &var *expr_ptr }, ctx)
     val expr = unsafe { *expr_ptr }
     expr.reject_stored_lambda_transfer("an assignment", ctx)
-    if !ctx.has_local(name.as_str()) {
-        val fix = if name.as_str().names_constant(ctx) {
+    if !ctx.has_local(name) {
+        val fix = if name.names_constant(ctx) {
             String.from("it is a top-level `val`")
         } else {
             "it is not declared; declare it with `var ${name} = ...`"
@@ -237,12 +237,12 @@ fun check_assign(name: String, expr_ptr: Ptr<Expr>, span: Span, ctx: &var TypeCt
         ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
         return
     }
-    val target = ctx.lookup(name.as_str())
+    val target = ctx.lookup(name)
     if target.is_poison() {
         return
     }
     // `x = v` needs a `var` binding.
-    if !ctx.lookup_is_var(name.as_str()) {
+    if !ctx.lookup_is_var(name) {
         if name.as_str().equals("self") {
             val lab = Label.new(span, String.from("cannot reassign `self` here; mark the enclosing method `mutating`"))
             ctx.emit(Diagnostic.new(Severity.Error, lab))
@@ -251,7 +251,7 @@ fun check_assign(name: String, expr_ptr: Ptr<Expr>, span: Span, ctx: &var TypeCt
             ctx.emit(Diagnostic.new(Severity.Error, lab))
         }
     }
-    val stored = ctx.decide_by_store(name.as_str(), &expr, span, target)
+    val stored = ctx.decide_by_store(name, &expr, span, target)
     // The target is a slot: `v = 5` against `var v: int32?` becomes
     // `Option.Some(5)`.
     val want = stored.clone()

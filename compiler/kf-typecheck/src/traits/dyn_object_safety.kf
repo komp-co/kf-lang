@@ -134,7 +134,7 @@ fun Type.build_dyn_layout(info: TraitInfo, ctx: &TypeCtx): DynTraitLayout {
             params.push(subst_all_generics(param, &info.type_params, &args))
         }
         methods.push(DynMethodSlot {
-            name: intern(method.name.as_str()),
+            name: intern(method.name),
             params: params,
             ret: subst_all_generics(method.ret, &info.type_params, &args),
             is_mutating: method.is_mutating,

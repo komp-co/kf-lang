@@ -27,27 +27,27 @@ fun glue_source_output(): String {
 @test
 fun public_retain_is_declared_without_a_header_body(): void {
     val header = glue_header_output()
-    val declared = hdr_contains(header.as_str(), "Point kf__retain__Point(Point v);")
-    val body = hdr_contains(header.as_str(), "kf__retain__Point(Point v) {")
+    val declared = hdr_contains(header, "Point kf__retain__Point(Point v);")
+    val body = hdr_contains(header, "kf__retain__Point(Point v) {")
     assert_eq(declared && !body, true, "header declares retain without defining it")
 }
 
 @test
 fun synthesized_clone_method_entry_is_declared(): void {
     val header = glue_header_output()
-    assert_eq(hdr_contains(header.as_str(), "Point Point_clone(Point* __self);"), true, "header declares synthesized clone method entry")
+    assert_eq(hdr_contains(header, "Point Point_clone(Point* __self);"), true, "header declares synthesized clone method entry")
 }
 
 @test
 fun public_drop_is_defined_in_the_owner_source(): void {
     val source = glue_source_output()
-    assert_eq(hdr_contains(source.as_str(), "void Point__glue_drop(Point v) {"), true, "owner source defines drop")
+    assert_eq(hdr_contains(source, "void Point__glue_drop(Point v) {"), true, "owner source defines drop")
 }
 
 @test
 fun public_clone_is_defined_in_the_owner_source(): void {
     val source = glue_source_output()
-    assert_eq(hdr_contains(source.as_str(), "Point Point__glue_clone(Point v) {"), true, "owner source defines clone")
+    assert_eq(hdr_contains(source, "Point Point__glue_clone(Point v) {"), true, "owner source defines clone")
 }
 
 @test
@@ -66,7 +66,7 @@ fun nested_public_drop_calls_the_qualified_owner_symbol(): void {
     decls.push(TopDecl.new(Span.none(), String.from("sample__Envelope"), TopDeclKind.Struct(fields, true)))
     val view = Module { crate: CrateId.new("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
     val source = view.emit_crate_source(String.from("sample"), false)
-    assert_eq(hdr_contains(source.as_str(), "sample__Point__glue_drop(v.point);"), true, "nested glue calls the qualified owner symbol")
+    assert_eq(hdr_contains(source, "sample__Point__glue_drop(v.point);"), true, "nested glue calls the qualified owner symbol")
 }
 
 fun string_owner_source(): String {
@@ -84,13 +84,13 @@ fun string_owner_source(): String {
 @test
 fun string_field_drop_uses_its_own_glue(): void {
     val source = string_owner_source()
-    assert_eq(hdr_contains(source.as_str(), "String__glue_drop(v.label);"), true, "a String field releases like any other owning field")
+    assert_eq(hdr_contains(source, "String__glue_drop(v.label);"), true, "a String field releases like any other owning field")
 }
 
 @test
 fun string_field_retain_deep_clones_the_value(): void {
     val source = string_owner_source()
-    assert_eq(hdr_contains(source.as_str(), "v.label = kf__retain__String(v.label);"), true, "String field retain produces an independent owner")
+    assert_eq(hdr_contains(source, "v.label = kf__retain__String(v.label);"), true, "String field retain produces an independent owner")
 }
 
 @test
@@ -105,7 +105,7 @@ fun string_retain_glue_calls_its_declared_clone(): void {
     decls.push(TopDecl.new(Span.none(), String.from("String"), TopDeclKind.ImplBlock(methods)))
     val view = Module { crate: CrateId.new("core"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
     val source = view.emit_crate_source(String.from("core"), false)
-    assert_eq(hdr_contains(source.as_str(), "return String__glue_clone(v);"), true, "public String retain glue creates an independent owner")
+    assert_eq(hdr_contains(source, "return String__glue_clone(v);"), true, "public String retain glue creates an independent owner")
 }
 
 // Dyn layouts are emitted before type bodies, so a member naming `String`
@@ -124,7 +124,7 @@ fun string_module(): Module {
 fun string_is_forward_declared_like_any_other_type(): void {
     val m = string_module()
     val out = m.emit_type_forward_decls()
-    assert_eq(hdr_contains(out.as_str(), "typedef struct String String;"), true, "String gets a forward declaration")
+    assert_eq(hdr_contains(out, "typedef struct String String;"), true, "String gets a forward declaration")
 }
 
 @test
@@ -132,9 +132,9 @@ fun the_string_forward_declaration_precedes_its_layout(): void {
     val m = string_module()
     val body = m.emit_module_body(false)
     var ok = false
-    when (body.as_str().index_of("typedef struct String String;")) {
+    when (body.index_of("typedef struct String String;")) {
         Some(fwd) => {
-            when (body.as_str().index_of("typedef struct String {")) {
+            when (body.index_of("typedef struct String {")) {
                 Some(layout) => { ok = fwd < layout }
                 None => { }
             }

@@ -34,7 +34,7 @@ impl GenericTwin {
     pub static fun name_of(base: str): String {
         if GenericTwin.crate_of(base).is_none() { return String.from(base) }
         val tail = base.substring(TWIN_PREFIX.byte_len(), base.byte_len())
-        val cut = tail.as_str().index_of("__") ?: return String.from(base)
+        val cut = tail.index_of("__") ?: return String.from(base)
         return tail.substring(cut + 2, tail.byte_len())
     }
 }

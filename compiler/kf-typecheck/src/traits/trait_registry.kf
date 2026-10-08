@@ -33,7 +33,7 @@ mutating fun TopDecl.register_trait_impl(trait_ref: &TypeRef, sigs: Ptr<SigTable
             val is_container = is_container_type_name(self.name.as_str(),
                 unsafe { (*sigs).lang_list }, unsafe { (*sigs).lang_option })
             if CName.is_runtime_type(self.name.as_str()) || is_container || unmangled { coherence_key = intern("") }
-            when (unsafe { sigs.find_trait_impl(coherence_key, type_name.as_str(), trait_name.as_str(), args_key.as_str()) }) {
+            when (unsafe { sigs.find_trait_impl(coherence_key, type_name, trait_name, args_key) }) {
                 Some(first) => {
                     val where_first = first.where_the_first_impl_is(self)
                     val message = "duplicate impl ${trait_name.as_str()} for ${type_name.as_str()}${where_first.as_str()}"
@@ -168,7 +168,7 @@ fun TopDecl.dyn_adapter_symbol(members: &List<TopDecl>, receiver: &Type, method:
             if member.name.id == method.id && member.link_name.as_str() != "" { return member.link_name }
         }
     }
-    val tail = emitted_method_tail(method.as_str(), suffix.as_str())
+    val tail = emitted_method_tail(method.as_str(), suffix)
     return intern("${(*receiver).mangle_frag()}_${tail}")
 }
 

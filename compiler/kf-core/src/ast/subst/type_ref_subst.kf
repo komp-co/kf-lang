@@ -24,7 +24,7 @@ fun TypeRef.tyref_text(): String {
             while item in &args {
                 result.append("__")
                 val arg = item.tyref_text()
-                result.append(arg.as_str())
+                result.append(arg)
             }
             return result
         }
@@ -34,7 +34,7 @@ fun TypeRef.tyref_text(): String {
             while item in &args {
                 result.append("__")
                 val arg = item.tyref_text()
-                result.append(arg.as_str())
+                result.append(arg)
             }
             return result
         }
@@ -60,7 +60,7 @@ fun TypeRef.tyref_text(): String {
         Array(elem, _n) => {
             var result = "Array__"
             val item = tyref_text(unsafe { &*elem })
-            result.append(item.as_str())
+            result.append(item)
             return result
         }
         // Named by owner and member so substitution can rewrite the owner.

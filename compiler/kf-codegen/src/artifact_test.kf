@@ -69,39 +69,39 @@ fun view_construction_keeps_the_source_ast_owned(): void {
     val view = m.crate_view(CrateId.new("aa"))
     val header_view = view.header_type_view()
     val out = m.emit_crate(String.from("aa"), List.new<String>(), false)
-    assert_eq(header_view.decls.size() == 1 && artifact_contains(out.header.as_str(), "Point"), true, "views own cloned declarations and leave the source module usable")
+    assert_eq(header_view.decls.size() == 1 && artifact_contains(out.header, "Point"), true, "views own cloned declarations and leave the source module usable")
 }
 
 @test
 fun header_declares_public_functions(): void {
     val out = emit_aa()
-    assert_eq(artifact_contains(out.header.as_str(), "int32_t answer(void);"), true, "public fn proto is exported")
+    assert_eq(artifact_contains(out.header, "int32_t answer(void);"), true, "public fn proto is exported")
 }
 
 @test
 fun header_omits_private_functions(): void {
     val out = emit_aa()
-    assert_eq(artifact_contains(out.header.as_str(), "helper"), false, "private fn stays out of the header")
+    assert_eq(artifact_contains(out.header, "helper"), false, "private fn stays out of the header")
 }
 
 @test
 fun header_includes_runtime_and_dependencies(): void {
     val out = emit_aa()
-    val has_runtime = artifact_contains(out.header.as_str(), "#include \"kf_runtime.h\"")
-    val has_dep = artifact_contains(out.header.as_str(), "#include \"bb.h\"")
+    val has_runtime = artifact_contains(out.header, "#include \"kf_runtime.h\"")
+    val has_dep = artifact_contains(out.header, "#include \"bb.h\"")
     assert_eq(has_runtime && has_dep, true, "header pulls the runtime and direct deps")
 }
 
 @test
 fun source_includes_its_own_header(): void {
     val out = emit_aa()
-    assert_eq(artifact_contains(out.source.as_str(), "#include \"aa.h\""), true, "source starts from its export surface")
+    assert_eq(artifact_contains(out.source, "#include \"aa.h\""), true, "source starts from its export surface")
 }
 
 @test
 fun source_excludes_other_crates_definitions(): void {
     val out = emit_aa()
-    assert_eq(artifact_contains(out.source.as_str(), "other"), false, "another crate's decls never reach this source")
+    assert_eq(artifact_contains(out.source, "other"), false, "another crate's decls never reach this source")
 }
 
 @test
@@ -130,9 +130,9 @@ fun header_carries_concrete_generic_layouts_used_by_public_types(): void {
     decls.push(instance)
     val m = Module { crate: CrateId.new("aa"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
     val out = m.emit_crate(String.from("aa"), List.new<String>(), false)
-    val header_has_layout = artifact_contains(out.header.as_str(), "typedef struct List__aa__Point {")
-    val header_guards_layout = artifact_contains(out.header.as_str(), "#ifndef KF_GENERIC_LAYOUT_List__aa__Point")
-    val source_redefines_layout = artifact_contains(out.source.as_str(), "typedef struct List__aa__Point {")
+    val header_has_layout = artifact_contains(out.header, "typedef struct List__aa__Point {")
+    val header_guards_layout = artifact_contains(out.header, "#ifndef KF_GENERIC_LAYOUT_List__aa__Point")
+    val source_redefines_layout = artifact_contains(out.source, "typedef struct List__aa__Point {")
     assert_eq(header_has_layout && header_guards_layout && !source_redefines_layout, true, "the public generic layout is guarded and defined only by the header")
 }
 
@@ -160,7 +160,7 @@ fun source_closes_transitive_generic_signature_support(): void {
     decls.push(iter_layout)
     val m = Module { crate: CrateId.new("aa"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
     val out = m.emit_crate(String.from("aa"), List.new<String>(), false)
-    assert_eq(artifact_contains(out.source.as_str(), "typedef struct ListIter__aa__Point {"), true, "instance signatures pull transitive layouts into the source")
+    assert_eq(artifact_contains(out.source, "typedef struct ListIter__aa__Point {"), true, "instance signatures pull transitive layouts into the source")
 }
 
 @test
@@ -184,9 +184,9 @@ fun source_emits_glue_for_a_header_carried_generic_layout(): void {
     decls.push(instance_impl)
     val m = Module { crate: CrateId.new("aa"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
     val out = m.emit_crate(String.from("aa"), List.new<String>(), false)
-    val has_clone = artifact_contains(out.source.as_str(), "List__aa__Point__glue_clone(List__aa__Point v)")
-    val static_drop = artifact_contains(out.source.as_str(), "static void List__aa__Point_drop(")
-    val external_drop = artifact_contains(out.source.as_str(), "\nvoid List__aa__Point_drop(")
+    val has_clone = artifact_contains(out.source, "List__aa__Point__glue_clone(List__aa__Point v)")
+    val static_drop = artifact_contains(out.source, "static void List__aa__Point_drop(")
+    val external_drop = artifact_contains(out.source, "\nvoid List__aa__Point_drop(")
     assert_eq(has_clone && static_drop && !external_drop, true, "generic glue and user methods keep TU-local linkage")
 }
 
@@ -215,8 +215,8 @@ fun artifact_contains(s: str, needle: str): bool {
 fun the_source_includes_its_own_artifact_not_its_crate(): void {
     val m = two_crate_module()
     val out = m.emit_crate_named(String.from("aa"), String.from("aa_tests"), List.new<String>(), false)
-    assert_eq(artifact_contains(out.source.as_str(), "#include \"aa_tests.h\""), true, "the source includes the artifact it was written beside")
-    assert_eq(artifact_contains(out.source.as_str(), "#include \"aa.h\""), false, "and not the crate's own header")
+    assert_eq(artifact_contains(out.source, "#include \"aa_tests.h\""), true, "the source includes the artifact it was written beside")
+    assert_eq(artifact_contains(out.source, "#include \"aa.h\""), false, "and not the crate's own header")
 }
 
 @test
@@ -225,7 +225,7 @@ fun a_renamed_artifact_still_belongs_to_its_crate(): void {
     val plain = emit_crate(&m_for_naming(), String.from("aa"), List.new<String>(), false)
     val named = emit_crate_named(&m_for_naming(), String.from("aa"), String.from("aa_tests"), List.new<String>(), false)
     assert_eq(named.crate_name.as_str(), "aa", "the crate name is unchanged")
-    assert_eq(artifact_contains(named.header.as_str(), "Point"), artifact_contains(plain.header.as_str(), "Point"), "the same declarations are exported")
+    assert_eq(artifact_contains(named.header, "Point"), artifact_contains(plain.header, "Point"), "the same declarations are exported")
 }
 
 fun m_for_naming(): Module {

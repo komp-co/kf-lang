@@ -46,7 +46,7 @@ fun Module.dyn_arg_names_a_real_type(t: Type): bool {
     // A mangled instance (`List__int32`) is real whether or not it is declared.
     if CName.is_mangled(name.as_str()) { return true }
     while decl in &self.decls {
-        if decl.name.as_str().equals(name.as_str()) { return true }
+        if decl.name.as_str().equals(name) { return true }
     }
     return false
 }
@@ -187,8 +187,8 @@ fun codegen_dyn_vtable_has(tables: &List<DynVTableInstance>, layout: Sym, receiv
     val want_layout = layout.dyn_codegen_identity()
     val want_recv = receiver.dyn_codegen_identity()
     while table in &tables {
-        if table.layout.dyn_codegen_identity().as_str().equals(want_layout.as_str()) {
-            if table.receiver_identity.dyn_codegen_identity().as_str().equals(want_recv.as_str()) { return true }
+        if table.layout.dyn_codegen_identity().as_str().equals(want_layout) {
+            if table.receiver_identity.dyn_codegen_identity().as_str().equals(want_recv) { return true }
         }
     }
     return false

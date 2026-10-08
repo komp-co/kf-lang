@@ -44,8 +44,8 @@ fun emit_no_such_method(type_name: String, method_name: String, span: Span, name
     if method_name.as_str().equals("display") {
         msg.append(" (implement `Display` for it, or interpolate a field instead)")
     }
-    msg.append(unimported_extension_note(method_name.as_str(), ctx).as_str())
-    val near = nearest_method(type_name.as_str(), method_name.as_str(), ctx)
+    msg.append(unimported_extension_note(method_name, ctx).as_str())
+    val near = nearest_method(type_name, method_name, ctx)
     if near.name.as_str() != "" { msg.append(" (did you mean `${near.name.as_str()}`?)") }
     val diag = Diagnostic.new(Severity.Error, Label.new(span, msg))
     // The fix spans `name_span`, since the call's span opens at the receiver.
@@ -79,7 +79,7 @@ fun nearest_method(type_name: str, wanted: str, ctx: &var TypeCtx): NearMethod {
     if direct.name.as_str() != "" { return direct }
     val base = mangle_base_name(String.from(type_name))
     if base.as_str().equals(type_name) { return direct }
-    return nearest_method_of(base.as_str(), wanted, budget, ctx)
+    return nearest_method_of(base, wanted, budget, ctx)
 }
 
 /// `tied` is a second candidate at the winning distance; the same name twice
@@ -92,14 +92,14 @@ fun nearest_method_of(owner: str, wanted: str, budget: uint64, ctx: &var TypeCtx
     prefix.append("_")
     val sigs = unsafe { (*ctx.sigs).sigs }
     while sig in &sigs {
-        val cand = method_of(sig.name.as_str(), prefix.as_str())
+        val cand = method_of(sig.name, prefix)
         if cand.as_str() != "" && !cand.as_str().equals(wanted) {
-            val d = edit_distance(wanted, cand.as_str(), best_d)
+            val d = edit_distance(wanted, cand, best_d)
             if d < best_d {
                 best_d = d
                 best = cand
                 tied = false
-            } else if d == best_d && best.as_str() != "" && !cand.as_str().equals(best.as_str()) {
+            } else if d == best_d && best.as_str() != "" && !cand.as_str().equals(best) {
                 tied = true
             }
         }
@@ -171,7 +171,7 @@ fun trait_method_ret(recv_ty: Type, method_name: String, args: &var List<Expr>, 
     // arguments: `Twice<S>.pull(): S` on `Twice__Counter` is Counter.
     val binding = bound_checked_recv_bindings(autoderef_ty(recv_ty).kind.trait_impl_owner_name(), method_name.clone(), tm_span, ctx)
     var pre = Type.new_poison()
-    when (unsafe { (*ctx.sigs).find_signature(selected.sig_name.as_str()) }) {
+    when (unsafe { (*ctx.sigs).find_signature(selected.sig_name) }) {
         Some(sig) => {
             pre = sig.ret
             // The selected impl's parameter types are the arguments' only expectation.
@@ -213,7 +213,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
     }
     expect_lambda_args(receiver_ty.clone(), method_name.clone(), args, &var arg_tys, _span, ctx)
     if receiver_ty.is_poison() {
-        if !ctx.quiet { record_untyped_receiver(_span, method_name.as_str(), ctx.sigs) }
+        if !ctx.quiet { record_untyped_receiver(_span, method_name, ctx.sigs) }
         return Type.new_poison()
     }
     // Through a pointer or reference to the pointee.
@@ -241,7 +241,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
             if t_err { return Type.new_poison() }
             return treq.ret
         }
-        report_no_parameter_method(gname.as_str(), method_name.as_str(), _span, ctx)
+        report_no_parameter_method(gname, method_name, _span, ctx)
         return Type.new_poison()
     }
     // A projection receiver: methods come from the associated type's bounds.
@@ -270,7 +270,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
                 if !found.trait_suffix.as_str().equals("") {
                     pending = pending + String.from("__") + found.trait_suffix
                 }
-                unsafe { call.mangled_callee = intern(pending.as_str()) }
+                unsafe { call.mangled_callee = intern(pending) }
                 // The trait's return instance is named nowhere else.
                 preq.ret.register_returned_instance(_span, ctx)
                 return preq.ret
@@ -308,7 +308,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
     if is_prim {
         val prim_ret = trait_method_ret(recv_ty, method_name.clone(), args, _span, ctx, call)
         if !prim_ret.is_poison() { return prim_ret }
-        recv_ty.borrow_intrinsic_method_operand(method_name.as_str(), args, ctx)
+        recv_ty.borrow_intrinsic_method_operand(method_name, args, ctx)
         // A trait declares it but no impl accepts these arguments.
         if receiver_declares_trait_method(recv_ty, method_name.clone(), ctx) {
             val amsg = call.no_fitting_impl_message(recv_ty, method_name.clone(), args, ctx)
@@ -319,7 +319,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
     // Nothing claims this method on a primitive: reported. A `Ptr<T>` arrives
     // here as its pointee.
     if is_prim {
-        if !primitive_intrinsic_method(method_name.as_str()) {
+        if !primitive_intrinsic_method(method_name) {
             emit_no_such_method(recv_ty.display_type(ctx), method_name.clone(), _span, call.name_span, ctx)
         }
         return Type.new_poison()
@@ -332,14 +332,14 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
     var has_link: bool = false
     when (recv_ty.kind) {
         Struct(identity) => {
-            val link_name = unsafe { (*ctx.sigs).lookup_method_link(identity, method_name.as_str()) }
+            val link_name = unsafe { (*ctx.sigs).lookup_method_link(identity, method_name) }
             if !link_name.as_str().equals("") {
                 call.mangled_callee = link_name
                 has_link = true
             }
         }
         EnumTy(identity) => {
-            val link_name = unsafe { (*ctx.sigs).lookup_method_link(identity, method_name.as_str()) }
+            val link_name = unsafe { (*ctx.sigs).lookup_method_link(identity, method_name) }
             if !link_name.as_str().equals("") {
                 call.mangled_callee = link_name
                 has_link = true
@@ -407,7 +407,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
                 }
                 val pushed = ty_from_frag_in_scope(elem_frag.clone(), _span, ctx)
                 if call.receiver_still_open(ctx) { return Type.new_void(_span) }
-                if args.at(0).reject_kept_temporary(&pushed, method_name.as_str(), ctx) { return Type.new_poison() }
+                if args.at(0).reject_kept_temporary(&pushed, method_name, ctx) { return Type.new_poison() }
                 if !check_method_arg(args, &arg_tys, 0, pushed, method_name, _span, ctx) { return Type.new_poison() }
                 return Type.new_void(_span)
             }
@@ -418,7 +418,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
                 }
                 val stored = ty_from_frag_in_scope(elem_frag.clone(), _span, ctx)
                 if call.receiver_still_open(ctx) { return Type.new_void(_span) }
-                if args.at(1).reject_kept_temporary(&stored, method_name.as_str(), ctx) { return Type.new_poison() }
+                if args.at(1).reject_kept_temporary(&stored, method_name, ctx) { return Type.new_poison() }
                 if !check_method_arg(args, &arg_tys, 1, stored, method_name, _span, ctx) { return Type.new_poison() }
                 return Type.new_void(_span)
             }
@@ -426,19 +426,19 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
         }
     }
     val mangled = sname + String.from("_") + method_name
-    val found_sig = unsafe { (*ctx.sigs).find_signature(mangled.as_str()) }
+    val found_sig = unsafe { (*ctx.sigs).find_signature(mangled) }
     if found_sig.is_none() {
         // A method on a monomorphized generic: looked up under the template's
         // name with the receiver's arguments substituted
         // (`List<T>.iter(): ListIter<T>` on `List__int32`).
         val base = mangle_base_name(sname.clone())
-        val base_len = base.as_str().byte_len()
-        val name_len = sname.as_str().byte_len()
+        val base_len = base.byte_len()
+        val name_len = sname.byte_len()
         if base_len < name_len {
             val binding = recv_bindings_for_method(sname.clone(), _span, ctx)
             if binding.recv_is_instance() {
                 val bmangled = base + String.from("_") + method_name
-                when (unsafe { (*ctx.sigs).find_signature(bmangled.as_str()) }) {
+                when (unsafe { (*ctx.sigs).find_signature(bmangled) }) {
                     Some(bsig) => {
                         if !bsig.is_static {
                             if !bsig.arrange_call_arguments(args, &var arg_tys, method_name.clone(), 1, _span, ctx) {
@@ -500,7 +500,7 @@ fun type_has_method_named(type_name: str, wanted: str, ctx: &var TypeCtx): bool 
     if type_has_method_of(type_name, wanted, ctx) { return true }
     val base = mangle_base_name(String.from(type_name))
     if base.as_str().equals(type_name) { return false }
-    return type_has_method_of(base.as_str(), wanted, ctx)
+    return type_has_method_of(base, wanted, ctx)
 }
 
 fun type_has_method_of(owner: str, wanted: str, ctx: &var TypeCtx): bool {
@@ -511,7 +511,7 @@ fun type_has_method_of(owner: str, wanted: str, ctx: &var TypeCtx): bool {
     val table = unsafe { &*ctx.sigs }
     val positions = table.sig_heads.positions("${prefix}${wanted}".as_str())
     while k in 0..positions.size() {
-        if names_method(table.sigs.at(positions.get(k)).name.as_str(), prefix.as_str(), pn, wanted, wn) { return true }
+        if names_method(table.sigs.at(positions.get(k)).name.as_str(), prefix, pn, wanted, wn) { return true }
     }
     return false
 }

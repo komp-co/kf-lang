@@ -120,7 +120,7 @@ impl Type {
     }
 
     pub static fun new_generic(name: String, span: Span): Self {
-        return Type.new(TypeKind.Generic(intern(name.as_str())), Provenance.Inferred(span))
+        return Type.new(TypeKind.Generic(intern(name)), Provenance.Inferred(span))
     }
 
     pub static fun new_ptr(inner: Type, span: Span): Self {

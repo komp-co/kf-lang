@@ -41,7 +41,7 @@ mutating fun Stmt.check_foreach(binder: Sym, subj_ptr: Ptr<Expr>, body: List<Stm
         val base = subject.ty_base_name()
         val sp = ctx.sigs
         val iterable = ctx.lang_trait_name(LangItem.Iterable).as_str()
-        if !unsafe { sp.type_implements_any(base.as_str(), iterable) } && !subject.bounded_by_iterable(ctx) {
+        if !unsafe { sp.type_implements_any(base, iterable) } && !subject.bounded_by_iterable(ctx) {
             // Names the type as written: `&List<int32>`, not `List__int32`.
             var msg = String.from("type `")
             msg.append(subj.ty.display_type(ctx).as_str())
@@ -94,14 +94,14 @@ fun expand_foreach(binder: Sym, binder_at: Span, subj_ptr: Ptr<Expr>, body: List
     val iter_call = Expr.new(span, ExprKind.MethodCall(subj_ptr, intern("iter"), List.new<Expr>()))
     val iter_call_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *iter_call_ptr = iter_call }
-    val let_it = Stmt.new(span, StmtKind.LetVar(intern(itname.as_str()), null, iter_call_ptr))
+    val let_it = Stmt.new(span, StmtKind.LetVar(intern(itname), null, iter_call_ptr))
 
     val it_var_box: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *it_var_box = Expr.new(span, ExprKind.Variable(intern(itname.as_str()))) }
+    unsafe { *it_var_box = Expr.new(span, ExprKind.Variable(intern(itname))) }
     val next_call = Expr.new(span, ExprKind.MethodCall(it_var_box, intern("next"), List.new<Expr>()))
     val next_call_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *next_call_ptr = next_call }
-    val let_opt = Stmt.new(span, StmtKind.LetVal(intern(optname.as_str()), null, next_call_ptr))
+    val let_opt = Stmt.new(span, StmtKind.LetVal(intern(optname), null, next_call_ptr))
 
     var some_payloads = List.new<Pattern>()
     some_payloads.push(Pattern.new(if binder_at.is_none() { span } else { binder_at }, PatternKind.Identifier(binder)))
@@ -119,7 +119,7 @@ fun expand_foreach(binder: Sym, binder_at: Span, subj_ptr: Ptr<Expr>, body: List
     arms.push(some_arm)
     arms.push(none_arm)
     val opt_subj_box: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *opt_subj_box = Expr.new(span, ExprKind.Variable(intern(optname.as_str()))) }
+    unsafe { *opt_subj_box = Expr.new(span, ExprKind.Variable(intern(optname))) }
     val when_stmt = Stmt.new(span, StmtKind.When(opt_subj_box, arms))
 
     var while_body = List.new<Stmt>()

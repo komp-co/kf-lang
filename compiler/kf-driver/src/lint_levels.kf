@@ -52,7 +52,7 @@ pub mutating fun LintConfig.set_lint_level(name: str, level: LintLevel): void {
 pub mutating fun LintConfig.set_group_level(group: str, level: LintLevel): void {
     val all = LintInfo.all()
     while info in &all {
-        if info.in_group(group) { self.set_lint_level(info.name.as_str(), level) }
+        if info.in_group(group) { self.set_lint_level(info.name, level) }
     }
 }
 
@@ -176,7 +176,7 @@ pub mutating fun LintConfig.apply_table_lint_flags(diags: &var List<Diagnostic>)
             Some(eq) => {
                 val name = row.substring(0, eq)
                 val level = row.substring(eq + 1, row.byte_len())
-                self.apply_table_lint(origin, name.as_str(), level.as_str(), diags)
+                self.apply_table_lint(origin, name, level, diags)
             }
             None => diags.push(Diagnostic.error_at(Span.none(), "`${flag} ${row}`: expected NAME=LEVEL"))
         }
@@ -212,13 +212,13 @@ pub mutating fun LintConfig.apply_option_row(row: str, diags: &var List<Diagnost
     } else if LintInfo.option_of(name.as_str(), key.as_str()).is_none() {
         diags.push(Diagnostic.error_at(Span.none(), "lint.toml: `${name}` has no option `${key}`"))
     } else {
-        val value = whole_number(text.as_str()) ?: {
+        val value = whole_number(text) ?: {
             diags.push(
                 Diagnostic.error_at(Span.none(), "lint.toml: `${name}.${key}` is `${text}`; expected a whole number")
             )
             return
         }
-        self.options.set(name.as_str(), key.as_str(), value)
+        self.options.set(name, key, value)
     }
 }
 

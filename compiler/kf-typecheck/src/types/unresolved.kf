@@ -33,7 +33,7 @@ pub fun report_unknown_callee(name: str, span: Span, ctx: &var TypeCtx): void {
     val why = "`${home.as_str()}` declares it, and this file does not import it"
     val diag = Diagnostic.error_at(span, "cannot find function `${name}` in this scope: ${why.as_str()}")
     val fix_span = import_insert_span(span.file_id, ctx)
-    ctx.emit(with_fix(diag, fix_span, import_text(path.as_str(), span.file_id, ctx), import_title(path.as_str())))
+    ctx.emit(with_fix(diag, fix_span, import_text(path, span.file_id, ctx), import_title(path)))
 }
 
 /// A call through a module alias names nothing that module offers; `private`
@@ -205,13 +205,13 @@ pub mutating fun TypeCtx.report_open_calls(): void {
             self.emit(Diagnostic.error_at(open.span, "${what} — ${repair}"))
         } else if !span_list_contains(&self.open_typed, open.span) {
             var msg = String.from("cannot tell what `")
-            msg.append(open.base.as_str())
+            msg.append(open.base)
             msg.append(".")
-            msg.append(open.method.as_str())
+            msg.append(open.method)
             msg.append("()` is over — write the type argument (`")
-            msg.append(open.base.as_str())
+            msg.append(open.base)
             msg.append(".")
-            msg.append(open.method.as_str())
+            msg.append(open.method)
             msg.append("<...>()`), or annotate the binding")
             self.emit(Diagnostic.error_at(open.span, msg))
         }

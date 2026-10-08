@@ -1,0 +1,84 @@
+//! run: exit 0
+//! deps: core, alloc
+// An annotation parameter of type `trait`, `struct`, `enum` or `fun` takes a
+// declaration's name, and a last one written `T..` takes the positional
+// arguments left over. A template uses a name as code: it calls a `fun`,
+// writes a `struct` as a type, implements a `trait` through `${args.t}`, and
+// loops over a variadic argument once per value while the program compiles.
+
+trait Named {
+    fun label(): String
+}
+
+annotation checked(rules: fun..) on struct
+annotation scored(by: fun, base: int64 = 0) on struct
+annotation tagged(names: str..) on struct
+annotation labelled(t: trait) on struct
+annotation paired(with: struct) on struct
+
+fun positive(n: int64): bool { return n > 0 }
+fun small(n: int64): bool { return n < 100 }
+fun doubled(n: int64): int64 { return n * 2 }
+
+template checked on struct T {
+    fun T.valid(): bool {
+        while field in T.fields {
+            while rule in args.rules {
+                if !rule(field.of(self) as int64) { return false }
+            }
+        }
+        return true
+    }
+}
+
+template scored on struct T {
+    fun T.score(): int64 {
+        var total = args.base
+        while field in T.fields {
+            total = total + args.by(field.of(self) as int64)
+        }
+        return total
+    }
+}
+
+template tagged on struct T {
+    fun T.tag_count(): int64 { return args.names.size() as int64 }
+}
+
+template labelled on struct T {
+    impl ${args.t} for T {
+        fun label(): String { return String.from(T.name) }
+    }
+}
+
+template paired on struct T {
+    fun T.partner(): args.with { return args.with.default() }
+}
+
+@derive(Default)
+struct Other {
+    val v: int32
+}
+
+@checked(positive, small)
+@scored(doubled, base = 1)
+@tagged("a", "b", "c")
+@labelled(Named)
+@paired(Other)
+struct Reading {
+    val a: int32
+    val b: int32
+}
+
+fun main(): int32 {
+    val ok = Reading { a: 5, b: 7 }
+    val bad = Reading { a: 5, b: 700 }
+    if !ok.valid() || bad.valid() { return 1 }
+    if ok.score() != 25 { return 2 }
+    if ok.tag_count() != 3 { return 3 }
+    if ok.label() != "Reading" || ok.partner().v != 0 { return 4 }
+    while entry in &annotated<scored>() {
+        if entry.args.by != "doubled" || entry.args.base != 1 { return 5 }
+    }
+    return 0
+}

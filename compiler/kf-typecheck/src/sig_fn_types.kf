@@ -3,7 +3,7 @@ import kf_core.ast.types.Type
 impl SigTable {
     pub mutating fun note_fn_type(t: &Type): void {
         val frag = t.mangle_frag()
-        if self.fn_type_for(frag.as_str()) != null { return }
+        if self.fn_type_for(frag) != null { return }
         self.fn_types.push(*t)
     }
 

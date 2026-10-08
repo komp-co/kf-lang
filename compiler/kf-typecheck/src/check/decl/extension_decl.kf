@@ -23,7 +23,7 @@ pub fun insert_fn_sig(sigs: Ptr<SigTable>, owner: Ptr<TopDecl>, sig: FnSignature
         val ext_name = unsafe { owner.ext_name }
         if !ext_name.as_str().equals("") {
             val trait_param = (unsafe { &*owner }).annotation_word("receiver_trait")
-            unsafe { (*sigs).insert_extension(ext_name, intern(sig.name.as_str()), intern(trait_param.as_str())) }
+            unsafe { (*sigs).insert_extension(ext_name, intern(sig.name), intern(trait_param)) }
         }
     }
     // Hidden support arrives `pub` only when written `internal`, so its own
@@ -31,7 +31,7 @@ pub fun insert_fn_sig(sigs: Ptr<SigTable>, owner: Ptr<TopDecl>, sig: FnSignature
     if (owner as uint64) != 0 {
         unsafe {
             if owner.is_internal || (owner.linkage.is_hidden() && sig.is_pub) {
-                (*sigs).note_internal(sig.owner_module, sig.name.as_str())
+                (*sigs).note_internal(sig.owner_module, sig.name)
             }
         }
     }
@@ -121,21 +121,21 @@ mutating fun TopDecl.add_trait_receiver(types: &List<String>, traits: &List<Stri
             Named(name, _args) => name.as_string()
             _ => String.from("")
         }
-        if !names_contain(traits, head.as_str()) || self.declares_generic(head.as_str()) { return }
+        if !names_contain(traits, head) || self.declares_generic(head) { return }
         param = self.fresh_receiver_name(types)
         self.annotations.push(Annotation.new(receiver.span, "receiver_trait", [param.clone()]))
     }
-    if self.declares_generic(param.as_str()) { return }
+    if self.declares_generic(param) { return }
     var tp = TypeParam.new(receiver.span, param.clone())
     tp.bounds.push(receiver.clone())
     self.generics.push(tp)
-    self.point_self_at(TypeRef.new(receiver.span, TypeRefKind.Named(intern(param.as_str()), List.new<TypeRef>())))
+    self.point_self_at(TypeRef.new(receiver.span, TypeRefKind.Named(intern(param), List.new<TypeRef>())))
 }
 
 fun TopDecl.fresh_receiver_name(types: &List<String>): String {
     var name = String.from("Receiver")
     var n: uint64 = 2
-    while is_type_name(name.as_str(), types) || self.declares_generic(name.as_str()) {
+    while is_type_name(name, types) || self.declares_generic(name) {
         name = "Receiver${n}"
         n = n + 1
     }
@@ -219,7 +219,7 @@ fun ReceiverParams.warn_near_type_names(types: &List<String>, diags: &var Diagno
     var i: uint64 = 0
     while i < self.names.size() {
         val name = *self.names.at(i)
-        val near = nearest_type_name(name.as_str(), types)
+        val near = nearest_type_name(name, types)
         if near.byte_len() > 0 {
             val why = "`${name.as_str()}` is not a type in scope, so it makes this extension generic over a parameter"
             val message = "${why} named `${name.as_str()}`; did you mean `${near.as_str()}`?"
@@ -237,7 +237,7 @@ fun nearest_type_name(name: str, types: &List<String>): String {
     var best = ""
     var best_distance = cap + 1
     while candidate in &types {
-        val distance = edit_distance(name, candidate.as_str(), cap)
+        val distance = edit_distance(name, candidate, cap)
         if distance > 0 && distance < best_distance {
             best = candidate.clone()
             best_distance = distance

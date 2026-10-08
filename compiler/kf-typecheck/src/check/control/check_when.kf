@@ -187,10 +187,10 @@ fun Pattern.report_shadowing_pattern(ctx: &var TypeCtx): void {
         Identifier(name) => {
             val text = name.as_string()
             // A leading `_` marks a deliberate binding.
-            if !text.as_str().starts_with("_") {
-                if ctx.is_declared(text.as_str()) {
+            if !text.starts_with("_") {
+                if ctx.is_declared(text) {
                     var msg = String.from("`")
-                    msg.append(text.as_str())
+                    msg.append(text)
                     msg.append("` is already a binding here, and a bare name in a pattern BINDS rather than compares — this arm matches everything. Compare with a guard or an `if`, or rename the pattern to bind a new value")
                     ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, msg)))
                 }
@@ -314,18 +314,18 @@ fun check_variant_pattern(variant_name: String, payloads: &List<Pattern>, subjec
         return
     }
     val enum_name = subject_ty.kind.enum_or_struct_name()
-    if enum_name.as_str().byte_len() == 0 {
+    if enum_name.byte_len() == 0 {
         if subject_ty.kind.has_no_variants() {
             report_missing_variant(variant_name, subject_ty, span, ctx)
         }
         declare_payload_binders_untyped(payloads, ctx)
         return
     }
-    val found_layout = unsafe { (*ctx.sigs).find_enum(enum_name.as_str(), ctx.owner_crate) }
+    val found_layout = unsafe { (*ctx.sigs).find_enum(enum_name, ctx.owner_crate) }
     if found_layout.is_none() {
         // An instance may be registered as a row without a layout; with the
         // template, that is enough to type binders.
-        val via_row = instance_variant_payloads(enum_name.as_str(), variant_name.as_str(), ctx)
+        val via_row = instance_variant_payloads(enum_name, variant_name, ctx)
         if via_row.size() > 0 {
             while k in 0..payloads.size() {
                 if k < via_row.size() {
@@ -341,7 +341,7 @@ fun check_variant_pattern(variant_name: String, payloads: &List<Pattern>, subjec
     }
     val layout = found_layout ?: return
     while variant in &layout.variants {
-        if variant.name.as_str().equals(variant_name.as_str()) {
+        if variant.name.as_str().equals(variant_name) {
             while j in 0..payloads.size() {
                 val pattern = payloads.at(j)
                 if j < variant.payloads.size() {

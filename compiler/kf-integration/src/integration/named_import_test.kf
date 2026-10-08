@@ -13,23 +13,23 @@ extern "C" fun system(cmd: str): int32
 fun prepare_named_import_fixture(name: str, import_line: str, body: str): int32 {
     var cmd = "rm -rf ${scratch_root()}/${name}_dep ${scratch_root()}/${name}_app"
     cmd.append(" && mkdir -p ${scratch_root()}/${name}_dep/src ${scratch_root()}/${name}_app/src")
-    val prep = unsafe { system(cmd.as_str()) }
+    val prep = unsafe { system(cmd) }
     if prep != 0 { return prep }
 
     val dep_toml = "${scratch_root()}/${name}_dep/kf.toml"
-    write_file(dep_toml.as_str(), """[project]
+    write_file(dep_toml, """[project]
 name = "ni_dep"
 version = "0.1.0"
 kind = "lib"
 """)
 
     val dep_src = "${scratch_root()}/${name}_dep/src/lib.kf"
-    write_file(dep_src.as_str(), """pub fun alpha(): int32 { return 1 }
+    write_file(dep_src, """pub fun alpha(): int32 { return 1 }
 pub fun beta(): int32 { return 2 }
 """)
 
     val app_toml = "${scratch_root()}/${name}_app/kf.toml"
-    write_file(app_toml.as_str(), """[project]
+    write_file(app_toml, """[project]
 name = "ni_app"
 version = "0.1.0"
 kind = "bin"
@@ -43,13 +43,13 @@ ni_dep = { path = "../${name}_dep" }
     main_src.append("\nfun main(): int32 { return ")
     main_src.append(body)
     main_src.append(" }\n")
-    write_file(main_path.as_str(), main_src.as_str())
+    write_file(main_path, main_src)
     return 0
 }
 
 fun check_named_fixture(name: str): int32 {
     val dir = "${scratch_root()}/${name}_app"
-    return check_project(dir.as_str())
+    return check_project(dir)
 }
 
 @test

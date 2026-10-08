@@ -54,7 +54,7 @@ fun narrowable(names: &List<Sym>): bool {
 fun Import.wildcard_import_warning(names: &List<Sym>): Diagnostic {
     val module = import_path_text(&self.path)
     var msg = String.from("wildcard import `")
-    msg.append(module.as_str())
+    msg.append(module)
     msg.append(".*` supplies ")
     if names.size() == 1 {
         msg.append("one name")
@@ -64,11 +64,11 @@ fun Import.wildcard_import_warning(names: &List<Sym>): Diagnostic {
     }
     msg.append("; name ")
     if names.size() == 1 { msg.append("it") } else { msg.append("them") }
-    val replacement = named_import_lines(module.as_str(), names)
+    val replacement = named_import_lines(module, names)
     // CONSTRAINT: the title is built from a borrow before the replacement is
     // moved, or the fix carries freed bytes.
     var title = String.from("replace with ")
-    title.append(replacement.as_str())
+    title.append(replacement)
     val d = Diagnostic.lint_at("wildcard_import", self.span, msg)
     return with_fix_applic(d, self.span, replacement, title, Applicability.MaybeIncorrect)
 }

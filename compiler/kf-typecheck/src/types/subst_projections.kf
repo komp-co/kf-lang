@@ -212,10 +212,10 @@ pub fun Type.resolved_projection_type(self_name: str, sigs: Ptr<SigTable>): Type
             val inner = resolved_projection_type(unsafe { &*owner }, self_name, sigs)
             val key = inner.projection_type_owner_key(self_name)
             if key.as_str().equals("") { return self.rebuilt_projection(inner, member) }
-            if unsafe { sigs.count_assoc_bindings(key.as_str(), member.as_str()) } != 1 {
+            if unsafe { sigs.count_assoc_bindings(key, member.as_str()) } != 1 {
                 return self.rebuilt_projection(inner, member)
             }
-            val chosen = unsafe { sigs.lookup_assoc_binding(key.as_str(), member.as_str()) }
+            val chosen = unsafe { sigs.lookup_assoc_binding(key, member.as_str()) }
             // A poison choice was already reported; the projection is kept for
             // a later run.
             if chosen.is_poison() { return self.rebuilt_projection(inner, member) }
@@ -252,12 +252,12 @@ pub fun Type.resolved_projection_type(self_name: str, sigs: Ptr<SigTable>): Type
         Struct(n) => {
             if !MangledProjection.may_be_in(n.as_str()) { return (*self) }
             val nn = resolved_proj_segments(n.as_str(), self_name, sigs)
-            return Type { kind: TypeKind.Struct(intern(nn.as_str())), provenance: self.provenance }
+            return Type { kind: TypeKind.Struct(intern(nn)), provenance: self.provenance }
         }
         EnumTy(n) => {
             if !MangledProjection.may_be_in(n.as_str()) { return (*self) }
             val nn = resolved_proj_segments(n.as_str(), self_name, sigs)
-            return Type { kind: TypeKind.EnumTy(intern(nn.as_str())), provenance: self.provenance }
+            return Type { kind: TypeKind.EnumTy(intern(nn)), provenance: self.provenance }
         }
         _ => return (*self)
     }
@@ -282,8 +282,8 @@ fun resolved_proj_segments(mangled: str, self_name: str, sigs: Ptr<SigTable>): S
                 // Inside an impl, `Self` names the target.
                 if owner.as_str().equals("Self") { owner = String.from(self_name) }
                 val member = *segs.at(close - 1)
-                if unsafe { sigs.count_assoc_bindings(owner.as_str(), member.as_str()) } == 1 {
-                    val chosen = unsafe { sigs.lookup_assoc_binding(owner.as_str(), member.as_str()) }
+                if unsafe { sigs.count_assoc_bindings(owner, member) } == 1 {
+                    val chosen = unsafe { sigs.lookup_assoc_binding(owner, member) }
                     // A poison choice was already reported; kept for later.
                     if !chosen.is_poison() {
                         seg = mangle_type(chosen)
@@ -294,7 +294,7 @@ fun resolved_proj_segments(mangled: str, self_name: str, sigs: Ptr<SigTable>): S
             }
         }
         if emitted { out.append("__") }
-        out.append(seg.as_str())
+        out.append(seg)
         emitted = true
         i = i + step
     }
@@ -367,8 +367,8 @@ fun complete_pending_callee(p: Ptr<Expr>, self_name: str, sigs: Ptr<SigTable>): 
             val n = callee.byte_len()
             val tail = callee.substring(1, n)
             var full = owner
-            full.append(tail.as_str())
-            unsafe { p.mangled_callee = intern(full.as_str()) }
+            full.append(tail)
+            unsafe { p.mangled_callee = intern(full) }
         }
         _ => return
     }

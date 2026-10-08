@@ -39,7 +39,7 @@ fun build_method_value_crates(name: str, main_source: str): int32 {
     unsafe { system("rm -rf ${root} && mkdir -p ${dirs} && cp -R libs/core libs/alloc ${root}/libs/") }
     val deps = "core = { path = \"../libs/core\" }\nalloc = { path = \"../libs/alloc\" }\n"
     val tally_manifest = "[project]\nname = \"tally\"\nkind = \"lib\"\n\n[dependencies]\n${deps}"
-    write_file("${root}/tally/kf.toml".as_str(), tally_manifest.as_str())
+    write_file("${root}/tally/kf.toml".as_str(), tally_manifest)
     write_file("${root}/tally/src/lib.kf".as_str(), """pub struct Tally {
     pub var n: int32
 }
@@ -60,7 +60,7 @@ impl Shown for Tally {
 """)
     val app_deps = "${deps}tally = { path = \"../tally\" }\n"
     val app_manifest = "[project]\nname = \"app\"\nkind = \"bin\"\n\n[dependencies]\n${app_deps}"
-    write_file("${root}/app/kf.toml".as_str(), app_manifest.as_str())
+    write_file("${root}/app/kf.toml".as_str(), app_manifest)
     write_file("${root}/app/src/main.kf".as_str(), main_source)
     return komp_build("${root}/app".as_str(), "")
 }

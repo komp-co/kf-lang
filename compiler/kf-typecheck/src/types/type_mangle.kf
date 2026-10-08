@@ -9,7 +9,7 @@ pub fun mangle_type_name(name: str, args: &List<TypeRef>, ctx: &var TypeCtx): St
     while arg in &args {
         val suffix = mangle_type_ref(arg, ctx)
         result.append("__")
-        result.append(suffix.as_str())
+        result.append(suffix)
     }
     return result
 }

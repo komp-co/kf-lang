@@ -36,7 +36,7 @@ pub fun canonical_type_identity(identity: TypeIdentity): Sym {
     text.append(identity.module.as_str())
     text.append("::")
     text.append(identity.name.as_str())
-    return intern(text.as_str())
+    return intern(text)
 }
 
 pub fun type_identity_matches(actual: Sym, expected: TypeIdentity): bool {

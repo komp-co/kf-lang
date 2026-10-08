@@ -23,7 +23,7 @@ pub struct Field {
 impl Field {
     pub static fun new(span: Span, name: String, ty: Ptr<TypeRef>, is_var: bool, is_pub: bool): Field {
         return Field {
-            span: span, name: intern(name.as_str()), ty: ty, is_var: is_var, is_pub: is_pub, is_internal: false,
+            span: span, name: intern(name), ty: ty, is_var: is_var, is_pub: is_pub, is_internal: false,
             annotations: [], member_loop: null
         }
     }

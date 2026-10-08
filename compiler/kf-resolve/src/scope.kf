@@ -142,7 +142,7 @@ impl DeclTable {
                 val real = admission_real(admitted)
                 if !admitted.starts_with("as ") && real.as_str() != written {
                     if admission_written(admitted).as_str() == written {
-                        val at = self.find_in_module(real.as_str(), self.import_targets.get(i))
+                        val at = self.find_in_module(real, self.import_targets.get(i))
                         if at != none_index() && self.entries.at(at).is_pub { return at }
                     }
                 }
@@ -173,12 +173,12 @@ impl DeclTable {
             var real = ""
             if admitted.id == admission.id {
                 real = String.from(name)
-            } else if admitted.id != 0 && admitted.as_str().starts_with(narrowed_prefix.as_str()) {
+            } else if admitted.id != 0 && admitted.as_str().starts_with(narrowed_prefix) {
                 val part = admitted.as_str().substring(narrowed_prefix.byte_len(), admitted.as_str().byte_len())
-                if admission_written(part.as_str()).as_str() == name { real = admission_real(part.as_str()) }
+                if admission_written(part).as_str() == name { real = admission_real(part) }
             }
             if real.as_str() != "" {
-                val at = self.find_in_module(real.as_str(), self.import_targets.get(i))
+                val at = self.find_in_module(real, self.import_targets.get(i))
                 if at != none_index() { return self.decl_ids.get(at) }
             }
         }

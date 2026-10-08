@@ -100,7 +100,7 @@ fun TypeRef.arg_meets_bounds(
                 // `Rev<I: Iterator<T>, T>` the registry holds `Iterator<int32>`,
                 // never `Iterator<T>`.
                 val bound_args = subst_tref_list(&targs, subst)
-                val ok = unsafe { sigs.type_implements(base.as_str(), trait_sym.as_str(), trait_args_key(&bound_args).as_str()) }
+                val ok = unsafe { sigs.type_implements(base, trait_sym.as_str(), trait_args_key(&bound_args).as_str()) }
                 if !ok { return false }
             }
             _ => { }

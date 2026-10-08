@@ -78,7 +78,7 @@ pub fun Type.display_type(ctx: &TypeCtx): String {
 fun display_wrapped_type(prefix: str, inner: &Type, suffix: str, ctx: &TypeCtx): String {
     var result = String.from(prefix)
     val inner_display = inner.display_type(ctx)
-    result.append(inner_display.as_str())
+    result.append(inner_display)
     result.append(suffix)
     return result
 }
@@ -115,7 +115,7 @@ fun GenericInst.display_generic_inst(): String {
         if i > 0 { result.append(", ") }
         val arg = *self.args.at(i)
         val rendered = arg.display_type_ref()
-        result.append(rendered.as_str())
+        result.append(rendered)
     }
     result.append(">")
     return result
@@ -133,7 +133,7 @@ pub fun TypeRef.display_type_ref(): String {
                 if i > 0 { result.append(", ") }
                 val arg = *args.at(i)
                 val rendered = arg.display_type_ref()
-                result.append(rendered.as_str())
+                result.append(rendered)
             }
             result.append(">")
             return result
@@ -147,7 +147,7 @@ pub fun TypeRef.display_type_ref(): String {
                 if i > 0 { result.append(", ") }
                 val arg = *args.at(i)
                 val rendered = arg.display_type_ref()
-                result.append(rendered.as_str())
+                result.append(rendered)
             }
             result.append(">")
             return result
@@ -158,18 +158,18 @@ pub fun TypeRef.display_type_ref(): String {
                 if i > 0 { result.append(", ") }
                 val param = *params.at(i)
                 val rendered = param.display_type_ref()
-                result.append(rendered.as_str())
+                result.append(rendered)
             }
             result.append(") -> ")
             val rendered_ret = (unsafe { &*ret }).display_type_ref()
-            result.append(rendered_ret.as_str())
+            result.append(rendered_ret)
             return result
         }
         Reference(mutable, inner) => {
             var result = String.from("&")
             if mutable { result.append("var ") }
             val rendered = (unsafe { &*inner }).display_type_ref()
-            result.append(rendered.as_str())
+            result.append(rendered)
             return result
         }
         Array(_, _) => return String.from("array")
@@ -188,11 +188,11 @@ pub fun TypeRef.display_type_ref(): String {
 fun Sym.generic_shown(ctx: &TypeCtx): String {
     val sigs = ctx.sigs
     if unsafe { sigs as uint64 } == 0 { return self.as_string() }
-    val param = unsafe { (*sigs).receiver_trait_param(ctx.fn_owner.as_str()) }
+    val param = unsafe { (*sigs).receiver_trait_param(ctx.fn_owner) }
     if !param.as_str().equals(self.as_str()) { return self.as_string() }
     val bounds = unsafe { (*sigs).bounds }
     while b in &bounds {
-        if b.owner.as_str().equals(ctx.fn_owner.as_str()) && b.param.as_str().equals(param.as_str()) {
+        if b.owner.as_str().equals(ctx.fn_owner) && b.param.as_str().equals(param) {
             return b.bound_shown()
         }
     }

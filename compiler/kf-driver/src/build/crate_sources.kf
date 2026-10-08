@@ -15,9 +15,9 @@ pub fun CompileUnit.write_crate_sources(tdir: str, is_bin_root: bool, errors: &v
     if errors.error_count() != 0 { return false }
     if !publish_runtime_header(tdir) { return false }
     val name = self.name.as_str()
-    if !publish_text(crate_interface_path(tdir, name).as_str(), res.interface_text.as_str()) { return false }
-    if !publish_text(crate_header_path(tdir, name).as_str(), res.output.header.as_str()) { return false }
-    return publish_text(crate_source_path(tdir, name).as_str(), res.output.source.as_str())
+    if !publish_text(crate_interface_path(tdir, name).as_str(), res.interface_text) { return false }
+    if !publish_text(crate_header_path(tdir, name).as_str(), res.output.header) { return false }
+    return publish_text(crate_source_path(tdir, name).as_str(), res.output.source)
 }
 
 /// Compiles the crate with its `_test.kf` files, `entry_file` supplying `main`
@@ -33,10 +33,10 @@ pub fun CompileUnit.write_test_sources(tdir: str, entry_file: str, errors: &var 
         return false
     }
     val name = self.name.as_str()
-    if !publish_text(test_artifact_path(test_dir.as_str(), name, ".h").as_str(), res.output.header.as_str()) {
+    if !publish_text(test_artifact_path(test_dir, name, ".h").as_str(), res.output.header) {
         return false
     }
-    return publish_text(test_artifact_path(test_dir.as_str(), name, ".c").as_str(), res.output.source.as_str())
+    return publish_text(test_artifact_path(test_dir, name, ".c").as_str(), res.output.source)
 }
 
 /// `kf_runtime.h`, which every crate's header includes.

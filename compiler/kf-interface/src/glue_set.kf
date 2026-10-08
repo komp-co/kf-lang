@@ -118,7 +118,7 @@ fun add_owned_layout(name: str, m: &Module, crate: CrateId, out: &var List<Owner
 fun append_glue(name: String, crate: CrateId, out: &var List<OwnershipGlue>, seen: &var List<String>): void {
     seen.push(name.clone())
     var c_name = crate.symbol_prefix()
-    c_name.append(name.as_str())
+    c_name.append(name)
     val retain = CName.retain_fn(c_name.as_str())
     var drop = c_name.clone()
     drop.append("_drop")

@@ -105,7 +105,7 @@ fun Type.from_array_element(ctx: &var TypeCtx): Type? {
             continue
         }
         val name = "${written.as_str()}_from__${from_trait_name()}__${trait_impl.trait_args}"
-        val sig = ctx.sig_table().find_signature(name.as_str()) ?: continue
+        val sig = ctx.sig_table().find_signature(name) ?: continue
         if !sig.is_static || sig.params.size() != 1 { continue }
         val candidate = sig.params.at(0).array_element_for(&sig.generics, &slot_args, ctx) ?: continue
         if element != null {

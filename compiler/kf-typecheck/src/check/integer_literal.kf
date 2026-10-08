@@ -104,12 +104,12 @@ fun Expr.operand_takes_other_type(ctx: &var TypeCtx): bool {
 mutating fun Expr.narrow_open_number(expected: Type, ctx: &var TypeCtx): bool {
     val name = self.variable_name()
     if name.byte_len() == 0 || !is_numeric(expected) { return false }
-    val init_ptr = ctx.open_init(name.as_str()) ?: return self.conflicts_with_decision(expected, ctx)
+    val init_ptr = ctx.open_init(name) ?: return self.conflicts_with_decision(expected, ctx)
     val init: &var Expr = unsafe { &var *init_ptr }
     if !is_numeric(self.ty) { return false }
     if self.decides_on_recheck(init.span, expected.clone(), ctx) { return true }
     if !self.ty.type_eq(expected) && !init.apply_expected(expected.clone(), ctx) { return false }
-    ctx.decide_binding(name.as_str(), expected.clone(), self.span)
+    ctx.decide_binding(name, expected.clone(), self.span)
     self.ty = expected
     return true
 }

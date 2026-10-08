@@ -30,10 +30,10 @@ pub mutating fun Expr.name_function_value(name: Sym, ctx: &var TypeCtx): bool {
         self.ty = Type.new_poison()
         return true
     }
-    val real = if sig.name.as_str().equals(name.as_str()) { name } else { intern(sig.name.as_str()) }
+    val real = if sig.name.as_str().equals(name.as_str()) { name } else { intern(sig.name) }
     self.kind = ExprKind.FnRef(real)
     val pinned = sigs.pinned_link_name(&sig)
-    if pinned.byte_len() > 0 { self.mangled_callee = intern(pinned.as_str()) }
+    if pinned.byte_len() > 0 { self.mangled_callee = intern(pinned) }
     var params = List.new<Type>()
     while param in &sig.params {
         params.push(param)
@@ -57,7 +57,7 @@ pub mutating fun Expr.call_through_field(recv_ptr: Ptr<Expr>, recv_ty: Type, nam
     val owner = autoderef_ty(recv_ty)
     if owner.kind.kind_tag() != TAG_STRUCT() { return false }
     val type_name = owner.kind.struct_name()
-    if type_has_method_named(type_name.as_str(), name.as_str(), ctx) { return false }
+    if type_has_method_named(type_name, name.as_str(), ctx) { return false }
     val was_quiet = ctx.quiet
     ctx.quiet = true
     val field_ty = check_field_access(recv_ty, name.as_string(), self.span, ctx)

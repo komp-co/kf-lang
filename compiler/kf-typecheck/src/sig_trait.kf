@@ -39,7 +39,7 @@ impl SigTable {
     /// the two would be instantiated under one C name.
     pub fun has_generic_twin(sig: &FnSignature): bool {
         if sig.generics.size() == 0 { return false }
-        var i = self.first_named(sig.name.as_str())
+        var i = self.first_named(sig.name)
         while i != none_index() {
             val other = self.sigs.at(i)
             if other.generics.size() > 0 && other.owner_crate.raw != sig.owner_crate.raw { return true }
@@ -60,7 +60,7 @@ impl SigTable {
     /// ungated.
     pub fun imports_admit(caller_file: uint32, sig: &FnSignature): bool {
         if !self.gate_visibility { return true }
-        return self.file_admits(caller_file, sig.owner_module, self.surface_name(sig.name.as_str()).as_str())
+        return self.file_admits(caller_file, sig.owner_module, self.surface_name(sig.name).as_str())
     }
 
     /// The link name a call to `sig` keeps when another crate declares a
@@ -68,7 +68,7 @@ impl SigTable {
     /// instead; "" when the bare name is unambiguous.
     pub fun pinned_link_name(sig: &FnSignature): String {
         if sig.is_extern || sig.generics.size() > 0 { return "" }
-        var i = self.first_named(sig.name.as_str())
+        var i = self.first_named(sig.name)
         while i != none_index() {
             if self.sigs.at(i).owner_crate.raw != sig.owner_crate.raw {
                 return "${sig.owner_crate.symbol_prefix().as_str()}${sig.name.as_str()}"
@@ -149,7 +149,7 @@ impl SigTable {
     pub mutating fun replace_trait(t: TraitInfo): void {
         var i = 0
         while i < self.traits.size() {
-            if self.traits.at(i).name.as_str().equals(t.name.as_str()) {
+            if self.traits.at(i).name.as_str().equals(t.name) {
                 self.traits.set(i, t)
                 return
             }

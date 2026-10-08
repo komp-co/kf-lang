@@ -16,7 +16,7 @@ pub fun Module.check_sealed_impls(diags: &var Diagnostics): void {
         if td.crate.raw != self.crate.raw { continue }
         val implemented = td.implemented_trait() ?: continue
         val trait_name = implemented.named_trait()
-        val sealed = self.sealed_trait_named(trait_name.as_str()) ?: continue
+        val sealed = self.sealed_trait_named(trait_name) ?: continue
         if sealed.crate.raw == td.crate.raw { continue }
         val owner = Sym { id: sealed.crate.raw }.as_str()
         val message = "`${trait_name.as_str()}` is sealed: only its crate, `${owner}`, implements it"

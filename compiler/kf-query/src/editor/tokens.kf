@@ -21,7 +21,7 @@ pub fun render_tokens_json(path: str, crate: &TypedCrate): String {
     var last_start: uint32 = 0
     var any = false
     while t in &ordered {
-        if !crate.source.as_str().is_identifier_at(t.span) { continue }
+        if !crate.source.is_identifier_at(t.span) { continue }
         if any && t.span.start == last_start { continue }
         any = true
         last_start = t.span.start

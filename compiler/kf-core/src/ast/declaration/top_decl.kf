@@ -59,6 +59,12 @@ pub struct TopDecl {
     pub var is_internal: bool
     /// The member loop the declaration is written in, in a template.
     pub var member_loop: MemberLoop?
+    /// The method a `Deref` or `DerefMut` impl forwards to, as an interface
+    /// records it; read through `deref_view`. Empty otherwise.
+    pub var deref_via: Sym
+    /// `Equal` in `template derive(Equal) on struct T`: the name a keyed
+    /// template is for. Empty otherwise.
+    pub var template_key: Sym
 }
 
 pub enum TopDeclKind {
@@ -108,13 +114,13 @@ pub enum TopDeclKind {
 impl TopDecl {
     pub static fun new(span: Span, name: String, kind: TopDeclKind): TopDecl {
         return TopDecl {
-            span: span, name: intern(name.as_str()), kind: kind, crate: CrateId.new_poison(),
+            span: span, name: intern(name), kind: kind, crate: CrateId.new_poison(),
             module_path: intern(""), decl: null, generics: [],
             annotations: [], from_trait_impl: false, linkage: Linkage.Source,
             link_name: intern(""), dyn_layouts: [],
             dyn_vtables: [], decl_end: 0, name_span: Span.none(), ext_name: intern(""),
             resolves_in: intern(""), is_sealed: false, is_view: false, implemented_lang_trait: intern(""),
-            is_internal: false, member_loop: null
+            is_internal: false, member_loop: null, deref_via: intern(""), template_key: intern("")
         }
     }
 

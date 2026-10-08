@@ -17,7 +17,7 @@ import kf_core.lang.*
 import kf_core.names.*
 
 pub fun push_rename(old: String, new_name: String, subst: &var Substitution): void {
-    subst.bind(old, TypeRef.new(Span.none(), TypeRefKind.Named(intern(new_name.as_str()), List.new<TypeRef>())))
+    subst.bind(old, TypeRef.new(Span.none(), TypeRefKind.Named(intern(new_name), List.new<TypeRef>())))
 }
 
 /// "" on a miss.
@@ -113,7 +113,7 @@ fun Module.collect_unique_method_renames(subst: &var Substitution): void {
                 while method in &methods {
                     val raw_name = method_source_name(method.name.as_string())
                     val unique = counts.count_of(&raw_name) == 1
-                    if !method_name_is_runtime_owned(raw_name.as_str()) && unique && !self.module_has_free_symbol(raw_name.as_str()) {
+                    if !method_name_is_runtime_owned(raw_name) && unique && !self.module_has_free_symbol(raw_name) {
                         val link = self.method_link_name(owner, method, &containers)
                         if link.as_str() != "" {
                             push_rename(raw_name, link, subst)
@@ -156,7 +156,7 @@ fun Module.push_method_value_renames(owner: &TopDecl, methods: &List<TopDecl>, s
 fun TopDecl.unprefixed_name(): String {
     val prefix = self.crate.symbol_prefix()
     val name = self.name.as_str()
-    if prefix.byte_len() == 0 || !name.starts_with(prefix.as_str()) { return self.name.as_string() }
+    if prefix.byte_len() == 0 || !name.starts_with(prefix) { return self.name.as_string() }
     return name.substring(prefix.byte_len(), name.byte_len())
 }
 

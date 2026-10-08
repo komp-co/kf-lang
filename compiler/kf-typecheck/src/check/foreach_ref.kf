@@ -59,17 +59,17 @@ fun expand_foreach_ref(
     }
     val iter_call_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *iter_call_ptr = Expr.new(span, ExprKind.MethodCall(iterated, intern("iter"), List.new<Expr>())) }
-    val let_it = Stmt.new(span, StmtKind.LetVar(intern(itname.as_str()), null, iter_call_ptr))
+    val let_it = Stmt.new(span, StmtKind.LetVar(intern(itname), null, iter_call_ptr))
 
     val it_var_box: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *it_var_box = Expr.new(span, ExprKind.Variable(intern(itname.as_str()))) }
+    unsafe { *it_var_box = Expr.new(span, ExprKind.Variable(intern(itname))) }
     val next_ptr_call: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *next_ptr_call = Expr.new(span, ExprKind.MethodCall(it_var_box, intern("next_ptr"), List.new<Expr>())) }
-    val let_ptr = Stmt.new(span, StmtKind.LetVal(intern(ptrname.as_str()), null, next_ptr_call))
+    val let_ptr = Stmt.new(span, StmtKind.LetVal(intern(ptrname), null, next_ptr_call))
 
     // if ptr_is_null(__forptr_N) { break }
     var null_args = List.new<Expr>()
-    null_args.push(Expr.new(span, ExprKind.Variable(intern(ptrname.as_str()))))
+    null_args.push(Expr.new(span, ExprKind.Variable(intern(ptrname))))
     val null_test: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *null_test = Expr.new(span, ExprKind.Call(intern("ptr_is_null"), null_args)) }
     var brk_body = List.new<Stmt>()
@@ -78,7 +78,7 @@ fun expand_foreach_ref(
 
     // val name = *__forptr_N
     val ptr_var_box: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *ptr_var_box = Expr.new(span, ExprKind.Variable(intern(ptrname.as_str()))) }
+    unsafe { *ptr_var_box = Expr.new(span, ExprKind.Variable(intern(ptrname))) }
     val deref: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *deref = Expr.new(span, ExprKind.Deref(ptr_var_box)) }
     // Empty, as the counted loop's: the binding is the compiler's, not written.
@@ -130,7 +130,7 @@ pub fun Type.borrowing_iterator_exists(ctx: &var TypeCtx): bool {
     val sp = ctx.sigs
     var probe = iter_name.clone()
     probe.append("_next_ptr")
-    return unsafe { sp.find_signature(probe.as_str()) }.is_some()
+    return unsafe { sp.find_signature(probe) }.is_some()
 }
 
 /// "" when the table cannot say, and nothing is claimed.
@@ -138,7 +138,7 @@ fun Type.subject_iterator_name(ctx: &var TypeCtx): String {
     val base = ty_base_name(&self.iterable_subject_ty())
     if base.as_str().equals("") { return String.from("") }
     val sp = ctx.sigs
-    val bound = unsafe { sp.lookup_assoc_binding(base.as_str(), "Iter") }
+    val bound = unsafe { sp.lookup_assoc_binding(base, "Iter") }
     if bound.is_poison() { return String.from("") }
     return mangle_base_name(bound.ty_base_name())
 }
@@ -155,7 +155,7 @@ pub fun Type.report_no_borrowing_iterator(binder: Sym, span: Span, ctx: &var Typ
     var msg = String.from("`while ")
     msg.append(binder.as_string().as_str())
     msg.append(" in &...` needs a borrowing iterator, and `")
-    msg.append(iter_name.as_str())
+    msg.append(iter_name)
     msg.append("` has no `next_ptr()`. Give it `mutating fun next_ptr(): Ptr<T>` answering the element's address and null when exhausted, or drop the `&` to iterate by value")
     ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
 }

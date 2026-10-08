@@ -38,7 +38,7 @@ pub fun issue_for(known: &List<KnownFinding>, signature: str): String {
     val placeable = signature.starts_with("signal ") || signature == "hang"
     if placeable && !signature.contains(" in ") {
         while entry in &known {
-            if entry.signature.starts_with(framed.as_str()) { return entry.issue.clone() }
+            if entry.signature.starts_with(framed) { return entry.issue.clone() }
         }
     }
     return String.from("")

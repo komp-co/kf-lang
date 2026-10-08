@@ -66,10 +66,10 @@ fun Type.written_type_name(ctx: &var TypeCtx): Sym {
     val inst = self.expected_inst(ctx)
     if inst.is_some() {
         val found = inst ?: return intern("")
-        return intern(found.base.as_str())
+        return intern(found.base)
     }
     val identity = self.kind.nominal_name()
-    val parts = identity.as_str().split("::")
+    val parts = identity.split("::")
     if parts.size() == 0 { return intern("") }
     return intern(parts.at(parts.size() - 1).as_str())
 }

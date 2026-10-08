@@ -76,12 +76,12 @@ fun emit_method_call(recv_p: Ptr<Expr>, mname: String, mangled: String, margs: &
         if owner.as_str() != "" {
             var fallback = owner
             fallback.append("_")
-            fallback.append(mname.as_str())
+            fallback.append(mname)
             callee = String.from(fallback.as_str())
         }
     }
     // These take self by value, so a pointer receiver is dereferenced.
-    if self_is_by_value(callee.as_str()) {
+    if self_is_by_value(callee) {
         val views = margs.read_through_str_borrows()
         if ty_is_pointer(recv.ty) {
             var dp = List.new<String>()
@@ -120,8 +120,8 @@ fun emit_retain_expr(inner_p: Ptr<Expr>): String {
     val inner = unsafe { *inner_p }
     val ct = inner.ty.c_type_of_type()
     val inner_c = inner.emit_expr()
-    val rel = release_fn_for_ctype(ct.as_str())
-    val rl = rel.as_str().byte_len()
+    val rel = release_fn_for_ctype(ct)
+    val rl = rel.byte_len()
     if rl == 0 {
         return inner_c
     }
@@ -133,13 +133,13 @@ fun emit_retain_expr(inner_p: Ptr<Expr>): String {
 // enum name, or "".
 fun Expr.enum_ctor_name(recv_p: Ptr<Expr>): String {
     val ename = enum_name_of_type(self.ty)
-    val n = ename.as_str().byte_len()
+    val n = ename.byte_len()
     if n == 0 { return "" }
     val recv = unsafe { *recv_p }
     when (recv.kind) {
         Variable(vn) => {
             if vn.as_str() == ename.as_str() { return String.from(ename.as_str()) }
-            if enum_ctor_receiver_matches(ename.as_str(), vn.as_str()) { return String.from(ename.as_str()) }
+            if enum_ctor_receiver_matches(ename, vn.as_str()) { return String.from(ename.as_str()) }
             return ""
         }
         _ => return ""
@@ -194,7 +194,7 @@ fun Expr.emit_box_new(margs: &List<Expr>): String {
 
 fun Expr.emit_field_or_enum_ctor(recv_p: Ptr<Expr>, fname: String): String {
     val ename = self.enum_ctor_name(recv_p)
-    val n = ename.as_str().byte_len()
+    val n = ename.byte_len()
     if n > 0 {
         // (Enum){ .tag = kf__tag__Enum__Variant }
         var parts = List.new<String>()
@@ -217,7 +217,7 @@ fun Expr.emit_method_or_enum_ctor(recv_p: Ptr<Expr>, mname: String, margs: &List
         return self.emit_box_new(margs)
     }
     val ename = self.enum_ctor_name(recv_p)
-    val n = ename.as_str().byte_len()
+    val n = ename.byte_len()
     if n > 0 {
         // (Enum){ .tag = kf__tag__E__V, .u.V_V._0 = a0, .u.V_V._1 = a1, ... }
         var parts = List.new<String>()

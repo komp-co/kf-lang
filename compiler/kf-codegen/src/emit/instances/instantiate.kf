@@ -32,8 +32,8 @@ pub fun cname_of_mangle(elem: str): String {
     // in C.
     if Frag.function_parts(elem) != null { return c_type_name(String.from(elem)) }
     val borrowed = Frag.borrow_inner(elem)
-    if borrowed.as_str().byte_len() > 0 {
-        var out = cname_of_mangle(borrowed.as_str())
+    if borrowed.byte_len() > 0 {
+        var out = cname_of_mangle(borrowed)
         out.append("*")
         return out
     }
@@ -67,13 +67,13 @@ pub fun type_mangle(t: Type): String {
         PtrTo(p) => {
             val inner = type_mangle(unsafe { *p })
             var result = String.from("Ptr__")
-            result.append(inner.as_str())
+            result.append(inner)
             return result
         }
         BoxOf(p) => {
             val inner = type_mangle(unsafe { *p })
             var result = String.from("Box__")
-            result.append(inner.as_str())
+            result.append(inner)
             return result
         }
         RefTo(is_mut, p) => {

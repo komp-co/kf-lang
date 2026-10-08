@@ -42,7 +42,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
     }
     // `Box.new(x)`: before the value-receiver path, so `Box` is not checked as
     // a Variable.
-    if is_box_new_recv(recv_written, method_name.as_str()) {
+    if is_box_new_recv(recv_written, method_name) {
         if args.size() > 0 {
             val a0 = args.at_mut(0)
             check_expr(a0, ctx)
@@ -78,7 +78,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
             }
             val selected = qualified_trait_method_callee(qualified_trait.clone(), method_name.clone(), args, ctx)
             if !handled && !selected.as_str().equals("") {
-                when (unsafe { (*ctx.sigs).find_signature(selected.as_str()) }) {
+                when (unsafe { (*ctx.sigs).find_signature(selected) }) {
                     Some(sig) => {
                         var valid = sig.params.size() == args.size()
                         while qi in 0..args.size() {
@@ -100,7 +100,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                             receiver_arg.coerce = Coercion.AddrOf
                             e.ty = sig.ret
                             note_import_use(ctx.sigs, ctx.owner_file, sig.owner_module)
-                            e.mangled_callee = intern(selected.as_str())
+                            e.mangled_callee = intern(selected)
                             e.is_static_call = true
                             handled = true
                         }
@@ -126,7 +126,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                 // the method's own arguments.
                 if e.type_args.size() > 0 {
                     val arity_base = mangle_base_name(rname.clone())
-                    when (unsafe { (*ctx.sigs).find_generic_info(arity_base.as_str(), ctx.owner_crate) }) {
+                    when (unsafe { (*ctx.sigs).find_generic_info(arity_base, ctx.owner_crate) }) {
                         Some(ginfo) => {
                             if e.type_args.size() < ginfo.type_params.size() {
                                 emit_type_arg_arity(arity_base.clone(), ginfo.type_params.size(), e.type_args.size(), e.span, ctx)
@@ -143,15 +143,16 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                 while ai in 0..args.size() {
                     check_call_argument(args.at_mut(ai), ctx)
                 }
-                if e.type_args.size() == 0 {
+                val targs_written = e.type_args.size() > 0
+                if !targs_written {
                     e.type_args = static_receiver_args(rname.clone(), method_name.clone(), args, ctx)
                 }
                 var selected = tmpl.clone()
-                var sigp = unsafe { (*ctx.sigs).find_signature(selected.as_str()) }
+                var sigp = unsafe { (*ctx.sigs).find_signature(selected) }
                 if sigp.is_none() {
                     selected = static_trait_method_callee(rname.clone(), method_name.clone(), args, e.type_args, ctx)
                     if !selected.as_str().equals("") {
-                        sigp = unsafe { (*ctx.sigs).find_signature(selected.as_str()) }
+                        sigp = unsafe { (*ctx.sigs).find_signature(selected) }
                     }
                 }
                 if sigp.is_some() {
@@ -192,11 +193,16 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                             emit_static_call_arity(rname.clone(), method_name.clone(), sparams.size(), args.size(), e.span, ctx)
                             call_valid = false
                         }
+                        // The arguments chose the impl or bound its parameters, so
+                        // their own types are not incidental.
+                        val by_arguments = !targs_written || !selected.as_str().equals(tmpl)
                         while ci in 0..args.size() {
                             if ci < sparams.size() {
                                 val actual = args.at(ci)
                                 val expected = *sparams.at(ci)
+                                ctx.slot_inferred = by_arguments
                                 val outcome = coerce_call_arg(args, ci, expected.clone(), ctx)
+                                ctx.slot_inferred = false
                                 if !outcome.valid {
                                     call_valid = false
                                 } else if !outcome.coerced && !actual.ty.type_eq(expected) && !ctx.fits(actual.ty, expected) {
@@ -210,7 +216,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                         }
                         // `Type[__Targs]_method`, the receiver layout
                         // materialized, the return type substituted.
-                        val recv_mono = mangle_type_name(rname.as_str(), &recv_targs, ctx)
+                        val recv_mono = mangle_type_name(rname, &recv_targs, ctx)
                         if recv_targs.size() > 0 {
                             instantiate_generic_layout(rname.clone(), &recv_targs, String.from(recv_mono.as_str()), ctx)
                         }
@@ -226,14 +232,14 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                         val ret = subst_all_generics(ssig.ret, &ssig.generics, &bound_types)
                         if call_valid {
                             e.ty = ret
-                            if selected.as_str().equals(tmpl.as_str()) {
+                            if selected.as_str().equals(tmpl) {
                                 var callee = recv_mono.clone()
                                 callee.append("_")
                                 callee.append(monomorphized_type_name(method_name.clone(), &meth_targs).as_str())
-                                e.mangled_callee = intern(callee.as_str())
+                                e.mangled_callee = intern(callee)
                             } else {
-                                val prefix_len = tmpl.as_str().byte_len()
-                                val suffix = selected.as_str().substring(prefix_len, selected.as_str().byte_len())
+                                val prefix_len = tmpl.byte_len()
+                                val suffix = selected.substring(prefix_len, selected.byte_len())
                                 // The suffix comes from the template, spelled with
                                 // the impl's parameters
                                 // (`impl Absorb<Wrap<T>> for Holder<T>` registers
@@ -242,9 +248,9 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                                 val mono_suffix = suffix.subst_static_trait_suffix(&ssig, e.type_args, ctx)
                                 var callee = recv_mono.clone()
                                 callee.append("_")
-                                callee.append(method_name.as_str())
-                                callee.append(mono_suffix.as_str())
-                                e.mangled_callee = intern(callee.as_str())
+                                callee.append(method_name)
+                                callee.append(mono_suffix)
+                                e.mangled_callee = intern(callee)
                             }
                             e.is_static_call = true
                             handled = true
@@ -254,7 +260,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                         // message names the fix at the declaration, since one
                         // missing `static` fires at every call site.
                         var m = String.from("`")
-                        m.append(method_name.as_str())
+                        m.append(method_name)
                         m.append("` is an instance method, so it needs a receiver — declare it `static fun` to call it on the type, or call it on a value")
                         val lab = Label.new(e.span, m)
                         ctx.emit(Diagnostic.new(Severity.Error, lab))
@@ -262,7 +268,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                         handled = true
                     }
                 } else {
-                    val missing = no_static_method_msg(rname.as_str(), method_name.as_str(), args, ctx)
+                    val missing = no_static_method_msg(rname, method_name, args, ctx)
                     ctx.emit(Diagnostic.new(Severity.Error, Label.new(e.span, missing)))
                     e.ty = Type.new_poison()
                     handled = true
@@ -281,7 +287,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                 if trait_callee.as_str().equals("") {
                     e.mangled_callee = intern((gsr.clone() + String.from("_") + method_name.clone()).as_str())
                 } else {
-                    e.mangled_callee = intern(trait_callee.as_str())
+                    e.mangled_callee = intern(trait_callee)
                 }
                 e.is_static_call = true
                 e.ty = Type.new_generic(gsr.clone(), e.span)
@@ -296,10 +302,11 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
             } else {
                 val receiver: &var Expr = unsafe { &var *recv_ptr }
                 check_expr(receiver, ctx)
-                val pretyped = receiver.pin_open_receiver(method_name.as_str(), args, ctx)
-                receiver.narrow_open_text_receiver(method_name.as_str(), ctx)
-                receiver.narrow_open_array_receiver(method_name.as_str(), ctx)
-                receiver.lend_receiver_through_deref(method_name.as_str(), args.size(), ctx)
+                val pretyped = receiver.pin_open_receiver(method_name, args, ctx)
+                receiver.narrow_open_text_receiver(method_name, ctx)
+                receiver.narrow_open_array_receiver(method_name, ctx)
+                receiver.note_view_as_receiver(method_name, ctx)
+                receiver.lend_receiver_through_deref(method_name, args.size(), ctx)
                 val recv = unsafe { *recv_ptr }
                 if dyn_or_extension_call(e, recv_ptr, &recv, method_name_sym, args, ctx) { return }
                 if e.call_through_field(recv_ptr, recv.ty, method_name_sym, args, ctx) { return }
@@ -313,7 +320,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                 e.ty.register_returned_instance(e.span, ctx)
                 val trait_callee = trait_callee_unless_inherent(recv.ty, method_name, args, ctx)
                 if !trait_callee.as_str().equals("") {
-                    e.mangled_callee = intern(trait_callee.as_str())
+                    e.mangled_callee = intern(trait_callee)
                 } else {
                     if !e.ty.is_poison() && ambiguous_trait_method(recv.ty, method_name_sym.as_string(), args, ctx) {
                         val amsg = e.no_fitting_impl_message(recv.ty, method_name_sym.as_string(), args, ctx)
@@ -326,7 +333,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                         Generic(_gname) => {
                             val generic_trait_callee = generic_instance_trait_callee(recv_base.kind.generic_name(), method_name_sym.as_string(), ctx)
                             if !generic_trait_callee.as_str().equals("") {
-                                e.mangled_callee = intern(generic_trait_callee.as_str())
+                                e.mangled_callee = intern(generic_trait_callee)
                             }
                         }
                         _ => {}
@@ -374,7 +381,7 @@ fun String.subst_static_trait_suffix(sig: &FnSignature, type_args: &List<TypeRef
 /// Names both counts.
 fun emit_type_arg_arity(base: String, expected: uint64, got: uint64, span: Span, ctx: &var TypeCtx): void {
     var message = String.from("`")
-    message.append(base.as_str())
+    message.append(base)
     message.append("` takes ")
     message.append(String.of(&((expected as int64))).as_str())
     message.append(" type arguments, but ")
@@ -386,9 +393,9 @@ fun emit_type_arg_arity(base: String, expected: uint64, got: uint64, span: Span,
 /// Names the type as well as the method, as the call is written.
 fun emit_static_call_arity(type_name: String, method_name: String, expected: uint64, found: uint64, span: Span, ctx: &var TypeCtx): void {
     var msg = String.from("wrong number of arguments to `")
-    msg.append(type_name.as_str())
+    msg.append(type_name)
     msg.append(".")
-    msg.append(method_name.as_str())
+    msg.append(method_name)
     msg.append("`: expected ")
     msg.append(String.of(&((expected as int64))).as_str())
     msg.append(", found ")

@@ -77,13 +77,13 @@ pub fun trait_args_satisfy(bound_args: str, impl_args: str, impl_generics: str, 
     while i in 0..impl_segs.size() {
         val is = *impl_segs.at(i)
         val bs = *bound_segs.at(i)
-        if key_list_has(&params, is.as_str()) {
+        if key_list_has(&params, is) {
             // Bind the placeholder, or require the same binding.
             var j = 0
             var bound_before = false
             while j < seen_names.size() {
-                if seen_names.at(j).as_str().equals(is.as_str()) {
-                    if !seen_values.at(j).as_str().equals(bs.as_str()) { return false }
+                if seen_names.at(j).as_str().equals(is) {
+                    if !seen_values.at(j).as_str().equals(bs) { return false }
                     bound_before = true
                 }
                 j = j + 1
@@ -92,9 +92,9 @@ pub fun trait_args_satisfy(bound_args: str, impl_args: str, impl_generics: str, 
                 seen_names.push(is.clone())
                 seen_values.push(bs.clone())
             }
-        } else if str_list_has(free, bs.as_str()) {
+        } else if str_list_has(free, bs) {
             // An unbound free parameter matches anything.
-        } else if !is.as_str().equals(bs.as_str()) {
+        } else if !is.as_str().equals(bs) {
             return false
         }
     }
@@ -116,7 +116,7 @@ pub fun subst_trait_args(key: str, gnames: &List<String>, bound_tys: &List<Type>
         var replaced = false
         var g = 0
         while g < gnames.size() {
-            if gnames.at(g).as_str().equals(seg.as_str()) {
+            if gnames.at(g).as_str().equals(seg) {
                 if g < bound_tys.size() {
                     val bt = *bound_tys.at(g)
                     if !bt.is_poison() {
@@ -127,7 +127,7 @@ pub fun subst_trait_args(key: str, gnames: &List<String>, bound_tys: &List<Type>
             }
             g = g + 1
         }
-        if !replaced { out.append(seg.as_str()) }
+        if !replaced { out.append(seg) }
     }
     return out
 }
@@ -182,8 +182,8 @@ fun subst_trait_params(t: Type, trait_name: str, args: &List<String>, ctx: &var 
         val param = *params.at(i)
         val arg = *args.at(i)
         // A parameter standing for itself is skipped.
-        if !param.as_str().equals(arg.as_str()) {
-            out = out.subst_generic(param.clone(), named_or_generic_ty(arg.as_str(), ctx))
+        if !param.as_str().equals(arg) {
+            out = out.subst_generic(param.clone(), named_or_generic_ty(arg, ctx))
         }
     }
     return out
@@ -194,7 +194,7 @@ fun subst_trait_params(t: Type, trait_name: str, args: &List<String>, ctx: &var 
 fun named_or_generic_ty(name: str, ctx: &var TypeCtx): Type {
     val borrowed = ref_key_inner(name)
     if !borrowed.as_str().equals("") {
-        val inner = type_node(named_or_generic_ty(borrowed.as_str(), ctx))
+        val inner = type_node(named_or_generic_ty(borrowed, ctx))
         return Type { kind: TypeKind.RefTo(ref_key_is_mut(name), inner), provenance: Provenance.Inferred(Span.none()) }
     }
     while generic in &ctx.generics {
@@ -221,7 +221,7 @@ fun AssocBoundReq.assoc_bound_args_at_use_site(owner_trait: str, owner_args: &Li
 /// Unchanged when it names no parameter.
 fun mapped_param_name(name: String, params: &List<String>, args: &List<String>): String {
     while i in 0..params.size() {
-        if params.at(i).as_str().equals(name.as_str()) {
+        if params.at(i).as_str().equals(name) {
             if i < args.size() { return *args.at(i) }
             return name
         }
@@ -244,16 +244,16 @@ pub fun trait_method_for_projection(owner_param: String, member: str, method_nam
     var i = 0
     while i < unsafe { sp.bounds.size() } {
         val b = unsafe { *sp.bounds.at(i) }
-        if b.owner.as_str().equals(ctx.fn_owner.as_str()) && b.param.as_str().equals(owner_param.as_str()) {
-            val direct = projection_method_in(b.trait_name.as_str(), &b.arg_names, member, method_name.clone(), recv_ty.clone(), ctx)
+        if b.owner.as_str().equals(ctx.fn_owner) && b.param.as_str().equals(owner_param) {
+            val direct = projection_method_in(b.trait_name, &b.arg_names, member, method_name.clone(), recv_ty.clone(), ctx)
             if direct.req.arity != ARITY_NOT_FOUND() { return direct }
             // The associated type may belong to a supertrait
             // (`trait Collection: Iterable`); its arguments already arrive in
             // this bound's vocabulary.
-            val required = supertrait_closure_reqs(unsafe { &*sp }, b.trait_name.as_str(), b.trait_args.as_str())
+            val required = supertrait_closure_reqs(unsafe { &*sp }, b.trait_name, b.trait_args)
             while sreq in &required {
-                val sargs = key_segments(sreq.args.as_str())
-                val found = projection_method_in(sreq.name.as_str(), &sargs, member, method_name.clone(), recv_ty.clone(), ctx)
+                val sargs = key_segments(sreq.args)
+                val found = projection_method_in(sreq.name, &sargs, member, method_name.clone(), recv_ty.clone(), ctx)
                 if found.req.arity != ARITY_NOT_FOUND() { return found }
             }
         }
@@ -271,7 +271,7 @@ fun projection_method_in(owner_trait: str, owner_args: &List<String>, member: st
                 val assoc = *tinfo.assoc_types.at(assoc_i as uint64)
                 while req in &assoc.bounds {
                     val args = req.assoc_bound_args_at_use_site(owner_trait, owner_args, ctx)
-                    val found = trait_method_in(req.trait_name.as_str(), method_name.clone(), &args,
+                    val found = trait_method_in(req.trait_name, method_name.clone(), &args,
                         recv_ty.clone(), ctx)
                     if found.arity != ARITY_NOT_FOUND() {
                         val suffix = dispatch_suffix(req.trait_name.clone(), &args, ctx)
@@ -301,7 +301,7 @@ fun dispatch_suffix(trait_name: String, args: &List<String>, ctx: &var TypeCtx):
 pub fun trait_method_in(trait_name: str, method_name: String, args: &List<String>, recv_ty: Type, ctx: &var TypeCtx): TraitMethodReq {
     val tinfo = (*ctx.sigs).find_trait(trait_name) ?: return not_found_req()
     while req in &tinfo.methods {
-        if req.name.as_str().equals(method_name.as_str()) {
+        if req.name.as_str().equals(method_name) {
             var sparams = List.new<Type>()
             while param in &req.params {
                 val mapped = subst_trait_params(param, trait_name, args, ctx)

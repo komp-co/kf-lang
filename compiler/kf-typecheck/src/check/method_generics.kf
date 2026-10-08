@@ -51,7 +51,7 @@ fun FnSignature.check_method_generics(recv: &RecvBinding, sname: String, method_
         val gn = *self.generics.at(gi)
         var pinned = gi < impl_arity
         while name in &recv.names {
-            if name.as_str().equals(gn.as_str()) { pinned = true }
+            if name.as_str().equals(gn) { pinned = true }
         }
         if !pinned { mgnames.push(gn) }
     }
@@ -67,7 +67,7 @@ fun FnSignature.check_method_generics(recv: &RecvBinding, sname: String, method_
             while bk < arg_tys.size() {
                 val sp = subst_recv(*self.params.at(bk + 1), recv)
                 val at0 = *arg_tys.at(bk)
-                val cand = sp.bind_generic_from_param(&at0, gname.as_str(), ctx)
+                val cand = sp.bind_generic_from_param(&at0, gname, ctx)
                 if !cand.is_poison() {
                     bound = cand
                     break
@@ -89,7 +89,7 @@ fun FnSignature.check_method_generics(recv: &RecvBinding, sname: String, method_
             sb = sb + 1
         }
         val kept = self.may_keep_argument(i + 1)
-        if kept && args.at(i).reject_kept_temporary(&expected, method_name.as_str(), ctx) {
+        if kept && args.at(i).reject_kept_temporary(&expected, method_name, ctx) {
             saw_error = true
         } else if !check_method_arg(args, &arg_tys, i, expected, method_name.clone(), _span, ctx) {
             saw_error = true
@@ -118,7 +118,7 @@ fun FnSignature.check_method_generics(recv: &RecvBinding, sname: String, method_
             callee_seg = monomorphized_type_name(callee_seg, &call.type_args).display()
         }
         val callee = sname + String.from("_") + callee_seg
-        call.mangled_callee = intern(callee.as_str())
+        call.mangled_callee = intern(callee)
     }
     val ret = subst_all_generics(subst_recv(self.ret, recv), &mgnames, &bound_or_left(&mgnames, &mbindings))
     // A return type naming an instance of the receiver's generic needs it to
@@ -138,7 +138,7 @@ fun FnSignature.check_method_generics(recv: &RecvBinding, sname: String, method_
 /// Zero for a non-generic receiver.
 pub fun String.static_recv_arity(ctx: &var TypeCtx): uint64 {
     val base = mangle_base_name(self.clone())
-    when (unsafe { (*ctx.sigs).find_generic_info(base.as_str(), ctx.owner_crate) }) {
+    when (unsafe { (*ctx.sigs).find_generic_info(base, ctx.owner_crate) }) {
         Some(gi) => { return gi.type_params.size() }
         None => { return 0 }
     }
@@ -197,7 +197,7 @@ pub fun infer_static_method_type_args(sig: &FnSignature, n_recv: uint64, type_ar
                     si = si + 1
                 }
                 val at0 = args.at(bk).ty
-                val cand = expected.bind_generic_from_param(&at0, gname.as_str(), ctx)
+                val cand = expected.bind_generic_from_param(&at0, gname, ctx)
                 if !cand.is_poison() {
                     bound = cand
                     break

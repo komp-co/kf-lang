@@ -61,7 +61,7 @@ fun check_one_copy_impl(td: &TopDecl, copy_name: str, drop_name: str, ctx: &var 
             while payload in &variant.payloads {
                 if !payload.field_is_copy(td, copy_name, ctx) {
                     val why = "variant `${variant.name.as_str()}` carries a value that is not Copy"
-                    td.report_unsound_copy(why.as_str(), diags)
+                    td.report_unsound_copy(why, diags)
                     return
                 }
             }

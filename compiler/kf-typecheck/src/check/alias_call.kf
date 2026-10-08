@@ -11,8 +11,8 @@ fun Expr.alias_call_admission(ctx: &var TypeCtx): Sym {
         MethodCall(receiver, _method, _args) => receiver.variable_name()
         _ => String.from("")
     }
-    if alias.as_str() == "" || ctx.is_declared(alias.as_str()) { return Sym { id: 0 } }
-    val admission = alias_admission(alias.as_str())
+    if alias.as_str() == "" || ctx.is_declared(alias) { return Sym { id: 0 } }
+    val admission = alias_admission(alias)
     if unsafe { (*ctx.sigs).alias_target(ctx.owner_file, admission) }.id == 0 { return Sym { id: 0 } }
     return admission
 }

@@ -1,0 +1,82 @@
+// Inside a template, which is never checked as written, a binder has the
+// type core declares for it (`libs/core/src/template.kf`): hover names it and
+// its facts, and completion after its dot lists them.
+
+import kf_integration.harness.typed_crate_for
+import core.assert.assert_eq
+
+import std.fs.scratch_path
+import kf_query.editor.render_hover_json
+import kf_query.editor.render_completion_json
+import testing.test
+
+extern "C" fun system(cmd: str): int32
+
+fun template_fixture_path(): str {
+    return scratch_path("kf_query_template_hover/src/main.kf")
+}
+
+fun template_fixture_source(): String {
+    return String.from("""pub annotation shown on struct
+
+template shown on struct T {
+    fun T.describe(): String {
+        var out = String.from("")
+        while field in T.fields {
+            out.append(field.name)
+        }
+        out.append("\${site.line}")
+        return out
+    }
+}
+
+@shown
+pub struct Point {
+    pub val x: int32
+}
+""")
+}
+
+fun template_json(offset: uint32, completing: bool): String {
+    val dir = scratch_path("kf_query_template_hover")
+    unsafe { system("rm -rf ${dir} && mkdir -p ${dir}/src") }
+    val manifest = "[project]\nname = \"query_template_hover\"\nkind = \"lib\"\n"
+    write_file(scratch_path("kf_query_template_hover/kf.toml"), manifest)
+    write_file(template_fixture_path(), template_fixture_source().as_str())
+    val crate = typed_crate_for(template_fixture_path())
+    if completing { return render_completion_json("main.kf", offset, &crate) }
+    return render_hover_json("main.kf", offset, &crate)
+}
+
+/// Byte offset of the first `needle` in the fixture, plus `into`.
+fun template_at(needle: str, into: uint32): uint32 {
+    val text = template_fixture_source()
+    val found = text.index_of(needle) ?: 0
+    return found as uint32 + into
+}
+
+@test
+fun a_member_binder_has_the_type_core_declares(): void {
+    val json = template_json(template_at("field.name", 2), false)
+    assert_eq(json.contains("\"type\":\"TemplateField\""), true, "`field` stands for a `TemplateField`")
+}
+
+@test
+fun a_fact_hovers_as_the_declared_field(): void {
+    val json = template_json(template_at("field.name", 8), false)
+    assert_eq(json.contains("\"signature\":\"val name: str\""), true, "`name` is the field core declares")
+}
+
+@test
+fun site_has_the_type_core_declares(): void {
+    val json = template_json(template_at("site.line", 2), false)
+    assert_eq(json.contains("\"type\":\"TemplateSite\""), true, "`site` stands for a `TemplateSite`")
+}
+
+@test
+fun completion_after_a_binder_lists_its_facts(): void {
+    val json = template_json(template_at("field.name", 6), true)
+    assert_eq(json.contains("\"receiver_type\":\"TemplateField\""), true, "the receiver is the declared type")
+    assert_eq(json.contains("\"label\":\"index\""), true, "a field fact")
+    assert_eq(json.contains("\"label\":\"has\""), true, "a method fact")
+}

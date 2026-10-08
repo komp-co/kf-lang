@@ -62,8 +62,8 @@ pub fun Module.header_layout_view(hview: &Module, m: &Module): Module {
     while k < names.size() {
         val dependencies = named_type_deps(*names.at(k), m, &index)
         while dependency in &dependencies {
-            if !name_list_contains(&names, dependency.as_str()) {
-                if m.module_has_header_layout(dependency.as_str(), self.crate) {
+            if !name_list_contains(&names, dependency) {
+                if m.module_has_header_layout(dependency, self.crate) {
                     names.push(dependency)
                 }
             }
@@ -136,8 +136,8 @@ fun collect_layout_tyref(ty: &TypeRef, m: &Module, crate: CrateId, names: &var L
                 collect_layout_tyref(arg, m, crate, names)
             }
             val concrete = if args.size() == 0 { name.as_string() } else { mangle_named(name.as_string(), args) }
-            if !name_list_contains(names, concrete.as_str()) {
-                if m.module_has_header_layout(concrete.as_str(), crate) { names.push(concrete) }
+            if !name_list_contains(names, concrete) {
+                if m.module_has_header_layout(concrete, crate) { names.push(concrete) }
             }
         }
         Reference(_mut, inner) => collect_layout_tyref(unsafe { *inner }, m, crate, names)
@@ -160,7 +160,7 @@ pub fun dep_include_lines(deps: &List<String>): String {
     var out = ""
     while dep in &deps {
         out.append("#include \"")
-        out.append(dep.as_str())
+        out.append(dep)
         out.append(".h\"\n")
     }
     out.append("\n")
@@ -181,8 +181,8 @@ pub fun Module.header_type_view(): Module {
     while k < names.size() {
         val deps = by_value_type_deps(*names.at(k), self, &index)
         while d in &deps {
-            if !name_list_contains(&names, d.as_str()) {
-                if self.module_has_type_decl(d.as_str()) {
+            if !name_list_contains(&names, d) {
+                if self.module_has_type_decl(d) {
                     names.push(d)
                 }
             }
@@ -241,7 +241,7 @@ fun Module.emit_dyn_surface_forward_decls(): String {
     var seen = List.new<String>()
     var parts = List.new<String>()
     while n in &names {
-        if !string_list_has(&seen, n.as_str()) {
+        if !string_list_has(&seen, n) {
             seen.push(n.clone())
             parts.push("typedef struct ${n} ${n};\n")
         }

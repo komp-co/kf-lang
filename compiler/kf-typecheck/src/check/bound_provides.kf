@@ -17,14 +17,14 @@ fun owner_has_bound(owner: String, param: String, trait_name: String, ctx: &var 
     var i = 0
     while i < nb {
         val b = unsafe { *sp.bounds.at(i) }
-        if b.owner.as_str().equals(owner.as_str()) {
-            if b.param.as_str().equals(param.as_str()) {
-                if b.trait_name.as_str().equals(trait_name.as_str()) {
+        if b.owner.as_str().equals(owner) {
+            if b.param.as_str().equals(param) {
+                if b.trait_name.as_str().equals(trait_name) {
                     return true
                 }
-                val required = supertrait_closure_reqs(unsafe { &*sp }, b.trait_name.as_str(), b.trait_args.as_str())
+                val required = supertrait_closure_reqs(unsafe { &*sp }, b.trait_name, b.trait_args)
                 while req in &required {
-                    if req.name.as_str().equals(trait_name.as_str()) { return true }
+                    if req.name.as_str().equals(trait_name) { return true }
                 }
             }
         }
@@ -43,22 +43,22 @@ fun trait_method_for_generic(gname: String, method_name: String, ctx: &var TypeC
     var i = 0
     while i < nb {
         val b = unsafe { *sp.bounds.at(i) }
-        if b.owner.as_str().equals(ctx.fn_owner.as_str()) {
-            if b.param.as_str().equals(gname.as_str()) {
+        if b.owner.as_str().equals(ctx.fn_owner) {
+            if b.param.as_str().equals(gname) {
                 // `Self` is the bounded parameter: `cmp(other: Self)` on
                 // `T: Compare` reads `cmp(other: T)`.
                 val self_t = Type.new_generic(gname.clone(), Span.none())
                 // The trait's parameters take the bound's arguments:
                 // `next(): T?` on `I: Iterator<int32>` reads `next(): int32?`.
-                val direct = trait_method_in(b.trait_name.as_str(), method_name.clone(),
+                val direct = trait_method_in(b.trait_name, method_name.clone(),
                     &b.arg_names, self_t.clone(), ctx)
                 if direct.arity != ARITY_NOT_FOUND() { return direct }
                 // Supertrait arguments come back in the bound's vocabulary, so
                 // the same substitution applies.
-                val required = supertrait_closure_reqs(unsafe { &*sp }, b.trait_name.as_str(), b.trait_args.as_str())
+                val required = supertrait_closure_reqs(unsafe { &*sp }, b.trait_name, b.trait_args)
                 while sreq in &required {
-                    val sargs = key_segments(sreq.args.as_str())
-                    val found = trait_method_in(sreq.name.as_str(), method_name.clone(), &sargs, self_t.clone(), ctx)
+                    val sargs = key_segments(sreq.args)
+                    val found = trait_method_in(sreq.name, method_name.clone(), &sargs, self_t.clone(), ctx)
                     if found.arity != ARITY_NOT_FOUND() { return found }
                 }
             }

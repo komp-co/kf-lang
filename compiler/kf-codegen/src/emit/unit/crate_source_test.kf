@@ -30,11 +30,11 @@ fun emit_src(): String {
 @test
 fun source_omits_a_layout_the_header_defines(): void {
     val c = emit_src()
-    assert_eq(hdr_contains(c.as_str(), "typedef struct Point {"), false, "the header owns the public layout")
+    assert_eq(hdr_contains(c, "typedef struct Point {"), false, "the header owns the public layout")
 }
 
 @test
 fun source_keeps_its_implementation_only_layouts(): void {
     val c = emit_src()
-    assert_eq(hdr_contains(c.as_str(), "typedef struct Secret {"), true, "a type the header omits is defined here")
+    assert_eq(hdr_contains(c, "typedef struct Secret {"), true, "a type the header omits is defined here")
 }

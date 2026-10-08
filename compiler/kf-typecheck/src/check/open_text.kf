@@ -23,11 +23,11 @@ mutating fun Expr.narrow_open_text(expected: Type, ctx: &var TypeCtx): bool {
     val name = self.variable_name()
     if name.byte_len() == 0 { return false }
     if autoderef_ty(expected.clone()).kind.kind_tag() == TAG_STR() {
-        if ctx.open_init(name.as_str()) != null { ctx.narrow_binding(name.as_str(), self.span) }
+        if ctx.open_init(name) != null { ctx.narrow_binding(name, self.span) }
         return false
     }
     val target = expected.text_target(ctx) ?: return false
-    val init_ptr = ctx.open_init(name.as_str()) ?: return self.conflicts_with_text_decision(target, ctx)
+    val init_ptr = ctx.open_init(name) ?: return self.conflicts_with_text_decision(target, ctx)
     val owned = target.is_lang_struct(ctx.string_name())
     if !owned && self.conflicts_with_narrowing(&target, "a `str`", ctx) { return true }
     self.settle_open_text(init_ptr, target, ctx)
@@ -39,7 +39,7 @@ mutating fun Expr.narrow_open_text(expected: Type, ctx: &var TypeCtx): bool {
 mutating fun Expr.narrow_open_text_receiver(method: str, ctx: &var TypeCtx): void {
     val name = self.variable_name()
     if name.byte_len() == 0 || ctx.string_name().as_str() == "" { return }
-    val init_ptr = ctx.open_init(name.as_str()) ?: return
+    val init_ptr = ctx.open_init(name) ?: return
     if type_has_method_named("str", method, ctx) { return }
     if !type_has_method_named(ctx.string_name().as_str(), method, ctx) { return }
     self.settle_open_text(init_ptr, ctx.string_name().lang_struct_ty(self.span), ctx)

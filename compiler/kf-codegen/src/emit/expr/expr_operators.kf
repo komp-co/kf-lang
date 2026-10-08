@@ -75,7 +75,7 @@ fun unop_to_c(op: UnaryOp): String {
 
 // The monomorphized mangle, or the raw name where Mono set none.
 fun pick_callee(raw: String, mangled: String): String {
-    val ml = mangled.as_str().byte_len()
+    val ml = mangled.byte_len()
     if ml == 0 { return raw.clone() }
     return mangled.clone()
 }

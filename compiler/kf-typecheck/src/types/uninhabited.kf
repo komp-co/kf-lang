@@ -25,7 +25,7 @@ fun named_enum_is_empty(name: str, ctx: &var TypeCtx): bool {
     }
     val bare = name_after_last_sep(name)
     if bare.as_str() == name { return false }
-    when (unsafe { (*ctx.sigs).find_enum(bare.as_str(), ctx.owner_crate) }) {
+    when (unsafe { (*ctx.sigs).find_enum(bare, ctx.owner_crate) }) {
         Some(layout2) => return layout2.variants.size() == 0
         None => return false
     }

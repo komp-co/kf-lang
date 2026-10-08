@@ -16,7 +16,7 @@ impl TypeParam {
             Named(n, args) => if args.size() == 0 { n.as_string() } else { "" }
             _ => ""
         }
-        if is_integer_type_name(name.as_str()) { return bound.clone() }
+        if is_integer_type_name(name) { return bound.clone() }
         while sibling in &siblings {
             if sibling.name.as_str() == name.as_str() && sibling.name.as_str() != self.name.as_str() {
                 return bound.clone()
