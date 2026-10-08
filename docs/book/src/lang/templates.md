@@ -515,7 +515,10 @@ differs, one unkeyed template calls the name from `args`.
 ## Where the code lives
 
 What a template adds belongs to the marked struct's module: an extension
-function it adds is called there without an import. Names in the template
+function it adds is called there without an import, and another module
+imports a `pub` one by name, as it would one written by hand. Templates
+expand before imports are checked, so `import app.shapes.field_count` finds
+the `field_count` a template added to `app.shapes`. Names in the template
 resolve where the template is written, so it can call its own module's
 private helpers, and a user of the annotation imports only the annotation.
 
@@ -713,7 +716,35 @@ literals and facts, either is an error, and outside a template neither exists.
 A warning is the lint `template_warning`, which `@allow` and `lint.toml` turn
 down like any other.
 
+## Once per crate
+
+Some code belongs to a crate rather than to one declaration, such as a
+function listing every use. A template written `per crate` has no `T`. Its
+declarations are written once into each crate that uses its annotation at
+least once, in that crate's root module:
+
+```kflat
+annotation counted on () -> void
+
+template counted per crate {
+    fun count_all(): int32 { return annotated<counted>().size() as int32 }
+}
+
+@counted
+fun first(): void {}
+
+@counted
+fun second(): void {}
+
+fun main(): int32 { return count_all() - 2 }
+```
+
+`count_all` is written once however many functions carry `@counted`, and
+`annotated<counted>()` lists the uses of the crate it is written into. A crate
+that depends on the annotation's crate but never writes `@counted` gets
+nothing. A `per crate` template expands for any kind its annotation marks, and
+an annotation may have one beside its templates per use.
+
 ## Limits
 
-A `pub` extension function a template adds cannot be imported by another
-module. [Limitations](../limitations.md#templates) lists each with its issue.
+[Limitations](../limitations.md#templates) lists each with its issue.

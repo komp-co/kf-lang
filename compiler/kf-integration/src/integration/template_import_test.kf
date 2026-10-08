@@ -1,0 +1,33 @@
+// What a template adds is there before imports are checked: another module
+// imports it by name.
+
+import core.assert.assert_eq
+import alloc.path.Path
+import kf_integration.harness.komp_run
+import std.fs.create_dir_all
+import std.fs.write_text
+import testing.test
+
+@test
+fun another_module_imports_what_a_template_adds(): void {
+    write_across_crate("ti_app", "bin", "", """import ti_app.shapes.Pair
+import ti_app.shapes.field_count
+
+fun main(): int32 { return Pair { a: 1, b: 2 }.field_count() - 2 }
+""")
+    val dir = across_dir("ti_app")
+    val _made = create_dir_all(Path.new("${dir}/src".as_str()))
+    val _shapes = write_text("${dir}/src/shapes.kf".as_str(), """pub annotation counted on struct
+
+template counted on struct T {
+    pub fun T.field_count(): int32 { return T.fields.size() as int32 }
+}
+
+@counted
+pub struct Pair {
+    pub val a: int32
+    pub val b: int32
+}
+""")
+    assert_eq(komp_run(dir), 0, "`field_count` is imported by name from the module it was added to")
+}

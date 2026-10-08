@@ -1,0 +1,31 @@
+//! run: exit 0
+//! deps: core, alloc
+// An annotation may have a template per use and one per crate: each struct
+// gets its own method, and the crate one function.
+
+annotation shown on struct
+
+template shown on struct T {
+    fun T.label(): str { return T.name }
+}
+
+template shown per crate {
+    fun shown_count(): int32 { return annotated<shown>().size() as int32 }
+}
+
+@shown
+struct Point {
+    val x: int32
+}
+
+@shown
+struct Size {
+    val w: int32
+}
+
+fun main(): int32 {
+    val p = Point { x: 1 }
+    val s = Size { w: 2 }
+    if p.label() != "Point" || s.label() != "Size" { return 1 }
+    return shown_count() - 2
+}

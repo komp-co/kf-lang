@@ -260,6 +260,7 @@ fun MarkKind.variant_name(): Sym {
         Struct => intern("Struct")
         Enum => intern("Enum")
         Trait => intern("Trait")
+        Annotation => intern("Annotation")
         // Only declarations are listed.
         _ => intern("")
     }

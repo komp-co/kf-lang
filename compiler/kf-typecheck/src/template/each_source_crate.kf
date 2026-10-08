@@ -10,7 +10,6 @@ import kf_core.ast.declaration.Linkage
 import kf_core.intern.CrateId
 import kf_core.span.SourceMap
 import kf_core.diagnostic.Diagnostic
-import kf_resolve.DeclTable
 
 /// The crates with source here, in the order their declarations come.
 fun Module.source_crates(): List<CrateId> {
@@ -32,7 +31,7 @@ fun Module.source_crates(): List<CrateId> {
 
 /// `expand_templates` and the `unique` check for each crate with source
 /// here, the module's own last.
-pub mutating fun Module.expand_templates_per_crate(table: &var DeclTable, diags: &var List<Diagnostic>,
+pub mutating fun Module.expand_templates_per_crate(diags: &var List<Diagnostic>,
     smap: Ptr<SourceMap>): List<ExpansionSite> {
     val own = self.crate
     var sites = List.new<ExpansionSite>()
@@ -43,7 +42,7 @@ pub mutating fun Module.expand_templates_per_crate(table: &var DeclTable, diags:
     crates.push(own)
     while each in &crates {
         self.crate = each
-        val expanded = self.expand_templates(table, diags, smap)
+        val expanded = self.expand_templates(diags, smap)
         while site in &expanded {
             sites.push(site.clone())
         }

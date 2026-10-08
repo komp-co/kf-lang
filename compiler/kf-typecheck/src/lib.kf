@@ -10,7 +10,9 @@ import kf_resolve.*
 import kf_typecheck.check.unknown_bound_diags
 import kf_typecheck.check.untyped_receiver_diags
 import kf_typecheck.check.decl.*
+import kf_typecheck.template.ExpansionSite
 import kf_typecheck.template.expand_templates_per_crate
+import kf_typecheck.template.register_from
 import kf_typecheck.template.with_expansion_notes
 
 pub mutating fun Module.typecheck_module(table: &var DeclTable): List<Diagnostic> {
@@ -36,16 +38,48 @@ pub struct TypedModule {
     pub var sigs: Box<SigTable>
 }
 
+/// What expanding a module's templates found: where each expansion is, for
+/// the notes on errors in what it added, and its own errors.
+pub struct ExpandedTemplates {
+    pub var sites: List<ExpansionSite>
+    pub var diags: List<Diagnostic>
+}
+
+/// Every template, expanded into the module before import validation and
+/// Resolve, which then see what it adds as written by hand.
+pub mutating fun Module.expand_templates_first(smap: Ptr<SourceMap>): ExpandedTemplates {
+    var diags = List.new<Diagnostic>()
+    val sites = self.expand_templates_per_crate(&var diags, smap)
+    return ExpandedTemplates { sites: sites, diags: diags }
+}
+
 /// `typecheck_module` drops the table; tooling that renders types keeps it.
+/// For a module Resolve has seen unexpanded: what templates add is
+/// registered here.
 pub fun typecheck_module_typed(m: &var Module,
     table: &var DeclTable,
     caller_files: Ptr<List<uint32>>,
     imported_targets: Ptr<List<Sym>>,
     imported_names: Ptr<List<Sym>>,
     smap: Ptr<SourceMap>): TypedModule {
+    val before = m.decls.size()
+    val expanded = m.expand_templates_first(smap)
+    m.register_from(before, table)
+    return typecheck_module_expanded(m, table, caller_files, imported_targets, imported_names, smap, expanded)
+}
+
+/// As `typecheck_module_typed`, for a module whose templates
+/// `expand_templates_first` expanded before Resolve.
+pub fun typecheck_module_expanded(m: &var Module,
+    table: &var DeclTable,
+    caller_files: Ptr<List<uint32>>,
+    imported_targets: Ptr<List<Sym>>,
+    imported_names: Ptr<List<Sym>>,
+    smap: Ptr<SourceMap>,
+    expanded: ExpandedTemplates): TypedModule {
     var diags = Diagnostics.new()
-    // First, so what a template adds passes through every later step.
-    val expansions = m.expand_templates_per_crate(table, &var diags.items, smap)
+    diags.items = expanded.diags.clone()
+    val expansions = expanded.sites.clone()
     m.validate_annotations(&var diags)
     m.reject_colliding_no_mangle(&var diags)
     m.reject_duplicate_lang_items(&var diags)

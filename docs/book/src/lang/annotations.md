@@ -294,9 +294,12 @@ behind `&`. A bound is checked at each use, and a type parameter the target
 never names is an error. A name close to a type in scope, such as `Pont` with
 `Point` declared, is warned about, since it is likelier a typo.
 
-`on` may instead name kinds of declaration: `fun`, `struct`, `enum` and
-`trait`, or of member, `field` and `variant`. `on fun` marks every function,
-whatever its signature, and `on any` marks the four declaration kinds. Several
+`on` may instead name kinds of declaration: `fun`, `struct`, `enum`, `trait`
+and `annotation`, or of member, `field` and `variant`. `on fun` marks every
+function, whatever its signature, and `on any` marks the five declaration
+kinds. `on annotation` marks annotation declarations, so an annotation can
+itself be retired or listed; `annotated<A>()` gives such a use the kind
+`AnnotatedKind.Annotation`. Several
 kinds are separated by `,`. A struct or an enum
 kind may take a bound after `:`, which every marked declaration of that kind
 must implement:

@@ -7,22 +7,32 @@ import kf_core.ast.annotation.*
 import kf_parse.parser.*
 
 impl Parser {
-    /// `template` is a keyword only at the head of `template NAME on` or
-    /// `template NAME(Key) on`, so it stays usable as an identifier
-    /// everywhere else.
+    /// `template` is a keyword only at the head of `template NAME on`,
+    /// `template NAME(Key) on` or `template NAME per crate`, so it stays
+    /// usable as an identifier everywhere else.
     fun at_template_decl(): bool {
         if !self.at_word("template") || !self.peek_at(1).is_identifier() { return false }
         if self.peek_at(2).is_word("on") { return true }
+        if self.peek_at(2).is_word("per") && self.peek_at(3).is_word("crate") { return true }
         if !is_op(self.peek_at(2), Operator.LParen) || !self.peek_at(3).is_identifier() { return false }
         return is_op(self.peek_at(4), Operator.RParen) && self.peek_at(5).is_word("on")
     }
 
-    /// `template NAME on KIND T { declarations }`, consuming `template`.
+    /// `template NAME on KIND T { declarations }`, or `template NAME per
+    /// crate { declarations }`, consuming `template`.
     mutating fun parse_template_decl(span: Span): TopDecl {
         self.advance() // consume `template`
         val name_at = self.peek().span
         val name = self.expect_name("template")
         self.advance()
+        if self.at_word("per") {
+            self.advance()
+            self.advance() // consume `crate`
+            val body = self.parse_template_body()
+            var td = TopDecl.new(span, name, TopDeclKind.Template(MarkKind.Function, intern(""), body))
+            td.name_span = name_at
+            return td
+        }
         var key = intern("")
         if self.take_op(Operator.LParen) {
             key = intern(self.expect_name("template key").as_str())

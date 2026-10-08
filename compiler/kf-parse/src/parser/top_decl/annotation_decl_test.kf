@@ -121,7 +121,7 @@ fun has_errors(src: str): bool {
 
 @test fun any_lists_every_kind(): void {
     val shape = shape_of("annotation deprecated(since: String) on any")
-    assert_eq(shape.as_str(), "fun:0,struct:0,enum:0,trait:0", "all four")
+    assert_eq(shape.as_str(), "fun:0,struct:0,enum:0,trait:0,annotation:0", "every declaration kind")
 }
 
 @test fun a_list_of_kinds_needs_no_brackets(): void {
@@ -216,4 +216,8 @@ fun type_param_summary(src: str): String {
 @test fun type_parameters_come_before_the_name(): void {
     var p = parser_for("annotation <T: Display> shown on (T) -> String")
     assert_eq(p.parse_top_decl().name.as_str(), "shown", "the name follows the list")
+}
+
+@test fun annotation_is_a_kind_an_annotation_marks(): void {
+    assert_eq(shape_of("annotation retired on annotation").as_str(), "annotation:0", "`on annotation`")
 }

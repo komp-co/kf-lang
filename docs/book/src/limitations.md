@@ -126,8 +126,6 @@ on a struct holding one ([#299]). Compare or print the elements instead.
   ([#188]).
 - `annotated<A>()` has no field for a variadic parameter: nothing could keep
   the list once the query returns ([#187]).
-- A `pub` extension function a template adds cannot be imported by another
-  module: imports are checked before templates expand ([#297]).
 
 ## Modules
 
@@ -216,6 +214,5 @@ not agree with it in every case.
 [#216]: https://github.com/komp-co/komp/issues/216
 [#187]: https://github.com/komp-co/kf-lang/issues/187
 [#188]: https://github.com/komp-co/kf-lang/issues/188
-[#297]: https://github.com/komp-co/komp/issues/297
 [#299]: https://github.com/komp-co/komp/issues/299
 [#480]: https://github.com/komp-co/komp/issues/480

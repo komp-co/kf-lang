@@ -1,0 +1,22 @@
+//! run: exit 0
+//! deps: core, alloc
+// `on annotation` marks annotation declarations, and `on any` includes them;
+// `annotated<A>()` lists them with the kind `Annotation`.
+
+annotation retired(since: str) on annotation
+annotation flagged on any
+
+@retired("0.20")
+@flagged
+annotation handler on () -> void
+
+@flagged
+fun plain(): void {}
+
+fun main(): int32 {
+    val retired = annotated<retired>()
+    if retired.size() != 1 || retired.at(0).name != "handler" { return 1 }
+    if retired.at(0).kind != AnnotatedKind.Annotation { return 2 }
+    if retired.at(0).args.since != "0.20" { return 3 }
+    return annotated<flagged>().size() as int32 - 2
+}

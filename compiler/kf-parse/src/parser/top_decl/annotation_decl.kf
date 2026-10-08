@@ -102,6 +102,7 @@ impl Parser {
             Identifier(word) => return when word.as_str() {
                 "field" => MarkKind.Field
                 "variant" => MarkKind.Variant
+                "annotation" => MarkKind.Annotation
                 _ => null
             }
             KeywordTok(k) => return when (k) {

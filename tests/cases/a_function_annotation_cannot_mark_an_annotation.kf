@@ -1,0 +1,11 @@
+//! build: fail
+//! deps: core, alloc
+// A use above an annotation declaration is checked against its target like
+// any other: `@only_fns` marks functions.
+
+annotation only_fns on () -> void
+
+@only_fns
+annotation handler on () -> void
+
+fun main(): int32 { return 0 }

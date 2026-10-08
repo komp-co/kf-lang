@@ -190,6 +190,10 @@ fun Stmt.collect_stmt_names(out: &var List<String>): void {
             collect_expr_names(unsafe { &*cond }, out)
             collect_stmt_list_names(body, out)
         }
+        ForEach(_binder, iterable, body) => {
+            collect_expr_names(&*iterable, out)
+            collect_stmt_list_names(&body, out)
+        }
         When(subj, arms) => {
             collect_expr_names(unsafe { &*subj }, out)
             while arm in &arms {
@@ -267,6 +271,18 @@ fun Expr.collect_expr_names(out: &var List<String>): void {
         }
         DynCoerce(ip, _vtable) => collect_expr_names(unsafe { &*ip }, out)
         Retain(ip) => collect_expr_names(unsafe { &*ip }, out)
+        Lambda(_params, body) => collect_stmt_list_names(&body, out)
+        Block(body) => collect_stmt_list_names(&body, out)
+        WhenExpr(subj, arms) => {
+            collect_expr_names(&*subj, out)
+            while arm in &arms {
+                when (arm.guard) {
+                    Some(guard) => collect_expr_names(&*guard, out)
+                    None => { }
+                }
+                collect_stmt_list_names(&arm.body, out)
+            }
+        }
         _ => {}
     }
 }

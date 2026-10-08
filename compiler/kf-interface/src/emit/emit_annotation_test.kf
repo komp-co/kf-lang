@@ -118,7 +118,7 @@ fun kinds_cross_with_their_bounds(): void {
 @test
 fun any_crosses_as_every_kind(): void {
     val target = round_trip_target(targeted_module(true, MarkTarget.new_any_kind()))
-    assert_eq(target.kinds_text().as_str(), "fun:,struct:,enum:,trait:", "all four")
+    assert_eq(target.kinds_text().as_str(), "fun:,struct:,enum:,trait:,annotation:", "every declaration kind")
 }
 
 fun wildcard(): TypeRef { return named("_") }
@@ -216,4 +216,32 @@ fun prelude_round_trips(marked: bool): bool {
 fun a_prelude_annotation_stays_one_across_the_interface(): void {
     assert_eq(prelude_round_trips(true), true, "@prelude crosses with its annotation")
     assert_eq(prelude_round_trips(false), false, "no @prelude is invented")
+}
+
+/// The annotations the one `bench` annotation reads back marked with.
+fun marks_round_trip(): String {
+    val kind = TopDeclKind.AnnotationDecl(List.new<Param>(), MarkTarget.new_default(Span.none()), true)
+    var decl = TopDecl.new(Span.none(), String.from("bench"), kind)
+    decl.crate = CrateId.new("sample")
+    decl.module_path = intern("sample.api")
+    decl.annotations.push(Annotation.new(Span.none(), "retired", [String.from("\"0.20\"")]))
+    val m = Module {
+        crate: CrateId.new("sample"), path: List.new<String>(), decls: [decl], imports: List.new<Import>()
+    }
+    val loaded = parse_interface(m.emit_interface(String.from("sample"), &List.new<String>()))
+    var out = String.from("")
+    while each in &loaded.modules {
+        while td in &each.decls {
+            if td.name.as_str() != "bench" { continue }
+            while use in &td.annotations {
+                out.append("@${use.name.as_str()}(${use.words().size()})")
+            }
+        }
+    }
+    return out
+}
+
+@test
+fun an_annotation_s_own_marks_cross_the_interface(): void {
+    assert_eq(marks_round_trip().as_str(), "@retired(1)", "`@retired(\"0.20\")` above it crosses with its argument")
 }

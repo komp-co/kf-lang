@@ -32,4 +32,5 @@ pub enum AnnotatedKind {
     Struct
     Enum
     Trait
+    Annotation
 }

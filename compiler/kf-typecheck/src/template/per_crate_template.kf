@@ -1,0 +1,40 @@
+// `template NAME per crate { ... }`: its declarations, written once into each
+// crate that uses `@NAME` at least once, in the crate's root module.
+
+import alloc.list.*
+
+import kf_core.ast.Module
+import kf_core.ast.declaration.*
+import kf_core.span.SourceMap
+import kf_core.diagnostic.Diagnostic
+import kf_core.intern.Sym
+
+/// A template that marks no declaration, expanding once per crate.
+fun TopDecl.is_per_crate(): bool {
+    return when (self.kind) {
+        Template(_kind, marked, _body) => marked.as_str() == ""
+        _ => false
+    }
+}
+
+/// The first declaration of this crate that carries `@NAME` for this
+/// annotation.
+fun Module.first_use(annotation: uint64): uint64? {
+    while i in 0..self.decls.size() {
+        if self.is_marked_by_any(self.decls.at(i), annotation) { return i }
+    }
+    return null
+}
+
+/// `template`'s declarations once for this crate, if it uses the annotation:
+/// in its root module, with the first use as where an error points.
+fun Module.expand_per_crate(template: &TopDecl, annotation: uint64, diags: &var List<Diagnostic>,
+    sites: &var List<ExpansionSite>, smap: Ptr<SourceMap>): List<TopDecl> {
+    val used = self.first_use(annotation) ?: return List.new<TopDecl>()
+    val first = self.decls.at(used)
+    var home = TopDecl.new(first.span, String.from(""), TopDeclKind.Poison)
+    home.name_span = first.decl_name_span()
+    home.crate = self.crate
+    home.module_path = Sym { id: self.crate.raw }
+    return self.expand_for(template, &home, annotation, diags, sites, smap)
+}
