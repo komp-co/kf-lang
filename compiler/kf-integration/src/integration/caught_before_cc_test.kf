@@ -76,3 +76,35 @@ fun main(): int32 {
 """)
     assert_eq(errors.contains("this `String` is freed as the function returns"), true, "return `String` (#180)")
 }
+
+@test
+fun a_value_lent_as_a_str_does_not_become_a_string_binding(): void {
+    val errors = errors_of("caught_lent_store", """import alloc.string.*
+
+struct Label {
+    val text: String
+}
+
+impl Deref for Label {
+    type Target = str
+    fun deref(): str { return self.text.as_str() }
+}
+
+fun label(): Label {
+    return Label { text: String.from("kept") }
+}
+
+fun pick(short: bool): String {
+    var out = ""
+    if short {
+        out = label()
+    }
+    return out
+}
+
+fun main(): int32 {
+    return pick(true).byte_len() as int32
+}
+""")
+    assert_eq(errors.contains("a `str` value does not become a `String` on its own"), true, "`out` holds a `str` (#161)")
+}

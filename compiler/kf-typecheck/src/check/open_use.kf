@@ -63,7 +63,21 @@ mutating fun TypeCtx.decide_by_store(name: str, value: &Expr, span: Span, target
     } else if place.narrow_open_text(value.ty.clone(), self) || place.narrow_open_array(value.ty.clone(), self) {
         return target
     }
+    self.decide_by_lent_str(name, value, span, &target)
     return self.lookup(name)
+}
+
+/// `out = label()` into an open `var out = ""`, `label()` lending itself as
+/// a `str`: the stored value is a `str`, so the binding is one. Left open, a
+/// later use could make it a `String` with this `str` already in it.
+mutating fun TypeCtx.decide_by_lent_str(name: str, value: &Expr, span: Span, target: &Type): void {
+    if self.open_init(name) == null || value.string_literal_text() != null { return }
+    when (target.kind) {
+        StrTy => { }
+        _ => return
+    }
+    if value.ty.is_poison() || value.ty.is_lang_struct(self.string_name()) { return }
+    self.decide_binding(name, target.clone(), span)
 }
 
 /// A type an earlier use ruled out: it needed the binding as `needed`, which
