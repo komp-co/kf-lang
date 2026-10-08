@@ -5,7 +5,8 @@ name: Release
 # the toolchain archive komp installs, kflat-<version>.tar.gz with its
 # .sha256, under the tag `v<kflat_version()>`. Then it opens the PR that pins
 # the new seed in bootstrap/stage0.toml on `development`, merging once CI is
-# green.
+# green, and the one that lists the archive as `kflatc` in komp-co/index,
+# where `komp toolchain install` finds it, merging once the index checks it.
 on:
   push:
     branches: [main]
@@ -76,3 +77,29 @@ jobs:
           url=$(gh pr create --base development --head "$branch" --title "bootstrap: build from the $VERSION seed" \
             --body "Pins the seed \`v$VERSION\` just published in \`bootstrap/stage0.toml\`. CI bootstraps from it, so a green run proves the release builds this tree.")
           gh pr merge --auto --merge "$url"
+
+      - name: List the release in the package index
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          URL: https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version }}/kflat-${{ steps.version.outputs.version }}.tar.gz
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::RELEASE_TOKEN is missing; add kflatc $VERSION to komp-co/index by hand"
+            exit 0
+          fi
+          sha256=$(cut -d' ' -f1 "dist/kflat-$VERSION.tar.gz.sha256")
+          index="$RUNNER_TEMP/index"
+          gh repo clone komp-co/index "$index" -- -q
+          gh auth setup-git
+          cd "$index"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          branch="kflatc/$VERSION"
+          git switch -q -c "$branch"
+          printf '\n[[version]]\nversion = "%s"\nsource = { tarball = "%s" }\nchecksum = "sha256:%s"\n' \
+            "$VERSION" "$URL" "$sha256" >> kf/la/kflatc.toml
+          git commit -qam "kflatc $VERSION" -m "Published by kf-lang's release workflow."
+          git push -q origin "$branch"
+          gh pr create --repo komp-co/index --base main --head "$branch" --title "kflatc $VERSION" \
+            --body "The kflat $VERSION release archive, as \`kflatc\`. The index checks it and merges it."
