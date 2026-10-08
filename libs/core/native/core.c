@@ -231,6 +231,10 @@ const char* kf_arg_get(int32_t index) {
     return kf_argv[index + 1];
 }
 
+const char* kf_program_name(void) {
+    return kf_argc > 0 && kf_argv[0] != NULL ? kf_argv[0] : "";
+}
+
 // Reinterpret a float's bits as an integer, for hashing. A union rather than
 // memcpy so this stays in the freestanding tier — `Hash` must not pull in
 // libc (see libs/core/src/hash.kf).

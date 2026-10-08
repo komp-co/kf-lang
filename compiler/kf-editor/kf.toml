@@ -1,0 +1,12 @@
+[project]
+name = "kf_editor"
+version = "0.1.0"
+kind = "lib"
+
+[dependencies]
+core = { path = "../../libs/core" }
+kf_driver = { path = "../kf-driver" }
+kf_query = { path = "../kf-query" }
+
+[dev-dependencies]
+testing = { path = "../../libs/testing" }

@@ -2,6 +2,7 @@
 
 extern "C" fun kf_arg_count(): int32
 extern "C" fun kf_arg_get(i: int32): str
+extern "C" fun kf_program_name(): str
 
 /// Not counting the program name.
 @prelude
@@ -19,4 +20,11 @@ pub fun arg_count(): uint64 {
 pub fun arg_at(i: uint64): str {
     if i >= arg_count() { return "" }
     return unsafe { kf_arg_get(i as int32) }
+}
+
+/// The program's name as it was run: argv[0], "" when there is none. A
+/// program that answers to several names, through links, tells them apart
+/// by it.
+pub fun program_name(): str {
+    return unsafe { kf_program_name() }
 }

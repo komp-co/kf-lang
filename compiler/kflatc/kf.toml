@@ -7,5 +7,7 @@ kind = "bin"
 alloc = { path = "../../libs/alloc" }
 kf_driver = { path = "../kf-driver" }
 kf_query = { path = "../kf-query" }
+kf_lint = { path = "../kf-lint" }
+kf_editor = { path = "../kf-editor" }
 core = { path = "../../libs/core" }
 std = { path = "../../libs/std" }

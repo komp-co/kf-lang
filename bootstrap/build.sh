@@ -231,6 +231,10 @@ printf 'import std.io.eprintln\n\nfun main(): int32 {\n    eprintln(&"installed"
 installed_kflatc="$WORK/install-check/home/toolchains/$version/bin/kflatc"
 [ -x "$installed_kflatc" ] && [ -L "$WORK/install-check/home/bin/kflatc" ] ||
     fail "install.sh did not install kflatc into toolchains/$version and link it into bin."
+for tool in kf-lint kf-editor; do
+    "$WORK/install-check/home/bin/$tool" version | grep -qx "$tool $version" ||
+        fail "the installed $tool does not answer as $tool $version."
+done
 if ! (cd "$WORK/install-check" && KFLATC="$installed_kflatc" "$WORK/s0/komp0" run app > run.log 2>&1) ||
         ! grep -qx installed "$WORK/install-check/run.log"; then
     cat "$WORK/install-check/run.log"

@@ -6,6 +6,10 @@ answer. It is how editor support and other tools reach the compiler. The
 protocol on this page is the stable part: the compiler behind it changes
 freely, and the requests and answers keep their shape.
 
+`kf-editor`, which the toolchain installs beside `kflatc`, answers the same
+protocol with no subcommand: it is the endpoint editors are moving to, and
+`kflatc serve` stays until they have.
+
 ## The conversation
 
 The client starts `kflatc serve` and writes one JSON request per line to its

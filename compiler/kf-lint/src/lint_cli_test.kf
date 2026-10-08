@@ -1,0 +1,14 @@
+import core.assert.assert_eq
+import testing.test
+
+@test
+fun check_and_lints_are_kf_lints(): void {
+    assert_eq(is_lint_command("check"), true, "komp lint and komp check")
+    assert_eq(is_lint_command("lints"), true, "komp lint --list")
+}
+
+@test
+fun the_compilers_commands_are_not(): void {
+    assert_eq(is_lint_command("compile"), false, "kflatc's")
+    assert_eq(is_lint_command(""), false, "nothing to run")
+}
