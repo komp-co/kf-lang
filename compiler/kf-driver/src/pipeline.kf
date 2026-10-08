@@ -212,7 +212,7 @@ pub fun Diagnostic.print_diag(smap: Ptr<SourceMap>): void {
 pub fun note_crate_being_built(root: str): void {
     val dir = absolute(root).normalized().raw
     val with_slash = if dir.ends_with("/") { dir } else { "${dir}/" }
-    unsafe { kf_set_local_root(with_slash.as_str()) }
+    unsafe { kf_set_local_root(with_slash) }
 }
 
 /// A consumer cannot edit its dependencies. Kept visible: errors (filtered by
