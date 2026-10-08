@@ -2,8 +2,6 @@
 // body, item keywords between declarations. Read from the text, since what is
 // being typed often does not parse.
 
-import alloc.list.*
-
 import kf_parse.lexer.*
 import json.writer.*
 

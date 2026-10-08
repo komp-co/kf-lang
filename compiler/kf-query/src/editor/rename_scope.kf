@@ -1,8 +1,6 @@
 // What makes renaming a member or a local unsafe: a new name already in the
 // way, a use the rename could not see, or one written once for two names.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.Module
 import kf_core.ast.declaration.TopDecl
@@ -14,7 +12,7 @@ pub fun TypedCrate.text_at(span: Span): String {
     val text = if span.file_id == self.file_id {
         self.source.clone()
     } else {
-        read_file(path_for_file_id(self.smap, span.file_id).as_str())
+        File.read(path_for_file_id(self.smap, span.file_id).as_str()).unwrap_or("")
     }
     if (span.end as uint64) > text.byte_len() { return "" }
     return text.substring(span.start as uint64, span.end as uint64)

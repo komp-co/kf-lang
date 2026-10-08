@@ -4,7 +4,6 @@
 // so `T` is `Point`. A method through the bound over a user type is
 // qualified like the impl's definition, and the yielded item keeps its type.
 
-import alloc.list.*
 
 struct Point { val x: int32 }
 impl Point { fun get(): int32 { return self.x } }

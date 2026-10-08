@@ -2,8 +2,6 @@
 // parameter is its receiver, `&Type`, or `&var Type` for a mutating method. A
 // static method takes no receiver.
 
-import alloc.list.*
-
 import kf_core.ast.types.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind

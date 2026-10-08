@@ -4,7 +4,6 @@
 // as it likes, and a container of owned values holding borrowed-from data is
 // untouched. Only escape upward or sideways is closed.
 
-import alloc.list.*
 
 fun width(text: str): uint64 {
     val owned = String.from(text)

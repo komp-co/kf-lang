@@ -15,6 +15,10 @@ Alloc's [`@prelude`](../lang/annotations.md#prelude) functions need no import:
 `List` and `String` methods, splitting and joining, and so on — the same as
 core's. Types and traits still resolve by name with no import at all.
 
+The collections are the module `alloc.collections`: `HashMap` and `Deque`
+there, and `List` in `alloc.collections.list`. They are types, so using them
+takes no import.
+
 ## String
 
 `String` is an owned, growable UTF-8 buffer. It is the language's string:
@@ -480,8 +484,6 @@ val clean = raw.trim()
 val loud  = name.to_upper()
 ```
 
-`replace` and `repeat` are not prelude — `import alloc.text_edit.*` first:
-
 ```kflat
 val fixed = template.replace("{}", value)
 val rule  = "-".repeat(40)
@@ -509,8 +511,7 @@ val words = "  the  quick ".split_whitespace()   // ["the", "quick"]
 ```
 
 `split` and `join` are inverses, which decides the empty-piece question: the
-piece count is always `count_of(sep) + 1` (`count_of` needs `import
-core.text.*`), so adjacent separators and separators at either end produce
+piece count is always `count_of(sep) + 1`, so adjacent separators and separators at either end produce
 empty pieces and a round trip is exact.
 
 `lines` goes the other way and drops the empty piece a trailing newline would
@@ -549,18 +550,16 @@ path keeps the `..` it starts with, and nothing climbs above `/`. `join` with
 an absolute part answers that part. `starts_with` compares whole components,
 and `is_absolute` says whether the path begins at `/`. Turning a relative path
 into an absolute one needs the working directory, so it is
-[`std.fs.absolute`](std.md#stdfs).
+[`Dir.current()`](std.md#files-and-directories).
 
 ## Deque
 
-`Deque<T>`, from `alloc.deque`, is a growable ring buffer: pushing and
+`Deque<T>` is a growable ring buffer: pushing and
 popping at either end is O(1) amortized, where `List.remove(0)` shifts every
 element. It is the queue and the stack both, so there is no separate type for
 either:
 
 ```kflat
-import alloc.deque.*
-
 fun main(): int32 {
     var queue = Deque.new<int32>()      // first in, first out
     queue.push_back(1)

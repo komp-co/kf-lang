@@ -1,7 +1,5 @@
 // A module's exports, read back from its `.kfi`.
 
-import alloc.list.*
-
 import kf_core.span.Span
 import kf_core.ast.Import
 import json.reader.*

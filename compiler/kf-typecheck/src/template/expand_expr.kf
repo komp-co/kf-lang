@@ -3,8 +3,6 @@
 // expression takes the field's span, so an error in it points at the field;
 // a variable keeps its own, which the checker keys a binding's uses on.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind

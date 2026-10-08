@@ -4,7 +4,6 @@
 // dispatch suffix crate-qualified, agreeing with the call sites. A primitive
 // carries no qualifier and would not show it.
 
-import alloc.list.*
 
 struct Point { pub var x: int32 }
 

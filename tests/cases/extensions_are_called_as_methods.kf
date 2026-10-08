@@ -5,7 +5,6 @@
 // `str`, a specific `List<Point>`, a generic `List<T>` whose `T` the receiver
 // introduces, or a bare parameter; a `mutating` one borrows mutably.
 
-import alloc.list.*
 
 struct Point {
     val x: int32

@@ -4,7 +4,6 @@
 // A literal kept as a `String` points at the literal until its first write,
 // which copies it; reads, clones, moves and drops never touch the literal.
 
-import alloc.list.*
 
 struct Named {
     val name: String

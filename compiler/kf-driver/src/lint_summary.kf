@@ -1,7 +1,5 @@
 // The tally `komp lint` prints after a crate's diagnostics.
 
-import alloc.list.*
-
 import kf_core.diagnostic.*
 
 /// "no problems", or the errors and warnings found and how many times each

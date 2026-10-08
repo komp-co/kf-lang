@@ -2,8 +2,6 @@
 // directory, or, for the crates written from staged text, a directory of
 // their own.
 
-import alloc.list.*
-
 pub struct InterfaceLookup {
     val target_dir: String
     val staged_dir: String

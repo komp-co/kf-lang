@@ -3,7 +3,7 @@ import testing.test
 
 @test
 fun a_line_is_taken_without_its_newline(): void {
-    var ends = pipe().unwrap()
+    var ends = Pipe.new().unwrap()
     val _written = ends.writer.write("first\nsecond\n")
     var reader = Reader.new(ends.reader.take())
     assert_eq(reader.read_line() ?: "", "first", "one line")
@@ -11,7 +11,7 @@ fun a_line_is_taken_without_its_newline(): void {
 
 @test
 fun a_partial_line_is_not_taken(): void {
-    var ends = pipe().unwrap()
+    var ends = Pipe.new().unwrap()
     val _written = ends.writer.write("unfinished")
     var reader = Reader.new(ends.reader.take())
     val _filled = reader.fill()
@@ -20,7 +20,7 @@ fun a_partial_line_is_not_taken(): void {
 
 @test
 fun counted_bytes_follow_a_header_line(): void {
-    var ends = pipe().unwrap()
+    var ends = Pipe.new().unwrap()
     val _written = ends.writer.write("Content-Length: 5\r\n\r\nhello")
     var reader = Reader.new(ends.reader.take())
     val _header = reader.read_line()
@@ -30,7 +30,7 @@ fun counted_bytes_follow_a_header_line(): void {
 
 @test
 fun the_last_line_needs_no_newline_at_the_end(): void {
-    var ends = pipe().unwrap()
+    var ends = Pipe.new().unwrap()
     val _written = ends.writer.write("tail")
     ends.writer = Stream.closed()
     var reader = Reader.new(ends.reader.take())
@@ -39,7 +39,7 @@ fun the_last_line_needs_no_newline_at_the_end(): void {
 
 @test
 fun a_reader_ends_when_its_stream_does(): void {
-    var ends = pipe().unwrap()
+    var ends = Pipe.new().unwrap()
     ends.writer = Stream.closed()
     var reader = Reader.new(ends.reader.take())
     assert_eq(reader.read_line().is_none(), true, "nothing more")

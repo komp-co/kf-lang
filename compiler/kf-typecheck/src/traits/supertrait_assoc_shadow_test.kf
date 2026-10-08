@@ -2,7 +2,6 @@
 // names two hops up, and cases that must stay quiet.
 
 import core.assert.assert_eq
-import alloc.list.*
 
 import kf_core.span.Span
 import kf_core.diagnostic.*

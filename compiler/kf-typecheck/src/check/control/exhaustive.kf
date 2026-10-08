@@ -3,8 +3,6 @@
 // per-`when` error. A payload pattern (`Some(5)`) counts as covering its
 // variant: a gap may be missed, but valid code is never rejected.
 
-import alloc.list.*
-
 import kf_core.ast.pattern.Arm
 import kf_core.ast.pattern.Pattern
 import kf_core.ast.types.Type

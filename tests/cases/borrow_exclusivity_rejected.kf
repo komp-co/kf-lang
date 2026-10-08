@@ -13,7 +13,6 @@
 // `disjoint_fields`, `both_shared` and `separate_owners` are the shapes that
 // stay legal.
 
-import alloc.list.*
 
 struct Pair { pub var left: String, pub var right: String }
 struct Nest { pub var inner: Pair }

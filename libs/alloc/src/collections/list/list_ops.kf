@@ -4,10 +4,8 @@
 impl List<T> {
     /// Drops every element and keeps the buffer.
     pub mutating fun clear(): void {
-        var i: uint64 = 0
-        while i < self.len {
+        while i in 0..self.len {
             unsafe { drop_in_place<T>(self.data + i) }
-            i = i + 1
         }
         self.len = 0
     }
@@ -48,12 +46,10 @@ impl List<T> {
     /// Drains `other`, taken by value, so no element is copied.
     pub mutating fun extend(other: List<T>): void {
         var taken = other
-        var i: uint64 = 0
-        while i < taken.len {
+        while i in 0..taken.len {
             self.reserve_one()
             unsafe { *(self.data + self.len) = ptr_read<T>(taken.data + i) }
             self.len = self.len + 1
-            i = i + 1
         }
         // The elements now live here; `taken` frees only its buffer.
         taken.len = 0

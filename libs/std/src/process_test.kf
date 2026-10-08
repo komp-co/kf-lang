@@ -60,7 +60,7 @@ fun command_redirects_standard_output(): void {
     command.arg("captured")
     command.stdout_to(output)
     val _status = command.status()
-    assert_eq(read_file(output.as_str()).as_str(), "captured\n", "standard output is redirected")
+    assert_eq(File.read(output.as_str()).unwrap_or("").as_str(), "captured\n", "standard output is redirected")
 }
 
 @test
@@ -102,13 +102,13 @@ fun a_program_that_does_not_exist_fails_to_exec(): void {
 
 @test
 fun this_process_has_an_id(): void {
-    assert_eq(process_id() > 0, true, "a running process has a positive id")
+    assert_eq(Process.id() > 0, true, "a running process has a positive id")
 }
 
 @test
 fun a_child_has_another_id(): void {
     var echo = Command.new("sh")
     echo.arg("-c")
-    echo.arg("test $$ != ${process_id()}")
+    echo.arg("test $$ != ${Process.id()}")
     assert_eq(echo.status().success(), true, "the shell is not this process")
 }

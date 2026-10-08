@@ -1,7 +1,5 @@
 // The order of a `return`'s value and its scope-exit releases.
 
-import alloc.list.*
-
 import kf_core.ast.expression.*
 
 /// Narrows the locals a return path must not release.

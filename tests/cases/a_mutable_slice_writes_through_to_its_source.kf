@@ -1,7 +1,6 @@
 //! run: exit 43
 //! deps: core, alloc
 // `&var T[]` writes through to the array or list it views.
-import alloc.list.*
 
 fun bump(xs: &var int32[]): void {
     while i in 0..xs.size() { xs[i] = xs[i] + 1 }

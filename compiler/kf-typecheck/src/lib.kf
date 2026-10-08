@@ -1,7 +1,5 @@
 // Type checking: writes `Expr.ty` and returns the diagnostics found.
 
-import alloc.list.*
-
 import kf_core.diagnostic.*
 import kf_core.ast.Module
 import kf_core.intern.Sym

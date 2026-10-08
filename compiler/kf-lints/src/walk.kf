@@ -1,8 +1,6 @@
 // One pass over a function's body, handing each statement and expression to
 // the lints that look at it.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.pattern.Arm
 import kf_core.ast.expression.Expr

@@ -1,23 +1,21 @@
 // A `str` the callee keeps must not point into a temporary `String`.
 
 import core.assert.assert_eq
-import alloc.list.*
 import kf_resolve.new_decl_table
 import kf_resolve.resolve_module
 import kf_typecheck.typecheck_module
 import kf_integration.harness.typed_crate_for
-import std.fs.scratch_path
 import testing.test
 
 extern "C" fun system(cmd: str): int32
 
 /// Whether checking `source` as a one-file crate reports the kept temporary.
 fun reports_kept_temporary(name: str, source: str): bool {
-    val root = scratch_path(name)
+    val root = Dir.scratch_path(name)
     unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
-    write_file("${root}/kf.toml".as_str(), "[project]\nname = \"str_probe\"\nkind = \"lib\"\n")
+    File.write("${root}/kf.toml".as_str(), "[project]\nname = \"str_probe\"\nkind = \"lib\"\n").unwrap()
     val file = "${root}/src/lib.kf"
-    write_file(file, source)
+    File.write(file, source).unwrap()
     var crate = typed_crate_for(file)
     var table = new_decl_table()
     resolve_module(&var crate.module, &var table)

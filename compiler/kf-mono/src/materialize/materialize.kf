@@ -2,9 +2,6 @@
 // program uses, clones and substitutes each into a concrete declaration,
 // repeats until no new instance appears, then strips the templates.
 
-import alloc.list.*
-import alloc.hash_map.*
-
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind

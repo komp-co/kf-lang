@@ -301,7 +301,6 @@ The `Drop` trait provides a destructor. Its `drop()` method runs when a
 value's scope ends:
 
 ```kflat
-
 extern "C" fun free(p: Ptr<uint8>): void
 
 struct Owned {

@@ -4,7 +4,6 @@
 // Counted by drops, the one measure telling a loan from a copy: each scenario
 // demands exactly one drop per value, 0 a leak and 2 a double free.
 import core.assert.*
-import alloc.hash_map.*
 
 pub struct Tracked {
     var counter: Ptr<int32>

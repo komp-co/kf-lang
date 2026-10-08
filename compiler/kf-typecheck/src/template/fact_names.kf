@@ -3,8 +3,6 @@
 // Messages name them from here, and a test checks these lists against the
 // declarations, so the two cannot drift apart.
 
-import alloc.list.*
-
 /// One declared struct's facts: its fields, then its methods.
 pub struct DeclaredFacts {
     pub val type_name: String

@@ -4,8 +4,6 @@
 // marked declaration. Only a branch the facts decide may hold one, so a
 // dropped branch never reports.
 
-import alloc.list.*
-
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.expression.BinOp

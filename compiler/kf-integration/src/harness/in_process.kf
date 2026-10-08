@@ -1,8 +1,6 @@
 // The compiler run in-process on a whole project, for tests that inspect what
 // it produces: every crate from source in one process, no kflatc involved.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.*
 import kf_core.ast.declaration.TopDecl
@@ -25,7 +23,6 @@ import kf_driver.build.merge_module_list
 import kf_driver.build.report_config_diags
 import kf_driver.build.report_parse_errors
 import kf_query.editor.typed_crate_staged
-import core.hash.hash_bytes
 
 /// One source string to C, without assembly. Assumes well-typed input.
 pub fun compile_source(src: str): String {
@@ -54,13 +51,13 @@ pub fun compile_source(src: str): String {
     val generated = merged.compile_module(true, &var errors, smap)
     // Both native tiers of core and alloc, named since there is no manifest;
     // always hosted.
-    var native = read_file("${libs}/core/native/core.c".as_str())
+    var native = File.read("${libs}/core/native/core.c".as_str()).unwrap_or("")
     native.append("\n")
-    native.append(read_file("${libs}/core/native/core_hosted.c".as_str()).as_str())
+    native.append(File.read("${libs}/core/native/core_hosted.c".as_str()).unwrap_or("").as_str())
     native.append("\n")
-    native.append(read_file("${libs}/alloc/native/alloc.c".as_str()).as_str())
+    native.append(File.read("${libs}/alloc/native/alloc.c".as_str()).unwrap_or("").as_str())
     native.append("\n")
-    native.append(read_file("${libs}/alloc/native/alloc_hosted.c".as_str()).as_str())
+    native.append(File.read("${libs}/alloc/native/alloc_hosted.c".as_str()).unwrap_or("").as_str())
     // As komp composes a unity build: the generated C, then the natives.
     var text = generated
     text.append("\n#define KF_NATIVE_UNITY 1\n")
@@ -186,7 +183,7 @@ fun FixtureGraph.compile_graph_outputs_with_interfaces(errors: &var Diagnostics,
             &dependency_hashes, smap)
         emitted_names.push(String.from(interface_crate.name.as_str()))
         // As komp names an interface: the text's bytes, hashed.
-        emitted_hashes.push("${hash_bytes(encoded.as_str())}")
+        emitted_hashes.push("${encoded.as_str().hash()}")
         unsafe { interfaces.push(encoded) }
     }
     if !merged.run_middle_passes(separate_passes(), errors, smap) { return out }

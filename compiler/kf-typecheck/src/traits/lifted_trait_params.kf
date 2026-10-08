@@ -1,8 +1,6 @@
 // `N` in `impl<N: uint64> Absorb<int64[N]> for Tally`: a parameter the
 // impl's trait arguments supply, bound per call from what is passed.
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.span.Span

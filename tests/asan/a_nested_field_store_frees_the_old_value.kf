@@ -1,7 +1,6 @@
 //! asan: clean
 // `h.inner.items = ...` frees the list it replaces, as `h.items = ...` does.
 
-import alloc.list.*
 
 struct Inner {
     pub var items: List<String>

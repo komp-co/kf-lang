@@ -3,7 +3,6 @@
 // A lambda body may be a braced block, whose value is its last statement. A
 // block local is not a capture, even when the enclosing scope has the name.
 
-import alloc.list.*
 
 fun apply<F: Call1<int32>>(f: F, x: int32): int32 { return f.call(x) }
 

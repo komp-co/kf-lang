@@ -5,7 +5,6 @@
 // reads argv.
 
 import core.display.*
-import core.args.*
 
 struct Tag { pub val n: int32 }
 
@@ -24,7 +23,7 @@ fun main(): int32 {
     // A value can still be collected when a caller wants one.
     if !String.of(&(Tag { n: 7 })).as_str().equals("<7>") { return 1 }
     // The case runner passes no arguments, and reading past the end is "".
-    if arg_count() != 0 { return 2 }
-    if !arg_at(0).equals("") { return 3 }
+    if Args.count() != 0 { return 2 }
+    if !Args.at(0).equals("") { return 3 }
     return 0
 }

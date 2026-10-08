@@ -4,7 +4,6 @@
 // own, not only its first use: `n + n` works at every width, so `wide(n)`
 // decides `n`. A store decides too, and so does a later method call on a
 // `List.new()` whose first use said nothing.
-import alloc.list.*
 
 fun wide(x: uint64): uint64 { return x * 2 }
 

@@ -52,10 +52,8 @@ pub fun str.starts_with(prefix: str): bool {
 pub fun str.starts_with_in(n: uint64, prefix: str): bool {
     val pn = unsafe { kf_str_byte_len(prefix) }
     if pn > n { return false }
-    var i = 0
-    while i < pn {
+    while i in 0..pn {
         if unsafe { kf_str_byte_at(self, i) } != unsafe { kf_str_byte_at(prefix, i) } { return false }
-        i = i + 1
     }
     return true
 }
@@ -71,10 +69,8 @@ pub fun str.ends_with_in(n: uint64, suffix: str): bool {
     val sn = unsafe { kf_str_byte_len(suffix) }
     if sn > n { return false }
     val base = n - sn
-    var i = 0
-    while i < sn {
+    while i in 0..sn {
         if unsafe { kf_str_byte_at(self, base + i) } != unsafe { kf_str_byte_at(suffix, i) } { return false }
-        i = i + 1
     }
     return true
 }
@@ -119,6 +115,7 @@ pub fun str.index_of_from_in(n: uint64, needle: str, from: uint64): uint64? {
 }
 
 /// The offset of the LAST occurrence of `needle`, or None.
+@prelude
 pub fun str.last_index_of(needle: str): uint64? {
     return self.last_index_of_in(unsafe { kf_str_byte_len(self) }, needle)
 }
@@ -149,6 +146,7 @@ pub fun str.last_index_of_in(n: uint64, needle: str): uint64? {
 }
 
 /// Non-overlapping. An empty needle counts 0.
+@prelude
 pub fun str.count_of(needle: str): uint64 {
     return self.count_of_in(unsafe { kf_str_byte_len(self) }, needle)
 }
@@ -177,16 +175,15 @@ pub fun uint8.is_space(): bool {
 }
 
 /// Empty or entirely whitespace, scanned without trimming.
+@prelude
 pub fun str.is_blank(): bool {
     return self.is_blank_in(unsafe { kf_str_byte_len(self) })
 }
 
 /// For a caller knowing `self` is `n` bytes.
 pub fun str.is_blank_in(n: uint64): bool {
-    var i = 0
-    while i < n {
+    while i in 0..n {
         if !unsafe { kf_str_byte_at(self, i) }.is_space() { return false }
-        i = i + 1
     }
     return true
 }

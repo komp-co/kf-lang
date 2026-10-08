@@ -1,8 +1,6 @@
 // Which argument of a call fixed a type parameter, so a later argument that
 // disagrees can be told what it disagrees with.
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.intern.Sym
 

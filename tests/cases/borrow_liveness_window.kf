@@ -4,7 +4,6 @@
 // here mutates its origin, and each is legal, because nothing reads the
 // borrow afterwards — a whole-scope rule would reject all three.
 
-import alloc.list.*
 
 fun after_last_use(): int32 {
     var text = String.from("ab")

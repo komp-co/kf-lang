@@ -2,7 +2,6 @@
 // instead of disk. Only the bytes change: each file keeps its module path,
 // FileId and place in the crate.
 
-import alloc.list.*
 import core.hash.*
 
 /// A staged file with empty text is a real, empty document, not an absent
@@ -68,7 +67,7 @@ pub fun Overlay.staged_under(dirs: &List<String>): String {
 pub fun Overlay.overlay_read(path: str): String {
     when (self.staged_index(path)) {
         Some(at) => return self.contents[at].clone()
-        None => return read_file(path)
+        None => return File.read(path).unwrap_or("")
     }
 }
 

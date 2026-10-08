@@ -1,54 +1,53 @@
 import core.assert.assert_eq
 import kf_integration.harness.komp_build
-import std.fs.scratch_path
 import testing.test
 
 extern "C" fun system(cmd: str): int32
 extern "C" fun access(path: str, mode: int32): int32
 
 fun prepare_trait_archive_fixture(): int32 {
-    val prep = unsafe { system("rm -rf ${scratch_path("kf_sc5_trait_core")} ${scratch_path("kf_sc5_trait_lib")} ${scratch_path("kf_sc5_trait_app")} && mkdir -p ${scratch_path("kf_sc5_trait_core/src")} ${scratch_path("kf_sc5_trait_core/native")} ${scratch_path("kf_sc5_trait_lib/src")} ${scratch_path("kf_sc5_trait_app/src")} && cp -R libs/core/src/. ${scratch_path("kf_sc5_trait_core/src/")}") }
+    val prep = unsafe { system("rm -rf ${Dir.scratch_path("kf_sc5_trait_core")} ${Dir.scratch_path("kf_sc5_trait_lib")} ${Dir.scratch_path("kf_sc5_trait_app")} && mkdir -p ${Dir.scratch_path("kf_sc5_trait_core/src")} ${Dir.scratch_path("kf_sc5_trait_core/native")} ${Dir.scratch_path("kf_sc5_trait_lib/src")} ${Dir.scratch_path("kf_sc5_trait_app/src")} && cp -R libs/core/src/. ${Dir.scratch_path("kf_sc5_trait_core/src/")}") }
     if prep != 0 { return prep }
-    write_file(scratch_path("kf_sc5_trait_core/kf.toml"), """[project]
+    File.write(Dir.scratch_path("kf_sc5_trait_core/kf.toml"), """[project]
 name = "core"
 kind = "lib"
 
 [native]
 c_sources = ["native/core.c"]
 hosted_c_sources = ["native/core_hosted.c"]
-""")
-    val core_native = read_file("libs/core/native/core.c")
-    write_file(scratch_path("kf_sc5_trait_core/native/core.c"), core_native)
-    val core_hosted = read_file("libs/core/native/core_hosted.c")
-    write_file(scratch_path("kf_sc5_trait_core/native/core_hosted.c"), core_hosted)
-    write_file(scratch_path("kf_sc5_trait_lib/kf.toml"), """[project]
+""").unwrap()
+    val core_native = File.read("libs/core/native/core.c").unwrap_or("")
+    File.write(Dir.scratch_path("kf_sc5_trait_core/native/core.c"), core_native).unwrap()
+    val core_hosted = File.read("libs/core/native/core_hosted.c").unwrap_or("")
+    File.write(Dir.scratch_path("kf_sc5_trait_core/native/core_hosted.c"), core_hosted).unwrap()
+    File.write(Dir.scratch_path("kf_sc5_trait_lib/kf.toml"), """[project]
 name = "trait_lib"
 kind = "lib"
 
 [dependencies]
 core = { path = "../kf_sc5_trait_core" }
-""")
+""").unwrap()
     var library = String.from("pub trait Score {\n    fun score(): int32\n}\n\n")
     library.append("pub struct Token {\n    pub val value: int32\n}\n\n")
     library.append("impl Score for Token {\n    pub fun score(): int32 { return self.value + 1 }\n}\n\n")
     library.append("pub fun token(value: int32): Token {\n    return Token { value: value }\n}\n")
-    write_file(scratch_path("kf_sc5_trait_lib/src/lib.kf"), library)
-    write_file(scratch_path("kf_sc5_trait_app/kf.toml"), """[project]
+    File.write(Dir.scratch_path("kf_sc5_trait_lib/src/lib.kf"), library).unwrap()
+    File.write(Dir.scratch_path("kf_sc5_trait_app/kf.toml"), """[project]
 name = "trait_app"
 kind = "bin"
 
 [dependencies]
 core = { path = "../kf_sc5_trait_core" }
 trait_lib = { path = "../kf_sc5_trait_lib" }
-""")
-    write_file(scratch_path("kf_sc5_trait_app/src/main.kf"), """import trait_lib.*
+""").unwrap()
+    File.write(Dir.scratch_path("kf_sc5_trait_app/src/main.kf"), """import trait_lib.*
 
 fun main(): int32 {
     val item = token(41)
     if item.score() == 42 { return 0 }
     return 1
 }
-""")
+""").unwrap()
     return 0
 }
 
@@ -76,14 +75,14 @@ fun trait_archive_contains(s: str, needle: str): bool {
 @test
 fun imported_trait_method_runs_from_dependency_archive(): void {
     val prepared = prepare_trait_archive_fixture()
-    val first = komp_build(scratch_path("kf_sc5_trait_app"), "-fsanitize=address")
-    val archive = unsafe { access(scratch_path("kf_sc5_trait_app/target/kflat/libtrait_lib.a"), 0) }
-    val interface_file = unsafe { access(scratch_path("kf_sc5_trait_app/target/kflat/trait_lib.kfi"), 0) }
-    val hidden = unsafe { system("mv ${scratch_path("kf_sc5_trait_lib/src")} ${scratch_path("kf_sc5_trait_lib/src.hidden")}") }
-    val rebuilt = komp_build(scratch_path("kf_sc5_trait_app"), "-fsanitize=address")
-    val ran = unsafe { system(scratch_path("kf_sc5_trait_app/target/kflat/trait_app")) }
-    val consumer = read_file(scratch_path("kf_sc5_trait_app/target/kflat/trait_app.c"))
-    val restored = unsafe { system("mv ${scratch_path("kf_sc5_trait_lib/src.hidden")} ${scratch_path("kf_sc5_trait_lib/src")}") }
+    val first = komp_build(Dir.scratch_path("kf_sc5_trait_app"), "-fsanitize=address")
+    val archive = unsafe { access(Dir.scratch_path("kf_sc5_trait_app/target/kflat/libtrait_lib.a"), 0) }
+    val interface_file = unsafe { access(Dir.scratch_path("kf_sc5_trait_app/target/kflat/trait_lib.kfi"), 0) }
+    val hidden = unsafe { system("mv ${Dir.scratch_path("kf_sc5_trait_lib/src")} ${Dir.scratch_path("kf_sc5_trait_lib/src.hidden")}") }
+    val rebuilt = komp_build(Dir.scratch_path("kf_sc5_trait_app"), "-fsanitize=address")
+    val ran = unsafe { system(Dir.scratch_path("kf_sc5_trait_app/target/kflat/trait_app")) }
+    val consumer = File.read(Dir.scratch_path("kf_sc5_trait_app/target/kflat/trait_app.c")).unwrap_or("")
+    val restored = unsafe { system("mv ${Dir.scratch_path("kf_sc5_trait_lib/src.hidden")} ${Dir.scratch_path("kf_sc5_trait_lib/src")}") }
     val has_call = trait_archive_contains(consumer, "trait_lib__Token_score__Score(")
     val has_body = trait_archive_contains(consumer, "trait_lib__Token_score__Score(trait_lib__Token self) {")
     val artifacts_ok = prepared == 0 && first == 0 && archive == 0 && interface_file == 0

@@ -5,18 +5,17 @@
 import core.assert.assert_eq
 
 import kf_integration.harness.komp_build
-import std.fs.scratch_path
 import testing.test
 
 extern "C" fun system(cmd: str): int32
 
 fun prepare_value_param_fixture(app_main: str): int32 {
-    val dep = scratch_path("kf_value_dep")
-    val app = scratch_path("kf_value_app")
+    val dep = Dir.scratch_path("kf_value_dep")
+    val app = Dir.scratch_path("kf_value_app")
     val prep = unsafe { system("rm -rf ${dep} ${app} && mkdir -p ${dep}/src ${app}/src") }
     if prep != 0 { return prep }
-    write_file("${dep}/kf.toml".as_str(), "[project]\nname = \"value_dep\"\nkind = \"lib\"\n")
-    write_file("${dep}/src/lib.kf".as_str(), """pub struct Residue<I: Integer, M: I> {
+    File.write("${dep}/kf.toml".as_str(), "[project]\nname = \"value_dep\"\nkind = \"lib\"\n").unwrap()
+    File.write("${dep}/src/lib.kf".as_str(), """pub struct Residue<I: Integer, M: I> {
     pub val value: I
 }
 
@@ -25,15 +24,15 @@ pub fun wrap<I: Integer, M: I>(v: I): Residue<I, M> {
 }
 
 pub fun width<N: uint64>(): uint64 { return N }
-""")
-    write_file("${app}/kf.toml".as_str(), """[project]
+""").unwrap()
+    File.write("${app}/kf.toml".as_str(), """[project]
 name = "value_app"
 kind = "bin"
 
 [dependencies]
 value_dep = { path = "../kf_value_dep" }
-""")
-    write_file("${app}/src/main.kf".as_str(), app_main)
+""").unwrap()
+    File.write("${app}/src/main.kf".as_str(), app_main).unwrap()
     return 0
 }
 
@@ -48,8 +47,8 @@ fun main(): int32 {
 }
 """
     val prep = prepare_value_param_fixture(main)
-    val built = komp_build(scratch_path("kf_value_app"), "")
-    val ran = unsafe { system(scratch_path("kf_value_app/target/kflat/value_app").as_str()) }
+    val built = komp_build(Dir.scratch_path("kf_value_app"), "")
+    val ran = unsafe { system(Dir.scratch_path("kf_value_app/target/kflat/value_app").as_str()) }
     assert_eq(prep == 0 && built == 0 && ran == 0, true, "instantiated and inferred in the consumer")
 }
 
@@ -63,6 +62,6 @@ fun main(): int32 {
 }
 """
     val prep = prepare_value_param_fixture(main)
-    val built = komp_build(scratch_path("kf_value_app"), "")
+    val built = komp_build(Dir.scratch_path("kf_value_app"), "")
     assert_eq(prep == 0 && built != 0, true, "`-1` does not fit the dependency's `N: uint64`")
 }

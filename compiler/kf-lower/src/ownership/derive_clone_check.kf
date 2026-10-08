@@ -7,8 +7,6 @@
 // An error, because the compiler inserts clones itself where the author never
 // sees them. Writing `impl Clone` is the fix.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.NameIndex
 import kf_core.ast.expression.view

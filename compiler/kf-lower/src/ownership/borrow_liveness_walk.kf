@@ -4,8 +4,6 @@
 //
 // CONSTRAINT: runs after alpha_rename, so a plain name comparison is exact.
 
-import alloc.list.*
-
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.Coercion
 import kf_core.ast.statement.Stmt

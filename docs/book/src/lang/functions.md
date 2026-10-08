@@ -237,8 +237,6 @@ A field holding one is called like a method, and the result of a call can be
 called again (`pick(true)(5)`):
 
 ```kflat
-import alloc.list.*
-
 struct Button {
     val label: String
     val on_click: (int32) -> void

@@ -112,15 +112,15 @@ fun expect_panic(code: str): void {
 
 /// The argument after `flag`, or `""`.
 fun test_argument(flag: str): str {
-    while i in 0..arg_count() {
-        if arg_at(i) == flag { return arg_at(i + 1) }
+    while i in 0..Args.count() {
+        if Args.at(i) == flag { return Args.at(i + 1) }
     }
     return ""
 }
 
 fun has_flag(flag: str): bool {
-    while i in 0..arg_count() {
-        if arg_at(i) == flag { return true }
+    while i in 0..Args.count() {
+        if Args.at(i) == flag { return true }
     }
     return false
 }

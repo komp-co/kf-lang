@@ -2,7 +2,6 @@
 // it leaves alone.
 
 import core.assert.assert_eq
-import alloc.list.*
 
 import kf_core.span.*
 import kf_core.diagnostic.*

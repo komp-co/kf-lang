@@ -2,7 +2,6 @@
 // arguments. Shares lib_test.kf's builders.
 
 import core.assert.assert_eq
-import alloc.list.*
 
 import kf_core.span.Span
 import kf_core.ast.*

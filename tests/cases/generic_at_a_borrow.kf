@@ -9,7 +9,6 @@
 // mangles as the receiver's type. A parameter that is a borrow in its own
 // right keeps its pointer; `borrowed_param_is_untouched` holds that.
 
-import alloc.list.*
 
 fun same<T: Equal>(a: T, b: T): bool {
     return a.equals(b)

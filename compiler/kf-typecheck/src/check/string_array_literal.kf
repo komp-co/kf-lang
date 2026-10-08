@@ -1,8 +1,6 @@
 // `"abc"` where a `uint8` or `char` array is expected: the literal's bytes, or
 // its characters, as an array literal.
 
-import alloc.list.*
-
 import kf_core.span.Span
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr

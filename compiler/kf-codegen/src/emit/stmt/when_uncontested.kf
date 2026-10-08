@@ -2,8 +2,6 @@
 // Switching on it would switch on an enum struct, and the type name cannot
 // tell an enum from a struct here.
 
-import alloc.list.*
-
 import kf_core.ast.expression.Expr
 import kf_core.ast.statement.SwitchArm
 import kf_codegen.concat_all

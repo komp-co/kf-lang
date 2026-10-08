@@ -1,31 +1,31 @@
 import core.assert.assert_eq
 import kf_integration.harness.komp_build
-import std.fs.scratch_path
 import testing.test
 
 extern "C" fun system(cmd: str): int32
 
 fun prepare_ownership_archive_fixture(early_return: bool): int32 {
-    val prep = unsafe { system("rm -rf ${scratch_path("kf_sc5_parcel_lib")} ${scratch_path("kf_sc5_parcel_app")} && mkdir -p ${scratch_path("kf_sc5_parcel_lib/src")} ${scratch_path("kf_sc5_parcel_app/src")}") }
+    val prep = unsafe { system("rm -rf ${Dir.scratch_path("kf_sc5_parcel_lib")} ${Dir.scratch_path("kf_sc5_parcel_app")} && mkdir -p ${Dir.scratch_path("kf_sc5_parcel_lib/src")} ${Dir.scratch_path("kf_sc5_parcel_app/src")}") }
     if prep != 0 { return prep }
-    write_file(scratch_path("kf_sc5_parcel_lib/kf.toml"), "[project]\nname = \"parcel_lib\"\nkind = \"lib\"\n")
-    write_file(scratch_path("kf_sc5_parcel_lib/src/lib.kf"), """pub struct Parcel {
+    File.write(Dir.scratch_path("kf_sc5_parcel_lib/kf.toml"),
+        "[project]\nname = \"parcel_lib\"\nkind = \"lib\"\n").unwrap()
+    File.write(Dir.scratch_path("kf_sc5_parcel_lib/src/lib.kf"), """pub struct Parcel {
     pub val label: String
 }
 
 pub fun make_parcel(label: String): Parcel {
     return Parcel { label: label }
 }
-""")
-    write_file(scratch_path("kf_sc5_parcel_app/kf.toml"), """[project]
+""").unwrap()
+    File.write(Dir.scratch_path("kf_sc5_parcel_app/kf.toml"), """[project]
 name = "parcel_app"
 kind = "bin"
 
 [dependencies]
 parcel_lib = { path = "../kf_sc5_parcel_lib" }
-""")
+""").unwrap()
     if early_return {
-        write_file(scratch_path("kf_sc5_parcel_app/src/main.kf"), """import parcel_lib.*
+        File.write(Dir.scratch_path("kf_sc5_parcel_app/src/main.kf"), """import parcel_lib.*
 
 fun main(): int32 {
     if true {
@@ -35,9 +35,9 @@ fun main(): int32 {
     }
     return 1
 }
-""")
+""").unwrap()
     } else {
-        write_file(scratch_path("kf_sc5_parcel_app/src/main.kf"), """import parcel_lib.*
+        File.write(Dir.scratch_path("kf_sc5_parcel_app/src/main.kf"), """import parcel_lib.*
 
 fun main(): int32 {
     val parcel = make_parcel("normal")
@@ -45,7 +45,7 @@ fun main(): int32 {
     if copy.label.as_str() == "normal" { return 0 }
     return 1
 }
-""")
+""").unwrap()
     }
     return 0
 }
@@ -53,13 +53,13 @@ fun main(): int32 {
 fun build_ownership_from_interface(early_return: bool): int32 {
     val prepared = prepare_ownership_archive_fixture(early_return)
     if prepared != 0 { return prepared }
-    val first = komp_build(scratch_path("kf_sc5_parcel_app"), "-fsanitize=address")
+    val first = komp_build(Dir.scratch_path("kf_sc5_parcel_app"), "-fsanitize=address")
     if first != 0 { return first }
-    val hidden = unsafe { system("mv ${scratch_path("kf_sc5_parcel_lib/src")} ${scratch_path("kf_sc5_parcel_lib/src.hidden")}") }
+    val hidden = unsafe { system("mv ${Dir.scratch_path("kf_sc5_parcel_lib/src")} ${Dir.scratch_path("kf_sc5_parcel_lib/src.hidden")}") }
     if hidden != 0 { return hidden }
-    val rebuilt = komp_build(scratch_path("kf_sc5_parcel_app"), "-fsanitize=address")
-    val ran = unsafe { system("ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ${scratch_path("kf_sc5_parcel_app/target/kflat/parcel_app")}") }
-    val restored = unsafe { system("mv ${scratch_path("kf_sc5_parcel_lib/src.hidden")} ${scratch_path("kf_sc5_parcel_lib/src")}") }
+    val rebuilt = komp_build(Dir.scratch_path("kf_sc5_parcel_app"), "-fsanitize=address")
+    val ran = unsafe { system("ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ${Dir.scratch_path("kf_sc5_parcel_app/target/kflat/parcel_app")}") }
+    val restored = unsafe { system("mv ${Dir.scratch_path("kf_sc5_parcel_lib/src.hidden")} ${Dir.scratch_path("kf_sc5_parcel_lib/src")}") }
     if rebuilt != 0 { return rebuilt }
     if restored != 0 { return restored }
     return ran
@@ -103,27 +103,27 @@ fun dependency_value_early_return_is_asan_clean(): void {
 @test
 fun dependency_source_owns_one_drop_definition(): void {
     val _built = build_ownership_from_interface(false)
-    val source = read_file(scratch_path("kf_sc5_parcel_app/target/kflat/parcel_lib.c"))
+    val source = File.read(Dir.scratch_path("kf_sc5_parcel_app/target/kflat/parcel_lib.c")).unwrap_or("")
     assert_eq(ownership_count(source, "void parcel_lib__Parcel__glue_drop(parcel_lib__Parcel v) {"), 1, "dependency source owns one drop definition")
 }
 
 @test
 fun consumer_calls_dependency_drop_symbol(): void {
     val _built = build_ownership_from_interface(false)
-    val source = read_file(scratch_path("kf_sc5_parcel_app/target/kflat/parcel_app.c"))
+    val source = File.read(Dir.scratch_path("kf_sc5_parcel_app/target/kflat/parcel_app.c")).unwrap_or("")
     assert_eq(ownership_contains(source, "parcel_lib__Parcel__glue_drop("), true, "consumer calls the dependency drop symbol")
 }
 
 @test
 fun consumer_contains_no_dependency_drop_body(): void {
     val _built = build_ownership_from_interface(false)
-    val source = read_file(scratch_path("kf_sc5_parcel_app/target/kflat/parcel_app.c"))
+    val source = File.read(Dir.scratch_path("kf_sc5_parcel_app/target/kflat/parcel_app.c")).unwrap_or("")
     assert_eq(ownership_contains(source, "void parcel_lib__Parcel__glue_drop(parcel_lib__Parcel v) {"), false, "consumer contains no dependency drop body")
 }
 
 @test
 fun dependency_header_declares_drop_symbol(): void {
     val _built = build_ownership_from_interface(false)
-    val header = read_file(scratch_path("kf_sc5_parcel_app/target/kflat/parcel_lib.h"))
+    val header = File.read(Dir.scratch_path("kf_sc5_parcel_app/target/kflat/parcel_lib.h")).unwrap_or("")
     assert_eq(ownership_contains(header, "void parcel_lib__Parcel__glue_drop(parcel_lib__Parcel v);"), true, "dependency header declares drop")
 }

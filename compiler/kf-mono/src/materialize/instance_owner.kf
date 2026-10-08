@@ -1,8 +1,6 @@
 // Which impl block a generic method's instance is minted in: its receiver's
 // instance, which may itself be minted later in the worklist.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 
 /// A call on `self` inside a clone names the template as its owner; from

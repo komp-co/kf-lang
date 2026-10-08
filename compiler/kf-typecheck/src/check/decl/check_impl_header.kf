@@ -9,8 +9,6 @@
 //
 // Runs after identities and traits are registered, which tell the cases apart.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.TopDecl

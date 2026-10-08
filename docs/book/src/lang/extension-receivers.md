@@ -132,8 +132,6 @@ declares them after its name, so a list in front of one is an error.
 A trait in receiver position means every type that implements it:
 
 ```kflat
-import alloc.list.*
-
 struct Point {
     val x: int32
 }

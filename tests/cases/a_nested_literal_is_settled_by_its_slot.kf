@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // `[[1, 2], [3]]` alone would be two arrays of different lengths, but its
 // `List<List<int32>>` slot makes each a list, so the mismatch never stands.
-import alloc.list.*
 
 fun main(): int32 {
     val nested: List<List<int32>> = [[1, 2], [3]]

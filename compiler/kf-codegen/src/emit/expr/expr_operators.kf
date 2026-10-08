@@ -1,5 +1,3 @@
-import alloc.list.*
-
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.BinOp
 import kf_core.ast.expression.Expr

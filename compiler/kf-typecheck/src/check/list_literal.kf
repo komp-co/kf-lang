@@ -3,8 +3,6 @@
 // converting from one retargets it instead. kf_core's list_literal.kf has the
 // shape every list literal parses to.
 
-import alloc.list.*
-
 import kf_core.ast.expression.empty_list_literal_receiver
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr

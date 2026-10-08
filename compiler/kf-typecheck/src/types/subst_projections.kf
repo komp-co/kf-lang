@@ -10,8 +10,6 @@
 // CONSTRAINT: every List travels by borrow. A by-value List is auto-cloned,
 // so the walk would rewrite a copy, silently for everything but impl methods.
 
-import alloc.list.*
-
 import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.ast.types.*

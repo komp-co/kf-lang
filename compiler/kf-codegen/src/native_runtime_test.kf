@@ -3,10 +3,10 @@ import testing.test
 
 @test
 fun checked_in_native_sources_own_runtime_symbols(): void {
-    val core = read_file("libs/core/native/core.c")
-    val core_hosted = read_file("libs/core/native/core_hosted.c")
-    val std_process = read_file("libs/std/native/process.c")
-    val compiler = read_file("compiler/kf-core/native/compiler.c")
+    val core = File.read("libs/core/native/core.c").unwrap_or("")
+    val core_hosted = File.read("libs/core/native/core_hosted.c").unwrap_or("")
+    val std_process = File.read("libs/std/native/process.c").unwrap_or("")
+    val compiler = File.read("compiler/kf-core/native/compiler.c").unwrap_or("")
     val has_core = core_hosted.contains("void runtime_println(")
     val has_alloc = core.contains("void* kf_alloc(")
     val has_std = std_process.contains("int32_t kf_process_status(")
@@ -40,8 +40,8 @@ fun occurrences(hay: str, needle: str): uint64 {
 /// definition in `libcore.a`, which every program links, would collide.
 @test
 fun the_allocation_abi_is_replaceable(): void {
-    val core = read_file("libs/core/native/core.c")
-    val hosted = read_file("libs/core/native/core_hosted.c")
+    val core = File.read("libs/core/native/core.c").unwrap_or("")
+    val hosted = File.read("libs/core/native/core_hosted.c").unwrap_or("")
     // Freestanding half: kf_alloc_failed, kf_alloc, kf_realloc.
     assert_eq(occurrences(core, "__attribute__((weak))"), 3,
         "the derived pair and the failure policy are overridable")
@@ -54,7 +54,7 @@ fun the_allocation_abi_is_replaceable(): void {
 /// `kf_try_alloc` inherits the failure policy.
 @test
 fun the_infallible_allocators_are_wrappers_over_the_fallible_ones(): void {
-    val text = read_file("libs/core/native/core.c")
+    val text = File.read("libs/core/native/core.c").unwrap_or("")
     val core = text.as_str()
     assert_eq(core.contains("void* memory = kf_try_alloc(size);"), true,
         "kf_alloc goes through kf_try_alloc")
@@ -67,7 +67,7 @@ fun the_infallible_allocators_are_wrappers_over_the_fallible_ones(): void {
 /// `kf_alloc` never returns NULL, so `kf_alloc_failed` must never return.
 @test
 fun the_failure_handler_does_not_return(): void {
-    val text = read_file("libs/core/native/core.c")
+    val text = File.read("libs/core/native/core.c").unwrap_or("")
     val core = text.as_str()
     assert_eq(core.contains("panic(\"panic[out_of_memory]: out of memory\");"), true, "it reports")
     // Not `abort`: that is libc's.
@@ -79,7 +79,7 @@ fun the_failure_handler_does_not_return(): void {
 /// primitives.
 @test
 fun core_does_not_allocate_around_its_own_abi(): void {
-    val text = read_file("libs/core/native/core_hosted.c")
+    val text = File.read("libs/core/native/core_hosted.c").unwrap_or("")
     val hosted = text.as_str()
     // Names containing the libc name are subtracted.
     val bare_realloc = occurrences(hosted, "realloc(") - occurrences(hosted, "kf_realloc(") - occurrences(hosted, "kf_try_realloc(")
@@ -94,7 +94,7 @@ fun core_does_not_allocate_around_its_own_abi(): void {
 /// check.sh's `-ffreestanding -nostdinc` gate.
 @test
 fun the_freestanding_half_includes_no_hosted_header(): void {
-    val text = read_file("libs/core/native/core.c")
+    val text = File.read("libs/core/native/core.c").unwrap_or("")
     val core = text.as_str()
     val includes = occurrences(core, "#include <")
     val freestanding_includes = occurrences(core, "#include <stdbool.h>") + occurrences(core, "#include <stddef.h>") + occurrences(core, "#include <stdint.h>")
@@ -106,7 +106,7 @@ fun the_freestanding_half_includes_no_hosted_header(): void {
 /// go through `__builtin_`.
 @test
 fun the_freestanding_half_calls_no_c_library_function(): void {
-    val text = read_file("libs/core/native/core.c")
+    val text = File.read("libs/core/native/core.c").unwrap_or("")
     val core = text.as_str()
     val bare_free = occurrences(core, "free(") - occurrences(core, "kf_free(")
     assert_eq(occurrences(core, "malloc("), 0, "no malloc")

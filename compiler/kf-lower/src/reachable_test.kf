@@ -1,7 +1,6 @@
 // One definition answers to two spellings: declared and called.
 
 import core.assert.assert_eq
-import alloc.list.*
 
 import kf_core.intern.intern
 import testing.test

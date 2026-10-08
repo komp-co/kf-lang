@@ -1,8 +1,6 @@
 // What a `Copy` impl promises, checked where it is made: every field is Copy
 // and the type has no destructor.
 
-import alloc.list.*
-
 import kf_core.diagnostic.*
 import kf_core.ast.*
 import kf_core.ast.types.Type

@@ -2,8 +2,6 @@
 // derived. The move checker inserts deep copies either way; this decides
 // only which diagnostic is raised.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.types.Type
 import kf_core.ast.types.type_identity_display

@@ -1,9 +1,6 @@
 // The oracle `kf-reduce` runs: a command judging a candidate written to disk.
 
-import alloc.list.*
 import alloc.path.*
-import std.fs.*
-import std.process.*
 
 /// Runs `program args... candidate`; exit 0 means interesting. Each
 /// improvement is written to `best_path` as it is found, so an interrupted
@@ -22,7 +19,7 @@ impl Oracle for CommandOracle {
     mutating fun interesting(lines: &List<String>): bool {
         self.tries = self.tries + 1
         val text = lines.join("\n")
-        if write_text(self.candidate_path, text).is_err() {
+        if File.write(self.candidate_path, text).is_err() {
             println("kf-reduce: cannot write ${self.candidate_path}")
             return false
         }
@@ -32,7 +29,7 @@ impl Oracle for CommandOracle {
         command.stdout_to(Path.new("/dev/null"))
         if !command.status().success() { return false }
         self.kept = self.kept + 1
-        val _saved = write_text(self.best_path, text)
+        val _saved = File.write(self.best_path, text)
         println("kf-reduce: ${lines.size()} lines (try ${self.tries})")
         return true
     }

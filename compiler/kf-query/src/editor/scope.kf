@@ -8,8 +8,6 @@
 // transparent and arms are chosen by where their body opens; the loop
 // variable arrives through the `Some(x)` pattern.
 
-import alloc.list.*
-
 import kf_core.ast.pattern.Arm
 import kf_core.ast.pattern.Pattern
 import kf_core.ast.expression.view

@@ -2,7 +2,6 @@
 // Each branch moves `names` into a call that drops it; only one branch runs,
 // so neither takes a copy and nothing is left behind.
 
-import alloc.list.*
 
 fun first_count(names: List<String>): uint64 {
     return names.size()

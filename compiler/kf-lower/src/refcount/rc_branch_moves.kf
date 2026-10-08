@@ -4,8 +4,6 @@
 // continues, or calls something that never returns) moves nothing for the
 // code after it, which may still use what it moved.
 
-import alloc.list.*
-
 import kf_core.span.Span
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind

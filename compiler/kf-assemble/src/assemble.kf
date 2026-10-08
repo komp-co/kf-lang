@@ -1,8 +1,6 @@
 // Module discovery: walks `<crate_root>/src/**/*.kf` and parses each file into
 // a `Module`. Import resolution is a later pass.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.*
 import kf_core.ast.declaration.TopDecl
@@ -16,8 +14,6 @@ import kf_parse.parser.*
 // clash with the prelude's definitions.
 extern "C" fun runtime_println(s: str): void
 extern "C" fun join(a: str, b: str): String
-extern "C" fun read_file(path: str): String
-extern "C" fun write_file(path: str, content: str): void
 
 mutating fun Parser.drain_parse_diags(pdiags: &var Diagnostics): void {
     while diag in &self.diags {

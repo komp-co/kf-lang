@@ -7,7 +7,6 @@
 //
 // `Ptr` and `Box` are reserved builtin names and need no such marker.
 import core.assert.*
-import alloc.list.*
 
 // The declared generic.
 pub struct Ref<T> {

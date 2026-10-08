@@ -6,7 +6,6 @@
 //   - a `Ptr<T>` receiver is passed as the pointer, not its address
 //   - consuming such a read is a move out of a borrow, so a copy is inserted
 
-import alloc.list.*
 
 struct Counter { pub var n: int32 }
 

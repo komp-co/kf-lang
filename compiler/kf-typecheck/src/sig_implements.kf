@@ -3,9 +3,6 @@
 // under, and each must find the other; a monomorphized instance
 // (`Box2__int32`) matches its template's impl (`Box2`) via `mangle_base_name`.
 
-import alloc.list.*
-import alloc.hash_map.*
-
 import kf_core.ast.types.identity_display_of
 import kf_core.ast.types.type_identity_display
 import kf_core.intern.Sym

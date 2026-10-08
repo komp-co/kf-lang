@@ -2,7 +2,6 @@
 // `var f = *frames.at(0)` copies the element, so growing `f` leaves the
 // list's element untouched and both are freed once.
 
-import alloc.list.*
 
 @derive(Clone)
 struct Frame {

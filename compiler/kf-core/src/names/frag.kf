@@ -5,8 +5,6 @@
 // collide with a user's `struct Ref<T>`, and ignoring mutability would give
 // `&T` and `&var T` one name and one layout.
 
-import alloc.list.*
-
 /// A function fragment's parameter and result fragments, the inverse of
 /// `Frag.function`.
 pub struct FnFragParts {

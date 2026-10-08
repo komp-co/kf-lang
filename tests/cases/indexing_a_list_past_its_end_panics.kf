@@ -3,7 +3,6 @@
 // `at`, `get` and `xs[i]` past the end panic, as an array's and a slice's do,
 // rather than reading whatever lies beyond the buffer.
 
-import alloc.list.*
 
 fun main(): int32 {
     var xs = List.new<int32>()

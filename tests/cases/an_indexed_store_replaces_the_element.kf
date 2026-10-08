@@ -4,7 +4,6 @@
 // and a borrowed right-hand side is copied, so `names[0] = names[1]` leaves two
 // independent strings.
 
-import alloc.list.*
 
 fun main(): int32 {
     var xs = List.new<int32>()

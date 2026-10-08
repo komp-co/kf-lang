@@ -3,8 +3,6 @@
 // time is lowered: each copy is a loop of one pass, `continue` leaves it, and
 // `break` also sets a flag the later copies test.
 
-import alloc.list.*
-
 import kf_core.span.Span
 import kf_core.ast.pattern.Arm
 import kf_core.intern.Sym

@@ -1,8 +1,6 @@
 // An inferred binding written back as a type argument, since Mono
 // materializes only from explicit ones.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.types.*
 import kf_core.intern.Sym

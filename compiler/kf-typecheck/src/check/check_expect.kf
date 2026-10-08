@@ -3,8 +3,6 @@
 // `when` branches and block tails, binding generic constructors inference
 // could not (`Option.None`), and falling back to the coercion table.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef

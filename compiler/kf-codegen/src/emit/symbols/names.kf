@@ -3,8 +3,6 @@
 // The rename table is parallel lists (old name, replacement TypeRef) so it
 // plugs into kf-core's substitution helpers. The walks live in qualify.kf.
 
-import alloc.list.*
-import alloc.hash_map.HashMap
 import core.text.byte_at_in
 
 import kf_core.span.Span

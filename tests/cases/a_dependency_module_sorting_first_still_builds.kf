@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // A dependency module instantiating a generic sorts before the module
 // defining it: `hash_map.kf` before `list.kf`.
-import alloc.hash_map.*
 
 fun main(): int32 {
     var m = HashMap.new<int32, int32>()

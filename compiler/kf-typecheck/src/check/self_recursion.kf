@@ -3,8 +3,6 @@
 // shape that can never terminate is caught: the receiver against the receiver
 // or a parameter, nothing in between. `self.x == other.x` is fine.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.intern.Sym
 import kf_core.ast.expression.Expr

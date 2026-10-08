@@ -1,8 +1,6 @@
 // Scope-exit releases as inline `Release(name)` statements at the end of each
 // scope, plus retain wrapping at alias stores.
 
-import alloc.list.*
-
 import kf_core.ast.*
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef

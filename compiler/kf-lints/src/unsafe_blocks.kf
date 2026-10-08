@@ -2,8 +2,6 @@
 // the AST keeps no trace of the block. `unsafe` in a string or a comment is
 // not a block; neither is `unsafe fun`.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.diagnostic.*
 import kf_parse.lexer.*

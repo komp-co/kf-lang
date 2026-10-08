@@ -3,7 +3,6 @@
 // An rvalue (call result, container read, field of an rvalue) passed to a
 // `&T` parameter is materialized as a compound literal `(&(T){ expr })`,
 // living for the enclosing block.
-import alloc.list.*
 
 extern "C" fun runtime_println(s: str): void
 

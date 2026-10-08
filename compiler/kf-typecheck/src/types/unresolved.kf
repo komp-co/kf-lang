@@ -2,8 +2,6 @@
 // a cc error on the mangled name. Poison is still returned, so nothing
 // reports the name twice.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.diagnostic.Diagnostic
 import kf_core.diagnostic.with_fix

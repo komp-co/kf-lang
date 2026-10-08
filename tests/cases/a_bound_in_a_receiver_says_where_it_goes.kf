@@ -3,7 +3,6 @@
 // A receiver's arguments name types, not bounds; the diagnostic names the list
 // that carries the bound.
 
-import alloc.list.*
 
 fun Iterable<T: Add>.total(): T {
     var sum = 0

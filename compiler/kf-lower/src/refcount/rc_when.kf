@@ -11,8 +11,6 @@
 // call escapes, one read through a field or as a receiver does not. Missing
 // an escape frees twice; inventing one frees never.
 
-import alloc.list.*
-
 import kf_core.ast.types.type_identity_display
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.Coercion

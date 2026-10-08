@@ -1,8 +1,6 @@
 // Move analysis over function bodies. A heap-typed local read in value
 // context (assignment rhs, by-value argument, return) is a move.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.*
 import kf_core.ast.expression.Expr

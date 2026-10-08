@@ -2,8 +2,6 @@
 // name refers to: a top-level declaration, a member by its `Owner.name` key,
 // or a parameter or local by where its binder is written.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.Module
 import kf_core.ast.declaration.DeclId

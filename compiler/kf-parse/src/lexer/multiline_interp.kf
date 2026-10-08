@@ -4,8 +4,6 @@
 // CONSTRAINT: raw except for `\$`, so a string whose `${` opens a slot can
 // also hold a literal `${`.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.intern.intern
 import kf_core.lang.lang_placeholder

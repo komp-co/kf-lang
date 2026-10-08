@@ -11,8 +11,6 @@
 // CONSTRAINT: runs before alpha_rename, so the temporary is renamed and
 // refcounted like any local.
 
-import alloc.list.*
-
 import kf_core.ast.*
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef

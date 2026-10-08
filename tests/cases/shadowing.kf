@@ -3,7 +3,6 @@
 // Shadowing: alpha_rename gives each shadowing binding a fresh name, so the C
 // has no duplicate declarations and moves and drops are per binding. Each
 // String drops once under ASan.
-import alloc.list.*
 
 fun consume(s: String): bool { return s.equals("two") }
 

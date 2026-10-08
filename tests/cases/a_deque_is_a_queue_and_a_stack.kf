@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // One deque serves as a queue (push at the back, pop at the front) and a
 // stack (push and pop at the back), owning elements of any type.
-import alloc.deque.*
 
 fun main(): int32 {
     var queue = Deque.new<String>()

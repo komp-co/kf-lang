@@ -1,14 +1,12 @@
 // The case walker, plus unit tests for the parser in case_runner.kf. Failures
 // are counted and summarised, not fatal. Paths are relative to the repo root.
 
-import alloc.list.*
 import core.assert.*
 
 import kf_assemble.walk_kf_files
 import kf_integration.integration.run
 import kf_integration.harness.*
 import alloc.path.Path
-import std.fs.absolute
 import testing.test
 
 @test
@@ -106,8 +104,8 @@ fun build_cases_out_of_process(dirs: &List<String>): List<int32> {
         val _waited = run("/bin/sh", args)
         while j in 0..k {
             val d = dirs.at(at + j).as_str()
-            runtime_println(read_file("${d}/build.log").as_str())
-            val status = read_file("${d}/build.status")
+            runtime_println(File.read("${d}/build.log").unwrap_or("").as_str())
+            val status = File.read("${d}/build.status").unwrap_or("")
             val trimmed = status.trim()
             statuses.push(if trimmed.byte_len() == 0 { 1 } else { case_parse_int32(trimmed) })
         }
@@ -121,7 +119,7 @@ fun build_cases_out_of_process(dirs: &List<String>): List<int32> {
     val dir = case_build_arg()
     if dir.byte_len() == 0 { return }
     // case_target_dir() is `<root>/kflat`; komp adds the `kflat`.
-    val shared = absolute(Path.new(case_target_dir().as_str()).parent().raw.as_str()).normalized().raw
+    val shared = Dir.current().join(Path.new(case_target_dir().as_str()).parent().raw.as_str()).normalized().raw
     if komp_build_into(dir, shared) != 0 { fail("case build failed") }
 }
 
@@ -145,9 +143,9 @@ fun prepare_case(path: str, spec: &CaseSpec): String {
     if run("mkdir", mkdir_args) != 0 {
         return String.from("could not create the case project directory")
     }
-    write_file("${dir}/kf.toml".as_str(), case_manifest(spec.name, spec.deps).as_str())
+    File.write("${dir}/kf.toml".as_str(), case_manifest(spec.name, spec.deps).as_str()).unwrap()
     // The `//!` header is a plain comment to the lexer.
-    write_file("${dir}/src/main.kf".as_str(), read_file(path).as_str())
+    File.write("${dir}/src/main.kf".as_str(), File.read(path).unwrap_or("").as_str()).unwrap()
     return ""
 }
 
@@ -179,7 +177,7 @@ fun every_case_meets_its_directive(): void {
     while path in &paths {
         if !path.contains(filter) { continue }
         val name = case_name_from_path(path)
-        val spec = parse_case_spec(name, read_file(path).as_str())
+        val spec = parse_case_spec(name, File.read(path).unwrap_or("").as_str())
         val why = prepare_case(path, &spec)
         if why.byte_len() == 0 {
             slots.push(dirs.size())

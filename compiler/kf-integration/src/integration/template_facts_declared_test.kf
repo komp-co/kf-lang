@@ -3,20 +3,18 @@
 // messages name, are checked against those declarations here.
 
 import core.assert.assert_eq
-import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.declaration.TopDecl
 import kf_parse.lexer.tokenize
 import kf_parse.parser.*
 import kf_typecheck.template.declared_facts
-import std.fs.read_to_string
 import testing.test
 
 /// `name: a b c | m n` for each `Template` struct in core: its fields, then
 /// the methods of its `impl`.
 fun core_facts(): String {
-    val src = when (read_to_string("libs/core/src/template.kf")) {
+    val src = when (File.read("libs/core/src/template.kf")) {
         Ok(text) => text
         Err(_e) => String.from("")
     }

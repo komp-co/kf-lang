@@ -13,8 +13,6 @@
 // CONSTRAINT: runs first in lower_module, before the when-expression desugar
 // and alpha_rename, so the temporary is renamed and refcounted like any local.
 
-import alloc.list.*
-
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr

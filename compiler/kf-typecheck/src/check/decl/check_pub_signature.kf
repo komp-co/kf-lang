@@ -3,8 +3,6 @@
 // private type in a public signature is defined twice in one TU: legal under
 // C23, an error under C17. Only source declarations are checked.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.Param

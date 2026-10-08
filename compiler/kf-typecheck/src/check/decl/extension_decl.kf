@@ -4,8 +4,6 @@
 // own. The verdict is recorded as `@receiver_params(T, ...)` so an importing
 // crate reads it rather than guessing again.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind

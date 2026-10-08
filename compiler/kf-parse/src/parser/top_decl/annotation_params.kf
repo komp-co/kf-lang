@@ -2,8 +2,6 @@
 // the kind words `trait`, `struct`, `enum` and `fun`, taking a declaration's
 // name, and the last may be variadic, `T..`.
 
-import alloc.list.*
-
 import kf_core.ast.declaration.*
 import kf_core.ast.annotation.name_param_type
 import kf_core.ast.annotation.variadic_param_type

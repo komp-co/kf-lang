@@ -2,8 +2,6 @@
 // crate's structs that use its annotation as imported, and its names resolve
 // where it was written.
 
-import alloc.list.*
-
 import kf_core.intern.CrateId
 import kf_core.ast.Module
 import kf_core.intern.Sym

@@ -1,8 +1,6 @@
 // Versioned `.kfi` reader. Embedded type spellings go through the ordinary
 // type parser.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef

@@ -2,8 +2,6 @@
 // declarations, and in the function phase retargets Call mangled_callees.
 // Mutates in place; only a type-name Variable receiver is replaced whole.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr

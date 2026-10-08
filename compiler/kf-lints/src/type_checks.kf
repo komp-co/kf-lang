@@ -3,8 +3,6 @@
 // value already has, a view call its `Deref` makes needless, and floats
 // compared for equality.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.intern.Sym
 import kf_core.ast.types.Type

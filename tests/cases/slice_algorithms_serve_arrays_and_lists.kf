@@ -1,7 +1,6 @@
 //! run: exit 0
 //! deps: core, alloc
 // core's slice algorithms, called straight on arrays and lists.
-import alloc.list.*
 
 struct Job {
     val priority: int32

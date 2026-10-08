@@ -2,19 +2,17 @@
 // question about it, one of the crates that can name a target for a search
 // for uses. Answers must read as if each request typed everything afresh.
 
-import alloc.list.*
 import core.assert.assert_eq
-import std.fs.scratch_path
 import kf_query.serve.ServeSession
 import kf_integration.harness.FixtureGraph
 import testing.test
 
 fun serve_fixture_path(): str {
-    return scratch_path("kf_serve_typing/src/lib.kf")
+    return Dir.scratch_path("kf_serve_typing/src/lib.kf")
 }
 
 fun other_path(): str {
-    return scratch_path("kf_serve_typing/src/other.kf")
+    return Dir.scratch_path("kf_serve_typing/src/other.kf")
 }
 
 /// ```
@@ -33,8 +31,10 @@ fun other_path(): str {
 /// }
 /// ```
 fun prepare_serve_fixture(): void {
-    unsafe { system("rm -rf ${scratch_path("kf_serve_typing")} && mkdir -p ${scratch_path("kf_serve_typing/src")}") }
-    write_file(scratch_path("kf_serve_typing/kf.toml"), "[project]\nname = \"serve_typing\"\nkind = \"lib\"\n")
+    val _cleared = Dir.remove_all(Dir.scratch_path("kf_serve_typing"))
+    val _made = Dir.create_all(Dir.scratch_path("kf_serve_typing/src"))
+    File.write(Dir.scratch_path("kf_serve_typing/kf.toml"),
+        "[project]\nname = \"serve_typing\"\nkind = \"lib\"\n").unwrap()
     val lib = """fun helper(n: int32): int32 {
     return n + 1
 }
@@ -43,8 +43,8 @@ fun uses_it_twice(): int32 {
     return helper(1) + helper(2)
 }
 """
-    write_file(serve_fixture_path(), lib.as_str())
-    write_file(other_path(), "fun elsewhere(): int32 {\n    return helper(9)\n}\n")
+    File.write(serve_fixture_path(), lib.as_str()).unwrap()
+    File.write(other_path(), "fun elsewhere(): int32 {\n    return helper(9)\n}\n").unwrap()
 }
 
 /// The `crates` param naming the fixture and what it depends on.

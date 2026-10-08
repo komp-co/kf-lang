@@ -2,8 +2,6 @@
 // a qualified, monomorphized, lowered merged module and returns them; the
 // driver decides where they land. `emit_module_kind` is the unity adapter.
 
-import alloc.list.*
-
 import kf_core.ast.*
 import kf_core.ast.declaration.TopDecl
 import kf_core.intern.*

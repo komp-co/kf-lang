@@ -1,8 +1,6 @@
 // Foldable regions: the import block and every declaration's extent, methods
 // included. One-line ranges are left for the client to drop.
 
-import alloc.list.*
-
 import kf_core.ast.Import
 import kf_core.ast.Module
 import kf_core.ast.declaration.TopDecl

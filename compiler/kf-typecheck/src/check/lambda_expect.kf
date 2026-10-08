@@ -6,8 +6,6 @@
 // concrete type. Written to the node's `type_args`, not its parameter list,
 // which a `when` holds by value.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.types.*
 import kf_core.ast.expression.Expr

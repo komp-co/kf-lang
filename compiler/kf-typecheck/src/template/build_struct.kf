@@ -1,8 +1,6 @@
 // `T.build(|field| e)`: a literal of the marked struct, `T { a: e(a), b: e(b) }`,
 // with `e` written out once per field and the binder standing for it there.
 
-import alloc.list.*
-
 import kf_core.intern.Sym
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind

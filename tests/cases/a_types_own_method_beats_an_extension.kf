@@ -4,7 +4,6 @@
 // extension. Among extensions, a specific type beats one generic in its
 // arguments, which beats a bare parameter.
 
-import alloc.list.*
 
 struct Point {
     val x: int32

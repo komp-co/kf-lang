@@ -1,7 +1,6 @@
 // Split and join are inverses: empty pieces are kept, the ends included.
 
 import core.assert.assert_eq
-import alloc.list.*
 import alloc.text_split.*
 import testing.test
 

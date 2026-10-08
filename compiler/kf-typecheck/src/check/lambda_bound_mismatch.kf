@@ -2,8 +2,6 @@
 // annotations spell. When that is not the one the bound asks for, the call
 // names an impl that is never emitted, so the two are compared here.
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr

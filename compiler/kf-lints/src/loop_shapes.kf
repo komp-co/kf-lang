@@ -1,7 +1,5 @@
 // Lints on the shape of a loop: a counter kept by hand.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.statement.Stmt

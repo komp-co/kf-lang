@@ -1,8 +1,6 @@
 // Named arguments and defaults: a call's written arguments become one per
 // parameter, in the parameters' order, before its arity is checked.
 
-import alloc.list.*
-
 import kf_core.span.Span
 import kf_core.intern.Sym
 import kf_core.intern.intern

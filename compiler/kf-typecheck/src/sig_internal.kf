@@ -1,8 +1,6 @@
 // `internal` functions and values: registered as `pub`, so every module of
 // their crate imports them, and refused to any other crate.
 
-import alloc.hash_map.*
-
 import kf_core.intern.Sym
 import kf_core.intern.CrateId
 

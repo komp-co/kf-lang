@@ -1,8 +1,6 @@
 // The command line, read into one struct. Paths default to where they sit in
 // the repository, so a run from its root needs no flags.
 
-import alloc.list.*
-
 pub struct Options {
     pub var command: String
     pub var first_seed: uint64

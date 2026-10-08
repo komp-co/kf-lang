@@ -82,8 +82,7 @@ pub fun str.to_lower(): String {
 fun str_map_case(self: str, lo: uint8, hi: uint8, table: str): String {
     val n = unsafe { kf_str_byte_len(self) }
     var out = ""
-    var i = 0
-    while i < n {
+    while i in 0..n {
         val b = unsafe { kf_str_byte_at(self, i) }
         if b >= lo && b <= hi {
             val at = (b - lo) as uint64
@@ -91,23 +90,22 @@ fun str_map_case(self: str, lo: uint8, hi: uint8, table: str): String {
         } else {
             out.append(self.substring_in(n, i, i + 1).as_str())
         }
-        i = i + 1
     }
     return out
 }
 
 /// "" when `n` is 0.
+@prelude
 pub fun str.repeat(n: uint64): String {
     var out = ""
-    var i = 0
-    while i < n {
+    while _i in 0..n {
         out.append(self)
-        i = i + 1
     }
     return out
 }
 
 /// Non-overlapping. An empty `from` returns a copy.
+@prelude
 pub fun str.replace(from: str, to: str): String {
     val fn_len = unsafe { kf_str_byte_len(from) }
     if fn_len == 0 { return String.from(self) }

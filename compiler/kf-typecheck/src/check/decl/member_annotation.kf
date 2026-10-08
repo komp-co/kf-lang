@@ -2,8 +2,6 @@
 // error there; a declared one must list `field` or `variant` among its kinds.
 // Nothing lists a member's uses: the arguments stay on the member, checked.
 
-import alloc.list.*
-
 import kf_core.span.Span
 import kf_core.ast.annotation.Annotation
 import kf_core.ast.annotation.MarkKind

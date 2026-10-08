@@ -1,8 +1,6 @@
 // What a declared annotation may mark: kinds of declaration, or functions of
 // a type, where `_` and a trailing `..` stand for anything.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.annotation.*
 import kf_core.ast.types.*

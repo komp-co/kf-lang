@@ -5,7 +5,6 @@
 // read off the receiver's impl. A type-parameter value reaches extensions
 // through its bounds.
 
-import alloc.list.*
 
 struct Point { val x: int32 }
 

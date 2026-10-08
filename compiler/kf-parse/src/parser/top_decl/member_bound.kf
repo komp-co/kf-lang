@@ -2,8 +2,6 @@
 // bounds the impl takes for each member the list keeps, which expansion
 // puts on the type parameters a member's type names.
 
-import alloc.list.*
-
 import kf_core.ast.declaration.MemberBound
 import kf_core.ast.types.TypeRef
 import kf_parse.parser.*

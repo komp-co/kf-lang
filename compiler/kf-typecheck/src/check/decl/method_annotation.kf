@@ -3,8 +3,6 @@
 // marks an impl's method as a function whose first parameter is its receiver;
 // a trait's method has no body to mark.
 
-import alloc.list.*
-
 import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 import kf_core.intern.Sym

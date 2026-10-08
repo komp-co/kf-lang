@@ -4,7 +4,6 @@
 // `str` meets `Equal` through the runtime comparison, so the searches over a
 // slice of it are instantiated like any other element type's.
 
-import alloc.list.*
 
 val KEYWORDS: str[] = ["fun", "val", "var", "val"]
 

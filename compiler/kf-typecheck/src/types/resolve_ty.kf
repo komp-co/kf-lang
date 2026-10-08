@@ -1,8 +1,6 @@
 // TypeRef to Type. Primitives are name-keyed; user names look up the decl
 // table.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.types.*
 import kf_core.diagnostic.Label

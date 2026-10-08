@@ -1,7 +1,5 @@
 // What an impl's own type parameters must satisfy for the impl to apply.
 
-import alloc.list.*
-
 import kf_core.ast.declaration.TypeParam
 
 /// One impl's parameter bounds: an entry per type parameter, in declaration

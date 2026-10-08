@@ -2,8 +2,6 @@
 // source and position. Offsets are bytes; the client converts. The questions
 // here only parse, so they answer on a file that does not typecheck.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.declaration.TopDecl
 import kf_parse.lexer.tokenize

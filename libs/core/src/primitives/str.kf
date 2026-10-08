@@ -1,10 +1,20 @@
 // Everything `str` implements.
 
 import core.display.Write
-import core.hash.hash_bytes
 
 impl Display for str { fun display(out: &var dyn Write): void { out.write_str(self) } }
 
-impl Hash for str { fun hash(): uint64 { return hash_bytes(self) } }
+/// FNV-1a over the bytes: no allocation, no libc, and `str` and `String`
+/// agree.
+impl Hash for str {
+    fun hash(): uint64 {
+        var h: uint64 = 0xcbf29ce484222325
+        while i in 0..self.byte_len() {
+            h = h ^ (self.byte_at(i) as uint64)
+            h = h * 0x100000001b3
+        }
+        return h
+    }
+}
 
 impl Default for str { static fun default(): str { return "" } }

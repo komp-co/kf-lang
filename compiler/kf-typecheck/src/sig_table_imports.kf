@@ -1,8 +1,6 @@
 // Per-file import bookkeeping: what each file imports, which imports a name
 // came through, and where a new import line goes.
 
-import alloc.list.*
-
 import kf_core.intern.Sym
 
 /// CONSTRAINT: recorded without a name: a method or type cannot be listed in

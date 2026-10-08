@@ -3,7 +3,6 @@
 // The accepted half of by_value_param_mutating_method_rejected: the same
 // mutation, with `&var` in the type.
 
-import alloc.list.*
 
 fun add(xs: &var List<int32>): void {
     xs.push(1)

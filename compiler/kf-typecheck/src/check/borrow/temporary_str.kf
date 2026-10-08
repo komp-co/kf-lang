@@ -2,8 +2,6 @@
 // whatever text it was taken from. Taken from a temporary `String`, that text
 // is freed when the statement ends and the kept `str` dangles.
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.diagnostic.Diagnostic

@@ -5,8 +5,6 @@
 // followed by a lower-case one: `HTTPServer` is `HTTP`, `Server`. A digit
 // stays with the word before it, so `Utf8Error` is `Utf8`, `Error`.
 
-import alloc.list.*
-
 import core.text.byte_at
 import kf_core.intern.Sym
 import kf_core.intern.intern

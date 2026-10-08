@@ -1,7 +1,5 @@
 // `a[i]`: a borrow, not a copy, and never across a newline.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind

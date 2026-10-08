@@ -1,9 +1,6 @@
 // Positions in an append-only list, by name: each name's in the order they
 // were added, so a lookup reads only the entries that can match.
 
-import alloc.list.*
-import alloc.hash_map.*
-
 pub struct NameIndex {
     /// Each name's list in `lists`.
     var slots: HashMap<String, uint64>

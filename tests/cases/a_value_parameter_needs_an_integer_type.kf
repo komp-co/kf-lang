@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // `M: I` holds a value of type `I`, so `I` must be an integer.
 
-import alloc.list.*
 
 struct Residue<I: Integer, M: I> {
     val value: I

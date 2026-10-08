@@ -2,8 +2,6 @@
 // that declares it, keyed `annotation name`. A built-in one, which nothing
 // declares, refers to nothing.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.*
 import kf_core.ast.annotation.Annotation

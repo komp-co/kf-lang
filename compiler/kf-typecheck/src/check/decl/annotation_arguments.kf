@@ -3,8 +3,6 @@
 // variadic last parameter takes the positional arguments left over, as a
 // list literal.
 
-import alloc.list.*
-
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
 import kf_core.ast.annotation.Annotation

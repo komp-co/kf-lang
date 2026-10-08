@@ -2,8 +2,6 @@
 // or signature pattern, or a declaration of a listed kind implementing that
 // kind's bounds.
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.*

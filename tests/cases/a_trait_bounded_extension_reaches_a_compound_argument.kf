@@ -5,8 +5,6 @@
 // `Iterable<Entry<K, V>>` infers `T = Entry<int32, int32>`, and both type
 // arguments are written back.
 
-import alloc.list.*
-import alloc.hash_map.*
 import core.entry.*
 
 fun <T> Iterable<T>.count_all(): uint64 {

@@ -414,16 +414,28 @@ fi
 
 if [ "$CHECK_CLI" = "1" ] || [ "$quick" -eq 1 ]; then
 
-# The compiler and libraries are laid out as komp fmt formats them: the
-# formatter is installed from the package index at the version below, as a
-# user would, and `--check` names every file it would change.
+# The compiler and libraries are laid out as komp fmt formats them, and
+# `--check` names every file it would change. The formatter is built from the
+# commit below with this tree's compiler and libraries.
+#
+# CONSTRAINT: komp_fmt 0.1 in the package index is written against the
+# libraries of kflat 0.28. Once a release carries this tree's, the index's
+# komp_fmt 0.2 is that commit, and this goes back to `komp tool install`.
+KOMP_FMT_COMMIT=add2da854c789e8730b1f0d0348d746474104a73
 phase "formatting"
-mkdir -p "$WORK/fmt-toolchain/bin"
+mkdir -p "$WORK/fmt-toolchain/bin" "$WORK/fmt-home/bin"
 cp "$WORK/komp" "$WORK/kflatc" "$WORK/fmt-toolchain/bin/"
 [ -e "$WORK/fmt-toolchain/libs" ] || ln -s "$ROOT/libs" "$WORK/fmt-toolchain/libs"
-KFLAT_HOME="$WORK/fmt-home" "$WORK/fmt-toolchain/bin/komp" tool install komp_fmt@0.1 > "$WORK/fmt-install.log" 2>&1 || {
+{
+    git init -q "$WORK/komp-fmt" &&
+    git -C "$WORK/komp-fmt" fetch -q --depth 1 https://github.com/komp-co/komp-fmt "$KOMP_FMT_COMMIT" &&
+    git -C "$WORK/komp-fmt" checkout -q FETCH_HEAD &&
+    sed -i.bak '/^kflat *=/d' "$WORK/komp-fmt/kf.toml" &&
+    "$WORK/fmt-toolchain/bin/komp" build "$WORK/komp-fmt" &&
+    cp "$WORK/komp-fmt/target/kflat/komp_fmt" "$WORK/fmt-home/bin/komp-fmt"
+} > "$WORK/fmt-install.log" 2>&1 || {
     cat "$WORK/fmt-install.log" >&2
-    echo "FAIL: komp_fmt could not be installed from the package index" >&2
+    echo "FAIL: komp_fmt could not be built from komp-co/komp-fmt@$KOMP_FMT_COMMIT" >&2
     exit 1
 }
 if ! unformatted=$(cd "$ROOT" && "$WORK/fmt-home/bin/komp-fmt" --check compiler libs tools); then

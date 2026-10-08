@@ -2,14 +2,7 @@
 // `--update-lint-baseline` rewrites the checked crate's rows from what its
 // files hold now, keeping every other crate's.
 
-import core.args.arg_count
-import core.args.arg_at
-import alloc.list.*
 import alloc.path.Path
-import std.fs.absolute
-import std.fs.is_file
-import std.fs.read_to_string
-import std.fs.write_text
 
 import kf_core.span.*
 import kf_core.ast.Module
@@ -19,15 +12,15 @@ import kf_lints.ratchet_counts
 
 /// What the baseline file holds, before any file is matched to its rows.
 pub mutating fun LintConfig.load_baseline(diags: &var List<Diagnostic>): void {
-    while i in 0..arg_count() {
-        if arg_at(i) == "--update-lint-baseline" { self.update_baseline = true }
-        if arg_at(i) == "--lint-baseline" && i + 1 < arg_count() {
-            self.baseline_path = absolute(arg_at(i + 1)).normalized().raw
+    while i in 0..Args.count() {
+        if Args.at(i) == "--update-lint-baseline" { self.update_baseline = true }
+        if Args.at(i) == "--lint-baseline" && i + 1 < Args.count() {
+            self.baseline_path = Dir.current().join(Args.at(i + 1)).normalized().raw
         }
     }
-    if self.baseline_path.is_empty() || !is_file(self.baseline_path) { return }
+    if self.baseline_path.is_empty() || !File.is_file(self.baseline_path) { return }
     var text = String.from("")
-    when (read_to_string(self.baseline_path)) {
+    when (File.read(self.baseline_path)) {
         Ok(read) => text = read
         Err(_) => {
             diags.push(Diagnostic.error_at(Span.none(), "cannot read ${self.baseline_path}"))
@@ -56,7 +49,7 @@ pub fun LintConfig.baseline_options(smap: &SourceMap, root: str): LintOptions {
 
 /// `path` under `dir`, which ends in `/`; "" outside it.
 fun relative_to(dir: str, path: str): String {
-    val full = absolute(path).normalized().raw
+    val full = Dir.current().join(path).normalized().raw
     if !full.starts_with(dir) { return String.from("") }
     return full.substring(dir.byte_len(), full.byte_len())
 }
@@ -78,7 +71,7 @@ pub fun LintConfig.update_baseline_from(m: &Module, smap: &SourceMap, options: &
 # commit. Regenerate with `komp lint --update-baseline`.
 """
     val text = options.baseline.rendered_with(&fresh, header)
-    when (write_text(self.baseline_path, text)) {
+    when (File.write(self.baseline_path, text)) {
         Ok(_) => { }
         Err(_) => diags.push(Diagnostic.error_at(Span.none(), "cannot write ${self.baseline_path}"))
     }

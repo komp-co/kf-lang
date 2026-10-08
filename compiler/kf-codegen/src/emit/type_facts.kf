@@ -1,9 +1,6 @@
 // What glue asks about the types a module declares, gathered once from its
 // declarations so each question is a lookup rather than a walk of them.
 
-import alloc.list.*
-import alloc.hash_map.*
-
 import kf_core.ast.*
 import kf_core.ast.types.*
 

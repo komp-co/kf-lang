@@ -1,10 +1,8 @@
 // The `[dev-dependencies]` table a scratch project with tests names, pointing
 // at the repository's `libs/testing`.
 
-import std.fs.absolute
-
 /// CONSTRAINT: the tests run from the repository root.
 pub fun testing_dev_dependency(): String {
-    val testing = absolute("libs/testing").normalized().raw
+    val testing = Dir.current().join("libs/testing").normalized().raw
     return "\n[dev-dependencies]\ntesting = { path = \"${testing}\" }\n"
 }

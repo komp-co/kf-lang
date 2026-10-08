@@ -4,8 +4,6 @@
 // (`List<Point>`) beats a generic one (`List<T>`), which beats a bare
 // parameter (`T`).
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind

@@ -4,8 +4,6 @@
 // In kf-core because kf-interface writes the same glue names into a `.kfi`
 // and cannot see kf-codegen; two spellings would drift into a link error.
 
-import alloc.list.*
-
 /// Types whose C identity the runtime fixes.
 val RUNTIME_TYPE_NAMES: str[] = [
     "str", "Box", "Ptr", "bool", "char", "void", "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32",

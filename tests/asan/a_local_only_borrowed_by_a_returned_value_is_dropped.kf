@@ -2,7 +2,6 @@
 // A value that cannot hold a borrow keeps no local alive: `scratch` is lent
 // to the call and dropped once the result exists.
 
-import alloc.list.*
 
 struct Holder {
     pub var items: List<String>

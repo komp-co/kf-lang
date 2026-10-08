@@ -3,7 +3,6 @@
 
 import kf_integration.harness.typed_crate_for
 import core.assert.assert_eq
-import std.fs.scratch_path
 import kf_query.editor.render_references_json
 import kf_query.editor.render_rename_json
 import testing.test
@@ -38,10 +37,10 @@ pub fun loudest<T: Loud>(a: &T): int32 {
 }
 
 fun types_crate(): TypedCrate {
-    val root = scratch_path("kf_query_type_refs")
+    val root = Dir.scratch_path("kf_query_type_refs")
     unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
-    write_file("${root}/kf.toml", "[project]\nname = \"query_type_refs\"\nkind = \"lib\"\n")
-    write_file("${root}/src/lib.kf", types_source())
+    File.write("${root}/kf.toml", "[project]\nname = \"query_type_refs\"\nkind = \"lib\"\n").unwrap()
+    File.write("${root}/src/lib.kf", types_source()).unwrap()
     return typed_crate_for("${root}/src/lib.kf")
 }
 
@@ -59,7 +58,7 @@ fun type_start(needle: str, into: uint64): String {
 @test
 fun a_field_type_names_its_struct(): void {
     val json = type_references_at("from: Point", 7)
-    val file = "${scratch_path("kf_query_type_refs")}/src/lib.kf"
+    val file = "${Dir.scratch_path("kf_query_type_refs")}/src/lib.kf"
     val declared = "\"declaration\":{\"file\":\"${file}\",${type_start("Point {", 0)}"
     assert_eq(json.contains(declared), true, "the struct's own name")
 }

@@ -1,7 +1,6 @@
 // Conditional arms join to the wider integer rather than the first arm's.
 
 import core.assert.assert_eq
-import alloc.list.*
 
 import kf_core.ast.types.Provenance
 import kf_core.ast.types.Type

@@ -2,9 +2,6 @@
 // prototypes. A struct held by value must be complete where it is used, so
 // bodies are emitted in dependency order; cycles go through `Ptr<T>`.
 
-import alloc.list.*
-import alloc.hash_map.*
-
 import kf_core.ast.Module
 import kf_core.ast.NameIndex
 import kf_core.ast.types.TypeRef

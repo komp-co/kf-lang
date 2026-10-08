@@ -3,7 +3,6 @@
 // A projection as a type argument, `List<F.Out>` and `F.Out?`; two calls at
 // impls choosing different members do not collide.
 
-import alloc.list.*
 
 struct Inc { }
 impl Call1<int32> for Inc {

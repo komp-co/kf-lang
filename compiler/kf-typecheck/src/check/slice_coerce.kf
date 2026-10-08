@@ -2,8 +2,6 @@
 // array or list argument binds a slice parameter's element; a value lends
 // itself through `Deref`.
 
-import alloc.list.*
-
 import kf_core.span.Span
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef

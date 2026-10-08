@@ -1,6 +1,5 @@
 //! run: exit 0
 //! deps: core, alloc
-import alloc.list.*
 
 // Copying a Holder deep-copies its String field, or the two share a buffer
 // and double-free.

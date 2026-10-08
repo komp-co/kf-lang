@@ -1,6 +1,5 @@
 // What a question about the typed crates around a file names.
 
-import alloc.list.*
 import json.reader.*
 import kf_driver.build.CrateSource
 

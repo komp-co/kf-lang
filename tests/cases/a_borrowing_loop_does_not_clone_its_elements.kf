@@ -3,7 +3,6 @@
 // `while x in &xs` binds a borrow of each element through `next_ptr()`, with
 // no clone and no drop; `while x in xs` binds a deep-cloned value.
 
-import alloc.list.*
 
 /// The address of a `str`'s bytes: a borrowed element shares the source's
 /// buffer, a cloned one has its own.

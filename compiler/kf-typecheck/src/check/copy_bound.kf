@@ -1,8 +1,6 @@
 // Whether a type satisfies `Copy`, judged structurally: the builtin wrappers
 // have no impl to find, and an instance must meet its impl's own bounds.
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.span.Span
 

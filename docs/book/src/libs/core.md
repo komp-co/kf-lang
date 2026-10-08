@@ -47,8 +47,7 @@ it by importing its module.
 ## Text: searching, slicing, and case
 
 Text operations are **extensions** on `str` and `String`, so a literal and an
-owned buffer behave alike. The common forms are `@prelude` and need no import;
-the rest are imported from `core.text` and `alloc.text_edit`:
+owned buffer behave alike. They are `@prelude` and need no import:
 
 ```kflat
 if path.ends_with(".kf") { ... }   // no allocation
@@ -62,8 +61,8 @@ and `ends_with(path, ".kf")` name the same function. Use whichever reads
 better at the call; the method form is the one this book uses.
 
 The division is the allocator, not the alphabet. Answering without storage
-lives in `core.text` (the forms marked with `_in`, `is_blank`, `last_index_of`
-and `count_of` are not prelude and need `import core.text.*`):
+lives in `core.text` (only the forms marked with `_in`, for a caller that
+already knows the length, need `import core.text.*`):
 
 | Method | Answers |
 | --- | --- |
@@ -73,8 +72,7 @@ and `count_of` are not prelude and need `import core.text.*`):
 | `count_of(n)` | how many non-overlapping occurrences |
 
 Producing text needs an allocator, so it lives in `alloc`, each answering with
-a new `String` (`repeat` and `replace` are not prelude and need
-`import alloc.text_edit.*`):
+a new `String`:
 
 | Method | Answers |
 | --- | --- |
@@ -467,7 +465,7 @@ the same value. For a fixed form, write into any sink, or ask alloc for a
 ## Duration, Date, and DateTime
 
 Time arithmetic is pure, so it lives here; reading a clock is
-[`std.time`](std.md).
+[`std`'s `Clock`](std.md#the-clocks).
 
 ```kflat
 val d = Duration.from_millis(1500)
@@ -480,6 +478,9 @@ println(t)          // "1970-01-01T00:00:00Z"
 Date.of(2024, 2, 29).is_valid()      // true
 Date.of(2023, 2, 29).is_valid()      // false
 Date.of(2026, 12, 31).plus_days(1)   // 2027-01-01
+Date.from_days(0)                    // 1970-01-01
+Date.is_leap_year(2024)              // true
+Date.days_in_month(2023, 2)          // 28
 ```
 
 `Duration` is **signed**: the useful operation is the difference between two

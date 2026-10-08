@@ -7,8 +7,6 @@
 //
 // Paths are relative to the baseline's own directory, `/`-separated.
 
-import alloc.list.*
-
 /// One row: `lint` allows `count` in the file at `path`.
 @derive(Clone)
 pub struct BaselineRow {

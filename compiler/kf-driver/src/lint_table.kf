@@ -1,10 +1,6 @@
 // `kflatc lints`: every lint, by group, at the level this command line's
 // configuration gives it.
 
-import alloc.list.*
-import core.args.arg_at
-import core.args.arg_count
-
 import kf_core.diagnostic.*
 
 /// One group heading per group, then a row per lint: its name, its level
@@ -60,8 +56,8 @@ pub fun print_lint_table(): int32 {
     while d in &diags { println("error: ${d.primary.message}") }
     if !diags.is_empty() { return 1 }
     var as_json = false
-    while i in 0..arg_count() {
-        if arg_at(i) == "--format=json" { as_json = true }
+    while i in 0..Args.count() {
+        if Args.at(i) == "--format=json" { as_json = true }
     }
     if as_json {
         println(lint_list_json(&cfg).as_str())

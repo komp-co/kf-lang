@@ -1,8 +1,6 @@
 // Names a declaration references, for the hidden-support closure. Matching
 // them to declarations is export_set.kf's job.
 
-import alloc.list.*
-
 import kf_core.ast.expression.view
 import kf_core.ast.types.view
 import kf_core.ast.types.Type

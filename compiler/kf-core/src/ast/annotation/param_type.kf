@@ -3,8 +3,6 @@
 // taking every remaining positional argument. Each is a `Named` type no
 // source can write as one: a keyword, or `..` around the element type.
 
-import alloc.list.*
-
 import kf_core.span.Span
 import kf_core.intern.Sym
 import kf_core.intern.intern

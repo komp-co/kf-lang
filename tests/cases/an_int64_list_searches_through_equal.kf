@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // `contains`, `index_of` and `last_index_of` reach `int64`'s `Equal` through a
 // generic body, which passes self by pointer as it does at every width.
-import alloc.list.*
 
 fun main(): int32 {
     var xs = List.new<int64>()

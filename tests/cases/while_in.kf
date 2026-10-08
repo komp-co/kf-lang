@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // `while x in collection` borrows the container, so `xs` stays usable.
 // Move-only elements are yielded as owned copies, clean under ASan.
-import alloc.list.*
 
 extern "C" fun runtime_println(s: str): void
 

@@ -4,20 +4,19 @@
 import kf_integration.harness.typed_crate_for
 import kf_integration.harness.typed_crate_for_overlay
 import core.assert.assert_eq
-import std.fs.scratch_path
 import kf_query.editor.render_completion_json
 import testing.test
 
 extern "C" fun system(cmd: str): int32
 
 fun completion_fixture_path(): str {
-    return scratch_path("kf_query_completion/src/main.kf")
+    return Dir.scratch_path("kf_query_completion/src/main.kf")
 }
 
 /// Two fields, a static and an instance method, and `p.shifted(1).x`.
 fun prepare_completion_fixture(): void {
-    unsafe { system("rm -rf ${scratch_path("kf_query_completion")} && mkdir -p ${scratch_path("kf_query_completion/src")}") }
-    write_file(scratch_path("kf_query_completion/kf.toml"), "[project]\nname = \"query_completion\"\nkind = \"lib\"\n")
+    unsafe { system("rm -rf ${Dir.scratch_path("kf_query_completion")} && mkdir -p ${Dir.scratch_path("kf_query_completion/src")}") }
+    File.write(Dir.scratch_path("kf_query_completion/kf.toml"), "[project]\nname = \"query_completion\"\nkind = \"lib\"\n").unwrap()
     var src = String.from("pub struct Point {\n")
     src.append("    pub val x: int32\n")
     src.append("    pub val y: int32\n")
@@ -37,7 +36,7 @@ fun prepare_completion_fixture(): void {
     src.append("    val p = Point { x: 1, y: 2 }\n")
     src.append("    return p.shifted(1).x\n")
     src.append("}\n")
-    write_file(completion_fixture_path(), src)
+    File.write(completion_fixture_path(), src).unwrap()
 }
 
 fun completion_at(offset: uint32): String {

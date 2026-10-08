@@ -3,7 +3,6 @@
 // trait's iterator: the strings are borrowed, never dropped by the walk, and
 // the list is dropped once.
 
-import alloc.list.*
 
 fun Iterable<String>.total_len(): uint64 {
     var n: uint64 = 0

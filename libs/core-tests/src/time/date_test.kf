@@ -3,44 +3,36 @@
 import core.assert.assert_eq
 import core.time.*
 import core_tests.renders_as
-import core_tests.new_render_digest
-import core_tests.digest_matches
 import testing.test
 
-fun padded_as(value: int64, width: uint64, expected: str): bool {
-    var d = new_render_digest()
-    write_padded(&var d, value, width)
-    return digest_matches(&d, expected)
-}
-
 @test fun the_epoch_is_day_zero(): void {
-    assert_eq(days_from_civil(1970, 1, 1), 0, "epoch")
-    assert_eq(renders_as(&(civil_from_days(0)), "1970-01-01"), true, "back again")
+    assert_eq(Date.of(1970, 1, 1).to_days(), 0, "epoch")
+    assert_eq(renders_as(&(Date.from_days(0)), "1970-01-01"), true, "back again")
 }
 
 @test fun civil_and_days_are_inverses(): void {
     // Across a leap day, a century, and a pre-epoch date.
-    assert_eq(renders_as(&(civil_from_days(days_from_civil(2024, 2, 29))), "2024-02-29"), true, "leap day")
-    assert_eq(renders_as(&(civil_from_days(days_from_civil(1900, 3, 1))), "1900-03-01"), true, "non-leap century")
-    assert_eq(renders_as(&(civil_from_days(days_from_civil(2000, 2, 29))), "2000-02-29"), true, "leap century")
-    assert_eq(renders_as(&(civil_from_days(days_from_civil(1969, 12, 31))), "1969-12-31"), true, "before the epoch")
-    assert_eq(renders_as(&(civil_from_days(days_from_civil(1, 1, 1))), "0001-01-01"), true, "year one")
+    assert_eq(renders_as(&(Date.from_days(Date.of(2024, 2, 29).to_days())), "2024-02-29"), true, "leap day")
+    assert_eq(renders_as(&(Date.from_days(Date.of(1900, 3, 1).to_days())), "1900-03-01"), true, "non-leap century")
+    assert_eq(renders_as(&(Date.from_days(Date.of(2000, 2, 29).to_days())), "2000-02-29"), true, "leap century")
+    assert_eq(renders_as(&(Date.from_days(Date.of(1969, 12, 31).to_days())), "1969-12-31"), true, "before the epoch")
+    assert_eq(renders_as(&(Date.from_days(Date.of(1, 1, 1).to_days())), "0001-01-01"), true, "year one")
 }
 
 // 1900 is not a leap year and 2000 is.
 @test fun leap_years_follow_the_gregorian_rule(): void {
-    assert_eq(is_leap_year(2024), true, "ordinary leap year")
-    assert_eq(is_leap_year(2023), false, "ordinary year")
-    assert_eq(is_leap_year(1900), false, "century that is not")
-    assert_eq(is_leap_year(2000), true, "century that is")
+    assert_eq(Date.is_leap_year(2024), true, "ordinary leap year")
+    assert_eq(Date.is_leap_year(2023), false, "ordinary year")
+    assert_eq(Date.is_leap_year(1900), false, "century that is not")
+    assert_eq(Date.is_leap_year(2000), true, "century that is")
 }
 
 @test fun month_lengths(): void {
-    assert_eq(days_in_month(2024, 2), 29, "february in a leap year")
-    assert_eq(days_in_month(2023, 2), 28, "february otherwise")
-    assert_eq(days_in_month(2023, 1), 31, "january")
-    assert_eq(days_in_month(2023, 4), 30, "april")
-    assert_eq(days_in_month(2023, 12), 31, "december")
+    assert_eq(Date.days_in_month(2024, 2), 29, "february in a leap year")
+    assert_eq(Date.days_in_month(2023, 2), 28, "february otherwise")
+    assert_eq(Date.days_in_month(2023, 1), 31, "january")
+    assert_eq(Date.days_in_month(2023, 4), 30, "april")
+    assert_eq(Date.days_in_month(2023, 12), 31, "december")
 }
 
 @test fun validity_rejects_days_that_do_not_exist(): void {
@@ -97,8 +89,8 @@ fun padded_as(value: int64, width: uint64, expected: str): bool {
     assert_eq(renders_as(&(DateTime.of(Date.of(2026, 8, 21), 12, 34, 56)),
         "2026-08-21T12:34:56Z"), true, "full timestamp")
     assert_eq(renders_as(&(Date.of(2026, 1, 2)), "2026-01-02"), true, "fields are padded")
-    assert_eq(padded_as(7, 3, "007"), true, "padding")
-    assert_eq(padded_as(-7, 3, "-007"), true, "the sign stays outside the padding")
-    assert_eq(padded_as(12345, 2, "12345"), true, "never truncates")
-    assert_eq(padded_as(0, 2, "00"), true, "zero is a digit")
+    assert_eq(renders_as(&(Date.of(7, 1, 2)), "0007-01-02"), true, "padding")
+    assert_eq(renders_as(&(Date.of(-7, 1, 2)), "-0007-01-02"), true, "the sign stays outside the padding")
+    assert_eq(renders_as(&(Date.of(12345, 1, 2)), "12345-01-02"), true, "never truncates")
+    assert_eq(renders_as(&(DateTime.of(Date.of(2026, 1, 2), 0, 0, 0)), "2026-01-02T00:00:00Z"), true, "zero is a digit")
 }

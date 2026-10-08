@@ -8,10 +8,8 @@ impl List<T> {
     /// `xs.map(|x| x % 2 == 1)` is a `List<bool>`.
     pub fun map<F: Call1<T>>(f: F): List<F.Out> {
         var out = List.new<F.Out>()
-        var i = 0
-        while i < self.size() {
+        while i in 0..self.size() {
             out.push(f.call(unsafe { clone_place<T>(self.data + i) }))
-            i = i + 1
         }
         return out
     }
@@ -19,12 +17,10 @@ impl List<T> {
     /// Kept elements are owned copies.
     pub fun filter<F: Call1<T>>(keep: F): List<T> {
         var out = List.new<T>()
-        var i = 0
-        while i < self.size() {
+        while i in 0..self.size() {
             if keep.call(unsafe { clone_place<T>(self.data + i) }) {
                 out.push(unsafe { clone_place<T>(self.data + i) })
             }
-            i = i + 1
         }
         return out
     }

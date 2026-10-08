@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // `&T[]` takes any length: an array of each length, a list, a borrow of
 // either, and a literal, which builds an array in place.
-import alloc.list.*
 
 fun total(xs: &int32[]): int32 {
     var sum = 0

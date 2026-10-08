@@ -1,7 +1,5 @@
 // An enum's tag enum, its C body, and its drop, clone and retain functions.
 
-import alloc.list.*
-
 import kf_core.ast.*
 import kf_core.ast.declaration.Variant
 import kf_core.names.CName

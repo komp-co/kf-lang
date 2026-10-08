@@ -2,8 +2,6 @@
 // with matching arity and types, nothing undeclared, and the associated-type
 // contract.
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.TopDecl

@@ -1,8 +1,6 @@
 // Lints on how big a declaration is: how many parameters a function takes
 // and how many lines it spans, and how many fields a struct holds.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.declaration.Field
 import kf_core.ast.declaration.Param

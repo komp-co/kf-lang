@@ -5,24 +5,20 @@
 import core.assert.assert_eq
 import alloc.path.Path
 import kf_integration.harness.komp_build
-import std.fs.create_dir_all
-import std.fs.remove_dir_all
-import std.fs.scratch_path
-import std.fs.write_text
 import testing.test
 
 extern "C" fun system(cmd: str): int32
 
 fun entry_dir(name: str): str {
-    return scratch_path("kf_annotated_entry_${name}")
+    return Dir.scratch_path("kf_annotated_entry_${name}")
 }
 
 /// A copy of `libs/core` declaring `@main` and `@test_main`, once per run.
 fun entry_core(): String {
     val dir = entry_dir("core")
-    val _cleared = remove_dir_all(dir)
+    val _cleared = Dir.remove_all(dir)
     val _copied = unsafe { system("cp -r libs/core ${dir} && rm -rf ${dir}/target") }
-    val _declared = write_text("${dir}/src/program_entry.kf".as_str(), """@prelude
+    val _declared = File.write("${dir}/src/program_entry.kf".as_str(), """@prelude
 pub annotation main unique on () -> int32
 
 @prelude
@@ -33,12 +29,12 @@ pub annotation test_main unique on () -> int32
 
 fun write_entry_crate(name: str, kind: str, source: str): void {
     val dir = entry_dir(name)
-    val _cleared = remove_dir_all(dir)
-    val _made = create_dir_all(Path.new("${dir}/src".as_str()))
+    val _cleared = Dir.remove_all(dir)
+    val _made = Dir.create_all("${dir}/src".as_str())
     val deps = "[dependencies]\ncore = { path = \"../kf_annotated_entry_core\" }\n"
-    val _manifest = write_text("${dir}/kf.toml".as_str(), "[project]\nname = \"${name}\"\nkind = \"${kind}\"\n${deps}")
+    val _manifest = File.write("${dir}/kf.toml".as_str(), "[project]\nname = \"${name}\"\nkind = \"${kind}\"\n${deps}")
     val file = if kind == "lib" { "lib.kf" } else { "main.kf" }
-    val _source = write_text("${dir}/src/${file}".as_str(), source)
+    val _source = File.write("${dir}/src/${file}".as_str(), source)
 }
 
 @test

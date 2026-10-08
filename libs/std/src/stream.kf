@@ -84,19 +84,22 @@ impl Drop for Stream {
 }
 
 /// The two ends of a pipe: what is written to `writer` is read from
-/// `reader`. A spawned child inherits neither.
+/// `reader`.
 pub struct Pipe {
     pub var reader: Stream
     pub var writer: Stream
 }
 
-pub fun pipe(): Result<Pipe, IoError> {
-    val ends = kf_stream_pipe()
-    if ends < 0 {
-        val code = kf_stream_errno()
-        return Result.Err(IoError { path: "pipe", code: code, message: kf_stream_error_text(code) })
+impl Pipe {
+    /// A new pipe; a spawned child inherits neither end.
+    pub static fun new(): Result<Pipe, IoError> {
+        val ends = kf_stream_pipe()
+        if ends < 0 {
+            val code = kf_stream_errno()
+            return Result.Err(IoError { path: "pipe", code: code, message: kf_stream_error_text(code) })
+        }
+        val reader = Stream.owning((ends >> 32) as int32, "pipe")
+        val writer = Stream.owning((ends & 4294967295) as int32, "pipe")
+        return Result.Ok(Pipe { reader: reader, writer: writer })
     }
-    val reader = Stream.owning((ends >> 32) as int32, "pipe")
-    val writer = Stream.owning((ends & 4294967295) as int32, "pipe")
-    return Result.Ok(Pipe { reader: reader, writer: writer })
 }

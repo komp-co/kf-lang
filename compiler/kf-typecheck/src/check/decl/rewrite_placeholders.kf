@@ -3,8 +3,6 @@
 // rewrites them to the real names in every type position before any other
 // pass reads them.
 
-import alloc.list.*
-
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind

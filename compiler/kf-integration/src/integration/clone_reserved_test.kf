@@ -1,6 +1,5 @@
 // `clone` is reserved for a Self-returning deep copy. check_module returns
 // the error count.
-import alloc.list.*
 import core.assert.assert_eq
 
 import kf_core.span.*

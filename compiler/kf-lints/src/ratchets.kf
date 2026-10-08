@@ -4,8 +4,6 @@
 // with one, a count past the row, and a count under it, so the row comes down
 // as the file does.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.diagnostic.*
 

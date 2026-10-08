@@ -5,7 +5,6 @@
 // locals to keep this about the two impls; the literal form is
 // `a_range_literal_reaches_a_uint64_slot`.
 import core.range.*
-import alloc.list.*
 
 struct Bag {
     pub var xs: List<int32>

@@ -3,7 +3,6 @@
 // A list of borrows: an element is pushed by address, with or without a
 // written `&`, and read back through the borrow.
 
-import alloc.list.*
 
 struct Square { pub val side: int32 }
 

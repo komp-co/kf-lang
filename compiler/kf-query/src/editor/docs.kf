@@ -2,8 +2,6 @@
 // `tokenize_with_comments` rather than carried on the AST, which no other
 // pass wants. Lexed, so `"///"` inside a string is not documentation.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_parse.lexer.tokenize_with_comments
 

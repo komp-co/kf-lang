@@ -1,7 +1,5 @@
 // One crate as kflatc compiles it: what its command line names.
 
-import alloc.list.*
-
 pub struct CompileUnit {
     pub val name: String
     pub val root: String

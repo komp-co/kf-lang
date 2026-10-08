@@ -3,7 +3,6 @@
 // and dropped once, a temporary one is dropped after the call, and a
 // `mutating` one is changed in place.
 
-import alloc.list.*
 
 fun String.twice_len(): uint64 {
     return self.byte_len() * 2

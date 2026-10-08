@@ -1,11 +1,10 @@
 // Signatures by the declaration Resolve says a name means.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.declaration.DeclId
 import kf_resolve.DeclTable
 import kf_typecheck.types.runtime_prelude_declares
+import kf_resolve.none_index
 
 impl SigTable {
     /// Records the signature at `at` as `decl`'s; the first one stays.

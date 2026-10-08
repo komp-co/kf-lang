@@ -1,10 +1,8 @@
 // The signature list and its indexes by name: each name's registrations in
 // order, and the heads a method lookup asks for.
 
-import alloc.list.*
-import alloc.hash_map.*
-
 import core.text.byte_at_in
+import kf_resolve.none_index
 
 impl SigTable {
     pub mutating fun insert(sig: FnSignature): void {

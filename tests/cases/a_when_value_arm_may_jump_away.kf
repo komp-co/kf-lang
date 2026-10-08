@@ -3,7 +3,6 @@
 // An arm or branch ending in `return`, `break` or `continue` never yields,
 // so a `when` or `if` used as a value accepts it.
 
-import alloc.list.*
 
 fun halves_of_evens(xs: &List<int32>): int32 {
     var total = 0

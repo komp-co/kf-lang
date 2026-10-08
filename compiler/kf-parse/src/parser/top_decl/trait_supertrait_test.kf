@@ -1,6 +1,5 @@
 import core.assert.assert_eq
 import core.assert.fail
-import alloc.list.*
 import kf_parse.parser.parser_for
 import testing.test
 

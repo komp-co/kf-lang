@@ -2,8 +2,6 @@
 // `String`'s `fun deref(): str { return self.as_str() }`. A call to it where
 // the deref would happen anyway says nothing the compiler does not.
 
-import alloc.list.*
-
 import kf_core.intern.Sym
 import kf_core.intern.intern
 import kf_core.ast.expression.Expr

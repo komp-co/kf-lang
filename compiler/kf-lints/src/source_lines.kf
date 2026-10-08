@@ -1,8 +1,6 @@
 // Lints read off a file's text rather than its tree: lines too long, files
 // too long, and comments that leave work for later.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.diagnostic.*
 

@@ -2,8 +2,6 @@
 // a half-typed member does not parse; what the receiver is comes from the
 // checker, at the byte before the dot. Scope completion is scope.kf.
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.TopDecl

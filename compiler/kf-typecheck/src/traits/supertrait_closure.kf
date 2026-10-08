@@ -3,8 +3,6 @@
 // visited check, which makes a cycle terminate. Names are copied out before
 // the list grows.
 
-import alloc.list.*
-
 import kf_core.span.Span
 
 /// Each once, in first-reached order, never the starting trait. An

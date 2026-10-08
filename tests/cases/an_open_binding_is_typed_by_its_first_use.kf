@@ -3,8 +3,6 @@
 // `List.new()` with no type argument, or a bare `null`, bound without an
 // annotation: the binding's first use says what it holds.
 
-import alloc.list.*
-import alloc.hash_map.HashMap
 
 struct Point { pub val x: int32 }
 

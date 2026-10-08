@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // `val b = &xs` binds a borrow, not a moved or cloned list; `(*b).size()`
 // works too.
-import alloc.list.*
 
 fun sum_through(b: &List<int32>): int32 {
     var total: int32 = 0

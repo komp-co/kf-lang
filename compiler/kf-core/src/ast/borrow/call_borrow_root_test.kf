@@ -1,7 +1,6 @@
 // A call's returned borrow roots at the one argument it was lent.
 
 import core.assert.assert_eq
-import alloc.list.*
 import kf_core.span.Span
 import kf_core.ast.expression.*
 import kf_core.intern.intern

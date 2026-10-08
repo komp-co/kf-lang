@@ -2,30 +2,24 @@
 // error from the checker, with what to write instead.
 
 import core.assert.assert_eq
-import alloc.list.*
 import alloc.path.Path
-import std.fs.absolute
 
 import kf_core.diagnostic.Diagnostics
 import kf_driver.fresh_source_map
 import kf_driver.new_lint_config
 import kf_driver.checked_diagnostics
 import kf_integration.harness.assemble_project
-import std.fs.create_dir_all
-import std.fs.remove_dir_all
-import std.fs.scratch_path
-import std.fs.write_text
 import testing.test
 
 /// What checking `source` as a one-file bin reports, a message a line.
 fun errors_of(name: str, source: str): String {
-    val dir = scratch_path(name)
-    val _cleared = remove_dir_all(dir)
-    val _made = create_dir_all(Path.new("${dir}/src"))
-    val libs = absolute("libs").normalized().raw
+    val dir = Dir.scratch_path(name)
+    val _cleared = Dir.remove_all(dir)
+    val _made = Dir.create_all("${dir}/src")
+    val libs = Dir.current().join("libs").normalized().raw
     val deps = "[dependencies]\ncore = { path = \"${libs}/core\" }\nalloc = { path = \"${libs}/alloc\" }\n"
-    val _manifest = write_text("${dir}/kf.toml", "[project]\nname = \"${name}\"\nkind = \"bin\"\n${deps}")
-    val _source = write_text("${dir}/src/main.kf", source)
+    val _manifest = File.write("${dir}/kf.toml", "[project]\nname = \"${name}\"\nkind = \"bin\"\n${deps}")
+    val _source = File.write("${dir}/src/main.kf", source)
     val smap = fresh_source_map()
     var pdiags = Diagnostics.new()
     var merged = assemble_project(dir, smap, &var pdiags)

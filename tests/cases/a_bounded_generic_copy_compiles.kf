@@ -3,7 +3,6 @@
 // The same read with the copy allowed in the signature: a deep copy for
 // `T: Clone`, a byte copy for `T: Copy`.
 
-import alloc.list.*
 
 fun cloned_first<T: Clone>(xs: &List<T>): T {
     return *xs.at(0)

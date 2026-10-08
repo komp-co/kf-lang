@@ -1,8 +1,6 @@
 // `Type.method<A, B>(...)` writes the receiver's type arguments and the
 // method's own in one list. The boundary is the method template's own arity.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.TopDecl

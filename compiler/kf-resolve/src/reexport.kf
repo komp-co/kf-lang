@@ -2,8 +2,6 @@
 // surface of the module it is written in, so importing that module admits it
 // too.
 
-import alloc.list.*
-
 import kf_core.ast.*
 import kf_core.diagnostic.*
 import kf_core.intern.*

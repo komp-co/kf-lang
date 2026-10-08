@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // `T` in `List<T>` stands for a type, and `7` is a value.
 
-import alloc.list.*
 
 struct Residue<I: Integer, M: I> {
     val value: I

@@ -4,8 +4,6 @@
 // `args.check(x)` and `rule(x)` call the function it names, and `args.format`
 // in a type is the type.
 
-import alloc.list.*
-
 import kf_core.intern.Sym
 import kf_core.intern.intern
 import kf_core.ast.expression.list_literal.array_literal_callee

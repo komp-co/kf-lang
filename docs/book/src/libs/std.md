@@ -1,7 +1,10 @@
 # std
 
-`std` provides filesystem, environment, input, stream, process and time utilities. Its modules
-are independent — import what you need.
+`std` is what needs an operating system: files and directories, the
+environment, standard input and error, processes, streams and the clocks.
+Each is a type — `File`, `Dir`, `Env`, `Stdin`, `Command`, `Stream`, `Clock` —
+and types need no import, so most programs import nothing from `std`. The
+exceptions are the two free functions `eprint` and `eprintln`.
 
 ## Using std
 
@@ -26,28 +29,26 @@ A [freestanding](https://github.com/komp-co/komp/blob/main/docs/book/src/start/p
 `std`: processes, files and streams need an operating system. A crate of one
 that imports `std`, or names it, is an error that says so.
 
-## std.fs
+## Files and directories
 
-Reading and writing files, and the filesystem around them. The operations
-that can fail answer a `Result`, whose error names the path and the operating
-system's reason, so a missing file is not mistaken for an empty one:
+`File` reads and writes whole files by path, and `Dir` works on directories.
+The operations that can fail answer a `Result`, whose error names the path
+and the operating system's reason, so a missing file is not mistaken for an
+empty one:
 
 ```kflat
-import std.fs.read_to_string
-import std.fs.write_text
-
 fun main(): int32 {
-    when write_text("notes.txt", "first line\n") {
+    when File.write("notes.txt", "first line\n") {
         Ok(_) => {}
         Err(error) => {
             println("cannot write: ${error}")
             return 1
         }
     }
-    val text = read_to_string("notes.txt").unwrap()
+    val text = File.read("notes.txt").unwrap()
     println(text.as_str())
 
-    when read_to_string("missing.txt") {
+    when File.read("missing.txt") {
         Ok(_) => println("unexpected")
         Err(error) => println("${error}")
     }
@@ -61,87 +62,85 @@ first line
 missing.txt: No such file or directory
 ```
 
-| Function | Return | Notes |
+| On `File` | Returns | Notes |
 |---|---|---|
-| `read_to_string(path: str)` | `Result<String, IoError>` | The whole file |
-| `write_text(path: str, contents: str)` | `Result<void, IoError>` | Creates or truncates |
-| `write_text_atomic(path: str, contents: str)` | `Result<void, IoError>` | As `write_text`, but a reader sees the old file or the new one, never part of either |
-| `remove_file(path: str)` | `Result<void, IoError>` | |
-| `remove_dir_all(path: str)` | `Result<void, IoError>` | A directory and everything under it |
-| `rename_path(from: str, to: str)` | `Result<void, IoError>` | Replaces `to` if it exists |
-| `exists(path: str)` | `bool` | |
-| `is_file(path: str)` | `bool` | A regular file |
-| `is_directory(path: str)` | `bool` | |
-| `read_dir(path: str)` | `Result<List<String>, IoError>` | Entry names, sorted, without `.` and `..` |
-| `create_dir_all(Path)` | `bool` | `true` on success; creates parents |
-| `TempDir.new(str)` | `TempDir` | Drops on scope exit — deletes the directory |
-| `absolute(path: str)` | `Path` | Joined to the working directory unless already absolute; `..` kept as written |
+| `File.read(path: str)` | `Result<String, IoError>` | The whole file |
+| `File.write(path: str, contents: str)` | `Result<void, IoError>` | Creates or truncates |
+| `File.write_atomic(path: str, contents: str)` | `Result<void, IoError>` | As `write`, but a reader sees the old file or the new one, never part of either |
+| `File.remove(path: str)` | `Result<void, IoError>` | |
+| `File.rename(from: str, to: str)` | `Result<void, IoError>` | A file or a directory; replaces a file at `to` |
+| `File.exists(path: str)` | `bool` | Anything at the path, a directory too |
+| `File.is_file(path: str)` | `bool` | A regular file |
+
+| On `Dir` | Returns | Notes |
+|---|---|---|
+| `Dir.create_all(path: str)` | `Result<void, IoError>` | With its missing parents; one that exists is not an error |
+| `Dir.remove_all(path: str)` | `Result<void, IoError>` | A directory and everything under it |
+| `Dir.entries(path: str)` | `Result<List<String>, IoError>` | Entry names, sorted, without `.` and `..` |
+| `Dir.is_dir(path: str)` | `bool` | |
+| `Dir.current()` | `Path` | The working directory; `Dir.current().join(path)` makes a path absolute |
+| `Dir.scratch()` | `str` | A directory private to this process and its children, removed at exit |
+| `Dir.scratch_path(name: str)` | `str` | `name` under it, for a test's fixtures |
+| `TempDir.new(prefix: str)` | `TempDir` | A fresh directory, deleted when the value is dropped |
 
 `IoError` has `path`, `code` (the `errno` value) and `message`, and displays
-as `path: message`. `Path` is in `alloc.path`, not `std.fs`; import it
-separately.
+as `path: message`. [`Path`](alloc.md) is alloc's: joining and normalizing a
+path reads no filesystem.
 
-## std.env
+## The environment
 
-| Function | Return |
+| On `Env` | Returns |
 |---|---|
-| `current_dir()` | `Path` — the process's working directory |
-| `env_var(name: str)` | `String?` — the variable's value, or `null` when it is not set |
-| `set_env_var(name: str, value: str)` | `void` — sets it for this process and the processes it starts afterwards |
+| `Env.get(name: str)` | `String?` — the variable's value, or `null` when it is not set |
+| `Env.set(name: str, value: str)` | `void` — sets it for this process and the processes it starts afterwards |
 
 A variable that is set to the empty string answers `""`, not `null`:
 
 ```kflat
-import std.env.env_var
-
 fun main(): int32 {
-    val home = env_var("HOME") ?: return 1
+    val home = Env.get("HOME") ?: return 1
     println("home is ${home}")
-    val editor = env_var("EDITOR")?.as_str() ?: "vi"
+    val editor = Env.get("EDITOR")?.as_str() ?: "vi"
     println("editor is ${editor}")
     return 0
 }
 ```
 
-The process's own command-line arguments are in core, with no import:
-`arg_count()` and `arg_at(i)`, which borrows the argument rather than copying
-it.
+The process's own command-line arguments are core's `Args`: `Args.count()`,
+and `Args.at(i)`, which borrows the argument rather than copying it.
 
-## std.io
+## Standard input and error
 
-Standard input, read a line or a number of bytes at a time. Both return
-`null` once the input is exhausted:
+`Stdin` reads a line or a number of bytes at a time. Both return `null` once
+the input is exhausted:
 
 ```kflat
-import std.io.*
-
 fun main(): int32 {
     var lines = 0
     while true {
-        val line = read_line() ?: break
+        val line = Stdin.read_line() ?: break
         if line.byte_len() > 0 { lines = lines + 1 }
     }
     return lines
 }
 ```
 
-`read_bytes(n)` reads up to `n` bytes, and `at_end()` says whether the last
-read reached the end of input.
+`Stdin.read_bytes(n)` reads up to `n` bytes, and `Stdin.at_end()` says whether
+the last read reached the end of input.
 
 `eprint` and `eprintln` are `print` and `println` for standard error, which is
 where a program whose standard output carries a protocol writes its logs.
+They are free functions, so they are imported: `import std.io.eprintln`.
 
 These read through the C library's buffer. A program that waits on standard
 input alongside other streams reads it with a `Reader` over `Stream.stdin()`
 instead (below), and not with both.
 
-## std.process
+## Processes
 
 Running a command:
 
 ```kflat
-import std.process.*
-
 fun main(): int32 {
     var cmd = Command.new("echo")
     cmd.arg("hello")
@@ -188,11 +187,11 @@ that cannot be run is an `Err` from `spawn()`, not an exit code later.
 
 Dropping a `Child` that is still running kills it.
 
-`process_id()` answers this process's own id, as `int32`; no other running
+`Process.id()` answers this process's own id, as `int32`; no other running
 process shares it, which makes it a suffix for a file only this process
 writes.
 
-## std.stream, std.reader and std.poll
+## Streams, readers and polling
 
 Talking to another program while it runs, from one thread. Three pieces, each
 doing one thing:
@@ -212,10 +211,6 @@ doing one thing:
 
 ```kflat
 import std.io.eprintln
-import std.poll.Poll
-import std.process.Command
-import std.reader.Reader
-import std.stream.Stream
 
 fun main(): int32 {
     var child = Command.new("cat").spawn().unwrap()
@@ -265,51 +260,49 @@ without taking it first can wait forever for input that has already arrived.
 A struct's field cannot be moved out, so `take()` moves a stream out of the
 `Child` or `Pipe` that holds it and leaves a closed one in its place.
 Assigning `Stream.closed()` to a stream closes the one it replaces: that is
-how a child learns that its input has ended. `pipe()` makes a connected
+how a child learns that its input has ended. `Pipe.new()` makes a connected
 `reader` and `writer` inside the program.
 
 This is single-threaded on purpose. `Poll` reports readiness and the caller
 does the reading, which is the layer an async runtime is later built on, so
 code written against it keeps working when one arrives.
 
-## std.time
+## The clocks
 
 Reading the clock. The arithmetic — `Duration`, `Date`, `DateTime` — is
 [`core`](core.md); this is the part that needs an operating system.
 
 ```kflat
-import std.time.*
-
-val t = now()               // current UTC DateTime
-println(t)                  // "2026-08-21T11:54:56Z"
-unix_seconds()              // seconds since the epoch
+val t = Clock.now()           // current UTC DateTime
+println(t)                    // "2026-08-21T11:54:56Z"
+Clock.unix_seconds()          // seconds since the epoch
 
 val started = Instant.now()
-sleep(Duration.from_millis(50))
-println(started.elapsed())  // "50ms"
+Clock.sleep(Duration.from_millis(50))
+println(started.elapsed())    // "50ms"
 ```
 
-**Two clocks, and they are not interchangeable.** `now()` reads the wall
+**Two clocks, and they are not interchangeable.** `Clock.now()` reads the wall
 clock: it names an instant everyone agrees on, and it can jump when the
 machine is corrected. `Instant` reads the monotonic clock, which only ever
 moves forward from an unspecified origin.
 
-Use `Instant` for *how long*, and `now()` for *when*. Measuring a duration
-against the wall clock is the classic bug — an NTP correction part-way
+Use `Instant` for *how long*, and `Clock.now()` for *when*. Measuring a
+duration against the wall clock is the classic bug — an NTP correction part-way
 through yields a negative elapsed time. `Instant` therefore has no conversion
 to a `DateTime`, and `elapsed()` cannot be negative.
 
-`sleep` waits at least as long as asked, resuming if a signal interrupts it.
+`Clock.sleep` waits at least as long as asked, resuming if a signal interrupts it.
 A non-positive duration returns immediately.
 
 ## What is missing
 
-`std` is thin — the modules above are all of it. Not available ([#58]):
+Not available yet:
 
-- Directory listing/walking
-- Networking of any kind
-- Threading or synchronization
+- Walking a directory tree, and file metadata
+- Reading or writing a file in pieces, or as bytes
+- Networking of any kind ([#91])
+- Threading or synchronization ([#90])
 
-The library surface grows as the language matures.
-
-[#58]: https://github.com/komp-co/komp/issues/58
+[#90]: https://github.com/komp-co/kf-lang/issues/90
+[#91]: https://github.com/komp-co/kf-lang/issues/91

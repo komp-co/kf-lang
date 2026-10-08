@@ -1,8 +1,6 @@
 // Delta debugging over lines: the smallest subsequence an oracle still finds
 // interesting, one line removable at a time.
 
-import alloc.list.*
-
 /// Judges a candidate. `interesting` is called with the lines in order, never
 /// with the empty list unless every line was removable.
 pub trait Oracle {

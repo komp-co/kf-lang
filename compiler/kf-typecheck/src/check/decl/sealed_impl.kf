@@ -1,8 +1,6 @@
 // A `sealed trait` is implemented only in its own crate; any crate may still
 // bound by it and call its methods.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.TopDecl

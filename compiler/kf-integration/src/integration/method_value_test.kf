@@ -4,8 +4,6 @@
 import core.assert.assert_eq
 import kf_integration.harness.komp_build
 import kf_integration.harness.FixtureGraph
-import std.fs.scratch_path
-import std.process.Command
 import testing.test
 
 extern "C" fun system(cmd: str): int32
@@ -27,20 +25,20 @@ fun main(): int32 {
 """
     val root = "kf_method_value_cross_crate"
     assert_eq(build_method_value_crates(root, app), 0, "the app builds against the library's methods")
-    val binary = "${FixtureGraph.of(scratch_path("${root}/app")).target_dir}/app"
+    val binary = "${FixtureGraph.of(Dir.scratch_path("${root}/app")).target_dir}/app"
     assert_eq(Command.new(binary.as_str()).status().exit_code(), 33, "3 from get, 30 from show")
 }
 
 /// A library `tally` whose `Tally` has a static, a reading and a mutating
 /// method and a trait impl, and an app depending on it.
 fun build_method_value_crates(name: str, main_source: str): int32 {
-    val root = scratch_path(name)
+    val root = Dir.scratch_path(name)
     val dirs = "${root}/tally/src ${root}/app/src ${root}/libs"
     unsafe { system("rm -rf ${root} && mkdir -p ${dirs} && cp -R libs/core libs/alloc ${root}/libs/") }
     val deps = "core = { path = \"../libs/core\" }\nalloc = { path = \"../libs/alloc\" }\n"
     val tally_manifest = "[project]\nname = \"tally\"\nkind = \"lib\"\n\n[dependencies]\n${deps}"
-    write_file("${root}/tally/kf.toml".as_str(), tally_manifest)
-    write_file("${root}/tally/src/lib.kf".as_str(), """pub struct Tally {
+    File.write("${root}/tally/kf.toml".as_str(), tally_manifest).unwrap()
+    File.write("${root}/tally/src/lib.kf".as_str(), """pub struct Tally {
     pub var n: int32
 }
 
@@ -57,10 +55,10 @@ impl Tally {
 impl Shown for Tally {
     fun show(): int32 { return self.n * 10 }
 }
-""")
+""").unwrap()
     val app_deps = "${deps}tally = { path = \"../tally\" }\n"
     val app_manifest = "[project]\nname = \"app\"\nkind = \"bin\"\n\n[dependencies]\n${app_deps}"
-    write_file("${root}/app/kf.toml".as_str(), app_manifest)
-    write_file("${root}/app/src/main.kf".as_str(), main_source)
+    File.write("${root}/app/kf.toml".as_str(), app_manifest).unwrap()
+    File.write("${root}/app/src/main.kf".as_str(), main_source).unwrap()
     return komp_build("${root}/app".as_str(), "")
 }

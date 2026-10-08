@@ -6,7 +6,6 @@ import kf_core.ast.types.TypeKind
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.expression.FieldInit
-import alloc.list.*
 import testing.test
 import kf_core.span.Span
 import kf_core.intern.intern

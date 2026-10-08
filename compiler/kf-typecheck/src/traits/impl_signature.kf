@@ -3,8 +3,6 @@
 // where they differ. The trait's types are read with its parameters taking
 // the impl's arguments and `Self` as the implementing type.
 
-import alloc.list.*
-
 import kf_core.ast.types.*
 import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*

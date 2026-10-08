@@ -14,12 +14,6 @@
 // Exit 0 when nothing new was found, 1 when something was, 2 when the run
 // could not start.
 
-import alloc.list.*
-import std.fs.TempDir
-import std.fs.read_to_string
-import std.fs.create_dir_all
-import std.time.Instant
-
 fun usage(problem: str): int32 {
     println("kf-fuzz: ${problem}")
     println("usage: kf-fuzz front|kfi|corpus [--seeds A..B] [--jobs N] [--timeout S] [--memory MB] [--budget S]")
@@ -30,13 +24,13 @@ fun usage(problem: str): int32 {
 }
 
 fun read_or_empty(path: str): String {
-    val read = read_to_string(path)
+    val read = File.read(path)
     return if read.is_ok() { read.unwrap() } else { String.from("") }
 }
 
 fun main(): int32 {
     var args = List.new<String>()
-    while i in 0..arg_count() { args.push(String.from(arg_at(i))) }
+    while i in 0..Args.count() { args.push(String.from(Args.at(i))) }
     val options = parse_options(&args)
     if !options.problem.is_empty() { return usage(options.problem) }
     val limits = Limits {
@@ -45,7 +39,7 @@ fun main(): int32 {
     }
     val work = TempDir.new("kf-fuzz")
     val libraries = "${work.path().as_str()}/libs"
-    val _made = create_dir_all(work.path().join("libs"))
+    val _made = Dir.create_all(work.path().join("libs").as_str())
     when options.command.as_str() {
         "corpus" => return campaign(Mode.Corpus, &options, limits, &work, libraries)
         "front" => return campaign(Mode.Source, &options, limits, &work, libraries)

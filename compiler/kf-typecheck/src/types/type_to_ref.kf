@@ -2,8 +2,6 @@
 // inferred types. A projection or poison has no spelling and comes back
 // Poison.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef

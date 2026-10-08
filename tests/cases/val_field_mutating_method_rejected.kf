@@ -4,7 +4,6 @@
 //
 // CONSTRAINT: the diagnostic names `xs`, not `s`, which is already `var`.
 
-import alloc.list.*
 
 struct S {
     pub val xs: List<int32>

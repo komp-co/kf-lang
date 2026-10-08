@@ -2,8 +2,6 @@
 // is, takes its value from the assignments in the arms after it, and borrows
 // what they borrow.
 
-import alloc.list.*
-
 import kf_core.ast.statement.Stmt
 import kf_core.ast.borrow.*
 

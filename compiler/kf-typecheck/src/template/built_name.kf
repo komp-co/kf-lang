@@ -2,8 +2,6 @@
 // `${...}` replaced by the text of `T.name`, `field.name`, or an `args`
 // value that is a string or a name.
 
-import alloc.list.*
-
 import kf_core.span.Span
 import kf_core.intern.Sym
 import kf_core.intern.intern

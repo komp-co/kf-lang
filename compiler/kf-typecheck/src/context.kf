@@ -1,8 +1,6 @@
 // Per-function type-checking state: locals, return type, generics in scope,
 // diagnostics.
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.TopDecl

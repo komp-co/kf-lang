@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // A public struct holding `List<Hidden>` with `Hidden` private: the header
 // declares `Hidden` though only a pointer field reaches it.
-import alloc.list.*
 
 struct Hidden {
     val a: uint64

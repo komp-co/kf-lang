@@ -2,7 +2,6 @@
 // Rebuilding a payload around its own `Box` binder copies the box: the old
 // payload is freed by the store, so sharing the pointer would free it twice.
 
-import alloc.list.*
 
 enum Kind {
     Impl(Box<String>, List<String>)

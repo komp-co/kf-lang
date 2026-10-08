@@ -3,7 +3,6 @@
 // `impl Iterable<T> for List<T>` gives a `List<int32>` `Iterable<int32>`,
 // not `Iterable<Point>`.
 
-import alloc.list.*
 
 struct Point { val x: int32 }
 

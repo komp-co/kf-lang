@@ -1,7 +1,6 @@
-// Reading the clock; calendar and span types are in core.
-//
-// `now()` reads the wall clock, which can jump when corrected. `Instant`
-// reads the monotonic clock, which only moves forward: measure with it.
+// Reading the clocks; calendar and span types are in core. `Clock` is the
+// wall clock; `Instant` reads the monotonic one, which only moves forward:
+// measure with it.
 
 import core.time.*
 
@@ -10,17 +9,22 @@ extern "C" fun kf_time_unix_nanos(): int64
 extern "C" fun kf_time_monotonic_nanos(): int64
 extern "C" fun kf_time_sleep_nanos(nanos: int64): void
 
-/// Seconds since the Unix epoch, UTC.
-pub fun unix_seconds(): int64 { return unsafe { kf_time_unix_seconds() } }
+/// The wall clock, which can jump when it is corrected.
+pub struct Clock { }
 
-/// Nanoseconds since the Unix epoch, UTC.
-pub fun unix_nanos(): int64 { return unsafe { kf_time_unix_nanos() } }
+impl Clock {
+    /// The current UTC date and time.
+    pub static fun now(): DateTime { return DateTime.from_unix(kf_time_unix_seconds()) }
 
-/// The current UTC date and time.
-pub fun now(): DateTime { return DateTime.from_unix(unsafe { kf_time_unix_seconds() }) }
+    /// Seconds since the Unix epoch, UTC.
+    pub static fun unix_seconds(): int64 { return kf_time_unix_seconds() }
 
-/// Block for at least `d`. A negative or zero duration returns immediately.
-pub fun sleep(d: Duration): void { unsafe { kf_time_sleep_nanos(d.as_nanos()) } }
+    /// Nanoseconds since the Unix epoch, UTC.
+    pub static fun unix_nanos(): int64 { return kf_time_unix_nanos() }
+
+    /// Blocks for at least `d`. A negative or zero duration returns at once.
+    pub static fun sleep(d: Duration): void { kf_time_sleep_nanos(d.as_nanos()) }
+}
 
 /// A point on the monotonic clock. Only differences mean anything; it cannot
 /// become a DateTime.
@@ -30,12 +34,12 @@ pub struct Instant {
 
 impl Instant {
     pub static fun now(): Instant {
-        return Instant { nanos: unsafe { kf_time_monotonic_nanos() } }
+        return Instant { nanos: kf_time_monotonic_nanos() }
     }
 
     /// Never negative.
     pub fun elapsed(): Duration {
-        return Duration.from_nanos(unsafe { kf_time_monotonic_nanos() } - self.nanos)
+        return Duration.from_nanos(kf_time_monotonic_nanos() - self.nanos)
     }
 
     /// The span from `earlier` to this.

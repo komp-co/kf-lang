@@ -2,18 +2,12 @@
 // `komp metadata`, the contract tools other than komp read, so the compiler's
 // tests link no part of the project tool.
 
-import alloc.list.*
 import alloc.path.Path
 import json.reader.*
 import kf_driver.build.CrateSource
 import kf_query.serve.read_lint_rows
 import kf_query.serve.read_option_rows
 import kf_query.serve.read_strings
-import std.env.env_var
-import std.fs.TempDir
-import std.fs.absolute
-import std.fs.exists
-import std.process.Command
 
 /// One crate of `komp metadata`'s `crates`.
 @derive(Clone)
@@ -65,8 +59,8 @@ impl FixtureGraph {
         command.arg("--offline")
         command.stdout_to(answer.clone())
         val ran = command.status().success()
-        val text = read_file(answer.as_str())
-        val read = FixtureGraph.read(text.as_str(), absolute(root_dir).normalized().raw.as_str())
+        val text = File.read(answer.as_str()).unwrap_or("")
+        val read = FixtureGraph.read(text.as_str(), Dir.current().join(root_dir).normalized().raw.as_str())
         if !ran && read.error.is_empty() { return FixtureGraph.failed("komp metadata ${root_dir} failed") }
         return read
     }
@@ -74,9 +68,9 @@ impl FixtureGraph {
     /// The project around `file_path`: the nearest directory at or above it
     /// holding a kf.toml. No crates when there is none.
     pub static fun around(file_path: str): FixtureGraph {
-        var dir = absolute(file_path).normalized().parent()
+        var dir = Dir.current().join(file_path).normalized().parent()
         while true {
-            if exists("${dir.raw}/kf.toml".as_str()) { return FixtureGraph.of(dir.raw.as_str()) }
+            if File.exists("${dir.raw}/kf.toml".as_str()) { return FixtureGraph.of(dir.raw.as_str()) }
             val up = dir.parent()
             if up.raw.as_str() == dir.raw.as_str() { break }
             dir = up
@@ -189,12 +183,12 @@ fun read_crate(reader: &var JsonReader): FixtureCrate {
 /// `KOMP`, which `komp test` hands its test programs, else the komp beside
 /// `KFLATC`, else `komp` on `PATH`.
 pub fun komp_path(): String {
-    val given = env_var("KOMP") ?: ""
+    val given = Env.get("KOMP") ?: ""
     if !given.is_empty() { return given }
-    val kflatc = env_var("KFLATC") ?: ""
+    val kflatc = Env.get("KFLATC") ?: ""
     if !kflatc.is_empty() {
         val beside = "${Path.new(kflatc.as_str()).parent().raw}/komp"
-        if exists(beside) { return beside }
+        if File.exists(beside) { return beside }
     }
     return "komp"
 }
@@ -202,10 +196,10 @@ pub fun komp_path(): String {
 /// The `core`, `alloc` and `std` the compiler under test ships with:
 /// `<dir of KFLATC>/../libs`, else the repository's `libs`.
 pub fun bundled_libs(): String {
-    val kflatc = env_var("KFLATC") ?: ""
+    val kflatc = Env.get("KFLATC") ?: ""
     if !kflatc.is_empty() {
         val beside = "${Path.new(kflatc.as_str()).parent().raw}/../libs"
-        if exists("${beside}/core/kf.toml".as_str()) { return absolute(beside).normalized().raw }
+        if File.exists("${beside}/core/kf.toml".as_str()) { return Dir.current().join(beside).normalized().raw }
     }
-    return absolute("libs").normalized().raw
+    return Dir.current().join("libs").normalized().raw
 }

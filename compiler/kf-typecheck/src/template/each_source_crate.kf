@@ -3,8 +3,6 @@
 // a dependency's `@derive` expands into the dependency, as it would when the
 // crate is compiled on its own.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.declaration.Linkage
 import kf_core.intern.CrateId

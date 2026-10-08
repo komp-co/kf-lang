@@ -1,7 +1,6 @@
 // Where a lint about a loop variable points: at the name, not the loop.
 
 import core.assert.assert_eq
-import alloc.list.*
 
 import kf_core.span.*
 import kf_core.diagnostic.*

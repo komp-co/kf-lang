@@ -8,10 +8,6 @@ import kf_driver.fresh_source_map
 import kf_driver.new_lint_config
 import kf_driver.checked_diagnostics
 import kf_integration.harness.komp_build
-import std.fs.create_dir_all
-import std.fs.remove_dir_all
-import std.fs.scratch_path
-import std.fs.write_text
 import kf_integration.harness.assemble_project
 import testing.test
 
@@ -20,13 +16,13 @@ extern "C" fun system(cmd: str): int32
 /// Every message checking a crate of `helpers` (module `probe.a`) and `user`
 /// (module `probe.b`) reports, one per line.
 fun internal_messages(helpers: str, user: str): String {
-    val dir = scratch_path("kf_internal_probe")
-    val _cleared = remove_dir_all(dir)
-    val _made_a = create_dir_all(Path.new("${dir}/src/a".as_str()))
-    val _made_b = create_dir_all(Path.new("${dir}/src/b".as_str()))
-    val _manifest = write_text("${dir}/kf.toml".as_str(), "[project]\nname = \"probe\"\nkind = \"lib\"\n")
-    val _helpers = write_text("${dir}/src/a/helpers.kf".as_str(), helpers)
-    val _user = write_text("${dir}/src/b/user.kf".as_str(), user)
+    val dir = Dir.scratch_path("kf_internal_probe")
+    val _cleared = Dir.remove_all(dir)
+    val _made_a = Dir.create_all("${dir}/src/a".as_str())
+    val _made_b = Dir.create_all("${dir}/src/b".as_str())
+    val _manifest = File.write("${dir}/kf.toml".as_str(), "[project]\nname = \"probe\"\nkind = \"lib\"\n")
+    val _helpers = File.write("${dir}/src/a/helpers.kf".as_str(), helpers)
+    val _user = File.write("${dir}/src/b/user.kf".as_str(), user)
     val smap = fresh_source_map()
     var pdiags = Diagnostics.new()
     var merged = assemble_project(dir, smap, &var pdiags)
@@ -68,30 +64,30 @@ fun an_internal_val_reaches_another_module(): void {
 /// `ilib` holds an `internal` helper, an `internal` value and a public generic
 /// using both; `iapp` names what it is given in `main.kf`.
 fun prepare_internal_crates(app_main: str): int32 {
-    val core = scratch_path("kf_internal_core")
-    val lib = scratch_path("kf_internal_lib")
-    val app = scratch_path("kf_internal_app")
+    val core = Dir.scratch_path("kf_internal_core")
+    val lib = Dir.scratch_path("kf_internal_lib")
+    val app = Dir.scratch_path("kf_internal_app")
     val dirs = "${core}/src ${core}/native ${lib}/src/a ${app}/src"
     val natives = "libs/core/native/core.c libs/core/native/core_hosted.c"
     val sources = "cp -R libs/core/src/. ${core}/src/ && cp ${natives} ${core}/native/"
     val prep = unsafe { system("rm -rf ${core} ${lib} ${app} && mkdir -p ${dirs} && ${sources}") }
     if prep != 0 { return prep }
-    write_file("${core}/kf.toml".as_str(), """[project]
+    File.write("${core}/kf.toml".as_str(), """[project]
 name = "core"
 kind = "lib"
 
 [native]
 c_sources = ["native/core.c"]
 hosted_c_sources = ["native/core_hosted.c"]
-""")
-    write_file("${lib}/kf.toml".as_str(), """[project]
+""").unwrap()
+    File.write("${lib}/kf.toml".as_str(), """[project]
 name = "ilib"
 kind = "lib"
 
 [dependencies]
 core = { path = "../kf_internal_core" }
-""")
-    write_file("${lib}/src/a/helpers.kf".as_str(), """internal fun double(n: int32): int32 {
+""").unwrap()
+    File.write("${lib}/src/a/helpers.kf".as_str(), """internal fun double(n: int32): int32 {
     return n * 2
 }
 
@@ -100,16 +96,16 @@ internal val LIMIT: int32 = 10
 pub fun doubled_past_limit<T>(_x: T, n: int32): int32 {
     return double(n) + LIMIT
 }
-""")
-    write_file("${app}/kf.toml".as_str(), """[project]
+""").unwrap()
+    File.write("${app}/kf.toml".as_str(), """[project]
 name = "iapp"
 kind = "bin"
 
 [dependencies]
 core = { path = "../kf_internal_core" }
 ilib = { path = "../kf_internal_lib" }
-""")
-    write_file("${app}/src/main.kf".as_str(), app_main)
+""").unwrap()
+    File.write("${app}/src/main.kf".as_str(), app_main).unwrap()
     return 0
 }
 
@@ -122,8 +118,8 @@ fun main(): int32 {
     return 0
 }
 """)
-    val built = komp_build(scratch_path("kf_internal_app"), "")
-    val ran = unsafe { system(scratch_path("kf_internal_app/target/kflat/iapp")) }
+    val built = komp_build(Dir.scratch_path("kf_internal_app"), "")
+    val ran = unsafe { system(Dir.scratch_path("kf_internal_app/target/kflat/iapp")) }
     assert_eq(prepared == 0 && built == 0 && ran == 0, true, "the helper travels hidden, for the generic alone")
 }
 
@@ -135,6 +131,6 @@ fun main(): int32 {
     return double(1)
 }
 """)
-    val built = komp_build(scratch_path("kf_internal_app"), "")
+    val built = komp_build(Dir.scratch_path("kf_internal_app"), "")
     assert_eq(prepared == 0 && built != 0, true, "`internal` stops at the crate")
 }

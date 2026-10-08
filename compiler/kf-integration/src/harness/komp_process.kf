@@ -1,8 +1,6 @@
 // komp run as a program, for tests that build a whole project the way a user
 // does: what the compiler emits, compiled, linked and run.
 
-import std.process.Command
-
 /// `komp build <root_dir>` with `KOMP_CFLAGS` set to `cflags`; komp's exit
 /// code. The artifacts and the program land under `<root_dir>/target/kflat`.
 pub fun komp_build(root_dir: str, cflags: str): int32 {

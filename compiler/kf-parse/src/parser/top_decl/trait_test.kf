@@ -3,7 +3,6 @@
 
 import core.assert.assert_eq
 import core.assert.fail
-import alloc.list.*
 
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.TopDecl

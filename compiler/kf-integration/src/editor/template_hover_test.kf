@@ -5,7 +5,6 @@
 import kf_integration.harness.typed_crate_for
 import core.assert.assert_eq
 
-import std.fs.scratch_path
 import kf_query.editor.render_hover_json
 import kf_query.editor.render_completion_json
 import testing.test
@@ -13,7 +12,7 @@ import testing.test
 extern "C" fun system(cmd: str): int32
 
 fun template_fixture_path(): str {
-    return scratch_path("kf_query_template_hover/src/main.kf")
+    return Dir.scratch_path("kf_query_template_hover/src/main.kf")
 }
 
 fun template_fixture_source(): String {
@@ -38,11 +37,11 @@ pub struct Point {
 }
 
 fun template_json(offset: uint32, completing: bool): String {
-    val dir = scratch_path("kf_query_template_hover")
+    val dir = Dir.scratch_path("kf_query_template_hover")
     unsafe { system("rm -rf ${dir} && mkdir -p ${dir}/src") }
     val manifest = "[project]\nname = \"query_template_hover\"\nkind = \"lib\"\n"
-    write_file(scratch_path("kf_query_template_hover/kf.toml"), manifest)
-    write_file(template_fixture_path(), template_fixture_source().as_str())
+    File.write(Dir.scratch_path("kf_query_template_hover/kf.toml"), manifest).unwrap()
+    File.write(template_fixture_path(), template_fixture_source().as_str()).unwrap()
     val crate = typed_crate_for(template_fixture_path())
     if completing { return render_completion_json("main.kf", offset, &crate) }
     return render_hover_json("main.kf", offset, &crate)

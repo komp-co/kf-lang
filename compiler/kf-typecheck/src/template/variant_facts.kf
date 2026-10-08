@@ -3,7 +3,6 @@
 // `variant.build(|payload| e)` makes the variant, `e` written per payload.
 
 import kf_core.intern.intern
-import alloc.list.*
 
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind

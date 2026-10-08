@@ -1,10 +1,7 @@
 // User-declared generics through the full pipeline via compile_source,
 // compiled by gcc and run.
 
-import alloc.list.*
 import core.assert.assert_eq
-import std.fs.*
-import std.process.*
 
 import kf_integration.harness.compile_source
 import kf_integration.harness.komp_build
@@ -12,9 +9,9 @@ import testing.test
 
 fun build_and_run(src: str, exe: str): int32 {
     val c = compile_source(src)
-    write_file(scratch_path("komp_gen.c"), c)
+    File.write(Dir.scratch_path("komp_gen.c"), c).unwrap()
     var gargs = List.new<str>()
-    gargs.push(scratch_path("komp_gen.c"))
+    gargs.push(Dir.scratch_path("komp_gen.c"))
     gargs.push("-o")
     gargs.push(exe)
     val grc = run("gcc", gargs)
@@ -29,9 +26,9 @@ fun build_and_run(src: str, exe: str): int32 {
 // runner is traced.
 fun build_and_run_leakcheck(src: str, exe: str): int32 {
     val c = compile_source(src)
-    write_file(scratch_path("komp_leak.c"), c)
+    File.write(Dir.scratch_path("komp_leak.c"), c).unwrap()
     var gargs = List.new<str>()
-    gargs.push(scratch_path("komp_leak.c"))
+    gargs.push(Dir.scratch_path("komp_leak.c"))
     gargs.push("-fsanitize=address")
     gargs.push("-o")
     gargs.push(exe)
@@ -48,38 +45,38 @@ fun build_and_run_leakcheck(src: str, exe: str): int32 {
 fun build_and_run_with_core(src: str, asan: bool): int32 {
     var remove_args = List.new<str>()
     remove_args.push("-rf")
-    remove_args.push(scratch_path("kf_core_generic_app"))
-    remove_args.push(scratch_path("kf_core_generic_libs"))
+    remove_args.push(Dir.scratch_path("kf_core_generic_app"))
+    remove_args.push(Dir.scratch_path("kf_core_generic_libs"))
     if run("rm", remove_args) != 0 { return 0 - 1 }
     var mkdir_args = List.new<str>()
     mkdir_args.push("-p")
-    mkdir_args.push(scratch_path("kf_core_generic_app/src"))
-    mkdir_args.push(scratch_path("kf_core_generic_libs"))
+    mkdir_args.push(Dir.scratch_path("kf_core_generic_app/src"))
+    mkdir_args.push(Dir.scratch_path("kf_core_generic_libs"))
     if run("mkdir", mkdir_args) != 0 { return 0 - 1 }
     var copy_core = List.new<str>()
     copy_core.push("-R")
     copy_core.push("libs/core")
-    copy_core.push(scratch_path("kf_core_generic_libs/core"))
+    copy_core.push(Dir.scratch_path("kf_core_generic_libs/core"))
     if run("cp", copy_core) != 0 { return 0 - 1 }
     var copy_alloc = List.new<str>()
     copy_alloc.push("-R")
     copy_alloc.push("libs/alloc")
-    copy_alloc.push(scratch_path("kf_core_generic_libs/alloc"))
+    copy_alloc.push(Dir.scratch_path("kf_core_generic_libs/alloc"))
     if run("cp", copy_alloc) != 0 { return 0 - 1 }
-    write_file(scratch_path("kf_core_generic_app/kf.toml"), """[project]
+    File.write(Dir.scratch_path("kf_core_generic_app/kf.toml"), """[project]
 name = "core_generic_app"
 kind = "bin"
 
 [dependencies]
 core = { path = "../kf_core_generic_libs/core" }
 alloc = { path = "../kf_core_generic_libs/alloc" }
-""")
-    write_file(scratch_path("kf_core_generic_app/src/main.kf"), src)
+""").unwrap()
+    File.write(Dir.scratch_path("kf_core_generic_app/src/main.kf"), src).unwrap()
     var flags = ""
     if asan { flags = String.from("-fsanitize=address") }
-    val built = komp_build(scratch_path("kf_core_generic_app"), flags)
+    val built = komp_build(Dir.scratch_path("kf_core_generic_app"), flags)
     if built != 0 { return built }
-    var program = Command.new(scratch_path("kf_core_generic_app/target/kflat/core_generic_app"))
+    var program = Command.new(Dir.scratch_path("kf_core_generic_app/target/kflat/core_generic_app"))
     if asan { program.env("ASAN_OPTIONS", "detect_leaks=0") }
     return program.status().exit_code()
 }
@@ -90,7 +87,7 @@ alloc = { path = "../kf_core_generic_libs/alloc" }
 fun id<T>(x: T): T { return x }
 fun main(): int32 { val p = Pair<int32, int32> { a: 40, b: 2 }
 return id<int32>(p.a) + p.b }"""
-    val code = build_and_run(src, scratch_path("komp_gen_pair"))
+    val code = build_and_run(src, Dir.scratch_path("komp_gen_pair"))
     assert_eq(code == 42, true, "generic Pair + id<int32> → 42")
 }
 
@@ -100,7 +97,7 @@ return id<int32>(p.a) + p.b }"""
 fun unwrap<T: Copy>(x: T): T { val b = Wrap<T> { v: x }
 return b.v }
 fun main(): int32 { return unwrap<int32>(42) }"""
-    val code = build_and_run(src, scratch_path("komp_gen_box"))
+    val code = build_and_run(src, Dir.scratch_path("komp_gen_box"))
     assert_eq(code == 42, true, "unwrap<int32> → Wrap__int32 transitively → 42")
 }
 
@@ -111,7 +108,7 @@ impl Cel { static fun mk(x: int32): Cel { return Cel { v: x } } }
 fun build<T>(x: int32): T { return T.mk(x) }
 fun main(): int32 { val c = build<Cel>(42)
 return c.v }"""
-    val code = build_and_run(src, scratch_path("komp_gen_static"))
+    val code = build_and_run(src, Dir.scratch_path("komp_gen_static"))
     assert_eq(code == 42, true, "build<Cel> dispatches T.mk → Cel_mk → 42")
 }
 
@@ -121,7 +118,7 @@ return c.v }"""
 impl Wrap<T: Copy> { pub fun get(): T { return self.v } }
 fun main(): int32 { val b = Wrap<int32> { v: 7 }
 return b.get() + 35 }"""
-    val code = build_and_run(src, scratch_path("komp_gen_method"))
+    val code = build_and_run(src, Dir.scratch_path("komp_gen_method"))
     assert_eq(code == 42, true, "Wrap<int32>.get() dispatches → 42")
 }
 
@@ -131,7 +128,7 @@ return b.get() + 35 }"""
 fun choose(value: Maybe<int32>): int32 { when (value) { Some(number) => return number  None => return 0 }
 return 0 }
 fun main(): int32 { return choose(Maybe.Some(42)) }"""
-    val code = build_and_run(src, scratch_path("komp_gen_enum"))
+    val code = build_and_run(src, Dir.scratch_path("komp_gen_enum"))
     assert_eq(code == 42, true, "generic enum constructor and match → 42")
 }
 
@@ -144,7 +141,7 @@ return false } }
 fun main(): int32 { val a: Maybe<int32> = Maybe.Some(7)
 if a.is_some() { return 42 }
 return 0 }"""
-    val code = build_and_run(src, scratch_path("komp_enum_self_match"))
+    val code = build_and_run(src, Dir.scratch_path("komp_enum_self_match"))
     assert_eq(code == 42, true, "`when (self)` in a generic enum method → 42")
 }
 
@@ -155,7 +152,7 @@ fun mk(flag: bool): Res<int32, str> { if flag { return Res.Ok(42) }
 return Res.Err("no") }
 fun main(): int32 { when (mk(true)) { Ok(v) => return v  Err(_m) => return 1 }
 return 0 }"""
-    val code = build_and_run(src, scratch_path("komp_enum_expected_ret"))
+    val code = build_and_run(src, Dir.scratch_path("komp_enum_expected_ret"))
     assert_eq(code == 42, true, "Err(E) binds T from the declared return type")
 }
 
@@ -165,7 +162,7 @@ return 0 }"""
 fun main(): int32 { val r: Res<int32, str> = Res.Err("x")
 when (r) { Ok(_v) => return 1  Err(_m) => return 42 }
 return 0 }"""
-    val code = build_and_run(src, scratch_path("komp_enum_expected_let"))
+    val code = build_and_run(src, Dir.scratch_path("komp_enum_expected_let"))
     assert_eq(code == 42, true, "typed let binds the ctor's type args")
 }
 
@@ -176,7 +173,7 @@ fun main(): int32 { val c = true
 val r: Res<int32, str> = if c { Res.Ok(42) } else { Res.Err("n") }
 when (r) { Ok(v) => return v  Err(_m) => return 1 }
 return 0 }"""
-    val code = build_and_run(src, scratch_path("komp_enum_expected_if"))
+    val code = build_and_run(src, Dir.scratch_path("komp_enum_expected_if"))
     assert_eq(code == 42, true, "expected type reaches both IfExpr branches")
 }
 
@@ -187,7 +184,7 @@ fun main(): int32 { val h = Holder.Has(String.from("payload"))
 when (h) { Has(s) => { if s.byte_len() > 0 { return 0 }
 return 1 }  Empty => return 2 }
 return 3 }"""
-    val code = build_and_run_leakcheck(src, scratch_path("komp_enum_drop_canary"))
+    val code = build_and_run_leakcheck(src, Dir.scratch_path("komp_enum_drop_canary"))
     assert_eq(code == 0, true, "enum String payload read via when-binding, ASan-clean")
 }
 
@@ -198,7 +195,7 @@ trait Show { fun show(): int32 }
 impl Show for Point { fun show(): int32 { return self.x } }
 fun main(): int32 { val p = Point { x: 9 }
 return p.show() + 33 }"""
-    val code = build_and_run(src, scratch_path("komp_trait_concrete"))
+    val code = build_and_run(src, Dir.scratch_path("komp_trait_concrete"))
     assert_eq(code == 42, true, "Point.show() trait dispatch → 42")
 }
 
@@ -211,7 +208,7 @@ struct DrawProbe { pub val tag: int32 }
 impl Application for DrawProbe { fun render(): int32 { return self.tag } }
 fun main(): int32 { val app = DrawProbe { tag: 42 }
 return draw<DrawProbe>(&app) }"""
-    val code = build_and_run(src, scratch_path("komp_generic_borrow_explicit"))
+    val code = build_and_run(src, Dir.scratch_path("komp_generic_borrow_explicit"))
     assert_eq(code == 42, true, "draw<DrawProbe>(&app) passes a pointer → 42")
 }
 
@@ -223,7 +220,7 @@ struct DrawProbe { pub val tag: int32 }
 impl Application for DrawProbe { fun render(): int32 { return self.tag } }
 fun main(): int32 { val app = DrawProbe { tag: 42 }
 return draw(&app) }"""
-    val code = build_and_run(src, scratch_path("komp_generic_borrow_inferred"))
+    val code = build_and_run(src, Dir.scratch_path("komp_generic_borrow_inferred"))
     assert_eq(code == 42, true, "draw(&app) infers A = DrawProbe and borrows → 42")
 }
 
@@ -238,7 +235,7 @@ impl Application for DrawProbe { fun render(): int32 { return self.tag } }
 fun main(): int32 { val app = DrawProbe { tag: 40 }
 val t = Terminal { bias: 2 }
 return t.draw<DrawProbe>(&app) }"""
-    val code = build_and_run(src, scratch_path("komp_impl_method_explicit"))
+    val code = build_and_run(src, Dir.scratch_path("komp_impl_method_explicit"))
     assert_eq(code == 42, true, "t.draw<DrawProbe>(&app) specializes the method → 42")
 }
 
@@ -252,7 +249,7 @@ impl Application for DrawProbe { fun render(): int32 { return self.tag } }
 fun main(): int32 { val app = DrawProbe { tag: 40 }
 val t = Terminal { bias: 2 }
 return t.draw(&app) }"""
-    val code = build_and_run(src, scratch_path("komp_impl_method_inferred"))
+    val code = build_and_run(src, Dir.scratch_path("komp_impl_method_inferred"))
     assert_eq(code == 42, true, "t.draw(&app) infers A = DrawProbe → 42")
 }
 
@@ -270,7 +267,7 @@ fun main(): int32 { val a = Cel.from(40)
 val b = Cel.from(true)
 val c = make<Cel>(1)
 return a.value + b.value + c.value }"""
-    val code = build_and_run(src, scratch_path("komp_from_overloads"))
+    val code = build_and_run(src, Dir.scratch_path("komp_from_overloads"))
     assert_eq(code == 42, true, "From<int32> and From<bool> select distinct conversions")
 }
 
@@ -282,7 +279,7 @@ struct Item { pub val value: int32 }
 impl First for Item { fun label(): int32 { return self.value } }
 impl Second for Item { fun label(): int32 { return self.value + 1 } }
 fun main(): int32 { return 42 }"""
-    val code = build_and_run(src, scratch_path("komp_trait_identity"))
+    val code = build_and_run(src, Dir.scratch_path("komp_trait_identity"))
     assert_eq(code == 42, true, "same method in two traits emits distinct symbols")
 }
 
@@ -295,14 +292,14 @@ impl Dup for Pair<A, B> { fun dup(): Pair<A, B> { return Pair<A, B> { a: self.a,
 fun main(): int32 { val p = Pair<int32, int32> { a: 42, b: 1 }
 val q = p.dup()
 return q.a }"""
-    val code = build_and_run(src, scratch_path("komp_gen_trait"))
+    val code = build_and_run(src, Dir.scratch_path("komp_gen_trait"))
     assert_eq(code == 42, true, "Pair<int32,int32>.clone() trait dispatch → 42")
 }
 
 // A value-position if/else chain: a=5 picks 40, plus 2 is 42.
 @test fun integration_if_expression(): void {
     val src = "fun main(): int32 { val a = 5\nval k = if a > 3 { 40 } else if a > 1 { 20 } else { 0 }\nreturn k + 2 }"
-    val code = build_and_run(src, scratch_path("komp_if_expr"))
+    val code = build_and_run(src, Dir.scratch_path("komp_if_expr"))
     assert_eq(code == 42, true, "value-position if/else → ternary → 42")
 }
 
@@ -315,14 +312,14 @@ if i == 3 { continue }
 if i == 6 { break }
 sum = sum + i }
 return sum }"""
-    val code = build_and_run(src, scratch_path("komp_break_cont"))
+    val code = build_and_run(src, Dir.scratch_path("komp_break_cont"))
     assert_eq(code == 12, true, "while + continue@3 + break@6 → 12")
 }
 
 // An early return inside an `if` drops the sibling heap local.
 @test fun leak_early_return_drops_sibling(): void {
     val src = "fun main(): int32 { val a = String.from(\"aaa\")\nif a.equals(a) { return 0 }\nreturn 1 }"
-    val code = build_and_run_leakcheck(src, scratch_path("komp_leak_ret"))
+    val code = build_and_run_leakcheck(src, Dir.scratch_path("komp_leak_ret"))
     assert_eq(code == 0, true, "early return drops `a` under ASan (exit 0)")
 }
 
@@ -333,7 +330,7 @@ while i < 5 { val s = String.from("x")
 i = i + 1
 if i == 2 { break } }
 return 0 }"""
-    val code = build_and_run_leakcheck(src, scratch_path("komp_leak_brk"))
+    val code = build_and_run_leakcheck(src, Dir.scratch_path("komp_leak_brk"))
     assert_eq(code == 0, true, "break drops loop-body `s` under ASan (exit 0)")
 }
 
@@ -344,7 +341,7 @@ while i < 5 { val s = String.from("x")
 i = i + 1
 if i == 2 { continue } }
 return 0 }"""
-    val code = build_and_run_leakcheck(src, scratch_path("komp_leak_cont"))
+    val code = build_and_run_leakcheck(src, Dir.scratch_path("komp_leak_cont"))
     assert_eq(code == 0, true, "continue drops loop-body `s` under ASan (exit 0)")
 }
 
@@ -355,7 +352,7 @@ while i < 12 { text.append(text.as_str())
 i = i + 1 }
 if text.byte_len() == 106496 { return 0 }
 return 1 }"""
-    val code = build_and_run_leakcheck(src, scratch_path("komp_string_self_append"))
+    val code = build_and_run_leakcheck(src, Dir.scratch_path("komp_string_self_append"))
     assert_eq(code == 0, true, "self-append remains valid when realloc moves the buffer")
 }
 
@@ -370,14 +367,14 @@ fun main(): int32 { var b = new_buffer<int32>(4)
 b.store(0, 40)
 b.store(1, 2)
 return b.get(0) + b.get(1) }"""
-    val code = build_and_run(src, scratch_path("komp_gen_buffer_full"))
+    val code = build_and_run(src, Dir.scratch_path("komp_gen_buffer_full"))
     assert_eq(code == 42, true, "Buffer<int32> full body materialization -> 42")
 }
 
 @test
 fun inferred_borrows_mutate_without_consuming(): void {
-    val source = read_file("tests/cases/mm1b_inferred_borrow.kf")
-    val code = build_and_run_leakcheck(source, scratch_path("komp_mm1b"))
+    val source = File.read("tests/cases/mm1b_inferred_borrow.kf").unwrap_or("")
+    val code = build_and_run_leakcheck(source, Dir.scratch_path("komp_mm1b"))
     assert_eq(code == 0, true, "inferred shared and mutable borrows are ASan-clean")
 }
 

@@ -1,5 +1,3 @@
-import alloc.list.*
-
 import kf_core.ast.*
 import kf_core.diagnostic.*
 import kf_core.span.*

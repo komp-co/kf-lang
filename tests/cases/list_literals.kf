@@ -4,7 +4,6 @@
 // collection, which it builds through `From<T[N]>`; an empty `[]` is typed by
 // its slot or its uses.
 
-import alloc.list.*
 
 // A collection of the program's own.
 struct Bag {

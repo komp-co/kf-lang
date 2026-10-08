@@ -5,7 +5,6 @@
 
 import core.assert.assert_eq
 import kf_integration.harness.komp_build
-import std.fs.scratch_root
 import testing.test
 
 extern "C" fun system(cmd: str): int32
@@ -17,7 +16,7 @@ extern "C" fun system(cmd: str): int32
 /// and a private `hidden`;
 /// the app's `inner` module holds `inner_body`.
 fun prepare_annotation_fixture(name: str, main_body: str, inner_body: str): int32 {
-    val root = "${scratch_root()}/${name}"
+    val root = "${Dir.scratch()}/${name}"
     val cmd = "rm -rf ${root} && mkdir -p ${root}/marks/src ${root}/app/src/inner && cp -r libs ${root}/libs"
     val prep = unsafe { system(cmd) }
     if prep != 0 { return prep }
@@ -25,8 +24,8 @@ fun prepare_annotation_fixture(name: str, main_body: str, inner_body: str): int3
 alloc = { path = "../libs/alloc" }
 """
     val marks_toml = "[project]\nname = \"marks\"\nkind = \"lib\"\n\n[dependencies]\n${libs}"
-    write_file("${root}/marks/kf.toml".as_str(), marks_toml)
-    write_file("${root}/marks/src/lib.kf".as_str(), """pub annotation bench
+    File.write("${root}/marks/kf.toml".as_str(), marks_toml).unwrap()
+    File.write("${root}/marks/src/lib.kf".as_str(), """pub annotation bench
 annotation hidden
 
 @bench
@@ -62,24 +61,24 @@ pub annotation flagged on (bool, ..) -> _
 pub annotation served on (&var S, Request) -> int32
 
 pub annotation <T: Plugin> started on (&T) -> int32
-""")
+""").unwrap()
     val app_deps = "${libs}marks = { path = \"../marks\" }\n"
     val app_toml = "[project]\nname = \"app\"\nkind = \"bin\"\n\n[dependencies]\n${app_deps}"
-    write_file("${root}/app/kf.toml".as_str(), app_toml)
-    write_file("${root}/app/src/main.kf".as_str(), main_body)
-    write_file("${root}/app/src/inner/inner.kf".as_str(), inner_body)
+    File.write("${root}/app/kf.toml".as_str(), app_toml).unwrap()
+    File.write("${root}/app/src/main.kf".as_str(), main_body).unwrap()
+    File.write("${root}/app/src/inner/inner.kf".as_str(), inner_body).unwrap()
     return 0
 }
 
 fun build_and_run_annotated(name: str): int32 {
-    val root = "${scratch_root()}/${name}"
+    val root = "${Dir.scratch()}/${name}"
     val built = komp_build("${root}/app".as_str(), "")
     if built != 0 { return 100 + built }
     return unsafe { system("${root}/app/target/kflat/app".as_str()) }
 }
 
 fun build_annotated_app(name: str): int32 {
-    return komp_build("${scratch_root()}/${name}/app".as_str(), "")
+    return komp_build("${Dir.scratch()}/${name}/app".as_str(), "")
 }
 
 fun annotation_counting_main(): str {

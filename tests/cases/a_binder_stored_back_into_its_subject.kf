@@ -3,7 +3,6 @@
 // Growing a binder in place and storing it back into its own subject, as
 // code written for copying binders does, keeps one list and frees it once.
 
-import alloc.list.*
 
 enum Kind {
     Items(List<String>)

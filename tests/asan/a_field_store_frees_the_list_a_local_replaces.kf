@@ -1,7 +1,6 @@
 //! asan: clean
 // A field given a moved local frees the list it held.
 
-import alloc.list.*
 
 struct Holder {
     pub var items: List<String>

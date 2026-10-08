@@ -5,8 +5,6 @@
 //
 // Glue emission sees only this crate's user drop/clone impls.
 
-import alloc.list.*
-
 import kf_core.ast.Import
 import kf_core.ast.Module
 import kf_core.ast.declaration.TopDecl

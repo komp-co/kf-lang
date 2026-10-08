@@ -1,8 +1,6 @@
 // `[a, b, c]` where an `Array<T, N>` is expected: the elements in place, as
 // many as the array holds.
 
-import alloc.list.*
-
 import kf_core.span.Span
 import kf_core.ast.expression.array_literal_callee
 import kf_core.ast.types.Type

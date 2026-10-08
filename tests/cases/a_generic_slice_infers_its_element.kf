@@ -1,7 +1,6 @@
 //! run: exit 13
 //! deps: core, alloc
 // A slice's element is inferred from the array or list passed for it.
-import alloc.list.*
 
 fun count<T>(xs: &T[]): uint64 { return xs.size() }
 

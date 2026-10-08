@@ -7,7 +7,6 @@
 // CONSTRAINT: `build: fail` passes on a gcc failure too; the message is
 // asserted in `check_method_test.kf`.
 
-import alloc.list.*
 
 pub struct Bag {
     pub val n: int32

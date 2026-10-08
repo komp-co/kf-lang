@@ -1,8 +1,6 @@
 // `kflatc lints --format=json`: the table as data, for an editor completing
 // lint.toml.
 
-import alloc.list.*
-
 import json.writer.JsonWriter
 import kf_core.diagnostic.*
 

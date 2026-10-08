@@ -2,28 +2,23 @@
 // earlier use, decided.
 
 import core.assert.assert_eq
-import alloc.list.*
 import alloc.path.Path
 
 import kf_core.diagnostic.Diagnostics
 import kf_driver.fresh_source_map
 import kf_driver.new_lint_config
 import kf_driver.checked_diagnostics
-import std.fs.create_dir_all
-import std.fs.remove_dir_all
-import std.fs.scratch_path
-import std.fs.write_text
 import kf_integration.harness.assemble_project
 import testing.test
 
 /// Whether checking `source` as a one-file crate reports `needle`, through
 /// every pass `komp check` runs.
 fun reports(name: str, source: str, needle: str): bool {
-    val dir = scratch_path(name)
-    val _cleared = remove_dir_all(dir)
-    val _made = create_dir_all(Path.new("${dir}/src".as_str()))
-    val _manifest = write_text("${dir}/kf.toml".as_str(), "[project]\nname = \"call_probe\"\nkind = \"lib\"\n")
-    val _source = write_text("${dir}/src/lib.kf".as_str(), source)
+    val dir = Dir.scratch_path(name)
+    val _cleared = Dir.remove_all(dir)
+    val _made = Dir.create_all("${dir}/src".as_str())
+    val _manifest = File.write("${dir}/kf.toml".as_str(), "[project]\nname = \"call_probe\"\nkind = \"lib\"\n")
+    val _source = File.write("${dir}/src/lib.kf".as_str(), source)
     val smap = fresh_source_map()
     var pdiags = Diagnostics.new()
     var merged = assemble_project(dir, smap, &var pdiags)

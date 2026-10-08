@@ -3,8 +3,6 @@
 // chain, innermost outward. A Stmt's span is its leading keyword, so no
 // statement covers anything.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.*
 import kf_core.ast.types.Type

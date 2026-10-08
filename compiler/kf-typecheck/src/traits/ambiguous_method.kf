@@ -1,6 +1,5 @@
 // The traits whose impls for one type both provide a method a call names.
 
-import alloc.list.*
 import kf_core.ast.types.*
 import kf_core.ast.expression.Expr
 import kf_typecheck.types.type_eq

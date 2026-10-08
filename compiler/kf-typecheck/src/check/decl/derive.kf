@@ -3,8 +3,6 @@
 // those two are its own, while core's `derive` templates write every other
 // trait. The impl builders are in derive_synth.kf.
 
-import alloc.list.*
-
 import kf_core.ast.*
 import kf_core.ast.declaration.*
 import kf_core.diagnostic.*

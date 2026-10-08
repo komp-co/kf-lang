@@ -66,8 +66,6 @@ itself. A name in the receiver that is not a type in scope becomes a type
 parameter of the extension, as in `impl List<T>`:
 
 ```kflat
-import alloc.list.*
-
 struct Point {
     val x: int32
     val y: int32

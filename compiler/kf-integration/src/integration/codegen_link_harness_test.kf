@@ -6,10 +6,6 @@
 // producing them takes a frontend. The headers are generated, never written
 // by hand, so no second copy of the String layout exists.
 
-import alloc.list.*
-import std.fs.*
-import std.process.*
-
 import kf_codegen.*
 import kf_codegen.runtime.emit_runtime_header
 import kf_integration.harness.compile_project_separate
@@ -17,13 +13,13 @@ import kf_core.diagnostic.Diagnostics
 
 /// A directory nothing else writes, so no stray header is resolved.
 fun link_dir(): str {
-    return scratch_path("kf_codegen_link")
+    return Dir.scratch_path("kf_codegen_link")
 }
 
 /// Creates the directory: `write_file` silently skips a missing one.
 pub fun write_scratch(path: str, contents: str): void {
-    val _made = create_dir_all(Path.new(link_dir()))
-    write_file(path, contents)
+    val _made = Dir.create_all(link_dir())
+    File.write(path, contents).unwrap()
 }
 
 /// From the ordinary separate build of `libs/core`.
@@ -38,17 +34,17 @@ fun write_crate_artifacts_into(dir: str, project: str, name: str): bool {
     val outs = compile_project_separate(project, &var errors)
     while o in &outs {
         if o.crate_name.as_str() == name {
-            val _made = create_dir_all(Path.new(dir))
+            val _made = Dir.create_all(dir)
             var header = String.from(dir)
             header.append("/")
             header.append(name)
             header.append(".h")
-            write_file(header, o.header)
+            File.write(header, o.header).unwrap()
             var source = String.from(dir)
             source.append("/")
             source.append(name)
             source.append(".c")
-            write_file(source, o.source)
+            File.write(source, o.source).unwrap()
             return true
         }
     }

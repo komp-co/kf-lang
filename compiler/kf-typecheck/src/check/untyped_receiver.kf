@@ -2,8 +2,6 @@
 // `poison_next`. Usually the tail of an earlier error, so these are collected
 // and reported only when the check found nothing else.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.diagnostic.*
 import kf_core.intern.intern

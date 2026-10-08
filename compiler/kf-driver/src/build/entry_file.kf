@@ -1,8 +1,6 @@
 // `--entry-file`: a file the caller adds to the crate whose `main` is the
 // program's. A `main` of the crate's own is set aside as `__user_main`.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.Module
 import kf_core.intern.intern
@@ -18,7 +16,7 @@ import kf_assemble.stamp_module_owner
 pub fun add_entry_file(modules: &var List<Module>, entry_file: str, crate_name: str, smap: Ptr<SourceMap>): void {
     if entry_file.byte_len() == 0 { return }
     rename_main_decls(modules)
-    var entry = parse_entry_source(entry_file, read_file(entry_file).as_str(), smap)
+    var entry = parse_entry_source(entry_file, File.read(entry_file).unwrap_or("").as_str(), smap)
     stamp_module_owner(&var entry, CrateId.new(crate_name))
     modules.push(entry)
 }

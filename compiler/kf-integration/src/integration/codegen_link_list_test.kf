@@ -4,8 +4,6 @@
 // harness.
 
 import core.assert.assert_eq
-import alloc.list.*
-import std.fs.scratch_path
 
 import kf_core.span.Span
 import kf_core.ast.*
@@ -46,8 +44,8 @@ fun integration_list_int32_defs_compile(): void {
     val m = Module { crate: CrateId.new_poison(), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 
     val out = emit_module(&m)
-    write_scratch(scratch_path("kf_codegen_link/komp_list_int32.c"), out)
-    val rc = gcc_link(scratch_path("kf_codegen_link/komp_list_int32.c"), scratch_path("kf_codegen_link/komp_list_int32"), false)
+    write_scratch(Dir.scratch_path("kf_codegen_link/komp_list_int32.c"), out)
+    val rc = gcc_link(Dir.scratch_path("kf_codegen_link/komp_list_int32.c"), Dir.scratch_path("kf_codegen_link/komp_list_int32"), false)
     assert_eq(rc == 0, true, "List<int32> container defs gcc-compile")
 }
 
@@ -97,10 +95,10 @@ fun integration_list_int32_runs(): void {
     val m = Module { crate: CrateId.new_poison(), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 
     val out = emit_module(&m)
-    write_scratch(scratch_path("kf_codegen_link/komp_list_run.c"), out)
-    val rc = gcc_link(scratch_path("kf_codegen_link/komp_list_run.c"), scratch_path("kf_codegen_link/komp_list_run"), false)
+    write_scratch(Dir.scratch_path("kf_codegen_link/komp_list_run.c"), out)
+    val rc = gcc_link(Dir.scratch_path("kf_codegen_link/komp_list_run.c"), Dir.scratch_path("kf_codegen_link/komp_list_run"), false)
     assert_eq(rc == 0, true, "List<int32> program gcc-compiles")
-    val run_rc = run_program(scratch_path("kf_codegen_link/komp_list_run"))
+    val run_rc = run_program(Dir.scratch_path("kf_codegen_link/komp_list_run"))
     assert_eq(run_rc == 42, true, "7 + 35 from list = 42")
 }
 
@@ -156,12 +154,12 @@ fun integration_list_string_asan_clean(): void {
     val m = Module { crate: CrateId.new_poison(), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 
     val out = emit_module(&m)
-    write_scratch(scratch_path("kf_codegen_link/komp_list_string.c"), out)
-    val rc = gcc_link(scratch_path("kf_codegen_link/komp_list_string.c"), scratch_path("kf_codegen_link/komp_list_string"), true)
+    write_scratch(Dir.scratch_path("kf_codegen_link/komp_list_string.c"), out)
+    val rc = gcc_link(Dir.scratch_path("kf_codegen_link/komp_list_string.c"), Dir.scratch_path("kf_codegen_link/komp_list_string"), true)
     assert_eq(rc == 0, true, "List<String> program gcc-compiles under ASan")
-    val run_rc = run_program_to_file(scratch_path("kf_codegen_link/komp_list_string"), scratch_path("kf_codegen_link/komp_list_string.out"), true)
+    val run_rc = run_program_to_file(Dir.scratch_path("kf_codegen_link/komp_list_string"), Dir.scratch_path("kf_codegen_link/komp_list_string.out"), true)
     assert_eq(run_rc == 0, true, "List<String> run is ASan-clean (no UAF)")
-    val contents = read_file(scratch_path("kf_codegen_link/komp_list_string.out"))
+    val contents = File.read(Dir.scratch_path("kf_codegen_link/komp_list_string.out")).unwrap_or("")
     assert_eq(contents.as_str(), "alpha\n", "get(0) printed the first element")
 }
 
@@ -223,11 +221,11 @@ fun integration_list_user_struct_asan_clean(): void {
     val m = Module { crate: CrateId.new_poison(), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 
     val out = emit_module(&m)
-    write_scratch(scratch_path("kf_codegen_link/komp_list_pair.c"), out)
-    val rc = gcc_link(scratch_path("kf_codegen_link/komp_list_pair.c"), scratch_path("kf_codegen_link/komp_list_pair"), true)
+    write_scratch(Dir.scratch_path("kf_codegen_link/komp_list_pair.c"), out)
+    val rc = gcc_link(Dir.scratch_path("kf_codegen_link/komp_list_pair.c"), Dir.scratch_path("kf_codegen_link/komp_list_pair"), true)
     assert_eq(rc == 0, true, "List<Pair> (struct w/ String) gcc-compiles under ASan")
-    val run_rc = run_program_to_file(scratch_path("kf_codegen_link/komp_list_pair"), scratch_path("kf_codegen_link/komp_list_pair.out"), true)
+    val run_rc = run_program_to_file(Dir.scratch_path("kf_codegen_link/komp_list_pair"), Dir.scratch_path("kf_codegen_link/komp_list_pair.out"), true)
     assert_eq(run_rc == 0, true, "List<Pair> run is ASan-clean (deep element retain/drop balances)")
-    val contents = read_file(scratch_path("kf_codegen_link/komp_list_pair.out"))
+    val contents = File.read(Dir.scratch_path("kf_codegen_link/komp_list_pair.out")).unwrap_or("")
     assert_eq(contents.as_str(), "alpha\n", "get(0).s printed the first element's field")
 }

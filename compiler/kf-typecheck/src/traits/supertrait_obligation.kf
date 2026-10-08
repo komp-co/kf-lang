@@ -1,8 +1,6 @@
 // The checks that read supertraits, run after registration: a supertrait may
 // be declared below its subtrait and an impl above its supertrait's.
 
-import alloc.list.*
-
 import kf_core.diagnostic.*
 import kf_core.ast.Module
 import kf_core.ast.types.TypeIdentity

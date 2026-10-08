@@ -1,5 +1,4 @@
 //! asan: clean
-import alloc.list.*
 
 fun count(names: List<String>): uint64 { return names.size() }
 

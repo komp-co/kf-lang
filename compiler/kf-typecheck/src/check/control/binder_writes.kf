@@ -1,8 +1,6 @@
 // Whether a `when` arm writes through one of its binders, decided before the
 // body is checked, since the answer sets the binder's type.
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind

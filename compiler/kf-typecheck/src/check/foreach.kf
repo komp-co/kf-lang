@@ -1,8 +1,6 @@
 // `while name in subject { body }`, the general path; integer ranges use
 // foreach_counted.kf.
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind

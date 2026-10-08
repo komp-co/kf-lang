@@ -4,7 +4,6 @@
 // receiver of a `mutating` method, the base of a field store, a `&var`
 // argument, and an explicit `&var xs[i]`.
 
-import alloc.list.*
 
 struct Counter {
     pub var count: int32

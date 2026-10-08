@@ -1,8 +1,6 @@
 // What an operator says when it cannot dispatch: the name the reader should
 // see, the impl to write, or for a type parameter the bound to widen.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.types.Type
 import kf_core.ast.types.type_identity_display

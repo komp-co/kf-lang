@@ -2,7 +2,6 @@
 // the extensions another crate exports.
 
 import core.assert.assert_eq
-import alloc.list.*
 import kf_core.diagnostic.*
 import kf_resolve.new_decl_table
 import kf_resolve.resolve_module
@@ -10,19 +9,17 @@ import kf_typecheck.typecheck_module
 import kf_integration.harness.komp_build
 import kf_integration.harness.FixtureGraph
 import kf_integration.harness.typed_crate_for
-import std.fs.scratch_path
-import std.process.Command
 import testing.test
 
 extern "C" fun system(cmd: str): int32
 
 /// The messages checking `source` as a one-file crate produces.
 fun extension_messages(name: str, source: str): List<String> {
-    val root = scratch_path(name)
+    val root = Dir.scratch_path(name)
     unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
-    write_file("${root}/kf.toml".as_str(), "[project]\nname = \"ext_probe\"\nkind = \"lib\"\n")
+    File.write("${root}/kf.toml".as_str(), "[project]\nname = \"ext_probe\"\nkind = \"lib\"\n").unwrap()
     val file = "${root}/src/lib.kf"
-    write_file(file, source)
+    File.write(file, source).unwrap()
     var crate = typed_crate_for(file)
     var table = new_decl_table()
     resolve_module(&var crate.module, &var table)
@@ -136,20 +133,20 @@ fun main(): int32 {
 """
     val root = "kf_ext_cross_crate"
     assert_eq(build_extension_crates(root, app), 0, "the app builds against the library's extensions")
-    val binary = "${FixtureGraph.of(scratch_path("${root}/app")).target_dir}/app"
+    val binary = "${FixtureGraph.of(Dir.scratch_path("${root}/app")).target_dir}/app"
     assert_eq(Command.new(binary.as_str()).status().exit_code(), 30, "6 + 5 + 6 + 9 + 2 + 2")
 }
 
 /// A library `geo` exporting a specific, a generic, a primitive and two trait
 /// extensions plus a private one, and an app depending on it.
 fun build_extension_crates(name: str, main_source: str): int32 {
-    val root = scratch_path(name)
+    val root = Dir.scratch_path(name)
     val dirs = "${root}/geo/src ${root}/app/src ${root}/libs"
     unsafe { system("rm -rf ${root} && mkdir -p ${dirs} && cp -R libs/core libs/alloc ${root}/libs/") }
     val deps = "core = { path = \"../libs/core\" }\nalloc = { path = \"../libs/alloc\" }\n"
     val geo_manifest = "[project]\nname = \"geo\"\nkind = \"lib\"\n\n[dependencies]\n${deps}"
-    write_file("${root}/geo/kf.toml".as_str(), geo_manifest)
-    write_file("${root}/geo/src/lib.kf".as_str(), """import alloc.list.*
+    File.write("${root}/geo/kf.toml".as_str(), geo_manifest).unwrap()
+    File.write("${root}/geo/src/lib.kf".as_str(), """import alloc.list.*
 
 pub struct Point {
     pub val x: int32
@@ -194,10 +191,10 @@ pub fun Iterable<T>.count_all(): int32 {
 }
 
 fun int32.hidden(): int32 { return self }
-""")
+""").unwrap()
     val app_deps = "${deps}geo = { path = \"../geo\" }\n"
     val app_manifest = "[project]\nname = \"app\"\nkind = \"bin\"\n\n[dependencies]\n${app_deps}"
-    write_file("${root}/app/kf.toml".as_str(), app_manifest)
-    write_file("${root}/app/src/main.kf".as_str(), main_source)
+    File.write("${root}/app/kf.toml".as_str(), app_manifest).unwrap()
+    File.write("${root}/app/src/main.kf".as_str(), main_source).unwrap()
     return komp_build("${root}/app".as_str(), "")
 }

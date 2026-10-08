@@ -1,8 +1,6 @@
 // A store into a place: naming the overwritten value so it is dropped after
 // the store, and when that is unsafe.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr

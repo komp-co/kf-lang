@@ -27,16 +27,14 @@ pub struct HashMap<K, V> {
 }
 
 /// The end of a chain, and "not found": 0 is a real index.
-pub fun none_index(): uint64 { return 18446744073709551615 }
+val NO_INDEX: uint64 = 18446744073709551615
 
 // Bounded on the impl, so a map can be held and dropped without the bound.
 impl HashMap<K: Hash + Equal, V> {
     pub static fun new(): HashMap<K, V> {
         var hs = List.new<uint64>()
-        var i: uint64 = 0
-        while i < 8 {
-            hs.push(none_index())
-            i = i + 1
+        while _i in 0..8 {
+            hs.push(NO_INDEX)
         }
         return HashMap<K, V> {
             keys: List.new<K>(), vals: List.new<V>(),
@@ -50,21 +48,21 @@ impl HashMap<K: Hash + Equal, V> {
         return (*k).hash() % self.heads.size()
     }
 
-    /// `none_index()` when absent.
+    /// `NO_INDEX` when absent.
     fun find(k: &K): uint64 {
         val b = self.bucket_of(k)
         var i = self.heads.get(b)
-        while i != none_index() {
+        while i != NO_INDEX {
             if self.keys.at(i) == k { return i }
             i = self.next.get(i)
         }
-        return none_index()
+        return NO_INDEX
     }
 
     /// An existing entry has its value replaced and dropped.
     pub mutating fun insert(k: K, v: V): void {
         val at = self.find(&k)
-        if at != none_index() {
+        if at != NO_INDEX {
             self.vals.set(at, v)
             return
         }
@@ -87,23 +85,23 @@ impl HashMap<K: Hash + Equal, V> {
     /// `Option<&V>`, not `&V?`, which is `&Option<V>`.
     pub fun get(k: &K): Option<&V> {
         val at = self.find(k)
-        if at == none_index() { return Option.None }
+        if at == NO_INDEX { return Option.None }
         return Option.Some(self.vals.at(at))
     }
 
     pub fun contains(k: &K): bool {
-        return self.find(k) != none_index()
+        return self.find(k) != NO_INDEX
     }
 
     /// Drops the key and value. True if there was one.
     pub mutating fun remove(k: &K): bool {
         val b = self.bucket_of(k)
         var i = self.heads.get(b)
-        var prev = none_index()
-        while i != none_index() {
+        var prev = NO_INDEX
+        while i != NO_INDEX {
             if self.keys.at(i) == k {
                 // Unlinked first, so the fix-up never walks through it.
-                if prev == none_index() {
+                if prev == NO_INDEX {
                     self.heads.set(b, self.next.get(i))
                 } else {
                     self.next.set(prev, self.next.get(i))
@@ -129,10 +127,10 @@ impl HashMap<K: Hash + Equal, V> {
                 self.heads.set(lb, i)
             } else {
                 var q = self.heads.get(lb)
-                while q != none_index() {
+                while q != NO_INDEX {
                     if self.next.get(q) == last {
                         self.next.set(q, i)
-                        q = none_index()
+                        q = NO_INDEX
                     } else {
                         q = self.next.get(q)
                     }
@@ -168,17 +166,13 @@ impl HashMap<K: Hash + Equal, V> {
         while !self.heads.is_empty() {
             self.heads.pop()
         }
-        var i = 0
-        while i < wanted {
-            self.heads.push(none_index())
-            i = i + 1
+        while _i in 0..wanted {
+            self.heads.push(NO_INDEX)
         }
-        var e = 0
-        while e < self.keys.size() {
+        while e in 0..self.keys.size() {
             val b = (*self.keys.at(e)).hash() % self.heads.size()
             self.next.set(e, self.heads.get(b))
             self.heads.set(b, e)
-            e = e + 1
         }
     }
 }

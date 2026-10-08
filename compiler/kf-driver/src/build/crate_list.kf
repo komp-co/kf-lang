@@ -1,8 +1,6 @@
 // The crates komp hands kflatc as `--crate NAME=ROOT`, dependencies first and
 // the root last, and their modules assembled from source.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.diagnostic.*
 import kf_core.span.*

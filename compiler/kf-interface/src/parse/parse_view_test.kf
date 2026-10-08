@@ -1,7 +1,6 @@
 // A view type stays one across the crate boundary.
 
 import core.assert.assert_eq
-import alloc.list.*
 
 import kf_interface.emit.interface_test_module
 import kf_interface.emit.emit_interface

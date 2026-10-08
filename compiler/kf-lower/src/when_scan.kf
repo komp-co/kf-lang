@@ -4,8 +4,6 @@
 // CONSTRAINT: every expression and statement kind is listed, so a new kind
 // cannot hide a `when` from the desugar.
 
-import alloc.list.*
-
 import kf_core.ast.pattern.Arm
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.FieldInit

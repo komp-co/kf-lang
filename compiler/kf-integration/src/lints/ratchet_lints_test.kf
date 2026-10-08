@@ -2,7 +2,6 @@
 // count, and what a baseline row lets a file keep.
 
 import core.assert.assert_eq
-import alloc.list.*
 
 import kf_core.span.*
 import kf_core.diagnostic.*

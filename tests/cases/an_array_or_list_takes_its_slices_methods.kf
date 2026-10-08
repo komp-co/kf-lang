@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // A method a slice has and the array or list lacks is called through the
 // slice it lends: shared when the slice method reads, mutable when it writes.
-import alloc.list.*
 
 fun <T> Slice<T>.middle(): &T { return self.at(self.size() / 2) }
 

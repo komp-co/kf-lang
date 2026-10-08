@@ -1,4 +1,3 @@
-import alloc.list.*
 import core.assert.assert_eq
 
 import kf_core.lang.lang_annotation

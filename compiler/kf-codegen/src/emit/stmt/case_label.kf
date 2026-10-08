@@ -1,8 +1,6 @@
 // The `case` labels an arm's tag becomes, and the same test as a condition
 // for the if/else chain a guarded `when` lowers to.
 
-import alloc.list.*
-
 import kf_core.ast.statement.SwitchTag
 import kf_core.names.CName
 

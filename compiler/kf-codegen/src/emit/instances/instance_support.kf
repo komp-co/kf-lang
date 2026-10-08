@@ -5,8 +5,6 @@
 // CONSTRAINT: everything comes from one reference scan, so source-loaded and
 // interface-loaded builds of a consumer emit identical C.
 
-import alloc.list.*
-
 import kf_core.ast.Import
 import kf_core.ast.Module
 import kf_core.ast.types.TypeRef

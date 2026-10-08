@@ -6,8 +6,6 @@
 //                              val __guard_2 = x == __tmp_1
 //                              release __tmp_1 }  __guard_2
 
-import alloc.list.*
-
 import kf_core.span.Span
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind

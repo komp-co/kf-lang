@@ -1,8 +1,6 @@
 // What a static call that does not fit its method says: too many or too few
 // arguments, or type arguments, or one of the wrong type.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr

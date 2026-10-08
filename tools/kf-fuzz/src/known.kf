@@ -6,8 +6,6 @@
 //     # comment
 //     216 panic: type vec index out of bounds
 
-import alloc.list.*
-
 pub struct KnownFinding {
     pub val issue: String
     pub val signature: String

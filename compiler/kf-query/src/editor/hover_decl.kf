@@ -6,8 +6,6 @@
 //   * a type used as a static receiver (`Point` of `Point.new`), which is not
 //     an expression.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.Module
 import kf_core.ast.declaration.TopDecl
@@ -188,7 +186,7 @@ pub fun Span.doc_for_span(crate: &TypedCrate): String {
     }
     val decl_path = path_for_file_id(crate.smap, self.file_id)
     if decl_path.as_str() == "" { return "" }
-    val text = read_file(decl_path)
+    val text = File.read(decl_path).unwrap_or("")
     if text.as_str() == "" { return "" }
     return doc_comment_above(text, self.file_id, self.start)
 }

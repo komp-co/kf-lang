@@ -2,11 +2,8 @@
 // dependencies' interfaces, written out as `.kfi`, `.h` and `.c` beside the
 // runtime header they include.
 
-import alloc.list.*
-
 import kf_codegen.runtime.emit_runtime_header
 import alloc.path.Path
-import std.fs.create_dir_all
 
 /// Compiles the crate against the interfaces in `tdir` and writes its
 /// `.kfi`, `.h` and `.c` there. False on any error, reported as it is found.
@@ -28,7 +25,7 @@ pub fun CompileUnit.write_test_sources(tdir: str, entry_file: str, errors: &var 
     if errors.error_count() != 0 { return false }
     if !publish_runtime_header(tdir) { return false }
     val test_dir = test_crate_dir(tdir)
-    if !create_dir_all(Path.new(test_dir.as_str())) {
+    if Dir.create_all(test_dir.as_str()).is_err() {
         runtime_println("error: could not create ${test_dir}")
         return false
     }

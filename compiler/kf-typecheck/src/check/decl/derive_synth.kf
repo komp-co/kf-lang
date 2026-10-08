@@ -2,8 +2,6 @@
 // type satisfies the bound, since codegen already emits a deep clone for
 // every type. Core's `derive` templates write every other trait.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind

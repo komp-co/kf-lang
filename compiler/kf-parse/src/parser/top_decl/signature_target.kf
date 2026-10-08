@@ -1,5 +1,3 @@
-import alloc.list.*
-
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.annotation.MarkTarget
