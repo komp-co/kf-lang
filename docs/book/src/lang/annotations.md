@@ -438,6 +438,17 @@ fun main(): int32 { return Plugins { count: 0 }.count }
 
 It is checked per crate, so two crates may each use it once.
 
+### The program's entry
+
+A program starts in the function marked `@main`, and a `--tests` build in the
+one marked `@test_main`. Each is a `unique` annotation on `() -> int32`. A
+plain `fun main` is shorthand for `@main`, and is set aside when another
+function carries it. Only the crate built as the program has an entry: an
+`@main` in a library is an error, and a library supplies an entry through a
+template that expands in the program's crate. Core is to declare both, as
+`@prelude` annotations, with the release after this one; until then a
+program starts in its `fun main`.
+
 ## @test
 
 `@test` marks a function for `komp test`:

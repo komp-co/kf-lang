@@ -1,0 +1,68 @@
+// `@main` chooses a program's entry once core declares it. Core declares it
+// only after a release carries this, so these build against a copy of core
+// that declares it as it will.
+
+import core.assert.assert_eq
+import alloc.path.Path
+import kf_integration.harness.komp_build
+import std.fs.create_dir_all
+import std.fs.remove_dir_all
+import std.fs.scratch_path
+import std.fs.write_text
+import testing.test
+
+extern "C" fun system(cmd: str): int32
+
+fun entry_dir(name: str): str {
+    return scratch_path("kf_annotated_entry_${name}")
+}
+
+/// A copy of `libs/core` declaring `@main` and `@test_main`, once per run.
+fun entry_core(): String {
+    val dir = entry_dir("core")
+    val _cleared = remove_dir_all(dir)
+    val _copied = unsafe { system("cp -r libs/core ${dir} && rm -rf ${dir}/target") }
+    val _declared = write_text("${dir}/src/program_entry.kf".as_str(), """@prelude
+pub annotation main unique on () -> int32
+
+@prelude
+pub annotation test_main unique on () -> int32
+""")
+    return String.from(dir)
+}
+
+fun write_entry_crate(name: str, kind: str, source: str): void {
+    val dir = entry_dir(name)
+    val _cleared = remove_dir_all(dir)
+    val _made = create_dir_all(Path.new("${dir}/src".as_str()))
+    val deps = "[dependencies]\ncore = { path = \"../kf_annotated_entry_core\" }\n"
+    val _manifest = write_text("${dir}/kf.toml".as_str(), "[project]\nname = \"${name}\"\nkind = \"${kind}\"\n${deps}")
+    val file = if kind == "lib" { "lib.kf" } else { "main.kf" }
+    val _source = write_text("${dir}/src/${file}".as_str(), source)
+}
+
+@test
+fun main_chooses_the_entry_and_a_plain_main_steps_aside(): void {
+    val _core = entry_core()
+    write_entry_crate("ae_app", "bin", """fun helper(): int32 { return 3 }
+
+@main
+fun run(): int32 { return helper() - 3 }
+
+fun main(): int32 { return 9 }
+""")
+    val app = entry_dir("ae_app")
+    assert_eq(komp_build(app, ""), 0, "`run` is the entry")
+    assert_eq(unsafe { system("${app}/target/kflat/ae_app") }, 0, "and the plain `main` does not run")
+    write_entry_crate("ae_twice", "bin", """@main
+fun run(): int32 { return 0 }
+
+@main
+fun again(): int32 { return 1 }
+""")
+    assert_eq(komp_build(entry_dir("ae_twice"), "") != 0, true, "`@main` is unique")
+    write_entry_crate("ae_lib", "lib", """@main
+pub fun run(): int32 { return 0 }
+""")
+    assert_eq(komp_build(entry_dir("ae_lib"), "") != 0, true, "a library has no entry")
+}

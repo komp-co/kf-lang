@@ -135,6 +135,8 @@ fun CompileUnit.compile_crate_mode(artifacts: str, is_bin_root: bool, include_te
     val source_crate = assemble_crate_sources(self.source_dir().as_str(), String.from(self.name.as_str()), smap,
         &var diagnostics, include_tests, &no_overlay)
     append_modules(&var modules, &source_crate.modules)
+    val own_crate = CrateId.new(self.name.as_str())
+    val chose = choose_annotated_entry(&var modules, own_crate, include_tests, is_bin_root, &var diagnostics)
     var diagnostic_index = 0
     while diagnostic_index < diagnostics.size() {
         val diagnostic = diagnostics.at(diagnostic_index)
@@ -142,7 +144,7 @@ fun CompileUnit.compile_crate_mode(artifacts: str, is_bin_root: bool, include_te
         errors.count_errors(1)
         diagnostic_index = diagnostic_index + 1
     }
-    add_entry_file(&var modules, entry_file, self.name, smap)
+    if !chose { add_entry_file(&var modules, entry_file, self.name, smap) }
     var merged = merge_module_list(modules)
     // Separate mode: instances become this TU's static support.
     merged.crate = CrateId.new(self.name.as_str())
