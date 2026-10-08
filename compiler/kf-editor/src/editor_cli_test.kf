@@ -1,0 +1,13 @@
+import core.assert.assert_eq
+import testing.test
+
+@test
+fun no_command_or_serve_serves(): void {
+    assert_eq(is_serve_command(""), true, "kf-editor alone")
+    assert_eq(is_serve_command("serve"), true, "as kflatc spells it")
+}
+
+@test
+fun anything_else_does_not(): void {
+    assert_eq(is_serve_command("check"), false, "not an editor command")
+}

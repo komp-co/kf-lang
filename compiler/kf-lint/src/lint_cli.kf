@@ -10,7 +10,6 @@
 // runs it, `kflatc check` keeps only the compiler's own diagnostics (#184).
 
 import core.args.arg_at
-import core.args.arg_count
 
 import kf_driver.cli.kflatc_cli
 import kf_driver.cli.print_version
@@ -18,11 +17,16 @@ import kf_driver.cli.print_version
 pub fun kf_lint_main(): int32 {
     val command = arg_at(0)
     if command == "version" { return print_version("kf-lint") }
-    if arg_count() == 0 || (command != "check" && command != "lints") {
+    if !is_lint_command(command) {
         println("usage: kf-lint check   (as kflatc check: --name N --root DIR --out DIR ...)")
         println("       kf-lint lints   [--format=json]")
         println("       kf-lint version")
         return 2
     }
     return kflatc_cli()
+}
+
+/// What kf-lint runs; kflatc's other commands are the compiler's.
+pub fun is_lint_command(command: str): bool {
+    return command == "check" || command == "lints"
 }

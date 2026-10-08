@@ -5,15 +5,19 @@
 //   kf-editor version
 
 import core.args.arg_at
-import core.args.arg_count
 
 import kf_driver.cli.print_version
 import kf_query.serve.kflatc_serve
 
 pub fun kf_editor_main(): int32 {
-    if arg_count() == 0 || arg_at(0) == "serve" { return kflatc_serve() }
+    if is_serve_command(arg_at(0)) { return kflatc_serve() }
     if arg_at(0) == "version" { return print_version("kf-editor") }
     println("usage: kf-editor [serve]")
     println("       kf-editor version")
     return 2
+}
+
+/// None, or `serve`, as kflatc spells it: the protocol on stdin.
+pub fun is_serve_command(command: str): bool {
+    return command == "" || command == "serve"
 }
