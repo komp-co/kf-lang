@@ -14,7 +14,7 @@ import kf_typecheck.types.tref_name_key
 pub fun check_satisfies(trait_ref: TypeRef, target: str, gnames: List<String>, methods: List<TopDecl>, span: Span, diags: &var Diagnostics, sigs: Ptr<SigTable>, ctx: &var TypeCtx): void {
     if impl_has_parse_poison(&methods) { return }
     val tname = trait_ref_name(trait_ref)
-    when (unsafe { sigs.find_trait(tname.as_str()) }) {
+    when (unsafe { sigs.find_trait(tname) }) {
         Some(ti) => check_impl_contract(ti, tname.clone(), trait_ref, target, gnames, methods, span, diags, sigs, ctx)
         None => emit_trait_err(diags, span, "unknown trait `${tname}`")
     }
@@ -34,7 +34,7 @@ fun check_impl_contract(ti: TraitInfo, tname: String, trait_ref: TypeRef, target
     val self_ty = impl_self_type(target, &gnames, span, ctx)
     while req in &ti.methods {
         if !req.has_default {
-            val found = find_method_arity(methods, req.name.as_str())
+            val found = find_method_arity(methods, req.name)
             if found < 0 {
                 emit_trait_err(diags, span, "impl of trait `${tname}` is missing method `${req.name}`")
             } else {
@@ -61,7 +61,7 @@ fun check_impl_contract(ti: TraitInfo, tname: String, trait_ref: TypeRef, target
 /// choice within its bounds.
 fun check_assoc_types(ti: TraitInfo, tname: String, target: str, trait_args: &List<String>, trait_args_k: str, methods: List<TopDecl>, span: Span, diags: &var Diagnostics, sigs: Ptr<SigTable>): void {
     while req in &ti.assoc_types {
-        if !impl_binds_assoc(methods, req.name.as_str()) {
+        if !impl_binds_assoc(methods, req.name) {
             emit_trait_err(diags, span, "impl of trait `${tname}` is missing associated type `${req.name}`")
         }
     }
@@ -85,7 +85,7 @@ fun check_assoc_types(ti: TraitInfo, tname: String, target: str, trait_args: &Li
 fun check_assoc_bounds(req: TraitAssocReq, tname: String, target: str, trait_params: &List<String>, trait_args: &List<String>, trait_args_k: str, assoc_name: str, span: Span, diags: &var Diagnostics, sigs: Ptr<SigTable>): void {
     if req.bounds.size() == 0 { return }
     // This impl's own instantiation's choice.
-    val chosen = unsafe { sigs.lookup_assoc_binding_in(target, tname.as_str(), trait_args_k, assoc_name) }
+    val chosen = unsafe { sigs.lookup_assoc_binding_in(target, tname, trait_args_k, assoc_name) }
     val chosen_key = chosen.type_registry_key()
     // "" for an unpinned parameter or an already-reported failure.
     if chosen_key.as_str().equals("") { return }
@@ -93,15 +93,15 @@ fun check_assoc_bounds(req: TraitAssocReq, tname: String, target: str, trait_par
         // The bound is in the trait's parameters: `type Out: Sink<P>` in
         // `trait Producer<P>` means `Sink<int32>` for `impl Producer<int32>`.
         val want_args = mapped_args_key(&bound.arg_names, trait_params, trait_args)
-        if !unsafe { sigs.type_implements(chosen_key.as_str(), bound.trait_name.as_str(), want_args.as_str()) } {
+        if !unsafe { sigs.type_implements(chosen_key, bound.trait_name, want_args) } {
             var message = String.from("associated type `")
             message.append(assoc_name)
             message.append("` of trait `")
-            message.append(tname.as_str())
+            message.append(tname)
             message.append("` is bound to `")
-            message.append(chosen_key.as_str())
+            message.append(chosen_key)
             message.append("`, which does not implement `")
-            message.append(bound.trait_name.as_str())
+            message.append(bound.trait_name)
             message.append("`")
             emit_trait_err(diags, span, message)
         }
@@ -156,8 +156,8 @@ fun trait_has_method(ti: TraitInfo, name: str): bool {
 }
 
 fun emit_trait_err(diags: &var Diagnostics, span: Span, msg: String): void {
-    val lab = new_label(span, msg)
-    diags.emit(new_diagnostic(Severity.Error, lab))
+    val lab = Label.new(span, msg)
+    diags.emit(Diagnostic.new(Severity.Error, lab))
 }
 
 /// `type Item` / `type Item = T`, which share the member list.
@@ -195,7 +195,7 @@ fun trait_ref_arg_names(trait_ref: &TypeRef): List<String> {
 /// Arity already matches.
 fun TraitMethodReq.check_named_method_types(tname: &String, trait_ref: &TypeRef, target: str, self_ty: &Type, methods: List<TopDecl>, diags: &var Diagnostics, ctx: &var TypeCtx): void {
     while method in &methods {
-        if method.name.as_str().equals(self.name.as_str()) {
+        if method.name.as_str().equals(self.name) {
             // The method's own parameters, `N` lifted from the trait's
             // arguments among them, are in scope for its signature.
             val outer_owner = ctx.fn_owner.clone()

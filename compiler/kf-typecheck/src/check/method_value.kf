@@ -4,13 +4,13 @@
 
 import alloc.list.*
 
-import kf_core.ast.Sym
-import kf_core.ast.intern
 import kf_core.ast.types.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_typecheck.types.resolve_type_ref
 import kf_typecheck.note_import_use
 
@@ -20,18 +20,18 @@ pub mutating fun Expr.name_method_value(receiver: &Expr, method: Sym, ctx: &var 
     val type_name = static_recv_type_name(receiver.written_receiver(), ctx)
     if type_name.byte_len() == 0 || enum_name_has_variant(type_name.clone(), method.as_string(), ctx) { return false }
     val sigs = unsafe { &*ctx.sigs }
-    val sig = sigs.method_signature(type_name.as_str(), method.as_str()) ?: return false
+    val sig = sigs.method_signature(type_name, method.as_str()) ?: return false
     note_import_use(ctx.sigs, ctx.owner_file, sig.owner_module)
     if sig.generics.size() > 0 {
         val what = "`${type_name.as_str()}.${method.as_str()}`"
         val message = "generic method ${what} cannot be used as a value: a function value has one type"
-        ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+        ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
         self.ty = Type.new_poison()
         return true
     }
-    val owner_ref = TypeRef.new(self.span, TypeRefKind.Named(intern(type_name.as_str()), List.new<TypeRef>()))
+    val owner_ref = TypeRef.new(self.span, TypeRefKind.Named(intern(type_name), List.new<TypeRef>()))
     val owner = owner_ref.resolve_type_ref(ctx)
-    self.kind = ExprKind.FnRef(intern(sig.name.as_str()))
+    self.kind = ExprKind.FnRef(intern(sig.name))
     val link = sigs.receiver_method_link(&owner, method.as_str())
     if link.as_str().byte_len() > 0 { self.mangled_callee = link }
     var params = List.new<Type>()
@@ -49,12 +49,12 @@ pub mutating fun Expr.name_method_value(receiver: &Expr, method: Sym, ctx: &var 
 /// there is none, or more than one trait provides it.
 fun SigTable.method_signature(type_name: str, method: str): FnSignature? {
     val inherent = "${type_name}_${method}"
-    val direct = self.find_signature(inherent.as_str())
+    val direct = self.find_signature(inherent)
     if direct != null { return direct }
     val prefix = "${inherent}__"
     var found: FnSignature? = null
     while sig in &self.sigs {
-        if sig.name.as_str().starts_with(prefix.as_str()) {
+        if sig.name.starts_with(prefix) {
             if found != null { return null }
             found = Option.Some(sig)
         }

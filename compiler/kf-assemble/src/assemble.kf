@@ -6,8 +6,8 @@ import alloc.list.*
 import kf_core.span.*
 import kf_core.ast.*
 import kf_core.ast.declaration.TopDecl
-import kf_core.ast.declaration.stamp_decl_owner
 import kf_core.diagnostic.*
+import kf_core.intern.*
 import kf_parse.lexer.tokenize
 import kf_parse.parser.*
 
@@ -52,7 +52,7 @@ fun module_path_sym(path: &List<String>): Sym {
 
 fun stamp_decl_list(decls: &var List<TopDecl>, crate: CrateId, module_path: Sym): void {
     while i in 0..decls.size() {
-        stamp_decl_owner(decls.at_mut(i), crate, module_path)
+        decls.at_mut(i).stamp_owner(crate, module_path)
     }
 }
 
@@ -131,31 +131,31 @@ pub fun assemble_crate_tests(crate_root: str, crate_name: String, smap: Ptr<Sour
 /// spans do not carry.
 pub fun assemble_crate_inc(crate_root: str, crate_name: String, smap: Ptr<SourceMap>, pdiags: &var Diagnostics, include_tests: bool, overlay: &Overlay): Crate {
     val src_root: String = join(crate_root, "src")
-    return assemble_crate_sources(src_root.as_str(), crate_name, smap, pdiags, include_tests, overlay)
+    return assemble_crate_sources(src_root, crate_name, smap, pdiags, include_tests, overlay)
 }
 
 /// As `assemble_crate_inc`, from the directory holding the crate's sources:
 /// `src/` for most crates, `src/lib/` or `src/bin/` for a package holding both.
 pub fun assemble_crate_sources(src_root: str, crate_name: String, smap: Ptr<SourceMap>, pdiags: &var Diagnostics,
     include_tests: bool, overlay: &Overlay): Crate {
-    var c = new_crate(String.from(crate_name.as_str()))
+    var c = Crate.new(String.from(crate_name.as_str()))
     if !is_dir(src_root) {
         // A crate with no sources must be an error: otherwise the build emits
         // a program with none of the project's code and exits 0.
-        pdiags.emit(error_at(no_span(), "crate `${crate_name}` has no source directory (expected ${src_root}); sources beside kf.toml are not read"))
+        pdiags.emit(Diagnostic.error_at(Span.none(), "crate `${crate_name}` has no source directory (expected ${src_root}); sources beside kf.toml are not read"))
         return c
     }
     var paths = List.new<String>()
     walk_kf_files_inc(src_root, &var paths, include_tests)
     while path in &paths {
         val p: String = path
-        val src: String = overlay.overlay_read(p.as_str())
-        val fid = unsafe { smap.add_file(new_source_file(p.clone(), src.clone())) }
-        val toks = tokenize(src.as_str(), fid)
+        val src: String = overlay.overlay_read(p)
+        val fid = unsafe { smap.add_file(SourceFile.new(p.clone(), src.clone())) }
+        val toks = tokenize(src, fid)
         var parser = new_parser(toks)
-        val mod_path: List<String> = module_path_for(p.as_str(), src_root, crate_name.clone())
+        val mod_path: List<String> = module_path_for(p, src_root, crate_name.clone())
         var m: Module = parser.parse_module(mod_path)
-        stamp_module_owner(&var m, new_crate_id(crate_name.as_str()))
+        stamp_module_owner(&var m, CrateId.new(crate_name.as_str()))
         parser.drain_parse_diags(pdiags)
         c.modules.push(m)
     }

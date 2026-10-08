@@ -34,7 +34,7 @@ pub fun judge(exit_code: int32, output: str): Verdict {
     if exit_code > 128 { return finding("signal ${signal_name(exit_code - 128)}".as_str()) }
     if exit_code == 1 {
         if last.is_empty() { return finding("panic without a message") }
-        if last.starts_with("panic[") { return finding(normalize(last.as_str()).as_str()) }
+        if last.starts_with("panic[") { return finding(normalize(last).as_str()) }
         return finding("panic: ${normalize(last.as_str())}".as_str())
     }
     return finding("exit ${exit_code}: ${normalize(last.as_str())}".as_str())
@@ -72,7 +72,7 @@ pub fun normalize(line: str): String {
     while i <= line.byte_len() {
         val b: uint8 = if i < line.byte_len() { line.byte_at(i) } else { 32 }
         if b == 32 {
-            if word.contains("/") { out.append("PATH") } else { out.append(word.as_str()) }
+            if word.contains("/") { out.append("PATH") } else { out.append(word) }
             if i < line.byte_len() { out.append(" ") }
             word = String.from("")
         } else if b >= 48 && b <= 57 {

@@ -8,7 +8,7 @@ import testing.test
 @test
 fun the_prelude_does_not_define_the_string_layout(): void {
     val header = emit_runtime_header()
-    assert_eq(header.as_str().contains("uint8_t* data; uint64_t len; uint64_t cap;"), false, "the layout belongs to core, which declares it once")
+    assert_eq(header.contains("uint8_t* data; uint64_t len; uint64_t cap;"), false, "the layout belongs to core, which declares it once")
 }
 
 // So the prelude carries no prototype passing or returning `String` by value;
@@ -16,31 +16,31 @@ fun the_prelude_does_not_define_the_string_layout(): void {
 @test
 fun the_prelude_declares_no_string_by_value(): void {
     val header = emit_runtime_header()
-    val by_value = header.as_str().contains("String __kf_v2_str_concat") || header.as_str().contains("String read_file")
+    val by_value = header.contains("String __kf_v2_str_concat") || header.contains("String read_file")
     assert_eq(by_value, false, "a by-value String prototype drags the layout back into the prelude")
 }
 
 @test
 fun runtime_interner_reserves_zero_for_poison(): void {
     val source = read_file("compiler/kf-core/native/compiler.c")
-    assert_eq(source.as_str().contains("static uint32_t kf_sym_count = 1;"), true, "runtime interner starts after poison")
+    assert_eq(source.contains("static uint32_t kf_sym_count = 1;"), true, "runtime interner starts after poison")
 }
 
 @test
 fun runtime_header_declares_std_process_and_fs_helpers(): void {
     val header = emit_runtime_header()
-    val has_mkdir = header.as_str().contains("int32_t kf_create_dir_all(const char* path);")
-    val has_remove = header.as_str().contains("int32_t kf_remove_dir_all(const char* path);")
-    val has_process = header.as_str().contains("int32_t kf_process_status(")
+    val has_mkdir = header.contains("int32_t kf_create_dir_all(const char* path);")
+    val has_remove = header.contains("int32_t kf_remove_dir_all(const char* path);")
+    val has_process = header.contains("int32_t kf_process_status(")
     assert_eq(has_mkdir && has_remove && has_process, true, "runtime header exposes std helpers across crate units")
     // String-returning helpers live in `core.runtime_string_hosted`.
-    val moved = header.as_str().contains("kf_current_dir") || header.as_str().contains("kf_temp_dir")
+    val moved = header.contains("kf_current_dir") || header.contains("kf_temp_dir")
     assert_eq(moved, false, "a String-returning helper is declared beside the struct")
 }
 
 @test
 fun runtime_header_declares_exit_without_stdlib(): void {
     val header = emit_runtime_header()
-    val has_prototype = header.as_str().contains("void exit(int status);")
+    val has_prototype = header.contains("void exit(int status);")
     assert_eq(has_prototype && runtime_header_declares("exit"), true, "runtime header makes exit available to every generated unit")
 }

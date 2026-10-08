@@ -7,28 +7,23 @@ import alloc.list.*
 import alloc.hash_map.HashMap
 import core.text.byte_at_in
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.ast.types.*
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.subst.mangle_tyref
+import kf_core.intern.*
+import kf_core.lang.*
+import kf_core.names.*
 
-pub fun push_rename(old: String, new_name: String, names: &var List<String>, repls: &var List<TypeRef>): void {
-    names.push(old)
-    repls.push(TypeRef.new(no_span(), TypeRefKind.Named(intern(new_name.as_str()), List.new<TypeRef>())))
+pub fun push_rename(old: String, new_name: String, subst: &var Substitution): void {
+    subst.bind(old, TypeRef.new(Span.none(), TypeRefKind.Named(intern(new_name), List.new<TypeRef>())))
 }
 
 /// "" on a miss.
-pub fun rename_lookup(name: str, names: &var List<String>, repls: &var List<TypeRef>): String {
-    while i in 0..names.size() {
-        if names.at(i).as_str() == name {
-            if i < repls.size() {
-                val item = *repls.at(i)
-                return String.from(mangle_tyref(&item).as_str())
-            }
-        }
-    }
-    return ""
+pub fun rename_lookup(name: str, subst: &Substitution): String {
+    val renamed = subst.replacement_of(name) ?: return ""
+    return renamed.mangle_tyref().display()
 }
 
 /// Every non-generic struct/enum with an owner maps to `<crate>__<name>`,
@@ -37,14 +32,14 @@ pub fun rename_lookup(name: str, names: &var List<String>, repls: &var List<Type
 /// CONSTRAINT: this module's own types first. `rename_lookup` answers with
 /// the first entry, so a dependency's type of the same name would otherwise
 /// capture the program's.
-pub fun Module.collect_type_renames(names: &var List<String>, repls: &var List<TypeRef>): void {
-    self.collect_type_renames_pass(false, names, repls)
-    self.collect_type_renames_pass(true, names, repls)
+pub fun Module.collect_type_renames(subst: &var Substitution): void {
+    self.collect_type_renames_pass(false, subst)
+    self.collect_type_renames_pass(true, subst)
 }
 
-fun Module.collect_type_renames_pass(imported: bool, names: &var List<String>, repls: &var List<TypeRef>): void {
-    val list_name = self.lang_type_name(lang_list_key())
-    val option_name = self.lang_type_name(lang_option_key())
+fun Module.collect_type_renames_pass(imported: bool, subst: &var Substitution): void {
+    val list_name = self.lang_type_name(LangItem.List)
+    val option_name = self.lang_type_name(LangItem.Option)
     val decls = self.decls
     while td in &decls {
         if td.linkage.is_imported() == imported {
@@ -54,10 +49,10 @@ fun Module.collect_type_renames_pass(imported: bool, names: &var List<String>, r
                 new_name.append(td.name.as_str())
                 // A resolved type may already carry the final C name; it is
                 // matched first so it is not prefixed twice.
-                push_rename(String.from(new_name.as_str()), String.from(new_name.as_str()), names, repls)
-                push_rename(td.name.as_string(), String.from(new_name.as_str()), names, repls)
+                push_rename(String.from(new_name.as_str()), String.from(new_name.as_str()), subst)
+                push_rename(td.name.as_string(), String.from(new_name.as_str()), subst)
                 val canon = canonical_type_identity(TypeIdentity.new(td.crate, td.module_path, td.name))
-                push_rename(canon.as_string(), String.from(new_name.as_str()), names, repls)
+                push_rename(canon.as_string(), String.from(new_name.as_str()), subst)
             }
         }
     }
@@ -74,8 +69,8 @@ fun type_decl_qualifies(td: &TopDecl, list_name: Sym, option_name: Sym): bool {
     if td.crate.is_poison() { return false }
     if td.generics.size() > 0 { return false }
     val s = td.name.as_str()
-    if is_runtime_type_name(s) || is_container_type_name(s, list_name, option_name) { return false }
-    if is_mangled_decl_name(s) { return false }
+    if CName.is_runtime_type(s) || is_container_type_name(s, list_name, option_name) { return false }
+    if CName.is_mangled(s) { return false }
     if (&td).has_annotation("no_mangle") { return false }
     return true
 }
@@ -83,7 +78,7 @@ fun type_decl_qualifies(td: &TopDecl, list_name: Sym, option_name: Sym): bool {
 /// Every non-generic free function with an owner, except `main`. Externs
 /// keep their foreign names. A globally unique inherent method is included as
 /// a fallback for calls that lost their receiver type; ambiguous ones are not.
-pub fun Module.collect_fn_renames(names: &var List<String>, repls: &var List<TypeRef>): void {
+pub fun Module.collect_fn_renames(subst: &var Substitution): void {
     val decls = self.decls
     // CONSTRAINT: this module's own functions first, as `find_imported_signature`
     // does in the typechecker; otherwise an imported function of the same name
@@ -93,7 +88,7 @@ pub fun Module.collect_fn_renames(names: &var List<String>, repls: &var List<Typ
             if fn_decl_qualifies(td) {
                 var new_name = td.crate.symbol_prefix()
                 new_name.append(td.name.as_str())
-                push_rename(td.name.as_string(), String.from(new_name.as_str()), names, repls)
+                push_rename(td.name.as_string(), String.from(new_name.as_str()), subst)
             }
         }
     }
@@ -101,15 +96,15 @@ pub fun Module.collect_fn_renames(names: &var List<String>, repls: &var List<Typ
     while td in &decls {
         if td.linkage.is_imported() {
             if td.link_name.as_str().byte_len() > 0 {
-                push_rename(td.name.as_string(), td.link_name.as_string(), names, repls)
+                push_rename(td.name.as_string(), td.link_name.as_string(), subst)
             }
         }
     }
-    self.collect_unique_method_renames(names, repls)
-    self.collect_method_value_renames(names, repls)
+    self.collect_unique_method_renames(subst)
+    self.collect_method_value_renames(subst)
 }
 
-fun Module.collect_unique_method_renames(names: &var List<String>, repls: &var List<TypeRef>): void {
+fun Module.collect_unique_method_renames(subst: &var Substitution): void {
     val counts = self.method_name_counts()
     val containers = self.container_names()
     while owner in &self.decls {
@@ -118,10 +113,10 @@ fun Module.collect_unique_method_renames(names: &var List<String>, repls: &var L
                 while method in &methods {
                     val raw_name = method_source_name(method.name.as_string())
                     val unique = counts.count_of(&raw_name) == 1
-                    if !method_name_is_runtime_owned(raw_name.as_str()) && unique && !self.module_has_free_symbol(raw_name.as_str()) {
+                    if !method_name_is_runtime_owned(raw_name) && unique && !self.module_has_free_symbol(raw_name) {
                         val link = self.method_link_name(owner, method, &containers)
                         if link.as_str() != "" {
-                            push_rename(raw_name, link, names, repls)
+                            push_rename(raw_name, link, subst)
                         }
                     }
                 }
@@ -135,25 +130,24 @@ fun Module.collect_unique_method_renames(names: &var List<String>, repls: &var L
 /// of a non-generic impl.
 /// CONSTRAINT: after qualify_type_symbols, so the owner's name may carry its
 /// crate prefix, which the checked name does not.
-fun Module.collect_method_value_renames(names: &var List<String>, repls: &var List<TypeRef>): void {
+fun Module.collect_method_value_renames(subst: &var Substitution): void {
     while owner in &self.decls {
         if owner.generics.size() > 0 { continue }
         when (owner.kind) {
-            ImplBlock(methods) => self.push_method_value_renames(owner, &methods, names, repls)
-            TraitImpl(_trait, methods) => self.push_method_value_renames(owner, &methods, names, repls)
+            ImplBlock(methods) => self.push_method_value_renames(owner, &methods, subst)
+            TraitImpl(_trait, methods) => self.push_method_value_renames(owner, &methods, subst)
             _ => {}
         }
     }
 }
 
-fun Module.push_method_value_renames(owner: &TopDecl, methods: &List<TopDecl>, names: &var List<String>,
-    repls: &var List<TypeRef>): void {
+fun Module.push_method_value_renames(owner: &TopDecl, methods: &List<TopDecl>, subst: &var Substitution): void {
     val checked_owner = owner.unprefixed_name()
     val containers = self.container_names()
     while method in &methods {
         val link = self.method_link_name(owner, method, &containers)
         if link.as_str() != "" {
-            push_rename("${checked_owner.as_str()}_${method.name.as_str()}", link, names, repls)
+            push_rename("${checked_owner.as_str()}_${method.name.as_str()}", link, subst)
         }
     }
 }
@@ -162,7 +156,7 @@ fun Module.push_method_value_renames(owner: &TopDecl, methods: &List<TopDecl>, n
 fun TopDecl.unprefixed_name(): String {
     val prefix = self.crate.symbol_prefix()
     val name = self.name.as_str()
-    if prefix.byte_len() == 0 || !name.starts_with(prefix.as_str()) { return self.name.as_string() }
+    if prefix.byte_len() == 0 || !name.starts_with(prefix) { return self.name.as_string() }
     return name.substring(prefix.byte_len(), name.byte_len())
 }
 
@@ -174,7 +168,7 @@ struct ContainerNames {
 }
 
 fun Module.container_names(): ContainerNames {
-    return ContainerNames { list: self.lang_type_name(lang_list_key()), option: self.lang_type_name(lang_option_key()) }
+    return ContainerNames { list: self.lang_type_name(LangItem.List), option: self.lang_type_name(LangItem.Option) }
 }
 
 /// The method's C symbol; "" for an impl with no owning crate.
@@ -182,7 +176,7 @@ fun Module.method_link_name(owner: &TopDecl, method: &TopDecl, containers: &Cont
     val link = method.link_name.as_string()
     if link.as_str() != "" || owner.crate.is_poison() { return link }
     // A builtin type's impls are emitted unprefixed (`int8_add__Add`).
-    val unprefixed = is_mangled_decl_name(owner.name.as_str()) || is_runtime_type_name(owner.name.as_str()) ||
+    val unprefixed = CName.is_mangled(owner.name.as_str()) || CName.is_runtime_type(owner.name.as_str()) ||
         is_container_type_name(owner.name.as_str(), containers.list, containers.option) ||
         self.type_is_no_mangle(owner.name.as_str())
     val prefix = if unprefixed { String.from("") } else { String.from(owner.crate.symbol_prefix().as_str()) }
@@ -272,6 +266,6 @@ fun fn_decl_qualifies(td: &TopDecl): bool {
     if td.generics.size() > 0 { return false }
     val s = td.name.as_str()
     if s == "main" { return false }
-    if is_mangled_decl_name(s) { return false }
+    if CName.is_mangled(s) { return false }
     return true
 }

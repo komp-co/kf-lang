@@ -23,9 +23,9 @@ c_sources = ["native/core.c"]
 hosted_c_sources = ["native/core_hosted.c"]
 """)
     val core_native = read_file("libs/core/native/core.c")
-    write_file(scratch_path("kf_qual_core/native/core.c"), core_native.as_str())
+    write_file(scratch_path("kf_qual_core/native/core.c"), core_native)
     val core_hosted = read_file("libs/core/native/core_hosted.c")
-    write_file(scratch_path("kf_qual_core/native/core_hosted.c"), core_hosted.as_str())
+    write_file(scratch_path("kf_qual_core/native/core_hosted.c"), core_hosted)
     write_file(scratch_path("kf_qual_alloc/kf.toml"), """[project]
 name = "alloc"
 kind = "lib"
@@ -95,7 +95,7 @@ alloc = { path = "../kf_qual_alloc" }
     app.append("    val made = Step_2.from(3)\n")
     app.append("    if made.unused != 3 { return 7 }\n")
     app.append("    return 0\n}\n")
-    write_file(scratch_path("kf_qual_app/src/main.kf"), app.as_str())
+    write_file(scratch_path("kf_qual_app/src/main.kf"), app)
     return 0
 }
 

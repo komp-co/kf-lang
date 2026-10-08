@@ -4,15 +4,13 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.Arm
-import kf_core.ast.Intrinsic
-import kf_core.ast.Sym
+import kf_core.ast.pattern.Arm
 import kf_core.ast.expression.Expr
-import kf_core.ast.expression.coerce_written_amp
-import kf_core.ast.expression.coerce_written_amp_var
+import kf_core.ast.expression.Coercion
 import kf_core.ast.declaration.Param
 import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
+import kf_core.intern.Sym
 
 /// What the walk has found, and where it is.
 pub struct LintWalk {
@@ -66,7 +64,9 @@ impl LintWalk {
         val max = self.options.get("deep_nesting", "max_depth")
         if self.depth <= max || self.nesting_reported { return }
         self.nesting_reported = true
-        self.found.push(lint_at("deep_nesting", at, "blocks nest ${self.depth} deep here; the most is ${max}"))
+        self.found.push(
+            Diagnostic.lint_at("deep_nesting", at, "blocks nest ${self.depth} deep here; the most is ${max}")
+        )
     }
 
     mutating fun leave(): void {
@@ -94,7 +94,9 @@ impl LintWalk {
     mutating fun local(name: Sym, at: Span): void {
         check_variable_name(name, at, self)
         if self.locals.declare(name, at) {
-            self.found.push(lint_at("shadowed_variable", at, "`${name.as_str()}` is already bound in this function"))
+            self.found.push(
+                Diagnostic.lint_at("shadowed_variable", at, "`${name.as_str()}` is already bound in this function")
+            )
         }
     }
 }
@@ -104,7 +106,7 @@ fun List<Stmt>.visit(walk: &var LintWalk): void {
     var left = false
     while s in &self {
         if left {
-            walk.found.push(lint_at("unreachable_code", s.span,
+            walk.found.push(Diagnostic.lint_at("unreachable_code", s.span,
                 String.from("this is never reached: the statement before it leaves the block")))
             left = false
         }
@@ -190,7 +192,7 @@ fun visit_arms(arms: &List<Arm>, walk: &var LintWalk): void {
 fun Expr.visit(walk: &var LintWalk): void {
     // A borrow may be handed to something that changes it, as `&var x.body`
     // or a `&list` a function fills; which do is the callee's to say.
-    if self.coerce == coerce_written_amp() || self.coerce == coerce_written_amp_var() {
+    if self.coerce == Coercion.WrittenAmp || self.coerce == Coercion.WrittenAmpVar {
         walk.locals.change(self.root_variable())
     }
     when (self.kind) {
@@ -199,7 +201,7 @@ fun Expr.visit(walk: &var LintWalk): void {
             if walk.numbers_checked() { check_magic_number(self.span, value, walk) }
         }
         LitFloat(spelling) => {
-            if walk.numbers_checked() { check_magic_float(self.span, spelling.as_str(), walk) }
+            if walk.numbers_checked() { check_magic_float(self.span, spelling, walk) }
         }
         Binary(left, op, right) => {
             if !left.may_be_optional() && !right.may_be_optional() {

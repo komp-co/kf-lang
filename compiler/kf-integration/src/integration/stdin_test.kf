@@ -26,7 +26,7 @@ fun prepare_reader(): void {
     manifest.append("/libs/alloc\" }\nstd = { path = \"")
     manifest.append(root.as_str())
     manifest.append("/libs/std\" }\n")
-    write_file(scratch_path("kf_stdin_io/reader/kf.toml"), manifest.as_str())
+    write_file(scratch_path("kf_stdin_io/reader/kf.toml"), manifest)
     var app = String.from("import core.display.*\nimport std.io.*\n\n")
     app.append("fun main(): int32 {\n")
     app.append("    var lines: int32 = 0\n")
@@ -39,7 +39,7 @@ fun prepare_reader(): void {
     app.append("    }\n")
     app.append("    return lines\n")
     app.append("}\n")
-    write_file(scratch_path("kf_stdin_io/reader/src/main.kf"), app.as_str())
+    write_file(scratch_path("kf_stdin_io/reader/src/main.kf"), app)
 }
 
 @test

@@ -10,29 +10,46 @@ pub enum LintLevel {
     Deny
 }
 
-/// `Warn` for anything unrecognized; callers validate the spelling first.
-pub fun lint_level_named(s: str): LintLevel {
-    if s.equals("allow") { return LintLevel.Allow }
-    if s.equals("deny") { return LintLevel.Deny }
-    return LintLevel.Warn
-}
-
-pub fun lint_level_name(l: LintLevel): str {
-    return when (l) {
-        Allow => "allow"
-        Warn => "warn"
-        Deny => "deny"
+impl LintLevel {
+    /// None for anything but `allow`, `warn` or `deny`.
+    pub static fun named(text: str): LintLevel? {
+        return when text {
+            "allow" => LintLevel.Allow
+            "warn" => LintLevel.Warn
+            "deny" => LintLevel.Deny
+            _ => null
+        }
     }
-}
 
-pub fun is_lint_level_name(s: str): bool {
-    return s.equals("allow") || s.equals("warn") || s.equals("deny")
+    pub fun name(): str {
+        return when (self) {
+            Allow => "allow"
+            Warn => "warn"
+            Deny => "deny"
+        }
+    }
+
+    /// How a lint at this level renders. `Allow` is never rendered; it maps
+    /// to Warning inertly.
+    pub fun severity(): Severity {
+        return when (self) {
+            Deny => Severity.Error
+            _ => Severity.Warning
+        }
+    }
+
+    pub fun is_allow(): bool {
+        return when (self) {
+            Allow => true
+            _ => false
+        }
+    }
 }
 
 pub struct LintInfo {
     /// snake_case, naming what is wrong.
     pub val name: String
-    /// One of `lint_groups()`; `-W <group>` and lint.toml's `[groups]` set
+    /// One of `LintInfo.groups()`; `-W <group>` and lint.toml's `[groups]` set
     /// every lint in it.
     pub val group: String
     /// The level with no configuration.
@@ -50,186 +67,153 @@ pub struct LintOptionInfo {
     pub val description: String
 }
 
-/// The groups, in the order `komp lint --list` shows them. `all` names every
-/// lint and is not a group of its own.
-pub fun lint_groups(): List<String> {
-    var out = List.new<String>()
-    out.push(String.from("correctness"))
-    out.push(String.from("suspicious"))
-    out.push(String.from("style"))
-    out.push(String.from("complexity"))
-    out.push(String.from("perf"))
-    out.push(String.from("pedantic"))
-    out.push(String.from("restriction"))
-    return out
-}
-
-/// A group, or `all`.
-pub fun is_lint_group(name: str): bool {
-    if name == "all" { return true }
-    val groups = lint_groups()
-    while group in &groups {
-        if group.as_str() == name { return true }
+impl LintInfo {
+    static fun new(name: str, group: str, default: LintLevel, description: str): LintInfo {
+        return LintInfo {
+            name: String.from(name), group: String.from(group), default: default,
+            description: String.from(description), options: []
+        }
     }
-    return false
-}
 
-/// Whether `lint` is one `group` names: its own group, or `all`.
-pub fun LintInfo.in_group(group: str): bool {
-    return group == "all" || self.group.as_str() == group
-}
-
-fun lint_info(name: str, group: str, default: LintLevel, description: str): LintInfo {
-    return LintInfo {
-        name: String.from(name), group: String.from(group), default: default, description: String.from(description),
-        options: List.new<LintOptionInfo>()
+    fun with_option(key: str, default: int64, description: str): LintInfo {
+        var out = self.clone()
+        out.options.push(
+            LintOptionInfo { key: String.from(key), default: default, description: String.from(description) }
+        )
+        return out
     }
-}
 
-fun LintInfo.with_option(key: str, default: int64, description: str): LintInfo {
-    var out = self.clone()
-    out.options.push(LintOptionInfo { key: String.from(key), default: default, description: String.from(description) })
-    return out
-}
-
-/// The option `key` of lint `name`, or null when it has none by that name.
-pub fun lookup_lint_option(name: str, key: str): LintOptionInfo? {
-    val info = lookup_lint(name)
-    while option in &info.options {
-        if option.key.as_str() == key { return Option.Some(option.clone()) }
+    /// The groups, in the order `komp lint --list` shows them. `all` names
+    /// every lint and is not a group of its own.
+    pub static fun groups(): List<String> {
+        return ["correctness", "suspicious", "style", "complexity", "perf", "pedantic", "restriction"]
     }
-    return null
-}
 
-pub fun lint_registry(): List<LintInfo> {
-    var out = List.new<LintInfo>()
-    out.push(lint_info("unused_import", "style", LintLevel.Warn,
-        "an import whose module contributes no name this file writes"))
-    out.push(lint_info("wildcard_import", "style", LintLevel.Warn,
-        "a `.*` import supplying few enough names to write out"))
-    out.push(lint_info("implicit_copy", "perf", LintLevel.Warn,
-        "a value read through a borrow is copied to fill a by-value slot"))
-    out.push(lint_info("copy_after_move", "perf", LintLevel.Warn,
-        "an earlier move is copied instead, to keep the original readable"))
-    out.push(lint_info("unauthorized_copy", "correctness", LintLevel.Deny,
-        "a copy is inserted into a type that does not implement `Clone`"))
-    out.push(lint_info("deref_through_temporary", "suspicious", LintLevel.Warn,
-        "`*` through a `Box` owned by a call's result, freed at the end of the statement"))
-    out.push(lint_info("empty_if", "suspicious", LintLevel.Warn,
-        "an `if` whose branches are both empty"))
-    out.push(lint_info("self_assignment", "suspicious", LintLevel.Warn,
-        "a variable assigned to itself"))
-    out.push(lint_info("unused_variable", "suspicious", LintLevel.Warn,
-        "a local that is bound and never read"))
-    out.push(lint_info("unreachable_code", "suspicious", LintLevel.Warn,
-        "a statement after a `return`, `break` or `continue` in the same block"))
-    out.push(lint_info("self_comparison", "suspicious", LintLevel.Warn,
-        "a variable compared with itself"))
-    out.push(lint_info("double_negation", "suspicious", LintLevel.Warn,
-        "`!` applied to a `!`, as in `!(!x)`"))
-    out.push(lint_info("unused_result", "suspicious", LintLevel.Warn,
-        "a `Result` an expression statement drops, error and all"))
-    out.push(lint_info("float_equality", "suspicious", LintLevel.Warn,
-        "`==` or `!=` between floats other than zero, outside tests"))
-    out.push(lint_info("needless_var", "style", LintLevel.Warn,
-        "a `var` that is read and never changed"))
-    out.push(lint_info("len_zero", "style", LintLevel.Allow,
-        "a length compared with zero, which `is_empty()` says"))
-    out.push(lint_info("clone_on_copy", "perf", LintLevel.Warn,
-        "`.clone()` on a value whose type derives `Copy`, which copies anyway"))
-    out.push(lint_info("redundant_cast", "complexity", LintLevel.Warn,
-        "a cast to the type the value already has"))
-    out.push(lint_info("needless_bool", "style", LintLevel.Warn,
-        "branches that give `true` and `false`, which the condition already is"))
-    out.push(lint_info("manual_index_loop", "style", LintLevel.Allow,
-        "a `while` loop that counts by hand what `while i in 0..n` counts"))
-    out.push(lint_info("bool_comparison", "style", LintLevel.Warn,
-        "a comparison with `true` or `false`"))
-    out.push(lint_info("collapsible_if", "style", LintLevel.Allow,
-        "an `if` whose only statement is another `if`"))
-    out.push(lint_info("non_snake_case_function", "style", LintLevel.Warn,
-        "a function not named in lower_snake_case"))
-    out.push(lint_info("non_snake_case_variable", "style", LintLevel.Warn,
-        "a local or parameter not named in lower_snake_case"))
-    out.push(lint_info("non_camel_case_type", "style", LintLevel.Warn,
-        "a struct, enum or trait not named in UpperCamelCase"))
-    out.push(lint_info("non_camel_case_variant", "style", LintLevel.Warn,
-        "an enum variant not named in UpperCamelCase"))
-    out.push(lint_info("too_many_parameters", "complexity", LintLevel.Warn,
-        "a function taking more parameters than `max`, `self` aside")
-            .with_option("max", 7, "the most parameters a function may take"))
-    out.push(lint_info("identity_op", "complexity", LintLevel.Warn,
-        "an operation that leaves its value as it is, as `x + 0` or `x * 1`"))
-    out.push(lint_info("too_many_fields", "complexity", LintLevel.Allow,
-        "a struct holding more fields than `max`")
-            .with_option("max", 12, "the most fields a struct may hold"))
-    out.push(lint_info("long_function", "complexity", LintLevel.Allow,
-        "a function spanning more lines than `max_lines`")
-            .with_option("max_lines", 100, "the most lines a function may span"))
-    out.push(lint_info("deep_nesting", "complexity", LintLevel.Allow,
-        "blocks nested deeper than `max_depth` inside one function")
-            .with_option("max_depth", 5, "the most blocks that may enclose a statement"))
-    out.push(lint_info("redundant_else", "pedantic", LintLevel.Allow,
-        "an `else` after a branch that ends in `return`, `break` or `continue`"))
-    out.push(lint_info("missing_docs", "pedantic", LintLevel.Allow,
-        "a public declaration with no `///` comment"))
-    out.push(lint_info("unused_parameter", "pedantic", LintLevel.Allow,
-        "a parameter the function never reads"))
-    out.push(lint_info("unused_option", "pedantic", LintLevel.Allow,
-        "an `Option` an expression statement drops"))
-    out.push(lint_info("long_line", "restriction", LintLevel.Allow,
-        "a line wider than `max_columns` characters")
-            .with_option("max_columns", 120, "the most characters a line may hold"))
-    out.push(lint_info("long_file", "restriction", LintLevel.Allow,
-        "a file longer than `max_lines` lines")
-            .with_option("max_lines", 400, "the most lines a file may hold"))
-    out.push(lint_info("magic_number", "restriction", LintLevel.Allow,
-        "a number past `max_plain` written where it is used; tests, constants, ranges and indexes aside")
-            .with_option("max_plain", 2, "the largest number that may be written without a name"))
-    out.push(lint_info("shadowed_variable", "restriction", LintLevel.Allow,
-        "a local bound again under a name the function already binds"))
-    out.push(lint_info("todo_comment", "restriction", LintLevel.Allow,
-        "a `TODO` or `FIXME` comment, which is work an issue should hold"))
-    return out
-}
-
-/// A poison entry (empty name) when nothing answers to `name`.
-pub fun lookup_lint(name: str): LintInfo {
-    val all = lint_registry()
-    while l in &all {
-        // Cloned: `all` is dropped on return.
-        if l.name.as_str().equals(name) { return l.clone() }
+    /// A group, or `all`.
+    pub static fun is_group(name: str): bool {
+        return name == "all" || LintInfo.groups().any(|group: String| group.as_str() == name)
     }
-    return lint_info("", "", LintLevel.Warn, "")
-}
 
-/// Backs the error for an `@allow(...)` naming no lint.
-pub fun lint_exists(name: str): bool {
-    return (lookup_lint(name).name.as_str()).byte_len() > 0
-}
-
-/// `Warn` for an unregistered name, so it still reports.
-pub fun lint_default(name: str): LintLevel {
-    return lookup_lint(name).default
-}
-
-/// How a lint renders before configuration: an allow-by-default one as a
-/// warning, which its level then drops.
-pub fun lint_default_level(name: str): Severity {
-    return lint_level_severity(lookup_lint(name).default)
-}
-
-/// `Allow` never reaches here; it maps to Warning inertly.
-pub fun lint_level_severity(l: LintLevel): Severity {
-    return when (l) {
-        Deny => Severity.Error
-        _ => Severity.Warning
+    /// Whether this lint is one `group` names: its own group, or `all`.
+    pub fun in_group(group: str): bool {
+        return group == "all" || self.group.as_str() == group
     }
-}
 
-pub fun lint_level_allows(l: LintLevel): bool {
-    return when (l) {
-        Allow => true
-        _ => false
+    /// None when nothing answers to `name`.
+    static fun named(name: str): LintInfo? {
+        return LintInfo.all().find(|lint: &LintInfo| lint.name.as_str() == name)
+    }
+
+    /// Backs the error for an `@allow(...)` naming no lint.
+    pub static fun exists(name: str): bool {
+        return LintInfo.named(name).is_some()
+    }
+
+    /// The level of lint `name` with no configuration; `Warn` for an
+    /// unregistered name, so it still reports.
+    pub static fun default_of(name: str): LintLevel {
+        val lint = LintInfo.named(name) ?: return LintLevel.Warn
+        return lint.default
+    }
+
+    /// The option `key` of lint `name`, or None when it has none by that name.
+    pub static fun option_of(name: str, key: str): LintOptionInfo? {
+        val lint = LintInfo.named(name) ?: return null
+        return lint.options.find(|option: &LintOptionInfo| option.key.as_str() == key)
+    }
+
+    /// Every lint komp can emit.
+    pub static fun all(): List<LintInfo> {
+        return [
+            LintInfo.new("unused_import", "style", LintLevel.Warn,
+                "an import whose module contributes no name this file writes"),
+            LintInfo.new("wildcard_import", "style", LintLevel.Warn,
+                "a `.*` import supplying few enough names to write out"),
+            LintInfo.new("implicit_copy", "perf", LintLevel.Warn,
+                "a value read through a borrow is copied to fill a by-value slot"),
+            LintInfo.new("copy_after_move", "perf", LintLevel.Warn,
+                "an earlier move is copied instead, to keep the original readable"),
+            LintInfo.new("unauthorized_copy", "correctness", LintLevel.Deny,
+                "a copy is inserted into a type that does not implement `Clone`"),
+            LintInfo.new("deref_through_temporary", "suspicious", LintLevel.Warn,
+                "`*` through a `Box` owned by a call's result, freed at the end of the statement"),
+            LintInfo.new("empty_if", "suspicious", LintLevel.Warn,
+                "an `if` whose branches are both empty"),
+            LintInfo.new("self_assignment", "suspicious", LintLevel.Warn,
+                "a variable assigned to itself"),
+            LintInfo.new("unused_variable", "suspicious", LintLevel.Warn,
+                "a local that is bound and never read"),
+            LintInfo.new("unreachable_code", "suspicious", LintLevel.Warn,
+                "a statement after a `return`, `break` or `continue` in the same block"),
+            LintInfo.new("self_comparison", "suspicious", LintLevel.Warn,
+                "a variable compared with itself"),
+            LintInfo.new("double_negation", "suspicious", LintLevel.Warn,
+                "`!` applied to a `!`, as in `!(!x)`"),
+            LintInfo.new("unused_result", "suspicious", LintLevel.Warn,
+                "a `Result` an expression statement drops, error and all"),
+            LintInfo.new("float_equality", "suspicious", LintLevel.Warn,
+                "`==` or `!=` between floats other than zero, outside tests"),
+            LintInfo.new("needless_var", "style", LintLevel.Warn,
+                "a `var` that is read and never changed"),
+            LintInfo.new("len_zero", "style", LintLevel.Allow,
+                "a length compared with zero, which `is_empty()` says"),
+            LintInfo.new("clone_on_copy", "perf", LintLevel.Warn,
+                "`.clone()` on a value whose type derives `Copy`, which copies anyway"),
+            LintInfo.new("redundant_cast", "complexity", LintLevel.Warn,
+                "a cast to the type the value already has"),
+            LintInfo.new("needless_deref", "style", LintLevel.Warn,
+                "`x.as_str()` and its like where `x` reaches the slot through its `Deref` anyway"),
+            LintInfo.new("needless_bool", "style", LintLevel.Warn,
+                "branches that give `true` and `false`, which the condition already is"),
+            LintInfo.new("manual_index_loop", "style", LintLevel.Allow,
+                "a `while` loop that counts by hand what `while i in 0..n` counts"),
+            LintInfo.new("bool_comparison", "style", LintLevel.Warn,
+                "a comparison with `true` or `false`"),
+            LintInfo.new("collapsible_if", "style", LintLevel.Allow,
+                "an `if` whose only statement is another `if`"),
+            LintInfo.new("non_snake_case_function", "style", LintLevel.Warn,
+                "a function not named in lower_snake_case"),
+            LintInfo.new("non_snake_case_variable", "style", LintLevel.Warn,
+                "a local or parameter not named in lower_snake_case"),
+            LintInfo.new("non_camel_case_type", "style", LintLevel.Warn,
+                "a struct, enum or trait not named in UpperCamelCase"),
+            LintInfo.new("non_camel_case_variant", "style", LintLevel.Warn,
+                "an enum variant not named in UpperCamelCase"),
+            LintInfo.new("too_many_parameters", "complexity", LintLevel.Warn,
+                "a function taking more parameters than `max`, `self` aside")
+                .with_option("max", 7, "the most parameters a function may take"),
+            LintInfo.new("identity_op", "complexity", LintLevel.Warn,
+                "an operation that leaves its value as it is, as `x + 0` or `x * 1`"),
+            LintInfo.new("too_many_fields", "complexity", LintLevel.Allow,
+                "a struct holding more fields than `max`")
+                .with_option("max", 12, "the most fields a struct may hold"),
+            LintInfo.new("long_function", "complexity", LintLevel.Allow,
+                "a function spanning more lines than `max_lines`")
+                .with_option("max_lines", 100, "the most lines a function may span"),
+            LintInfo.new("deep_nesting", "complexity", LintLevel.Allow,
+                "blocks nested deeper than `max_depth` inside one function")
+                .with_option("max_depth", 5, "the most blocks that may enclose a statement"),
+            LintInfo.new("redundant_else", "pedantic", LintLevel.Allow,
+                "an `else` after a branch that ends in `return`, `break` or `continue`"),
+            LintInfo.new("missing_docs", "pedantic", LintLevel.Allow,
+                "a public declaration with no `///` comment"),
+            LintInfo.new("unused_parameter", "pedantic", LintLevel.Allow,
+                "a parameter the function never reads"),
+            LintInfo.new("unused_option", "pedantic", LintLevel.Allow,
+                "an `Option` an expression statement drops"),
+            LintInfo.new("long_line", "restriction", LintLevel.Allow,
+                "a line wider than `max_columns` characters")
+                .with_option("max_columns", 120, "the most characters a line may hold"),
+            LintInfo.new("long_file", "restriction", LintLevel.Allow,
+                "a file longer than `max_lines` lines")
+                .with_option("max_lines", 400, "the most lines a file may hold"),
+            LintInfo.new("magic_number", "restriction", LintLevel.Allow,
+                "a number past `max_plain` written where it is used; tests, constants, ranges and indexes aside")
+                .with_option("max_plain", 2, "the largest number that may be written without a name"),
+            LintInfo.new("shadowed_variable", "restriction", LintLevel.Allow,
+                "a local bound again under a name the function already binds"),
+            LintInfo.new("todo_comment", "restriction", LintLevel.Allow,
+                "a `TODO` or `FIXME` comment, which is work an issue should hold")
+        ]
     }
 }

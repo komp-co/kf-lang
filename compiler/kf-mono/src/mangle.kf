@@ -7,17 +7,16 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
 import kf_core.ast.types.Type
 import kf_core.ast.types.type_identity_display
-import kf_core.ast.dyn_meta.dyn_trait_identity
+import kf_core.names.*
 
 pub fun mangle_struct_name(name: str, args: List<Type>): String {
     var result = String.from(name)
     while a in &args {
         val arg_name = ty_to_mangle(a)
         result.append("__")
-        result.append(arg_name.as_str())
+        result.append(arg_name)
     }
     return result
 }
@@ -34,7 +33,7 @@ pub fun mangle_fn_call(callee: str, type_args: List<Type>): String {
     while a in &type_args {
         val arg_name = ty_to_mangle(a)
         result.append("__")
-        result.append(arg_name.as_str())
+        result.append(arg_name)
     }
     return result
 }
@@ -77,26 +76,26 @@ pub fun ty_to_mangle(t: Type): String {
         Struct(n) => return type_identity_display(n)
         EnumTy(n) => return type_identity_display(n)
         TraitTy(n) => return type_identity_display(n)
-        DynTraitTy(_) => return dyn_trait_identity(&t).as_string()
+        DynTraitTy(_) => return t.dyn_trait_identity().as_string()
         Generic(n) => return String.from(n.as_str())
         PtrTo(p) => {
             val inner = unsafe { *p }
             val inner_name = ty_to_mangle(inner)
             var result = String.from("Ptr__")
-            result.append(inner_name.as_str())
+            result.append(inner_name)
             return result
         }
         BoxOf(p) => {
             val inner = unsafe { *p }
             val inner_name = ty_to_mangle(inner)
             var result = String.from("Box__")
-            result.append(inner_name.as_str())
+            result.append(inner_name)
             return result
         }
         RefTo(is_mut, p) => {
             val inner = unsafe { *p }
             val inner_name = ty_to_mangle(inner)
-            return borrow_frag(is_mut, inner_name.as_str())
+            return Frag.borrow(is_mut, inner_name.as_str())
         }
         FnTy(_) => {
             val parts = t.fn_parts() ?: return String.from("poison")
@@ -104,15 +103,15 @@ pub fun ty_to_mangle(t: Type): String {
             while param in &parts.params {
                 params.push(ty_to_mangle(param))
             }
-            return fn_frag(&params, ty_to_mangle(parts.ret).as_str())
+            return Frag.function(&params, ty_to_mangle(parts.ret).as_str())
         }
         // Still unresolved; keeping owner and member apart lets substitution
         // finish it later.
         Projection(owner, member) => {
             val inner = ty_to_mangle(unsafe { *owner })
-            return projection_mangle_frag(inner.as_str(), member.as_str())
+            return Frag.projection(inner.as_str(), member.as_str())
         }
-        Value(v) => return value_frag(v)
+        Value(v) => return Frag.value(v)
         Poison => return String.from("poison")
     }
 }

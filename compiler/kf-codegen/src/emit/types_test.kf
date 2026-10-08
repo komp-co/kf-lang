@@ -1,28 +1,30 @@
 import alloc.list.*
 import core.assert.assert_eq
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.ast.types.*
 import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
+import kf_core.intern.CrateId
+import kf_core.intern.intern
 
 import kf_codegen.emit.*
 import kf_codegen.emit.glue.deep_clone_top_decl
 import testing.test
 
 fun named(s: str): TypeRef {
-    return TypeRef.new(no_span(), TypeRefKind.Named(intern(s), List.new<TypeRef>()))
+    return TypeRef.new(Span.none(), TypeRefKind.Named(intern(s), List.new<TypeRef>()))
 }
 
 fun generic1(name: str, arg: TypeRef): TypeRef {
     var args = List.new<TypeRef>()
     args.push(arg)
-    return TypeRef.new(no_span(), TypeRefKind.Named(intern(name), args))
+    return TypeRef.new(Span.none(), TypeRefKind.Named(intern(name), args))
 }
 
 fun empty_module(): Module {
-    return Module { crate: crate_id_poison(), path: List.new<String>(), decls: List.new<TopDecl>(), imports: List.new<Import>() }
+    return Module { crate: CrateId.new_poison(), path: List.new<String>(), decls: List.new<TopDecl>(), imports: List.new<Import>() }
 }
 
 @test fun c_type_void(): void {
@@ -64,7 +66,7 @@ fun empty_module(): Module {
 @test fun c_type_ptr_int32(): void {
     var args = List.new<TypeRef>()
     args.push(named("int32"))
-    val t = TypeRef.new(no_span(), TypeRefKind.Named(intern("Ptr"), args))
+    val t = TypeRef.new(Span.none(), TypeRefKind.Named(intern("Ptr"), args))
     val c = t.c_type()
     assert_eq(c.as_str(), "int32_t*", "Ptr<int32> → int32_t*")
 }
@@ -72,7 +74,7 @@ fun empty_module(): Module {
 @test fun c_type_reference(): void {
     val inner: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *inner = named("int32") }
-    val t = TypeRef.new(no_span(), TypeRefKind.Reference(false, inner))
+    val t = TypeRef.new(Span.none(), TypeRefKind.Reference(false, inner))
     val c = t.c_type()
     assert_eq(c.as_str(), "int32_t*", "&int32 → int32_t*")
 }
@@ -105,15 +107,15 @@ fun empty_module(): Module {
 @test fun c_type_ptr_still_pointer_not_mangled(): void {
     var args = List.new<TypeRef>()
     args.push(named("Expr"))
-    val t = TypeRef.new(no_span(), TypeRefKind.Named(intern("Ptr"), args))
+    val t = TypeRef.new(Span.none(), TypeRefKind.Named(intern("Ptr"), args))
     assert_eq(t.c_type().as_str(), "Expr*", "Ptr<Expr> → Expr*")
 }
 
 @test fun c_type_option_dynamic_borrow_uses_fat_value_identity(): void {
-    val dynamic = TypeRef.new(no_span(), TypeRefKind.DynTrait(intern("Score"), List.new<TypeRef>()))
+    val dynamic = TypeRef.new(Span.none(), TypeRefKind.DynTrait(intern("Score"), List.new<TypeRef>()))
     val inner: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *inner = dynamic }
-    val borrowed = TypeRef.new(no_span(), TypeRefKind.Reference(false, inner))
+    val borrowed = TypeRef.new(Span.none(), TypeRefKind.Reference(false, inner))
     val optional = generic1("Option", borrowed)
     assert_eq(optional.c_type().as_str(), "Option__Dyn__Score", "Option<&dyn Score> uses the fat wrapper instance")
 }
@@ -122,7 +124,7 @@ fun empty_module(): Module {
     var decls = List.new<TopDecl>()
     decls.push(string_drop_impl())
     val imports = List.new<Import>()
-    val m = Module { crate: new_crate_id("sample"), path: List.new<String>(), decls: decls, imports: imports }
+    val m = Module { crate: CrateId.new("sample"), path: List.new<String>(), decls: decls, imports: imports }
     val facts = TypeFacts.of(&m)
     assert_eq(ty_needs_drop(named("String"), &facts), true, "String needs drop because it declares one")
 }
@@ -153,8 +155,8 @@ fun empty_module(): Module {
 
 @test fun needs_drop_deep_empty_user_struct_false(): void {
     var decls = List.new<TopDecl>()
-    decls.push(new_top_decl(no_span(), String.from("Foo"), TopDeclKind.Struct(List.new<Field>(), true)))
-    val m = Module { crate: new_crate_id("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
+    decls.push(TopDecl.new(Span.none(), String.from("Foo"), TopDeclKind.Struct(List.new<Field>(), true)))
+    val m = Module { crate: CrateId.new("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
     val facts = TypeFacts.of(&m)
     assert_eq(ty_needs_drop_deep(named("Foo"), &facts), false, "empty user struct owns no nested value")
 }
@@ -167,13 +169,13 @@ fun empty_module(): Module {
 
 @test fun needs_drop_deep_looks_past_an_impl_named_like_the_struct(): void {
     var decls = List.new<TopDecl>()
-    decls.push(new_top_decl(no_span(), String.from("Foo"), TopDeclKind.ImplBlock(List.new<TopDecl>())))
+    decls.push(TopDecl.new(Span.none(), String.from("Foo"), TopDeclKind.ImplBlock(List.new<TopDecl>())))
     val owning = string_field_struct_module()
     while td in &owning.decls {
         decls.push(td.deep_clone_top_decl())
     }
     val m = Module {
-        crate: new_crate_id("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>()
+        crate: CrateId.new("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>()
     }
     val facts = TypeFacts.of(&m)
     assert_eq(ty_needs_drop_deep(named("Foo"), &facts), true, "the struct's own fields decide, not its impl block")
@@ -191,11 +193,11 @@ fun empty_module(): Module {
     box_args.push(named("int32"))
     var fields = List.new<Field>()
     val box_type: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *box_type = TypeRef.new(no_span(), TypeRefKind.Named(intern("Box"), box_args)) }
-    fields.push(new_field(no_span(), String.from("value"), box_type, false, true))
+    unsafe { *box_type = TypeRef.new(Span.none(), TypeRefKind.Named(intern("Box"), box_args)) }
+    fields.push(Field.new(Span.none(), String.from("value"), box_type, false, true))
     var decls = List.new<TopDecl>()
-    decls.push(new_top_decl(no_span(), String.from("Foo"), TopDeclKind.Struct(fields, true)))
-    val m = Module { crate: new_crate_id("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
+    decls.push(TopDecl.new(Span.none(), String.from("Foo"), TopDeclKind.Struct(fields, true)))
+    val m = Module { crate: CrateId.new("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
     val facts = TypeFacts.of(&m)
     assert_eq(ty_needs_drop_deep(named("Foo"), &facts), true, "Box field owns its allocation")
 }
@@ -204,16 +206,16 @@ fun empty_module(): Module {
     var inner_fields = List.new<Field>()
     val string_type: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *string_type = named("String") }
-    inner_fields.push(new_field(no_span(), String.from("value"), string_type, false, true))
+    inner_fields.push(Field.new(Span.none(), String.from("value"), string_type, false, true))
     var outer_fields = List.new<Field>()
     val inner_type: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *inner_type = named("Inner") }
-    outer_fields.push(new_field(no_span(), String.from("inner"), inner_type, false, true))
+    outer_fields.push(Field.new(Span.none(), String.from("inner"), inner_type, false, true))
     var decls = List.new<TopDecl>()
-    decls.push(new_top_decl(no_span(), String.from("Inner"), TopDeclKind.Struct(inner_fields, true)))
-    decls.push(new_top_decl(no_span(), String.from("Outer"), TopDeclKind.Struct(outer_fields, true)))
+    decls.push(TopDecl.new(Span.none(), String.from("Inner"), TopDeclKind.Struct(inner_fields, true)))
+    decls.push(TopDecl.new(Span.none(), String.from("Outer"), TopDeclKind.Struct(outer_fields, true)))
     decls.push(string_drop_impl())
-    val m = Module { crate: new_crate_id("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
+    val m = Module { crate: CrateId.new("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
     val facts = TypeFacts.of(&m)
     assert_eq(ty_needs_drop_deep(named("Outer"), &facts), true, "ownership classification follows by-value embedding")
 }
@@ -222,11 +224,11 @@ fun string_field_struct_module(): Module {
     var fields = List.new<Field>()
     val string_type: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *string_type = named("String") }
-    fields.push(new_field(no_span(), String.from("value"), string_type, false, true))
+    fields.push(Field.new(Span.none(), String.from("value"), string_type, false, true))
     var decls = List.new<TopDecl>()
-    decls.push(new_top_decl(no_span(), String.from("Foo"), TopDeclKind.Struct(fields, true)))
+    decls.push(TopDecl.new(Span.none(), String.from("Foo"), TopDeclKind.Struct(fields, true)))
     decls.push(string_drop_impl())
-    return Module { crate: new_crate_id("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
+    return Module { crate: CrateId.new("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 }
 
 // A canonical identity `crate::module::Name` must not reach C: a `when` value
@@ -253,19 +255,19 @@ fun string_drop_impl(): TopDecl {
     unsafe { *ret = named("void") }
     var methods = List.new<TopDecl>()
     val drop_kind = TopDeclKind.Function(List.new<Param>(), ret, List.new<Stmt>(), true, false, false, false)
-    methods.push(new_top_decl(no_span(), String.from("drop"), drop_kind))
-    return new_top_decl(no_span(), String.from("String"), TopDeclKind.ImplBlock(methods))
+    methods.push(TopDecl.new(Span.none(), String.from("drop"), drop_kind))
+    return TopDecl.new(Span.none(), String.from("String"), TopDeclKind.ImplBlock(methods))
 }
 
 @test fun a_function_type_is_one_c_type_specifier(): void {
     var params = List.new<Type>()
-    params.push(Type.new_int32(no_span()))
-    val function = Type.new_fn(params, Type.new_bool(no_span()), Provenance.Inferred(no_span()))
+    params.push(Type.new_int32(Span.none()))
+    val function = Type.new_fn(params, Type.new_bool(Span.none()), Provenance.Inferred(Span.none()))
     assert_eq(function.c_type_of_type().as_str(), "__typeof__(bool (*)(int32_t))", "a pointer to the function")
 }
 
 @test fun a_function_of_nothing_takes_void_in_c(): void {
-    val function = Type.new_fn(List.new<Type>(), Type.new_bool(no_span()), Provenance.Inferred(no_span()))
+    val function = Type.new_fn(List.new<Type>(), Type.new_bool(Span.none()), Provenance.Inferred(Span.none()))
     val expected = "__typeof__(bool (*)(void))"
     assert_eq(function.c_type_of_type().as_str(), expected, "an empty C list would mean any arguments")
 }

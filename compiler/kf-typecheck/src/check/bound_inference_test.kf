@@ -1,10 +1,10 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.intern
+import kf_core.span.Span
 import kf_core.ast.types.*
 import testing.test
+import kf_core.intern.intern
 
 // A compound trait argument (`Entry<K, V>`) resolves to a concrete type.
 @test fun a_compound_trait_argument_resolves_to_a_concrete_instance(): void {
@@ -18,11 +18,11 @@ import testing.test
         arg_count: 1
     }) }
     var args = List.new<TypeRef>()
-    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
-    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    args.push(TypeRef.new(Span.none(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    args.push(TypeRef.new(Span.none(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
     unsafe { ctx.sigs.insert_inst(GenericInst { mangled: String.from("HashMap__int32__int32"), base: String.from("HashMap"), args: args }) }
 
-    val self_ty = Type { kind: TypeKind.Struct(intern("HashMap__int32__int32")), provenance: Provenance.Inferred(no_span()) }
+    val self_ty = Type { kind: TypeKind.Struct(intern("HashMap__int32__int32")), provenance: Provenance.Inferred(Span.none()) }
     var wanted = List.new<String>()
     wanted.push(String.from("T"))
     var gnames = List.new<String>()
@@ -33,7 +33,7 @@ import testing.test
     var impl_params = List.new<String>()
     impl_params.push(String.from("K"))
     impl_params.push(String.from("V"))
-    val direct = compound_segment_type("Entry__K__V", &impl_params, &self_ty, no_span(), &var ctx)
+    val direct = compound_segment_type("Entry__K__V", &impl_params, &self_ty, Span.none(), &var ctx)
     var direct_spelled = String.from("<not-struct>")
     when (direct.kind) {
         Struct(n) => direct_spelled = n.as_string()
@@ -42,7 +42,7 @@ import testing.test
     }
     assert_eq(direct_spelled.as_str(), "Entry__int32__int32", "compound_segment_type alone resolves the compound argument")
 
-    val result = impl_trait_arg_types(&self_ty, "Iterable", &wanted, &gnames, &inf_tys, no_span(), &var ctx)
+    val result = impl_trait_arg_types(&self_ty, "Iterable", &wanted, &gnames, &inf_tys, Span.none(), &var ctx)
     assert_eq(result.size(), 1, "one argument resolved")
     var spelled = String.from("<not-struct>")
     when (result.at(0).kind) {

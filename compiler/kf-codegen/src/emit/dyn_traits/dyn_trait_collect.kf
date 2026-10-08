@@ -4,6 +4,9 @@ import kf_core.ast.*
 import kf_core.ast.types.Type
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.dyn_meta.*
+import kf_core.intern.*
+import kf_core.lang.*
+import kf_core.names.*
 
 fun Module.collect_codegen_dyn_layouts(): List<DynTraitLayout> {
     var result = List.new<DynTraitLayout>()
@@ -20,7 +23,7 @@ fun Module.collect_codegen_dyn_layouts(): List<DynTraitLayout> {
 fun Module.drop_template_layouts(layouts: &List<DynTraitLayout>): List<DynTraitLayout> {
     var kept = List.new<DynTraitLayout>()
     while layout in &layouts {
-        if self.dyn_layout_is_concrete(&layout) { kept.push(clone_dyn_trait_layout(&layout)) }
+        if self.dyn_layout_is_concrete(&layout) { kept.push(layout.clone()) }
     }
     return kept
 }
@@ -36,14 +39,14 @@ fun Module.dyn_layout_is_concrete(layout: &DynTraitLayout): bool {
 /// unsubstituted type parameter.
 fun Module.dyn_arg_names_a_real_type(t: Type): bool {
     val name = t.mangle_frag()
-    if is_runtime_type_name(name.as_str()) { return true }
-    val list_name = self.lang_type_name(lang_list_key())
-    val option_name = self.lang_type_name(lang_option_key())
+    if CName.is_runtime_type(name.as_str()) { return true }
+    val list_name = self.lang_type_name(LangItem.List)
+    val option_name = self.lang_type_name(LangItem.Option)
     if is_container_type_name(name.as_str(), list_name, option_name) { return true }
     // A mangled instance (`List__int32`) is real whether or not it is declared.
-    if is_mangled_decl_name(name.as_str()) { return true }
+    if CName.is_mangled(name.as_str()) { return true }
     while decl in &self.decls {
-        if decl.name.as_str().equals(name.as_str()) { return true }
+        if decl.name.as_str().equals(name) { return true }
     }
     return false
 }
@@ -63,7 +66,7 @@ fun TopDecl.collect_codegen_dyn_layouts_decl(selected_tables: &List<DynVTableIns
         // and selection decides.
         val published = !impl_owner && layout.dyn_layout_is_exportable()
         val wanted = if layout.imported { selected } else { selected || published }
-        if wanted && !codegen_dyn_layout_has(result, layout.identity) { result.push(clone_dyn_trait_layout(&layout)) }
+        if wanted && !codegen_dyn_layout_has(result, layout.identity) { result.push(layout.clone()) }
     }
     when (self.kind) {
         ImplBlock(members) => collect_codegen_dyn_layouts_members(&members, selected_tables, result)
@@ -106,7 +109,7 @@ fun Module.collect_declared_dyn_layouts(): List<DynTraitLayout> {
 
 fun TopDecl.collect_declared_dyn_layouts_decl(result: &var List<DynTraitLayout>): void {
     while layout in &self.dyn_layouts {
-        if !codegen_dyn_layout_has(result, layout.identity) { result.push(clone_dyn_trait_layout(&layout)) }
+        if !codegen_dyn_layout_has(result, layout.identity) { result.push(layout.clone()) }
     }
     when (self.kind) {
         ImplBlock(members) => {
@@ -134,7 +137,7 @@ fun DynVTableInstance.codegen_dyn_vtable_is_exportable(layouts: &List<DynTraitLa
 fun TopDecl.collect_codegen_dyn_vtable_requirements(required: &var List<DynVTableInstance>): void {
     while table in &self.dyn_vtables {
         if table.adapters.size() == 0 && !codegen_dyn_vtable_has(required, table.layout, table.receiver_identity) {
-            required.push(clone_dyn_vtable_instance(&table))
+            required.push(table.clone())
         }
     }
     when (self.kind) {
@@ -158,7 +161,7 @@ fun TopDecl.collect_codegen_dyn_vtable_definitions(required: &List<DynVTableInst
         val defined_by_owner = table.linkage.is_imported() && table.codegen_dyn_vtable_is_exportable(layouts)
         val wanted = !defined_by_owner && (owned_here || codegen_dyn_vtable_has(required, table.layout, table.receiver_identity))
         if table.adapters.size() > 0 && wanted && !codegen_dyn_vtable_has(result, table.layout, table.receiver_identity) {
-            result.push(clone_dyn_vtable_instance(&table))
+            result.push(table.clone())
         }
     }
     when (self.kind) {
@@ -184,8 +187,8 @@ fun codegen_dyn_vtable_has(tables: &List<DynVTableInstance>, layout: Sym, receiv
     val want_layout = layout.dyn_codegen_identity()
     val want_recv = receiver.dyn_codegen_identity()
     while table in &tables {
-        if table.layout.dyn_codegen_identity().as_str().equals(want_layout.as_str()) {
-            if table.receiver_identity.dyn_codegen_identity().as_str().equals(want_recv.as_str()) { return true }
+        if table.layout.dyn_codegen_identity().as_str().equals(want_layout) {
+            if table.receiver_identity.dyn_codegen_identity().as_str().equals(want_recv) { return true }
         }
     }
     return false

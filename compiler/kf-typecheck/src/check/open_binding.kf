@@ -7,11 +7,11 @@
 
 import alloc.list.*
 
-import kf_core.ast.intern
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.expression.Expr
+import kf_core.intern.intern
 import kf_typecheck.types.bind_generic_from_param
 import kf_typecheck.types.open_call_pending
 import kf_typecheck.types.type_to_type_ref
@@ -23,7 +23,7 @@ import kf_typecheck.types.resolve_type_ref
 mutating fun Expr.pin_open_receiver(method_name: str, args: &var List<Expr>, ctx: &var TypeCtx): uint64 {
     val name = self.variable_name()
     if name.byte_len() == 0 { return 0 }
-    val init_ptr = ctx.open_init(name.as_str()) ?: return 0
+    val init_ptr = ctx.open_init(name) ?: return 0
     // The binding's own initializer, which the open binding points at.
     val init: &var Expr = unsafe { &var *init_ptr }
     val base = init.open_call_base(ctx)
@@ -44,12 +44,12 @@ mutating fun Expr.pin_open_receiver(method_name: str, args: &var List<Expr>, ctx
         if bound.is_poison() { return args.size() }
         type_args.push(bound.type_to_type_ref(self.span))
     }
-    val written = TypeRef.new(self.span, TypeRefKind.Named(intern(base.as_str()), type_args.clone()))
+    val written = TypeRef.new(self.span, TypeRefKind.Named(intern(base), type_args.clone()))
     if self.decides_on_recheck(init.span, written.resolve_type_ref(ctx), ctx) { return args.size() }
     val inst = GenericInst { mangled: String.from(""), base: base.clone(), args: type_args }
     if !init.rebind_static_call(&inst, ctx) { return args.size() }
     val pinned = init.ty.clone()
-    ctx.decide_binding(name.as_str(), pinned.clone(), self.span)
+    ctx.decide_binding(name, pinned.clone(), self.span)
     self.ty = pinned
     return args.size()
 }
@@ -60,7 +60,7 @@ pub mutating fun Expr.pin_open_binding(expected: Type, ctx: &var TypeCtx): bool 
     if name.byte_len() == 0 { return false }
     val slot = autoderef_ty(expected)
     val inst = slot.expected_inst(ctx) ?: return false
-    val init_ptr = ctx.open_init(name.as_str()) ?: return self.conflicts_with_same_template(&slot, &inst, ctx)
+    val init_ptr = ctx.open_init(name) ?: return self.conflicts_with_same_template(&slot, &inst, ctx)
     val init: &var Expr = unsafe { &var *init_ptr }
     val is_null = init.is_bare_null()
     if is_null && !inst.inst_is_option(ctx) { return false }
@@ -75,7 +75,7 @@ pub mutating fun Expr.pin_open_binding(expected: Type, ctx: &var TypeCtx): bool 
         return false
     }
     val pinned = init.ty.clone()
-    ctx.decide_binding(name.as_str(), pinned.clone(), self.span)
+    ctx.decide_binding(name, pinned.clone(), self.span)
     self.ty = pinned
     return true
 }
@@ -96,7 +96,7 @@ fun Expr.receiver_still_open(ctx: &TypeCtx): bool {
         _ => String.from("")
     }
     if recv.byte_len() == 0 { return false }
-    val init = ctx.open_init(recv.as_str()) ?: return false
+    val init = ctx.open_init(recv) ?: return false
     return open_call_pending(unsafe { init.span }, ctx)
 }
 

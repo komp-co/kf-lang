@@ -2,8 +2,10 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.declaration.TopDecl
+import kf_core.intern.*
 
 /// `import foo.bar.*`, `import foo.bar.Baz` or `import foo.bar as fb`.
+@derive(Clone)
 pub struct Import {
     pub val span: Span
     pub val path: List<String> // ["foo", "bar"] for every form
@@ -19,30 +21,6 @@ pub struct Import {
     /// The name an export offers its function under, after `as`; "" keeps
     /// the function's own.
     pub val exposed: String
-}
-
-pub fun new_import(span: Span, path: List<String>, wildcard: bool): Import {
-    return Import { span: span, path: path, wildcard: wildcard, alias: "", is_pub: false, owner: "", exposed: "" }
-}
-
-pub fun new_aliased_import(span: Span, path: List<String>, alias: String): Import {
-    return Import { span: span, path: path, wildcard: false, alias: alias, is_pub: false, owner: "", exposed: "" }
-}
-
-/// `export ... from <module>` written in module `owner`; `path` is the
-/// module for `*`, or the module and the one name.
-pub fun new_reexport(span: Span, path: List<String>, wildcard: bool, owner: String): Import {
-    return Import { span: span, path: path, wildcard: wildcard, alias: "", is_pub: true, owner: owner, exposed: "" }
-}
-
-/// `export name as exposed from <module>`; `exposed` "" keeps the name.
-pub fun new_renaming_reexport(span: Span, path: List<String>, exposed: String): Import {
-    return Import { span: span, path: path, wildcard: false, alias: "", is_pub: true, owner: "", exposed: exposed }
-}
-
-pub fun Import.clone_import(): Import {
-    return Import { span: self.span, path: self.path.clone(), wildcard: self.wildcard, alias: self.alias.clone(),
-        is_pub: self.is_pub, owner: self.owner.clone(), exposed: self.exposed.clone() }
 }
 
 /// What an aliased import admits in the per-file import table: no bare name,
@@ -66,31 +44,43 @@ pub fun renamed_admission(written: str, real: str): Sym {
 
 /// The name a file writes, from an admitted `written` or `written=real`.
 pub fun admission_written(admitted: str): String {
-    val at = admission_equals_at(admitted)
-    if at < 0 { return String.from(admitted) }
-    return String.from(admitted.substring(0, at as uint64).as_str())
+    val at = admitted.index_of("=") ?: return String.from(admitted)
+    return admitted.substring(0, at)
 }
 
 /// The function's own name, from an admitted `written` or `written=real`.
 pub fun admission_real(admitted: str): String {
-    val at = admission_equals_at(admitted)
-    if at < 0 { return String.from(admitted) }
-    return String.from(admitted.substring(at as uint64 + 1, admitted.byte_len()).as_str())
+    val at = admitted.index_of("=") ?: return String.from(admitted)
+    return admitted.substring(at + 1, admitted.byte_len())
 }
 
-fun admission_equals_at(admitted: str): int64 {
-    while i in 0..admitted.byte_len() {
-        if admitted.byte_at(i) == 61 { return i as int64 }
+impl Import {
+    pub static fun new(span: Span, path: List<String>, wildcard: bool): Import {
+        return Import { span: span, path: path, wildcard: wildcard, alias: "", is_pub: false, owner: "", exposed: "" }
     }
-    return 0 - 1
-}
 
-/// False for an import the parser added itself (the `core.range.*` a `..`
-/// needs), which has a file but no extent. Anything reporting on source text
-/// asks this first.
-pub fun Import.import_is_written(): bool {
-    if self.span.is_none() { return false }
-    return self.span.end > self.span.start
+    pub static fun new_aliased(span: Span, path: List<String>, alias: String): Import {
+        return Import { span: span, path: path, wildcard: false, alias: alias, is_pub: false, owner: "", exposed: "" }
+    }
+
+    /// `export ... from <module>` written in module `owner`; `path` is the
+    /// module for `*`, or the module and the one name.
+    pub static fun new_reexport(span: Span, path: List<String>, wildcard: bool, owner: String): Import {
+        return Import { span: span, path: path, wildcard: wildcard, alias: "", is_pub: true, owner: owner, exposed: "" }
+    }
+
+    /// `export name as exposed from <module>`; `exposed` "" keeps the name.
+    pub static fun new_renaming_reexport(span: Span, path: List<String>, exposed: String): Import {
+        return Import { span: span, path: path, wildcard: false, alias: "", is_pub: true, owner: "", exposed: exposed }
+    }
+
+    /// False for an import the parser added itself (the `core.range.*` a `..`
+    /// needs), which has a file but no extent. Anything reporting on source text
+    /// asks this first.
+    pub fun is_written(): bool {
+        if self.span.is_none() { return false }
+        return self.span.end > self.span.start
+    }
 }
 
 /// One source file's AST. Sibling files in a directory share scope.
@@ -102,12 +92,14 @@ pub struct Module {
     pub var imports: List<Import>
 }
 
-pub fun new_module(path: List<String>): Module {
-    return Module {
-        crate: crate_id_poison(),
-        path: path,
-        decls: List.new<TopDecl>(),
-        imports: List.new<Import>()
+impl Module {
+    pub static fun new(path: List<String>): Module {
+        return Module {
+            crate: CrateId.new_poison(),
+            path: path,
+            decls: [],
+            imports: []
+        }
     }
 }
 
@@ -117,6 +109,8 @@ pub struct Crate {
     pub var modules: List<Module>
 }
 
-pub fun new_crate(name: String): Crate {
-    return Crate { name: name, modules: List.new<Module>() }
+impl Crate {
+    pub static fun new(name: String): Crate {
+        return Crate { name: name, modules: [] }
+    }
 }

@@ -2,7 +2,7 @@ import kf_integration.harness.typed_crate_for
 import kf_integration.harness.typed_crate_for_overlay
 import core.assert.assert_eq
 import std.fs.scratch_path
-import kf_driver.editor.render_tokens_json
+import kf_query.editor.render_tokens_json
 import testing.test
 
 fun tokens_fixture_path(): str {
@@ -45,8 +45,8 @@ fun a_call_token_stops_at_the_callee_name(): void {
 @test
 fun a_declaration_name_is_a_token(): void {
     val json = tokens_json()
-    assert_eq(json.as_str().contains("\"byte_start\":4,\"byte_end\":10,\"type\":\"function\""), true, "`helper` in `fun helper(...)` is a function")
-    assert_eq(json.as_str().contains("\"byte_start\":54,\"byte_end\":61,\"type\":\"function\""), true, "so is `uses_it`")
+    assert_eq(json.contains("\"byte_start\":4,\"byte_end\":10,\"type\":\"function\""), true, "`helper` in `fun helper(...)` is a function")
+    assert_eq(json.contains("\"byte_start\":54,\"byte_end\":61,\"type\":\"function\""), true, "so is `uses_it`")
 }
 
 @test
@@ -59,9 +59,9 @@ fun tokens_come_in_source_order(): void {
     // Declarations at 4 and 54, the parameter use at 41, the call at 84: the
     // walk visits a body before the next declaration.
     val json = tokens_json()
-    assert_eq(json.as_str().contains("\"byte_start\":4,\"byte_end\":10,\"type\":\"function\"},{\"byte_start\":41"), true, "the declaration precedes its body")
-    assert_eq(json.as_str().contains("\"byte_start\":41,\"byte_end\":42,\"type\":\"variable\"},{\"byte_start\":54"), true, "the body precedes the next declaration")
-    assert_eq(json.as_str().contains("\"byte_start\":54,\"byte_end\":61,\"type\":\"function\"},{\"byte_start\":84"), true, "and that declaration precedes its own body")
+    assert_eq(json.contains("\"byte_start\":4,\"byte_end\":10,\"type\":\"function\"},{\"byte_start\":41"), true, "the declaration precedes its body")
+    assert_eq(json.contains("\"byte_start\":41,\"byte_end\":42,\"type\":\"variable\"},{\"byte_start\":54"), true, "the body precedes the next declaration")
+    assert_eq(json.contains("\"byte_start\":54,\"byte_end\":61,\"type\":\"function\"},{\"byte_start\":84"), true, "and that declaration precedes its own body")
 }
 
 @test
@@ -70,7 +70,7 @@ fun tokens_are_scoped_to_the_one_file(): void {
     write_file(scratch_path("kf_query_tokens/src/other.kf"), "fun far_away(): int32 {\n    return helper(2)\n}\n")
     val crate = typed_crate_for(tokens_fixture_path())
     val json = render_tokens_json("lib.kf", &crate)
-    assert_eq(json.as_str().contains("\"byte_start\":35,"), false, "a sibling file's names are not this file's tokens")
+    assert_eq(json.contains("\"byte_start\":35,"), false, "a sibling file's names are not this file's tokens")
 }
 
 fun shapes_source(): str {
@@ -106,21 +106,21 @@ fun shapes_tokens(): String {
 fun the_type_before_a_static_call_is_a_type_token(): void {
     val start = shapes_source().index_of("Point.at")!!
     val token = "{\"byte_start\":${start},\"byte_end\":${start + 5},\"type\":\"type\""
-    assert_eq(shapes_tokens().as_str().contains(token.as_str()), true, "`Point` of `Point.at(1)`")
+    assert_eq(shapes_tokens().as_str().contains(token), true, "`Point` of `Point.at(1)`")
 }
 
 @test
 fun the_enum_before_a_variant_is_a_type_token(): void {
     val start = shapes_source().index_of("Color.Red")!!
     val token = "{\"byte_start\":${start},\"byte_end\":${start + 5},\"type\":\"type\""
-    assert_eq(shapes_tokens().as_str().contains(token.as_str()), true, "`Color` of `Color.Red`")
+    assert_eq(shapes_tokens().as_str().contains(token), true, "`Color` of `Color.Red`")
 }
 
 @test
 fun a_variant_is_an_enum_member(): void {
     val start = shapes_source().index_of("Red\n")!!
     val token = "{\"byte_start\":${start},\"byte_end\":${start + 3},\"type\":\"enum_member\""
-    assert_eq(shapes_tokens().as_str().contains(token.as_str()), true, "`Red` of `Color.Red`")
+    assert_eq(shapes_tokens().as_str().contains(token), true, "`Red` of `Color.Red`")
 }
 
 @test

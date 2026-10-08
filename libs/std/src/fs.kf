@@ -107,9 +107,9 @@ pub fun write_text(path: str, contents: str): Result<void, IoError> {
 /// Two processes writing the same path each stage their own.
 pub fun write_text_atomic(path: str, contents: str): Result<void, IoError> {
     val staged = "${path}.tmp.${process_id()}"
-    val written = write_text(staged.as_str(), contents)
-    val moved = if written.is_ok() { rename_path(staged.as_str(), path) } else { written }
-    if moved.is_err() { val _gone = kf_fs_remove_file(staged.as_str()) }
+    val written = write_text(staged, contents)
+    val moved = if written.is_ok() { rename_path(staged, path) } else { written }
+    if moved.is_err() { val _gone = kf_fs_remove_file(staged) }
     return moved
 }
 

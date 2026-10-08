@@ -1,9 +1,7 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.intern
-import kf_core.ast.new_crate_id
+import kf_core.span.Span
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.expression.Expr
@@ -11,12 +9,15 @@ import kf_core.ast.expression.ExprKind
 import kf_core.ast.expression.UnaryOp
 import kf_core.ast.declaration.*
 import kf_core.diagnostic.*
+import kf_core.intern.intern
+import kf_core.intern.CrateId
+import kf_core.ast.annotation.*
 import kf_typecheck.*
 import testing.test
 
 fun typed_param(name: str, ty: str): Param {
-    val tref = TypeRef.new(no_span(), TypeRefKind.Named(intern(ty), List.new<TypeRef>()))
-    return new_param(no_span(), String.from(name), Box.new(tref))
+    val tref = TypeRef.new(Span.none(), TypeRefKind.Named(intern(ty), List.new<TypeRef>()))
+    return Param.new(Span.none(), String.from(name), Box.new(tref))
 }
 
 /// `(iterations: int32, label: String)`.
@@ -34,16 +35,16 @@ fun string_table(): SigTable {
 }
 
 fun arg(name: str, kind: ExprKind): AnnotationArg {
-    return AnnotationArg { name: intern(name), value: Box.new(Expr.new(no_span(), kind)) }
+    return AnnotationArg { name: intern(name), value: Box.new(Expr.new(Span.none(), kind)) }
 }
 
 fun bench_use(args: List<AnnotationArg>): Annotation {
-    return Annotation { name: intern("bench"), args: args, has_parens: true, span: no_span() }
+    return Annotation { name: intern("bench"), args: args, has_parens: true, span: Span.none() }
 }
 
 fun ordered(args: List<AnnotationArg>): OrderedArguments {
     var diags = List.new<Diagnostic>()
-    return bench_use(args).arguments_in_order(&bench_params(), &string_table(), new_crate_id("app"), &var diags)
+    return bench_use(args).arguments_in_order(&bench_params(), &string_table(), CrateId.new("app"), &var diags)
 }
 
 @test fun positional_arguments_fill_the_parameters_in_order(): void {
@@ -90,7 +91,7 @@ fun ordered(args: List<AnnotationArg>): OrderedArguments {
 }
 
 @test fun a_negative_number_fits_a_signed_parameter(): void {
-    val negative = ExprKind.Unary(UnaryOp.Neg, Box.new(Expr.new(no_span(), ExprKind.LitInt(3))))
+    val negative = ExprKind.Unary(UnaryOp.Neg, Box.new(Expr.new(Span.none(), ExprKind.LitInt(3))))
     assert_eq(ordered([arg("", negative), arg("", ExprKind.LitStr(String.from("a")))]).ok, true, "-3 is an int32")
 }
 
@@ -103,15 +104,15 @@ fun ordered(args: List<AnnotationArg>): OrderedArguments {
     var diags = List.new<Diagnostic>()
     var params = List.new<Param>()
     var args = List.new<TypeRef>()
-    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
-    val list = TypeRef.new(no_span(), TypeRefKind.Named(intern("List"), args))
-    params.push(new_param(no_span(), String.from("values"), Box.new(list)))
-    check_annotation_params(&params, &string_table(), new_crate_id("app"), &var diags)
+    args.push(TypeRef.new(Span.none(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    val list = TypeRef.new(Span.none(), TypeRefKind.Named(intern("List"), args))
+    params.push(Param.new(Span.none(), String.from("values"), Box.new(list)))
+    check_annotation_params(&params, &string_table(), CrateId.new("app"), &var diags)
     assert_eq(diags.size(), 1, "no literal spells a list")
 }
 
 @test fun a_string_parameter_is_supported(): void {
     var diags = List.new<Diagnostic>()
-    check_annotation_params(&bench_params(), &string_table(), new_crate_id("app"), &var diags)
+    check_annotation_params(&bench_params(), &string_table(), CrateId.new("app"), &var diags)
     assert_eq(diags.size(), 0, "numbers and the lang string")
 }

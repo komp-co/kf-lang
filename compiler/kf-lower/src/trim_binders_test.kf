@@ -1,7 +1,7 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
@@ -10,6 +10,7 @@ import kf_core.ast.expression.ExprKind
 import kf_core.ast.declaration.*
 import kf_core.ast.statement.*
 import testing.test
+import kf_core.intern.*
 
 fun tb_null_tyref(): Ptr<TypeRef> {
     return unsafe { 0 as Ptr<TypeRef> }
@@ -20,12 +21,12 @@ fun tb_enum(name: str, variant: str, payload_count: uint64): TopDecl {
     var payloads = List.new<TypeRef>()
     var i: uint64 = 0
     while i < payload_count {
-        payloads.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+        payloads.push(TypeRef.new(Span.none(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
         i = i + 1
     }
     var variants = List.new<Variant>()
-    variants.push(new_variant(no_span(), String.from(variant), payloads))
-    return new_top_decl(no_span(), String.from(name), TopDeclKind.EnumDecl(variants, true))
+    variants.push(Variant.new(Span.none(), String.from(variant), payloads))
+    return TopDecl.new(Span.none(), String.from(name), TopDeclKind.EnumDecl(variants, true))
 }
 
 /// `when (self) { <variant>(b0..) => ... }` in `impl <impl_name>`.
@@ -36,22 +37,22 @@ fun tb_impl_with_arm(impl_name: str, variant: str, binder_count: uint64): TopDec
         binders.push(intern("b"))
         i = i + 1
     }
-    val subj = Expr.new(no_span(), ExprKind.Variable(intern("self")))
+    val subj = Expr.new(Span.none(), ExprKind.Variable(intern("self")))
     val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *sp = subj }
     var arms = List.new<SwitchArm>()
-    arms.push(SwitchArm.new(no_span(), SwitchTag.Variant(String.from(variant)), binders, null, List.new<Stmt>()))
+    arms.push(SwitchArm.new(Span.none(), SwitchTag.Variant(String.from(variant)), binders, null, List.new<Stmt>()))
     var body = List.new<Stmt>()
-    body.push(Stmt.new(no_span(), StmtKind.Switch(sp, arms)))
-    val method = new_top_decl(no_span(), String.from("probe"),
+    body.push(Stmt.new(Span.none(), StmtKind.Switch(sp, arms)))
+    val method = TopDecl.new(Span.none(), String.from("probe"),
         TopDeclKind.Function(List.new<Param>(), tb_null_tyref(), body, true, false, false, false))
     var methods = List.new<TopDecl>()
     methods.push(method)
-    return new_top_decl(no_span(), String.from(impl_name), TopDeclKind.ImplBlock(methods))
+    return TopDecl.new(Span.none(), String.from(impl_name), TopDeclKind.ImplBlock(methods))
 }
 
 fun tb_module(decls: List<TopDecl>): Module {
-    return Module { crate: crate_id_poison(), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
+    return Module { crate: CrateId.new_poison(), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 }
 
 /// 999 for a shape this helper did not build, so a broken fixture fails loudly.
@@ -136,23 +137,23 @@ fun tb_impl_with_returning_arm(impl_name: str, variant: str, binder_count: uint6
         binders.push(intern("b"))
         i = i + 1
     }
-    val subj = Expr.new(no_span(), ExprKind.Variable(intern("self")))
+    val subj = Expr.new(Span.none(), ExprKind.Variable(intern("self")))
     val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *sp = subj }
-    val read = Expr.new(no_span(), ExprKind.Variable(intern("b")))
+    val read = Expr.new(Span.none(), ExprKind.Variable(intern("b")))
     val rp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *rp = read }
     var arm_body = List.new<Stmt>()
-    arm_body.push(Stmt.new(no_span(), StmtKind.Return(rp)))
+    arm_body.push(Stmt.new(Span.none(), StmtKind.Return(rp)))
     var arms = List.new<SwitchArm>()
-    arms.push(SwitchArm.new(no_span(), SwitchTag.Variant(String.from(variant)), binders, null, arm_body))
+    arms.push(SwitchArm.new(Span.none(), SwitchTag.Variant(String.from(variant)), binders, null, arm_body))
     var body = List.new<Stmt>()
-    body.push(Stmt.new(no_span(), StmtKind.Switch(sp, arms)))
-    val method = new_top_decl(no_span(), String.from("probe"),
+    body.push(Stmt.new(Span.none(), StmtKind.Switch(sp, arms)))
+    val method = TopDecl.new(Span.none(), String.from("probe"),
         TopDeclKind.Function(List.new<Param>(), tb_null_tyref(), body, true, false, false, false))
     var methods = List.new<TopDecl>()
     methods.push(method)
-    return new_top_decl(no_span(), String.from(impl_name), TopDeclKind.ImplBlock(methods))
+    return TopDecl.new(Span.none(), String.from(impl_name), TopDeclKind.ImplBlock(methods))
 }
 
 /// 999 for a shape this helper did not build.

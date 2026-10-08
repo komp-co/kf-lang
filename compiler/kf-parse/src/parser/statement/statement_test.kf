@@ -5,9 +5,7 @@ import core.assert.*
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.expression.coerce_none
-import kf_core.ast.expression.coerce_written_amp
-import kf_core.ast.expression.coerce_written_amp_var
+import kf_core.ast.expression.Coercion
 import kf_parse.parser.parser_for
 import testing.test
 
@@ -108,53 +106,53 @@ impl T for S { fun m(): int32 { return 1 } }""")
 }
 
 // An un-annotated `val b = &xs` has no parameter type to recover `&` from, so
-// the inner expression carries it (see coerce_written_amp).
+// the inner expression carries it (see Coercion.WrittenAmp).
 
-fun first_let_init_coerce(src: str): uint8 {
+fun first_let_init_coerce(src: str): Coercion? {
     var p = parser_for(src)
     val td = p.parse_top_decl()
     when (td.kind) {
         Function(_params, _r, body, _pb, _u, _mv, _s) => {
-            if body.size() == 0 { return 255 as uint8 }
+            if body.size() == 0 { return null }
             val s0 = *body.at(0)
             when (s0.kind) {
                 LetVal(_n, _t, init_ptr) => return unsafe { (init_ptr!!).coerce }
                 LetVar(_n, _t, init_ptr) => return unsafe { (init_ptr!!).coerce }
-                _ => return 254 as uint8
+                _ => return null
             }
         }
-        _ => return 253 as uint8
+        _ => return null
     }
 }
 
 @test fun a_written_amp_is_tagged_on_the_initializer(): void {
     val c = first_let_init_coerce("fun f(): int32 { val b = &xs\nreturn 0 }")
-    assert_eq(c, coerce_written_amp(), "`&xs` tags the inner expression")
+    assert_eq(c, Coercion.WrittenAmp, "`&xs` tags the inner expression")
 }
 
 @test fun a_written_amp_var_is_tagged_as_mutable(): void {
     val c = first_let_init_coerce("fun f(): int32 { val b = &var xs\nreturn 0 }")
-    assert_eq(c, coerce_written_amp_var(), "`&var xs` tags a mutable borrow")
+    assert_eq(c, Coercion.WrittenAmpVar, "`&var xs` tags a mutable borrow")
 }
 
 @test fun a_plain_initializer_carries_no_tag(): void {
     val c = first_let_init_coerce("fun f(): int32 { val b = xs\nreturn 0 }")
-    assert_eq(c, coerce_none(), "no `&` written, no tag")
+    assert_eq(c, Coercion.Identity, "no `&` written, no tag")
 }
 
 // `&var *p` keeps its tag; typecheck reads it.
 @test fun a_borrowed_deref_is_tagged(): void {
     val c = first_let_init_coerce("fun f(): int32 { val b = &var *p\nreturn 0 }")
-    assert_eq(c, coerce_written_amp_var(), "`&var *p` is a written borrow of `*p`")
+    assert_eq(c, Coercion.WrittenAmpVar, "`&var *p` is a written borrow of `*p`")
 }
 
-/// `no_span()` when that statement binds nothing.
+/// `Span.none()` when that statement binds nothing.
 fun first_binder_span(src: str): Span {
     var p = parser_for(src)
     val td = p.parse_top_decl()
     // Assigned into a local declared before the `when`: returning it from the
     // arm comes back with a garbage `file_id`.
-    var found = no_span()
+    var found = Span.none()
     when (td.kind) {
         Function(_params, _r, body, _pb, _u, _mv, _s) => {
             if body.size() > 0 { found = body.at(0).binder }

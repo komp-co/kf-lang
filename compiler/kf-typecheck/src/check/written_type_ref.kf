@@ -4,9 +4,9 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.Sym
-import kf_core.ast.intern
 import kf_core.ast.types.*
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_typecheck.types.type_ref_is_poison
 
 /// A borrow is `Reference(mutable, inner)`, mutability kept. An instance is
@@ -34,19 +34,19 @@ pub fun Type.ty_written_ref(span: Span, sigs: Ptr<SigTable>): TypeRef {
     }
     val flat = self.ty_flat_ref_name()
     if flat.as_str().equals("") { return TypeRef.new(span, TypeRefKind.Poison) }
-    return TypeRef.new(span, TypeRefKind.Named(intern(flat.as_str()), List.new<TypeRef>()))
+    return TypeRef.new(span, TypeRefKind.Named(intern(flat), List.new<TypeRef>()))
 }
 
 fun Sym.written_named_ref(span: Span, sigs: Ptr<SigTable>): TypeRef {
     val flat = self.flat_written_name()
     if !flat.as_str().equals("") {
-        return TypeRef.new(span, TypeRefKind.Named(intern(flat.as_str()), List.new<TypeRef>()))
+        return TypeRef.new(span, TypeRefKind.Named(intern(flat), List.new<TypeRef>()))
     }
     if unsafe { sigs as uint64 } == 0 { return TypeRef.new(span, TypeRefKind.Poison) }
     val inst = unsafe { sigs.find_inst(self.as_str()) } ?: return TypeRef.new(span, TypeRefKind.Poison)
-    val base = intern(inst.base.as_str()).flat_written_name()
+    val base = intern(inst.base).flat_written_name()
     if base.as_str().equals("") { return TypeRef.new(span, TypeRefKind.Poison) }
-    return TypeRef.new(span, TypeRefKind.Named(intern(base.as_str()), inst.args.clone()))
+    return TypeRef.new(span, TypeRefKind.Named(intern(base), inst.args.clone()))
 }
 
 // Builtins, template names and generic parameters, which clone-subst rewrites
@@ -66,6 +66,6 @@ fun Sym.flat_written_name(): String {
     val s = type_identity_display(Sym { id: self.id })
     // `List__int32` would read as a template plus argument.
     val b = mangle_base_name(s.clone())
-    if b.as_str().equals(s.as_str()) { return s }
+    if b.as_str().equals(s) { return s }
     return ""
 }

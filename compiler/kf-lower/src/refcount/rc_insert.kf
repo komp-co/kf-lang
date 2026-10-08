@@ -14,12 +14,15 @@ import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import kf_lower.ownership.build_param_table
 import kf_lower.ownership.compute_move_only_names
+import kf_core.intern.*
+import kf_core.lang.*
+import kf_core.ast.types.*
 pub mutating fun Module.rc_insert_module(list_name: Sym): void {
     var param_table = self.build_param_table()
     var payloads = self.variant_payloads_of()
     var ctx = new_rc_ctx(String.from(""))
     ctx.move_only_names = self.compute_move_only_names(list_name)
-    ctx.string_name = self.lang_type_name(lang_string_key())
+    ctx.string_name = self.lang_type_name(LangItem.String)
     ctx.borrow_free = self.borrow_free_names(ctx.string_name, list_name)
     ctx.use_tables(&var param_table, &var payloads)
     while i in 0..self.decls.size() {
@@ -73,9 +76,9 @@ fun Expr.collect_moved_names(mode: BorrowMode, out: &var List<String>): void {
     when (self.kind) {
         Variable(name) => {
             // Lending, a byte view or a clone moves nothing into the result.
-            if self.coerce == coerce_addr_of() { return }
-            if self.coerce == coerce_to_cstr() { return }
-            if self.coerce == coerce_clone() { return }
+            if self.coerce == Coercion.AddrOf { return }
+            if self.coerce == Coercion.ToCStr { return }
+            if self.coerce == Coercion.Clone { return }
             when (mode) { Value => out.push(name.as_string()) Borrow => {} }
         }
         Release(name) => {

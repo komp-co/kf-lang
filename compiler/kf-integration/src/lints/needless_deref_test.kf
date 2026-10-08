@@ -1,0 +1,122 @@
+// `needless_deref`: a view call a value's `Deref` already makes, and the
+// places where the call changes what the code means and stays.
+
+import core.assert.assert_eq
+import alloc.list.*
+import alloc.path.Path
+import std.fs.absolute
+
+import kf_core.diagnostic.*
+import kf_driver.*
+import kf_lint.lint_typed_module
+import std.fs.create_dir_all
+import std.fs.remove_dir_all
+import std.fs.scratch_path
+import std.fs.write_text
+import kf_integration.harness.assemble_project
+import kf_integration.harness.testing_dev_dependency
+import testing.test
+
+/// What `main.kf` declares besides `main`.
+fun helpers(): str {
+    return """fun takes(s: str): bool {
+    return s == "hi"
+}
+
+fun id<T>(x: T): T {
+    return x
+}
+
+fun str.twice(): uint64 {
+    return self.byte_len() * 2
+}
+
+fun total(xs: Slice<int32>): int32 {
+    var t = 0
+    while x in xs { t = t + x }
+    return t
+}
+
+"""
+}
+
+/// The typed lints over a bin project whose `main` runs `body`: their codes,
+/// space-separated, and the first fix's span as `start..end`.
+fun deref_lints(name: str, body: str): String {
+    val dir = scratch_path(name)
+    val _cleared = remove_dir_all(dir)
+    val _made = create_dir_all(Path.new("${dir}/src".as_str()))
+    val libs = absolute("libs").normalized().raw
+    val deps = "[dependencies]\ncore = { path = \"${libs}/core\" }\nalloc = { path = \"${libs}/alloc\" }\n"
+    val project = "[project]\nname = \"deref\"\nversion = \"0.1.0\"\nkind = \"bin\"\n"
+    val manifest = "${project}${deps}${testing_dev_dependency()}"
+    val _manifest = write_text("${dir}/kf.toml".as_str(), manifest)
+    val prelude = "import alloc.list.*\nimport alloc.string.*\nimport core.slice.Slice\n\n"
+    val src = "${prelude}${helpers()}fun main(): int32 {\n${body}\n}\n"
+    val _source = write_text("${dir}/src/main.kf".as_str(), src)
+    val smap = fresh_source_map()
+    var pdiags = Diagnostics.new()
+    var merged = assemble_project(dir, smap, &var pdiags)
+    val checked = merged.checked_diagnostics(smap, &new_lint_config())
+    if count_errors(&checked) > 0 { return String.from("errors") }
+    var codes = String.from("")
+    var fix = String.from("")
+    while d in &lint_typed_module(&merged) {
+        if d.code.as_str() != "needless_deref" { continue }
+        if !codes.is_empty() { codes.append(" ") }
+        codes.append(d.code)
+        if fix.is_empty() {
+            val at = src.index_of("\nfun main") ?: 0
+            fix = "${d.fix.span.start - at as uint32}..${d.fix.span.end - at as uint32}"
+        }
+    }
+    if fix.is_empty() { return codes }
+    return "${codes} ${fix}"
+}
+
+/// What `deref_lints` gives for one finding: its code, and the span of
+/// `.as_str()` in `body`, which `main`'s header precedes.
+fun one_finding_in(body: str): String {
+    val header = "\nfun main(): int32 {\n".byte_len() as uint32
+    val start = header + (body.index_of(".as_str()") ?: 0) as uint32
+    return "needless_deref ${start}..${start + 9}"
+}
+
+@test
+fun a_view_passed_to_a_str_parameter_is_reported(): void {
+    val body = "    val s = String.from(\"hi\")\n    return if takes(s.as_str()) { 0 } else { 1 }"
+    val found = deref_lints("deref_param", body)
+    assert_eq(found.as_str(), one_finding_in(body).as_str(), "a String fills a str slot")
+}
+
+@test
+fun a_view_as_a_receiver_its_type_lacks_is_reported(): void {
+    val body = "    val s = String.from(\"hi\")\n    return s.as_str().twice() as int32 - 4"
+    val found = deref_lints("deref_receiver", body)
+    assert_eq(found.as_str(), one_finding_in(body).as_str(), "a String lends itself to `twice`")
+}
+
+@test
+fun a_slice_view_passed_to_a_slice_parameter_is_reported(): void {
+    val body = "    var l = List.new<int32>()\n    l.push(2)\n    return total(l.as_slice()) - 2"
+    val found = deref_lints("deref_slice", body)
+    assert_eq(found.starts_with("needless_deref "), true, "a List fills a Slice slot")
+}
+
+@test
+fun an_unannotated_view_binding_keeps_its_call(): void {
+    val body = "    val s = String.from(\"hi\")\n    val v = s.as_str()\n    return if takes(v) { 0 } else { 1 }"
+    assert_eq(deref_lints("deref_val", body).as_str(), "", "without the call `v` would be a String")
+}
+
+@test
+fun a_view_that_infers_a_type_argument_keeps_its_call(): void {
+    val body = "    val s = String.from(\"hi\")\n    return if takes(id(s.as_str())) { 0 } else { 1 }"
+    assert_eq(deref_lints("deref_generic", body).as_str(), "", "the call makes `T` a str")
+}
+
+@test
+fun a_view_of_a_temporary_keeps_its_call(): void {
+    val body = "    return if takes(String.from(\"hi\").as_str()) { 0 } else { 1 }"
+    assert_eq(deref_lints("deref_temporary", body).as_str(), "", "a callee might keep a view of it")
+}

@@ -1,14 +1,15 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.*
+import kf_core.span.Span
 import kf_core.ast.expression.*
 import kf_core.ast.statement.Stmt
 import testing.test
+import kf_core.intern.intern
+import kf_core.ast.pattern.*
 
 fun literal(kind: ExprKind): Expr {
-    return Expr.new(no_span(), kind)
+    return Expr.new(Span.none(), kind)
 }
 
 fun binary(left: ExprKind, op: BinOp, right: ExprKind): Expr {
@@ -16,7 +17,7 @@ fun binary(left: ExprKind, op: BinOp, right: ExprKind): Expr {
 }
 
 fun arm_on(kind: PatternKind): Arm {
-    return new_arm(no_span(), Box.new(new_pattern(no_span(), kind)), null, List.new<Stmt>())
+    return Arm.new(Span.none(), Box.new(Pattern.new(Span.none(), kind)), null, List.new<Stmt>())
 }
 
 @test fun equal_names_decide_true(): void {

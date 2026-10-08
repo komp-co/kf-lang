@@ -4,10 +4,10 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.intern
 import kf_core.ast.expression.*
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import kf_core.intern.intern
 
 // `when (make())`: an owning rvalue subject is hoisted into a local so its
 // scope-exit drop fires. Borrowed subjects are left alone. Returns the
@@ -36,8 +36,8 @@ fun hoist_owned_when_subject(subj_ptr: Ptr<Expr>, span: Span, ctx: &var RcCtx): 
     val tmp_name = "${hoisted_subject_prefix()}${u64_to_str(tmp_id)}"
     val init: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *init = subj }
-    out.push(Stmt.new(span, StmtKind.LetVal(intern(tmp_name.as_str()), null, init)))
-    var v = Expr.new(span, ExprKind.Variable(intern(tmp_name.as_str())))
+    out.push(Stmt.new(span, StmtKind.LetVal(intern(tmp_name), null, init)))
+    var v = Expr.new(span, ExprKind.Variable(intern(tmp_name)))
     v.ty = subj.ty
     unsafe { *subj_ptr = v }
     return out
@@ -46,7 +46,7 @@ fun hoist_owned_when_subject(subj_ptr: Ptr<Expr>, span: Span, ctx: &var RcCtx): 
 fun hoisted_subject_prefix(): str { return "__when_own_" }
 
 fun Expr.is_cloned_local(): bool {
-    if self.coerce != coerce_clone() { return false }
+    if self.coerce != Coercion.Clone { return false }
     return when (self.kind) {
         Variable(_n) => true
         _ => false

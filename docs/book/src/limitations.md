@@ -121,10 +121,13 @@ on a struct holding one ([#299]). Compare or print the elements instead.
 
 ## Templates
 
-- A [template](lang/templates.md) adds to structs only; templates on enums
-  come with the variant loop ([#289]).
-- A template adds to its own crate's structs only ([#290]), and not to a
-  generic struct ([#296]).
+- A [template](lang/templates.md) does not add to a generic struct or enum
+  ([#296]).
+- An annotation's [name argument](lang/annotations.md#names-and-the-rest) is
+  checked to name a declaration of its kind, not that the use can see it
+  ([#188]).
+- `annotated<A>()` has no field for a variadic parameter: nothing could keep
+  the list once the query returns ([#187]).
 - A `pub` extension function a template adds cannot be imported by another
   module: imports are checked before templates expand ([#297]).
 
@@ -213,9 +216,9 @@ not agree with it in every case.
 [#190]: https://github.com/komp-co/komp/issues/190
 [#194]: https://github.com/komp-co/komp/issues/194
 [#216]: https://github.com/komp-co/komp/issues/216
-[#289]: https://github.com/komp-co/komp/issues/289
-[#290]: https://github.com/komp-co/komp/issues/290
 [#296]: https://github.com/komp-co/komp/issues/296
+[#187]: https://github.com/komp-co/kf-lang/issues/187
+[#188]: https://github.com/komp-co/kf-lang/issues/188
 [#297]: https://github.com/komp-co/komp/issues/297
 [#299]: https://github.com/komp-co/komp/issues/299
 [#480]: https://github.com/komp-co/komp/issues/480

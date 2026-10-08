@@ -1,0 +1,42 @@
+// A typing `serve` keeps between requests, with which bodies it checked.
+
+import alloc.list.*
+
+import kf_query.editor.TypedCrate
+
+pub struct KeptTyping {
+    /// Empty, or the one typing.
+    pub var crates: List<TypedCrate>
+    /// Which crates it holds.
+    var key: String
+    /// The first of the crates whose bodies it checked; the ones before it
+    /// are signatures.
+    var bodies_from: uint64
+    /// Whether it checked only `file`'s bodies of those.
+    var focus_only: bool
+    var file: String
+}
+
+pub fun no_typing(): KeptTyping {
+    return KeptTyping { crates: List.new<TypedCrate>(), key: "", bodies_from: 0, focus_only: false, file: "" }
+}
+
+pub fun kept_typing(crate: TypedCrate, key: String, bodies_from: uint64, focus_only: bool, file: String): KeptTyping {
+    var crates = List.new<TypedCrate>()
+    crates.push(crate)
+    return KeptTyping { crates: crates, key: key, bodies_from: bodies_from, focus_only: focus_only, file: file }
+}
+
+impl KeptTyping {
+    /// Whether it types `key`'s crates, whichever bodies it checked.
+    pub fun types(key: str): bool {
+        return !self.crates.is_empty() && self.key.as_str() == key
+    }
+
+    /// Whether it holds every body a question about `file` among `key`'s
+    /// crates reads: those from `bodies_from` on, or `file`'s alone.
+    pub fun answers(key: str, file: str, bodies_from: uint64, focus_only: bool): bool {
+        if self.crates.is_empty() || self.key.as_str() != key || self.bodies_from > bodies_from { return false }
+        return !self.focus_only || focus_only && self.file.as_str() == file
+    }
+}

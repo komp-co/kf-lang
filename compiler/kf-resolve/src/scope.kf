@@ -1,0 +1,198 @@
+// Which declaration a name means where it is written. Resolve stamps each
+// name with the answer, and typecheck asks the same table for the names it
+// writes itself, so the rules live here alone.
+//
+// A caller sees its own module's declarations, then what its file's imports
+// admit; its own crate shadows other crates, and `@prelude` declarations
+// need no import.
+
+import alloc.list.*
+import alloc.hash_map.*
+
+import kf_core.ast.*
+import kf_core.ast.declaration.DeclId
+import kf_core.runtime.runtime_name_is_reserved
+
+impl DeclTable {
+    /// The bodies stamped next are written in `file`, in `crate`'s
+    /// `module`.
+    pub mutating fun stand_in(file: uint32, crate: CrateId, module: Sym): void {
+        self.here_file = file
+        self.here_crate = crate
+        self.here_module = module
+    }
+
+    /// The declaration a name written in the current body means: a function,
+    /// extern or constant it sees, else a type of that name.
+    pub mutating fun meant_here(name: str): DeclId? {
+        val found = self.visible(name, self.here_file, self.here_crate, self.here_module)
+        if found.is_some() { return found }
+        return self.type_named(name)
+    }
+
+    /// The struct or enum `name` means in the current body. Types resolve
+    /// globally, whatever the imports say, but a crate's own shadows
+    /// another's.
+    pub fun type_named(name: str): DeclId? {
+        val named = self.types.positions(name)
+        if named.size() == 0 { return null }
+        while k in 0..named.size() {
+            if self.entries.at(named.get(k)).crate.raw == self.here_crate.raw { return self.decl_ids.get(named.get(k)) }
+        }
+        return self.decl_ids.get(named.get(0))
+    }
+
+    /// The function, extern or constant `name` means in `file`, which is in
+    /// `crate`'s `module`; asked once per name and place.
+    pub mutating fun visible(name: str, file: uint32, crate: CrateId, module: Sym): DeclId? {
+        val slot = self.place_slot(file, crate, module)
+        when (self.answers.at(slot).get(&String.from_literal(name))) {
+            Some(raw) => {
+                if *raw == 0 { return null }
+                return DeclId.new(*raw)
+            }
+            None => { }
+        }
+        val at = self.find_visible(name, file, crate, module)
+        val raw: uint32 = if at == none_index() { 0 } else { self.decl_ids.get(at).raw }
+        self.answers[slot].insert(String.from(name), raw)
+        if raw == 0 { return null }
+        return DeclId.new(raw)
+    }
+
+    fun find_visible(name: str, file: uint32, crate: CrateId, module: Sym): uint64 {
+        val named = self.callables_named(name)
+        // The caller's own crate shadows an imported definition, or every
+        // library addition could break a program using that name. The runtime
+        // prelude is exempt: its names are reserved and in every TU.
+        if !runtime_name_is_reserved(name) {
+            while k in 0..named.size() {
+                val at = named.get(k)
+                val mine = self.entries.at(at)
+                // A module path starts with its crate's name, so this is the
+                // caller's own module: a template's code, expanded into
+                // another crate, still reaches what its home module declares.
+                if mine.module.id == module.id { return at }
+                if mine.crate.raw == crate.raw {
+                    // Own module: unrestricted. Same crate, other module: only
+                    // `pub` and imported; keep looking, since a later or
+                    // imported definition may still answer.
+                    if mine.module.id == module.id { return at }
+                    if mine.is_pub && self.admits_entry(file, mine) { return at }
+                }
+            }
+        }
+        // `gated` alone decides; guarding on the import list too would let a
+        // file with no imports call every private function.
+        if !self.gated {
+            if named.size() == 0 { return none_index() }
+            return named.get(0)
+        }
+        var ambient = none_index()
+        while k in 0..named.size() {
+            val at = named.get(k)
+            val s = self.entries.at(at)
+            // In every generated translation unit.
+            if runtime_name_is_reserved(name) { return at }
+            if s.crate.raw == crate.raw {
+                if s.module.id == module.id { return at }
+                if !s.is_pub { return none_index() }
+            }
+            if s.is_pub && self.admits_entry(file, s) { return at }
+            if s.is_pub && s.is_prelude && ambient == none_index() { ambient = at }
+        }
+        val renamed = self.find_renamed(name, file)
+        if renamed != none_index() { return renamed }
+        return ambient
+    }
+
+    /// Whether `file`'s imports admit `entry`; everything is admitted
+    /// ungated.
+    fun admits_entry(file: uint32, entry: &ScopeEntry): bool {
+        if !self.gated { return true }
+        return self.admits(file, entry.module, entry.surface.as_str())
+    }
+
+    /// The file's own imports admit `name` from `target`; a sibling's do not.
+    /// CONSTRAINT: keep looking on a miss, since one file may name several
+    /// imports of one module.
+    pub fun admits(file: uint32, target: Sym, name: str): bool {
+        val mine = self.imports_of(file)
+        while k in 0..mine.size() {
+            val i = mine.get(k)
+            if self.import_targets.get(i).id == target.id {
+                val admitted = self.import_names.get(i)
+                // Poison is `.*`.
+                if admitted.id == 0 { return true }
+                if admitted.as_str().equals(name) { return true }
+            }
+        }
+        return false
+    }
+
+    /// A function an export renamed, by the name this file writes; `pub`
+    /// only.
+    fun find_renamed(written: str, file: uint32): uint64 {
+        val mine = self.imports_of(file)
+        while k in 0..mine.size() {
+            val i = mine.get(k)
+            // CONSTRAINT: poison (a wildcard) has no text.
+            if self.import_names.get(i).id != 0 {
+                val admitted = self.import_names.get(i).as_str()
+                val real = admission_real(admitted)
+                if !admitted.starts_with("as ") && real.as_str() != written {
+                    if admission_written(admitted).as_str() == written {
+                        val at = self.find_in_module(real, self.import_targets.get(i))
+                        if at != none_index() && self.entries.at(at).is_pub { return at }
+                    }
+                }
+            }
+        }
+        return none_index()
+    }
+
+    /// Declared in `module`, whatever its visibility.
+    fun find_in_module(name: str, module: Sym): uint64 {
+        val named = self.callables_named(name)
+        while k in 0..named.size() {
+            if self.entries.at(named.get(k)).module.id == module.id { return named.get(k) }
+        }
+        return none_index()
+    }
+
+    /// `name` in the module an alias's `admission` names in `file`'s
+    /// imports, or in one that module exports it from; the caller judges its
+    /// `pub`.
+    pub fun through_alias(name: str, admission: Sym, file: uint32): DeclId? {
+        val narrowed_prefix = "${admission.as_str()} "
+        val mine = self.imports_of(file)
+        while k in 0..mine.size() {
+            val i = mine.get(k)
+            val admitted = self.import_names.get(i)
+            // The whole module, or one name it exports, maybe renamed.
+            var real = ""
+            if admitted.id == admission.id {
+                real = String.from(name)
+            } else if admitted.id != 0 && admitted.as_str().starts_with(narrowed_prefix) {
+                val part = admitted.as_str().substring(narrowed_prefix.byte_len(), admitted.as_str().byte_len())
+                if admission_written(part).as_str() == name { real = admission_real(part) }
+            }
+            if real.as_str() != "" {
+                val at = self.find_in_module(real, self.import_targets.get(i))
+                if at != none_index() { return self.decl_ids.get(at) }
+            }
+        }
+        return null
+    }
+
+    /// The module an alias's admission names in the file's imports, or
+    /// poison.
+    pub fun alias_target(file: uint32, admission: Sym): Sym {
+        val mine = self.imports_of(file)
+        while k in 0..mine.size() {
+            val i = mine.get(k)
+            if self.import_names.get(i).id == admission.id { return self.import_targets.get(i) }
+        }
+        return Sym { id: 0 }
+    }
+}

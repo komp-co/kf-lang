@@ -6,12 +6,12 @@
 import alloc.list.*
 
 import kf_core.ast.Module
-import kf_core.ast.Sym
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.Param
 import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 import kf_core.span.*
+import kf_core.intern.Sym
 
 pub fun Module.pub_signature_diags(): List<Diagnostic> {
     var diags = List.new<Diagnostic>()
@@ -117,5 +117,5 @@ fun private_type_in_pub_signature(type_name: Sym, fn_name: Sym, span: Span): Dia
     msg.append("`, which is not — the crate header would carry a type the crate also defines itself, and the two definitions collide. Make `")
     msg.append(type_name.as_str())
     msg.append("` `pub`, or stop exporting the function")
-    return error_at(span, msg)
+    return Diagnostic.error_at(span, msg)
 }

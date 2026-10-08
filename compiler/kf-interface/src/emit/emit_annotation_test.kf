@@ -1,32 +1,34 @@
 import alloc.list.*
 import core.assert.assert_eq
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
-import kf_core.ast.annotation.any_kind_target
+import kf_core.ast.annotation.MarkTarget
+import kf_core.intern.*
+import kf_core.ast.annotation.*
 import kf_interface.parse.parse_interface
 import testing.test
 
 fun annotation_module(is_pub: bool): Module {
-    return targeted_module(is_pub, default_mark_target(no_span()))
+    return targeted_module(is_pub, MarkTarget.new_default(Span.none()))
 }
 
 fun targeted_module(is_pub: bool, target: MarkTarget): Module {
     val kind = TopDeclKind.AnnotationDecl(List.new<Param>(), target, is_pub)
-    var decl = new_top_decl(no_span(), String.from("bench"), kind)
-    decl.crate = new_crate_id("sample")
+    var decl = TopDecl.new(Span.none(), String.from("bench"), kind)
+    decl.crate = CrateId.new("sample")
     decl.module_path = intern("sample.api")
     var decls = List.new<TopDecl>()
     decls.push(decl)
-    return Module { crate: new_crate_id("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
+    return Module { crate: CrateId.new("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 }
 
 fun loaded_annotation_count(is_pub: bool): uint64 {
     val out = annotation_module(is_pub).emit_interface(String.from("sample"), &List.new<String>())
-    val loaded = parse_interface(out.as_str())
+    val loaded = parse_interface(out)
     var count: uint64 = 0
     while m in &loaded.modules {
         while td in &m.decls {
@@ -50,13 +52,13 @@ fun private_annotation_stays_out_of_the_interface(): void {
 }
 
 fun named(name: str): TypeRef {
-    return TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
+    return TypeRef.new(Span.none(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
 }
 
 /// The target of the one annotation `m` reads back as.
 fun round_trip_target(m: Module): MarkTarget {
     val out = m.emit_interface(String.from("sample"), &List.new<String>())
-    val loaded = parse_interface(out.as_str())
+    val loaded = parse_interface(out)
     while module in &loaded.modules {
         while td in &module.decls {
             when (td.kind) {
@@ -97,7 +99,7 @@ fun kind(kind: MarkKind, bounds: List<TypeRef>): KindTarget {
 
 @test
 fun a_function_target_crosses_with_its_type(): void {
-    val target = round_trip_target(targeted_module(true, default_mark_target(no_span())))
+    val target = round_trip_target(targeted_module(true, MarkTarget.new_default(Span.none())))
     assert_eq(target.function_text().as_str(), "() -> void", "the function type is written and read back")
 }
 
@@ -115,7 +117,7 @@ fun kinds_cross_with_their_bounds(): void {
 
 @test
 fun any_crosses_as_every_kind(): void {
-    val target = round_trip_target(targeted_module(true, any_kind_target()))
+    val target = round_trip_target(targeted_module(true, MarkTarget.new_any_kind()))
     assert_eq(target.kinds_text().as_str(), "fun:,struct:,enum:,trait:", "all four")
 }
 
@@ -140,7 +142,7 @@ fun rest_alone_crosses(): void {
 /// Each type parameter the one annotation of `m` reads back with, `T:Display`.
 fun round_trip_params(m: Module): String {
     val out = m.emit_interface(String.from("sample"), &List.new<String>())
-    val loaded = parse_interface(out.as_str())
+    val loaded = parse_interface(out)
     var shown = String.from("")
     while module in &loaded.modules {
         while td in &module.decls {
@@ -158,10 +160,10 @@ fun round_trip_params(m: Module): String {
 
 @test
 fun type_parameters_cross_with_their_bounds(): void {
-    var m = targeted_module(true, default_mark_target(no_span()))
-    var shown = new_type_param(no_span(), String.from("T"))
+    var m = targeted_module(true, MarkTarget.new_default(Span.none()))
+    var shown = TypeParam.new(Span.none(), String.from("T"))
     shown.bounds.push(named("Display"))
     m.decls.at_mut(0).generics.push(shown)
-    m.decls.at_mut(0).generics.push(new_type_param(no_span(), String.from("S")))
+    m.decls.at_mut(0).generics.push(TypeParam.new(Span.none(), String.from("S")))
     assert_eq(round_trip_params(m).as_str(), "T:Display,S", "in order, with the bound")
 }

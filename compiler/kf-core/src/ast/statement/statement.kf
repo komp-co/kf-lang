@@ -1,10 +1,10 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.Arm
-import kf_core.ast.Sym
+import kf_core.ast.pattern.Arm
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
+import kf_core.intern.Sym
 
 pub enum StmtKind {
     /// `val name: ty = init`; no annotation means inferred.
@@ -46,7 +46,7 @@ pub enum StmtKind {
 pub struct Stmt {
     /// The full extent, not just the leading keyword.
     pub var span: Span
-    /// Where the binder name is written (`x` in `val x = 1`); `no_span()` if
+    /// Where the binder name is written (`x` in `val x = 1`); `Span.none()` if
     /// nothing is bound. On the outer struct so no kind's payload changes.
     pub var binder: Span
     pub var kind: StmtKind
@@ -54,7 +54,7 @@ pub struct Stmt {
 
 impl Stmt {
     pub static fun new(span: Span, kind: StmtKind): Self {
-        return Self { span: span, binder: no_span(), kind: kind }
+        return Self { span: span, binder: Span.none(), kind: kind }
     }
 
     /// Only the parser calls this; rebuilt statements go through `new`.

@@ -1,0 +1,27 @@
+// Borrowed views of optional owned nodes, for passes that read or rewrite a
+// node in place through a pointer. The view never owns: the Box does.
+
+import kf_core.ast.expression.*
+
+pub fun Option<Box<Expr>>.view(): Ptr<Expr>? {
+    return when (self) {
+        Some(node) => node
+        None => null
+    }
+}
+
+/// Hands the pointee to a new owner. The node it came from must not free it too.
+pub fun Option<Ptr<Expr>>.adopt(): Box<Expr>? {
+    return when (self) {
+        Some(node) => Option.Some<Box<Expr>>(node)
+        None => null
+    }
+}
+
+/// A deep copy, for a rebuilt node that must own its own guard or initializer.
+pub fun Option<Box<Expr>>.duplicate(): Box<Expr>? {
+    return when (self) {
+        Some(node) => Option.Some<Box<Expr>>(Box.new(node.clone()))
+        None => null
+    }
+}

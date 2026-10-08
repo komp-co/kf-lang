@@ -55,3 +55,11 @@ fun TopDecl.template_shape(): String {
     val _td = p.parse_top_decl()
     assert_eq(p.diags.size(), 0, "`type` after `.` in a type")
 }
+
+@test fun a_keyed_template_records_its_key(): void {
+    var p = parser_for("template deriving(Counted) on struct T { }")
+    val td = p.parse_top_decl()
+    assert_eq(p.diags.size(), 0, "no errors")
+    assert_eq(td.template_key.as_str(), "Counted", "the key")
+    assert_eq(td.name.as_str(), "deriving", "the annotation")
+}

@@ -2,12 +2,12 @@
 // order for codegen.
 
 import kf_core.span.*
-import kf_core.ast.intern
 import kf_core.ast.types.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.FieldInit
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
+import kf_core.intern.intern
 import kf_typecheck.types.resolve_type_ref
 import kf_typecheck.types.display_type
 import kf_typecheck.note_import_use
@@ -17,15 +17,15 @@ import kf_typecheck.note_import_use
 /// `prechecked` when the initializers were checked to infer the arguments.
 mutating fun Expr.check_generic_struct_lit(struct_name: String, fields: &var List<FieldInit>, prechecked: bool,
     ctx: &var TypeCtx): Type {
-    val ttr = TypeRef.new(self.span, TypeRefKind.Named(intern(struct_name.as_str()), self.type_args.clone()))
+    val ttr = TypeRef.new(self.span, TypeRefKind.Named(intern(struct_name), self.type_args.clone()))
     val rty = ttr.resolve_type_ref(ctx)
     val eff = struct_name_of(rty)
     val eff_empty = eff.as_str().equals("")
     if eff_empty {
-        return check_struct_lit(struct_name.as_str(), fields, self.span, prechecked, ctx)
+        return check_struct_lit(struct_name, fields, self.span, prechecked, ctx)
     }
-    self.mangled_callee = intern(eff.as_str())
-    return check_struct_lit(eff.as_str(), fields, self.span, prechecked, ctx)
+    self.mangled_callee = intern(eff)
+    return check_struct_lit(eff, fields, self.span, prechecked, ctx)
 }
 
 fun struct_name_of(t: Type): String {
@@ -60,7 +60,7 @@ fun check_struct_lit(struct_name: str, fields: &var List<FieldInit>, span: Span,
                 if !expect_or_reject(unsafe { &var *v_ptr }, lf.ty, ctx) {
                     val actual = unsafe { (*v_ptr).ty }
                     val msg = "wrong type for field `${fi.name.as_str()}` of `${struct_name}`: expected `${lf.ty.display_type(ctx)}`, found `${actual.display_type(ctx)}`"
-                    ctx.emit(new_diagnostic(Severity.Error, new_label(fi.span, msg)))
+                    ctx.emit(Diagnostic.new(Severity.Error, Label.new(fi.span, msg)))
                     saw_error = true
                 }
                 found = true
@@ -73,7 +73,7 @@ fun check_struct_lit(struct_name: str, fields: &var List<FieldInit>, span: Span,
             val v_ptr: Ptr<Expr> = fi.value
             if !prechecked { check_expr(unsafe { &var *v_ptr }, ctx) }
             val msg = "struct `${struct_name}` has no field `${fi.name.as_str()}`"
-            ctx.emit(new_diagnostic(Severity.Error, new_label(fi.span, msg)))
+            ctx.emit(Diagnostic.new(Severity.Error, Label.new(fi.span, msg)))
             saw_error = true
         }
     }
@@ -81,21 +81,21 @@ fun check_struct_lit(struct_name: str, fields: &var List<FieldInit>, span: Span,
         var initialized = false
         var seen: uint64 = 0
         while fi in 0..fields.size() {
-            if fields.at(fi).name.as_str().equals(lf.name.as_str()) {
+            if fields.at(fi).name.as_str().equals(lf.name) {
                 initialized = true
                 seen = seen + 1
             }
         }
         if !initialized {
             val msg = "struct literal for `${struct_name}` is missing field `${lf.name.as_str()}`"
-            ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+            ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
             saw_error = true
         }
         // A field initialised twice is an error; it would also defeat the
         // reorder below.
         if seen > 1 {
             val dmsg = "struct literal for `${struct_name}` initialises field `${lf.name.as_str()}` more than once"
-            ctx.emit(new_diagnostic(Severity.Error, new_label(span, dmsg)))
+            ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, dmsg)))
             saw_error = true
         }
     }
@@ -111,11 +111,11 @@ fun check_struct_lit(struct_name: str, fields: &var List<FieldInit>, span: Span,
 fun reorder_field_inits(fields: &var List<FieldInit>, layout: &StructLayout): void {
     if fields.size() < 2 || fields.size() != layout.fields.size() { return }
     while field in &layout.fields {
-        if field_init_index(fields, field.name.as_str()) >= fields.size() { return }
+        if field_init_index(fields, field.name) >= fields.size() { return }
     }
     var out = List.new<FieldInit>()
     while field in &layout.fields {
-        val moved = fields.remove(field_init_index(fields, field.name.as_str())) ?: return
+        val moved = fields.remove(field_init_index(fields, field.name)) ?: return
         out.push(moved)
     }
     *fields = out

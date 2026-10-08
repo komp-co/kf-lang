@@ -2,8 +2,8 @@ import kf_core.ast.types.Provenance
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
 import kf_core.ast.expression.*
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
 import kf_core.span.*
 import kf_core.ast.types.type_node
 import kf_typecheck.types.display_type
@@ -19,7 +19,7 @@ pub fun check_deref(inner: &Expr, span: Span, ctx: &var TypeCtx): Type {
         _ => {
             val rendered = inner.ty.display_type(ctx)
             val message = "cannot dereference `${rendered.as_str()}`: `*` applies only to a pointer, box, or borrow"
-            ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
+            ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
             return Type.new_poison()
         }
     }
@@ -28,10 +28,10 @@ pub fun check_deref(inner: &Expr, span: Span, ctx: &var TypeCtx): Type {
 /// `&*p` / `&var *p`: the author vouches `p` points at a live value. The node
 /// becomes the pointer again, typed as the written reference; a shared borrow
 /// never becomes mutable. `written` is the parser's tag.
-pub mutating fun Expr.borrow_written_deref(written: uint8, ctx: &var TypeCtx): void {
-    if written != coerce_written_amp() && written != coerce_written_amp_var() { return }
+pub mutating fun Expr.borrow_written_deref(written: Coercion, ctx: &var TypeCtx): void {
+    if written != Coercion.WrittenAmp && written != Coercion.WrittenAmpVar { return }
     // `&var xs[i]` borrows through `IndexMut`.
-    if written == coerce_written_amp_var() { val _ = self.promote_subscript_to_mut(ctx) }
+    if written == Coercion.WrittenAmpVar { val _ = self.promote_subscript_to_mut(ctx) }
     var operand = Expr.new_poison(self.span)
     when (self.kind) {
         Deref(inner_ptr) => { operand = unsafe { *inner_ptr } }
@@ -40,14 +40,14 @@ pub mutating fun Expr.borrow_written_deref(written: uint8, ctx: &var TypeCtx): v
     // A non-int32 offset types as poison, so the pointee type is supplied here.
     if self.ty.is_poison() { self.ty = operand.offset_pointee() }
     if self.ty.is_poison() { return }
-    var mutable = written == coerce_written_amp_var()
+    var mutable = written == Coercion.WrittenAmpVar
     when (operand.ty.kind) {
         RefTo(is_mut, _) => { mutable = mutable && is_mut }
         _ => { }
     }
     val pointee = type_node(self.ty)
     operand.ty = Type { kind: TypeKind.RefTo(mutable, pointee), provenance: Provenance.Inferred(self.span) }
-    operand.coerce = coerce_none()
+    operand.coerce = Coercion.Identity
     (*self) = operand
 }
 

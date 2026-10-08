@@ -4,7 +4,7 @@
 import kf_integration.harness.typed_crate_for
 import core.assert.assert_eq
 import std.fs.scratch_path
-import kf_driver.editor.render_references_json
+import kf_query.editor.render_references_json
 import testing.test
 
 fun locals_source(): str {
@@ -55,31 +55,31 @@ fun local_start(needle: str, into: uint64): String {
 @test
 fun a_local_names_where_it_is_written(): void {
     val json = locals_at(locals_source().index_of("return total\n}")!! + 7)
-    assert_eq(json.as_str().contains(declared_at("total = n").as_str()), true, "the outer `total`, not the inner one")
+    assert_eq(json.contains(declared_at("total = n").as_str()), true, "the outer `total`, not the inner one")
 }
 
 @test
 fun a_shadowing_local_is_not_a_use_of_the_outer_one(): void {
     val json = locals_at(locals_source().index_of("return total\n}")!! + 7)
     val inner = local_start("total = 100", 0)
-    assert_eq(json.as_str().contains(inner.as_str()), false, "the inner `total` is another binding")
+    assert_eq(json.contains(inner), false, "the inner `total` is another binding")
 }
 
 @test
 fun a_shadowing_local_finds_only_its_own_uses(): void {
     val json = locals_at(locals_source().index_of("total = 100")!! + 1)
-    assert_eq(json.as_str().contains(local_start("total > 3", 0).as_str()), false, "the condition reads the outer one")
+    assert_eq(json.contains(local_start("total > 3", 0).as_str()), false, "the condition reads the outer one")
 }
 
 @test
 fun a_loop_variable_is_declared_at_its_name(): void {
     val json = locals_at(locals_source().index_of("+ item")!! + 3)
-    assert_eq(json.as_str().contains(declared_at("item in").as_str()), true, "not the `while` before it")
+    assert_eq(json.contains(declared_at("item in").as_str()), true, "not the `while` before it")
 }
 
 @test
 fun an_assignment_is_a_use_of_a_var(): void {
     val json = locals_at(locals_source().index_of("var acc")!! + 5)
     val assigned = local_start("acc = acc", 0)
-    assert_eq(json.as_str().contains(assigned.as_str()), true, "the name being assigned")
+    assert_eq(json.contains(assigned), true, "the name being assigned")
 }

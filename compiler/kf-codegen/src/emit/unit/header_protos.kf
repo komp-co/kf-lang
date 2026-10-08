@@ -2,6 +2,8 @@ import alloc.list.*
 
 import kf_core.ast.*
 import kf_core.ast.declaration.TopDecl
+import kf_core.lang.*
+import kf_core.names.CName
 
 import kf_codegen.concat_all
 import kf_codegen.emit.emit_fn_forward
@@ -38,9 +40,9 @@ fun Module.append_public_method_protos(target: str, methods: &List<TopDecl>, par
 }
 
 fun Module.impl_target_is_pub(name: str): bool {
-    if is_runtime_type_name(name) { return true }
-    val list_name = self.lang_type_name(lang_list_key())
-    val option_name = self.lang_type_name(lang_option_key())
+    if CName.is_runtime_type(name) { return true }
+    val list_name = self.lang_type_name(LangItem.List)
+    val option_name = self.lang_type_name(LangItem.Option)
     if is_container_type_name(name, list_name, option_name) { return true }
     while td in &self.decls {
         if td.name.as_str().equals(name) {

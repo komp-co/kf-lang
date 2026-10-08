@@ -1,0 +1,69 @@
+// Signatures by the declaration Resolve says a name means.
+
+import alloc.list.*
+
+import kf_core.ast.Module
+import kf_core.ast.declaration.DeclId
+import kf_resolve.DeclTable
+import kf_typecheck.types.runtime_prelude_declares
+
+impl SigTable {
+    /// Records the signature at `at` as `decl`'s; the first one stays.
+    pub mutating fun note_decl_sig(decl: DeclId?, at: uint64): void {
+        val d = decl ?: return
+        while self.decl_sigs.size() <= d.raw as uint64 { self.decl_sigs.push(none_index()) }
+        if self.decl_sigs.get(d.raw as uint64) == none_index() { self.decl_sigs[d.raw as uint64] = at }
+    }
+
+    /// `decl`'s signature, if it registered one.
+    pub fun sig_of_decl(decl: DeclId): FnSignature? {
+        if decl.raw as uint64 >= self.decl_sigs.size() { return null }
+        val at = self.decl_sigs.get(decl.raw as uint64)
+        if at == none_index() { return null }
+        return *self.sigs.at(at)
+    }
+
+    pub fun has_scope(): bool {
+        return (self.decls as uint64) != 0
+    }
+
+    /// Resolve's table; only when `has_scope`.
+    pub fun scope(): &var DeclTable {
+        return unsafe { &var *self.decls }
+    }
+
+    /// What Resolve's table says `name` means where the caller is written.
+    pub fun scope_signature(name: str, caller_file: uint32, caller_crate: CrateId, caller_module: Sym): FnSignature? {
+        val decl = self.scope().visible(name, caller_file, caller_crate, caller_module)
+        when (decl) {
+            Some(d) => return self.sig_of_decl(d)
+            None => { }
+        }
+        // The runtime's own functions have no declaration.
+        if runtime_prelude_declares(name) { return self.find_signature(name) }
+        return null
+    }
+}
+
+/// A signature table that reads `decls`, which must outlive it, knowing
+/// what each of `m`'s `Deref` impls forwards to.
+pub fun sig_table_over(decls: &var DeclTable, m: &Module): SigTable {
+    var sigs = new_sig_table()
+    sigs.decls = decls
+    while td in &m.decls {
+        val view = td.deref_view()
+        if view.as_str() == "" { continue }
+        when (td.kind) {
+            TraitImpl(trait_ref, _methods) => {
+                when (trait_ref.kind) {
+                    Named(trait_name, _args) => {
+                        sigs.deref_views.insert("${trait_name.as_str()} ${td.name.as_str()}", view)
+                    }
+                    _ => { }
+                }
+            }
+            _ => { }
+        }
+    }
+    return sigs
+}

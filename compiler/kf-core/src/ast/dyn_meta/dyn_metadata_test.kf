@@ -1,17 +1,17 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.intern
-import kf_core.ast.new_crate_id
+import kf_core.span.Span
 import kf_core.ast.types.Type
 import testing.test
+import kf_core.intern.intern
+import kf_core.intern.CrateId
 
 fun metadata_test_slot(name: str, slot: uint64): DynMethodSlot {
     return DynMethodSlot {
         name: intern(name),
         params: [],
-        ret: Type.new_void(no_span()),
+        ret: Type.new_void(Span.none()),
         is_mutating: false,
         slot: slot
     }
@@ -25,10 +25,10 @@ fun metadata_test_slot(name: str, slot: uint64): DynMethodSlot {
         principal: intern("sample::Display"),
         args: [],
         methods: methods,
-        owner: new_crate_id("sample"),
+        owner: CrateId.new("sample"),
         imported: false
     }
-    var copied = original.clone_dyn_trait_layout()
+    var copied = original.clone()
     copied.methods.push(metadata_test_slot("debug", 1))
     assert_eq(original.methods.size(), 1, "cloning dynamic metadata does not alias its method list")
 }

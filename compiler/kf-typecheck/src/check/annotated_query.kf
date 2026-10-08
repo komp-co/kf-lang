@@ -11,21 +11,23 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.Sym
-import kf_core.ast.intern
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.expression.FieldInit
-import kf_core.ast.declaration.MarkKind
-import kf_core.ast.declaration.MarkTarget
+import kf_core.ast.annotation.MarkKind
+import kf_core.ast.annotation.MarkTarget
 import kf_core.ast.declaration.TypeParam
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_typecheck.note_import_use_named
 import kf_typecheck.find_annotation
+import kf_typecheck.check.decl.name_text
+import kf_core.ast.annotation.*
 import kf_typecheck.types.type_eq
 import kf_typecheck.types.resolve_type_ref
 import kf_typecheck.types.type_to_type_ref
@@ -109,7 +111,7 @@ fun Type.slot_with(params: &List<TypeParam>, pins: &List<Type>): Type {
     while i in 0..params.size() {
         if params.at(i).name.id == name.id {
             val pin = *pins.at(i)
-            if self.is_borrow(false) || self.is_borrow(true) { return pin.borrowed(self.is_borrow(true), no_span()) }
+            if self.is_borrow(false) || self.is_borrow(true) { return pin.borrowed(self.is_borrow(true), Span.none()) }
             return pin
         }
     }
@@ -161,7 +163,7 @@ mutating fun Expr.queried_annotation(args: &List<Expr>, sigs: &SigTable, ctx: &v
 }
 
 mutating fun Expr.query_error(message: String, ctx: &var TypeCtx): AnnotationQuery? {
-    ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
     self.ty = Type.new_poison()
     return null
 }
@@ -201,9 +203,9 @@ fun entry_type_args(declared: &DeclaredAnnotation, shape: &EntryShape, span: Spa
 fun annotated_entry(listed: &AnnotationUse, declared: &DeclaredAnnotation, shape: &EntryShape, span: Span,
     ctx: &var TypeCtx): Expr {
     var fields = List.new<FieldInit>()
-    fields.push(string_field("name", listed.name.as_str(), span))
+    fields.push(string_field("name", listed.name, span))
     fields.push(string_field("module", listed.module.as_str(), span))
-    fields.push(string_field("file", listed.file.as_str(), span))
+    fields.push(string_field("file", listed.file, span))
     val line = Expr.new(span, ExprKind.LitInt(listed.line as int64))
     fields.push(FieldInit { span: span, name: intern("line"), value: Box.new(line) })
     val arguments = arguments_literal(listed, declared, span)
@@ -234,8 +236,11 @@ fun string_field(name: str, value: str, span: Span): FieldInit {
 fun arguments_literal(listed: &AnnotationUse, declared: &DeclaredAnnotation, span: Span): Expr {
     var fields = List.new<FieldInit>()
     while i in 0..declared.params.size() {
-        val value = listed.args.at(i).clone()
-        fields.push(FieldInit { span: value.span, name: declared.params.at(i).name, value: Box.new(value) })
+        val param = declared.params.at(i)
+        if (*param.ty).variadic_element() != null { continue }
+        val written = listed.args.at(i)
+        val value = if (*param.ty).named_kind() == null { written.clone() } else { written.name_text() }
+        fields.push(FieldInit { span: value.span, name: param.name, value: Box.new(value) })
     }
     return Expr.new(span, ExprKind.StructLit(declared.name, fields))
 }

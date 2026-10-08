@@ -5,7 +5,7 @@ import kf_integration.harness.typed_crate_for_overlay
 import core.assert.assert_eq
 
 import std.fs.scratch_path
-import kf_driver.editor.render_signature_json
+import kf_query.editor.render_signature_json
 import testing.test
 
 fun signature_fixture_path(): str {
@@ -45,29 +45,29 @@ fun signature_at(offset: uint32): String {
 @test
 fun signature_help_names_the_parameters(): void {
     val json = signature_at(91)
-    assert_eq(json.as_str().contains("\"label\":\"add(a: int32, b: int32): int32\""), true, "the label carries names, not just types")
+    assert_eq(json.contains("\"label\":\"add(a: int32, b: int32): int32\""), true, "the label carries names, not just types")
 }
 
 @test
 fun signature_help_lists_each_parameter_on_its_own(): void {
     val json = signature_at(91)
-    assert_eq(json.as_str().contains("\"parameters\":[{\"label\":\"a: int32\"},{\"label\":\"b: int32\"}]"), true, "a client can highlight one parameter")
+    assert_eq(json.contains("\"parameters\":[{\"label\":\"a: int32\"},{\"label\":\"b: int32\"}]"), true, "a client can highlight one parameter")
 }
 
 @test
 fun signature_help_starts_at_the_first_parameter(): void {
     val json = signature_at(91)
-    assert_eq(json.as_str().contains("\"active_parameter\":0"), true, "the cursor before any comma is in the first argument")
+    assert_eq(json.contains("\"active_parameter\":0"), true, "the cursor before any comma is in the first argument")
 }
 
 @test
 fun signature_help_advances_past_a_comma(): void {
     val json = signature_at(94)
-    assert_eq(json.as_str().contains("\"active_parameter\":1"), true, "the cursor after the comma is in the second argument")
+    assert_eq(json.contains("\"active_parameter\":1"), true, "the cursor after the comma is in the second argument")
 }
 
 @test
 fun signature_help_is_silent_outside_a_call(): void {
     val json = signature_at(2)
-    assert_eq(json.as_str().contains("\"label\":null"), true, "the `fun` keyword is not inside a call")
+    assert_eq(json.contains("\"label\":null"), true, "the `fun` keyword is not inside a call")
 }

@@ -17,7 +17,9 @@ pub fun check_parameter_count(name: str, at: Span, params: &List<Param>, walk: &
         if param.name.as_str() != "self" { count = count + 1 }
     }
     if count <= max { return }
-    walk.found.push(lint_at("too_many_parameters", at, "`${name}` takes ${count} parameters; the most is ${max}"))
+    walk.found.push(
+        Diagnostic.lint_at("too_many_parameters", at, "`${name}` takes ${count} parameters; the most is ${max}")
+    )
 }
 
 /// `long_function`: a declaration spanning more than `max_lines` lines.
@@ -29,7 +31,7 @@ pub fun check_function_length(name: str, at: Span, decl: &TopDecl, smap: &Source
     val lines = (last - first + 1) as int64
     val max = walk.options.get("long_function", "max_lines")
     if lines <= max { return }
-    walk.found.push(lint_at("long_function", at, "`${name}` is ${lines} lines long; the most is ${max}"))
+    walk.found.push(Diagnostic.lint_at("long_function", at, "`${name}` is ${lines} lines long; the most is ${max}"))
 }
 
 /// `too_many_fields`: a struct holding more than `max`.
@@ -37,5 +39,5 @@ pub fun check_field_count(name: str, at: Span, fields: &List<Field>, walk: &var 
     val max = walk.options.get("too_many_fields", "max")
     val count = fields.size() as int64
     if count <= max { return }
-    walk.found.push(lint_at("too_many_fields", at, "`${name}` holds ${count} fields; the most is ${max}"))
+    walk.found.push(Diagnostic.lint_at("too_many_fields", at, "`${name}` holds ${count} fields; the most is ${max}"))
 }

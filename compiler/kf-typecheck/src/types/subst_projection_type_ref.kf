@@ -36,16 +36,16 @@ fun subst_proj_tref_ptr(p: Ptr<TypeRef>, self_name: str, trait_name: str, trait_
             if key.as_str().equals("") { return }
             // Qualified by the enclosing impl's instantiation where there is
             // one; unqualified, two `Index` impls leave it standing as `void*`.
-            var n = unsafe { sigs.count_assoc_bindings_in(key.as_str(), trait_name, trait_args, member.as_str()) }
+            var n = unsafe { sigs.count_assoc_bindings_in(key, trait_name, trait_args, member.as_str()) }
             var tn = trait_name
             var ta = trait_args
             if n != 1 {
-                n = unsafe { sigs.count_assoc_bindings(key.as_str(), member.as_str()) }
+                n = unsafe { sigs.count_assoc_bindings(key, member.as_str()) }
                 tn = ""
                 ta = ""
             }
             if n != 1 { return }
-            val chosen = unsafe { sigs.lookup_assoc_binding_tref_in(key.as_str(), tn, ta, member.as_str()) }
+            val chosen = unsafe { sigs.lookup_assoc_binding_tref_in(key, tn, ta, member.as_str()) }
             when (chosen.kind) {
                 // Already reported; splicing poison would lose the span.
                 Poison => return
@@ -66,7 +66,7 @@ fun projection_owner_key(owner: &TypeRef, self_name: str): String {
         Named(n, args) => {
             // `Self` names the impl target, known only through `self_name`.
             if n.as_str().equals("Self") { return String.from(self_name) }
-            return monomorphized_type_name(n.as_string(), &args)
+            return monomorphized_type_name(n.as_string(), &args).display()
         }
         _ => return ""
     }

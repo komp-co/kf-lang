@@ -27,10 +27,10 @@ return v
 
 @test fun a_non_diverging_braced_bail_names_the_braces(): void {
     val m = elvis_msg("fun f(): int32 {\nval v = g() ?: { h() }\nreturn v\n}")
-    assert_eq(m.as_str().contains("braced"), true, "the braces are what made it a bail, so the message has to say so")
+    assert_eq(m.contains("braced"), true, "the braces are what made it a bail, so the message has to say so")
 }
 
 @test fun the_message_offers_the_default_form(): void {
     val m = elvis_msg("fun f(): int32 {\nval v = g() ?: { h() }\nreturn v\n}")
-    assert_eq(m.as_str().contains("drop the braces"), true, "naming the fix is what ends the search")
+    assert_eq(m.contains("drop the braces"), true, "naming the fix is what ends the search")
 }

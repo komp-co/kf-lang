@@ -1,6 +1,6 @@
 import alloc.list.*
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.ast.types.*
 import kf_parse.lexer.tokenize
@@ -8,6 +8,8 @@ import kf_parse.parser.new_parser
 import json.reader.*
 import kf_core.ast.subst.mangle_tyref
 import kf_core.ast.dyn_meta.*
+import kf_core.intern.*
+import kf_core.ast.declaration.*
 
 pub struct DynTraitLoad {
     pub val ok: bool
@@ -35,12 +37,12 @@ pub mutating fun JsonReader.load_dyn_traits(crate: CrateId): DynTraitLoad {
         val methods = self.load_dyn_methods()
         if !methods.ok { return DynTraitLoad { ok: false, items: items } }
         if self.object_has_next() { return DynTraitLoad { ok: false, items: items } }
-        if dyn_string_empty(identity.as_str()) || dyn_string_empty(principal.as_str()) { return DynTraitLoad { ok: false, items: items } }
-        if dyn_layout_exists(&items, identity.as_str()) { return DynTraitLoad { ok: false, items: items } }
-        var layout_owner = canonical_identity_crate(intern(principal.as_str()))
+        if dyn_string_empty(identity) || dyn_string_empty(principal) { return DynTraitLoad { ok: false, items: items } }
+        if dyn_layout_exists(&items, identity) { return DynTraitLoad { ok: false, items: items } }
+        var layout_owner = canonical_identity_crate(intern(principal))
         if layout_owner.is_poison() { layout_owner = crate }
         items.push(DynTraitLayout {
-            identity: intern(identity.as_str()), principal: intern(principal.as_str()), args: args.items,
+            identity: intern(identity), principal: intern(principal), args: args.items,
             methods: methods.items, owner: layout_owner, imported: true
         })
     }
@@ -68,15 +70,15 @@ pub mutating fun JsonReader.load_dyn_vtables(crate: CrateId, layouts: &List<DynT
         val adapters = self.load_dyn_symbols()
         if !adapters.ok { return DynVTableLoad { ok: false, items: items } }
         if self.object_has_next() { return DynVTableLoad { ok: false, items: items } }
-        val layout_index = dyn_layout_index(layouts, layout_name.as_str())
+        val layout_index = dyn_layout_index(layouts, layout_name)
         if layout_index < 0 { return DynVTableLoad { ok: false, items: items } }
-        if receiver.is_poison() || dyn_string_empty(receiver_identity.as_str()) || dyn_string_empty(symbol.as_str()) { return DynVTableLoad { ok: false, items: items } }
-        if dyn_string_empty(owner.as_str()) || !dyn_linkage_valid(linkage.as_str()) { return DynVTableLoad { ok: false, items: items } }
+        if receiver.is_poison() || dyn_string_empty(receiver_identity) || dyn_string_empty(symbol) { return DynVTableLoad { ok: false, items: items } }
+        if dyn_string_empty(owner) || !dyn_linkage_valid(linkage) { return DynVTableLoad { ok: false, items: items } }
         if adapters.items.size() != layouts.at(layout_index as uint64).methods.size() { return DynVTableLoad { ok: false, items: items } }
-        if dyn_vtable_exists(&items, layout_name.as_str(), receiver_identity.as_str()) { return DynVTableLoad { ok: false, items: items } }
+        if dyn_vtable_exists(&items, layout_name, receiver_identity) { return DynVTableLoad { ok: false, items: items } }
         items.push(DynVTableInstance {
-            layout: intern(layout_name.as_str()), receiver: receiver, receiver_identity: intern(receiver_identity.as_str()),
-            symbol: intern(symbol.as_str()), adapters: adapters.items, owner: new_crate_id(owner.as_str()),
+            layout: intern(layout_name), receiver: receiver, receiver_identity: intern(receiver_identity),
+            symbol: intern(symbol), adapters: adapters.items, owner: CrateId.new(owner.as_str()),
             linkage: if linkage.as_str() == "generic" { Linkage.GenericTemplate } else { Linkage.ImportedCompiled }
         })
     }
@@ -126,9 +128,9 @@ mutating fun JsonReader.load_dyn_methods(): DynMethodLoad {
         if !self.expect_key("ret") { return DynMethodLoad { ok: false, items: items } }
         val ret = parse_dyn_metadata_type(self.read_string().as_str())
         if self.object_has_next() { return DynMethodLoad { ok: false, items: items } }
-        if dyn_string_empty(name.as_str()) || slot < 0 || slot as uint64 != items.size() || ret.is_poison() { return DynMethodLoad { ok: false, items: items } }
-        if dyn_method_name_exists(&items, name.as_str()) { return DynMethodLoad { ok: false, items: items } }
-        items.push(DynMethodSlot { name: intern(name.as_str()), params: params.items, ret: ret, is_mutating: mutable, slot: slot as uint64 })
+        if dyn_string_empty(name) || slot < 0 || slot as uint64 != items.size() || ret.is_poison() { return DynMethodLoad { ok: false, items: items } }
+        if dyn_method_name_exists(&items, name) { return DynMethodLoad { ok: false, items: items } }
+        items.push(DynMethodSlot { name: intern(name), params: params.items, ret: ret, is_mutating: mutable, slot: slot as uint64 })
     }
     return DynMethodLoad { ok: !self.has_error(), items: items }
 }
@@ -138,8 +140,8 @@ mutating fun JsonReader.load_dyn_symbols(): DynSymbolLoad {
     if !self.begin_array() { return DynSymbolLoad { ok: false, items: items } }
     while self.array_has_next() {
         val value = self.read_string()
-        if dyn_string_empty(value.as_str()) { return DynSymbolLoad { ok: false, items: items } }
-        items.push(intern(value.as_str()))
+        if dyn_string_empty(value) { return DynSymbolLoad { ok: false, items: items } }
+        items.push(intern(value))
     }
     return DynSymbolLoad { ok: !self.has_error(), items: items }
 }
@@ -162,7 +164,7 @@ fun dyn_type_from_ref(reference: TypeRef): Type {
                 if argument.is_poison() { return Type.new_poison() }
                 resolved.push(argument)
             }
-            return dyn_trait_type(principal, resolved, no_span())
+            return Type.new_dyn_trait(principal, resolved, Span.none())
         }
         Reference(mutable, inner) => return dyn_reference_type(mutable, dyn_type_from_ref(unsafe { *inner }))
         Function(params, ret) => return dyn_function_type(&params, unsafe { *ret })
@@ -175,43 +177,43 @@ fun Sym.dyn_named_type(args: &List<TypeRef>): Type {
     if args.size() == 0 { return self.dyn_primitive_or_struct() }
     if spelling.equals("Ptr") && args.size() == 1 { return dyn_pointer_type(dyn_type_from_ref(*args.at(0)), false) }
     if spelling.equals("Box") && args.size() == 1 { return dyn_pointer_type(dyn_type_from_ref(*args.at(0)), true) }
-    val mangled = mangle_tyref(&TypeRef.new(no_span(), TypeRefKind.Named(Sym { id: self.id }, args.clone())))
-    return Type { kind: TypeKind.Struct(intern(mangled.as_str())), provenance: Provenance.Inferred(no_span()) }
+    val mangled = mangle_tyref(&TypeRef.new(Span.none(), TypeRefKind.Named(Sym { id: self.id }, args.clone())))
+    return Type { kind: TypeKind.Struct(intern(mangled.as_str())), provenance: Provenance.Inferred(Span.none()) }
 }
 
 fun Sym.dyn_primitive_or_struct(): Type {
     val value = self.as_str()
     return when value {
-        "int8" => Type { kind: TypeKind.Int8, provenance: Provenance.Inferred(no_span()) }
-        "int16" => Type { kind: TypeKind.Int16, provenance: Provenance.Inferred(no_span()) }
-        "int32" => Type { kind: TypeKind.Int32, provenance: Provenance.Inferred(no_span()) }
-        "int64" => Type { kind: TypeKind.Int64, provenance: Provenance.Inferred(no_span()) }
-        "uint8" => Type { kind: TypeKind.UInt8, provenance: Provenance.Inferred(no_span()) }
-        "uint16" => Type { kind: TypeKind.UInt16, provenance: Provenance.Inferred(no_span()) }
-        "uint32" => Type { kind: TypeKind.UInt32, provenance: Provenance.Inferred(no_span()) }
-        "uint64" => Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(no_span()) }
-        "float32" => Type { kind: TypeKind.Float32, provenance: Provenance.Inferred(no_span()) }
-        "float64" => Type { kind: TypeKind.Float64, provenance: Provenance.Inferred(no_span()) }
-        "bool" => Type { kind: TypeKind.Bool, provenance: Provenance.Inferred(no_span()) }
-        "char" => Type { kind: TypeKind.Char, provenance: Provenance.Inferred(no_span()) }
-        "str" => Type { kind: TypeKind.StrTy, provenance: Provenance.Inferred(no_span()) }
-        "void" => Type { kind: TypeKind.Void, provenance: Provenance.Inferred(no_span()) }
-        "never" => Type { kind: TypeKind.Never, provenance: Provenance.Inferred(no_span()) }
-        _ => Type { kind: TypeKind.Struct(Sym { id: self.id }), provenance: Provenance.Inferred(no_span()) }
+        "int8" => Type { kind: TypeKind.Int8, provenance: Provenance.Inferred(Span.none()) }
+        "int16" => Type { kind: TypeKind.Int16, provenance: Provenance.Inferred(Span.none()) }
+        "int32" => Type { kind: TypeKind.Int32, provenance: Provenance.Inferred(Span.none()) }
+        "int64" => Type { kind: TypeKind.Int64, provenance: Provenance.Inferred(Span.none()) }
+        "uint8" => Type { kind: TypeKind.UInt8, provenance: Provenance.Inferred(Span.none()) }
+        "uint16" => Type { kind: TypeKind.UInt16, provenance: Provenance.Inferred(Span.none()) }
+        "uint32" => Type { kind: TypeKind.UInt32, provenance: Provenance.Inferred(Span.none()) }
+        "uint64" => Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(Span.none()) }
+        "float32" => Type { kind: TypeKind.Float32, provenance: Provenance.Inferred(Span.none()) }
+        "float64" => Type { kind: TypeKind.Float64, provenance: Provenance.Inferred(Span.none()) }
+        "bool" => Type { kind: TypeKind.Bool, provenance: Provenance.Inferred(Span.none()) }
+        "char" => Type { kind: TypeKind.Char, provenance: Provenance.Inferred(Span.none()) }
+        "str" => Type { kind: TypeKind.StrTy, provenance: Provenance.Inferred(Span.none()) }
+        "void" => Type { kind: TypeKind.Void, provenance: Provenance.Inferred(Span.none()) }
+        "never" => Type { kind: TypeKind.Never, provenance: Provenance.Inferred(Span.none()) }
+        _ => Type { kind: TypeKind.Struct(Sym { id: self.id }), provenance: Provenance.Inferred(Span.none()) }
     }
 }
 
 fun dyn_reference_type(mutable: bool, inner: Type): Type {
     if inner.is_poison() { return Type.new_poison() }
     val pointer = type_node(inner)
-    return Type { kind: TypeKind.RefTo(mutable, pointer), provenance: Provenance.Inferred(no_span()) }
+    return Type { kind: TypeKind.RefTo(mutable, pointer), provenance: Provenance.Inferred(Span.none()) }
 }
 
 fun dyn_pointer_type(inner: Type, boxed: bool): Type {
     if inner.is_poison() { return Type.new_poison() }
     val pointer = type_node(inner)
-    if boxed { return Type { kind: TypeKind.BoxOf(pointer), provenance: Provenance.Inferred(no_span()) } }
-    return Type { kind: TypeKind.PtrTo(pointer), provenance: Provenance.Inferred(no_span()) }
+    if boxed { return Type { kind: TypeKind.BoxOf(pointer), provenance: Provenance.Inferred(Span.none()) } }
+    return Type { kind: TypeKind.PtrTo(pointer), provenance: Provenance.Inferred(Span.none()) }
 }
 
 fun dyn_function_type(params: &List<TypeRef>, ret: TypeRef): Type {
@@ -223,7 +225,7 @@ fun dyn_function_type(params: &List<TypeRef>, ret: TypeRef): Type {
     }
     val result = dyn_type_from_ref(ret)
     if result.is_poison() { return Type.new_poison() }
-    return Type.new_fn(values, result, Provenance.Inferred(no_span()))
+    return Type.new_fn(values, result, Provenance.Inferred(Span.none()))
 }
 
 pub fun attach_imported_dyn_metadata(modules: &var List<Module>, layouts: &List<DynTraitLayout>, tables: &List<DynVTableInstance>, crate: CrateId): void {
@@ -233,8 +235,8 @@ pub fun attach_imported_dyn_metadata(modules: &var List<Module>, layouts: &List<
         while j < module.decls.size() {
             val declaration = module.decls.at_mut(j)
             if declaration.crate.raw == crate.raw {
-                declaration.dyn_layouts = clone_dyn_layout_list(layouts)
-                declaration.dyn_vtables = clone_dyn_vtable_list(tables)
+                declaration.dyn_layouts = layouts.clone()
+                declaration.dyn_vtables = tables.clone()
                 return
             }
             j = j + 1

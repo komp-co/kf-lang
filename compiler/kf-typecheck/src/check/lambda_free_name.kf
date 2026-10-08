@@ -1,15 +1,15 @@
 import alloc.list.*
-import kf_core.ast.Sym
 import kf_core.ast.declaration.Param
+import kf_core.intern.Sym
 
 /// A name the lambda body reads from the enclosing scope, captured shared
 /// until the body shows it needs more.
 fun note_free_name(nm: Sym, params: &List<Param>, ctx: &var TypeCtx, found: &var List<LambdaCapture>,
     locals: &var List<String>): void {
     val name = nm.as_string()
-    if param_named(params, name.as_str()) { return }
-    if name_in_list(locals, name.as_str()) { return }
-    if !ctx.is_declared(name.as_str()) { return }
-    if capture_index(found, name.as_str()) < found.size() { return }
+    if param_named(params, name) { return }
+    if name_in_list(locals, name) { return }
+    if !ctx.is_declared(name) { return }
+    if capture_index(found, name) < found.size() { return }
     found.push(LambdaCapture { name: name, mode: CaptureMode.Shared })
 }

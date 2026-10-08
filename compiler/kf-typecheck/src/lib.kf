@@ -4,7 +4,7 @@ import alloc.list.*
 
 import kf_core.diagnostic.*
 import kf_core.ast.Module
-import kf_core.ast.Sym
+import kf_core.intern.Sym
 import kf_core.span.SourceMap
 import kf_resolve.*
 import kf_typecheck.check.unknown_bound_diags
@@ -43,9 +43,9 @@ pub fun typecheck_module_typed(m: &var Module,
     imported_targets: Ptr<List<Sym>>,
     imported_names: Ptr<List<Sym>>,
     smap: Ptr<SourceMap>): TypedModule {
-    var diags = new_diagnostics()
+    var diags = Diagnostics.new()
     // First, so what a template adds passes through every later step.
-    val expansions = m.expand_templates(table, &var diags.items)
+    val expansions = m.expand_templates(table, &var diags.items, smap)
     m.validate_annotations(&var diags)
     m.reject_colliding_no_mangle(&var diags)
     m.reject_duplicate_lang_items(&var diags)
@@ -100,7 +100,7 @@ fun diag_list_contains(seen: &List<Diagnostic>, d: &Diagnostic): bool {
         if prior.primary.span.file_id == d.primary.span.file_id {
             if prior.primary.span.start == d.primary.span.start {
                 if prior.primary.span.end == d.primary.span.end {
-                    if prior.primary.message.as_str().equals(d.primary.message.as_str()) { return true }
+                    if prior.primary.message.as_str().equals(d.primary.message) { return true }
                 }
             }
         }

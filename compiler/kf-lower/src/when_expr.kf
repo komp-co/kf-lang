@@ -23,6 +23,10 @@ import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TopDeclKind
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import kf_core.intern.*
+import kf_core.ast.pattern.*
+import kf_core.ast.expression.*
+import kf_core.ast.types.*
 import kf_typecheck.types.type_to_type_ref
 
 /// Per-function counter, so two `when` values get distinct temporaries.
@@ -272,7 +276,7 @@ fun arms_assigning(arms: &List<Arm>, temp: Sym, temps: &var WhenTemps): List<Arm
 /// then its own copy of the value: the arm stays its statement's. Null when
 /// the arm ends in no value.
 fun Arm.steps_and_value(temps: &var WhenTemps, body: &var List<Stmt>): Box<Expr>? {
-    val vp = arm_value_expr(&self) ?: return null
+    val vp = self.value_expr() ?: return null
     self.arm_steps_into(temps, body)
     hoist_when_values(vp, temps, body)
     return Option.Some(Box.new(unsafe { &*vp }.clone()))
@@ -283,7 +287,7 @@ mutating fun WhenTemps.fresh_when_temp(): Sym {
     val n: int64 = self.n as int64
     name.append(String.of(&(n)).as_str())
     self.n = self.n + 1
-    return intern(name.as_str())
+    return intern(name)
 }
 
 fun Stmt.let_init(): Ptr<Expr>? {

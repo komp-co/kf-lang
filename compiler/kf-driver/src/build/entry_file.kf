@@ -5,8 +5,7 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.Module
-import kf_core.ast.intern
-import kf_core.ast.new_crate_id
+import kf_core.intern.intern
 import kf_core.ast.declaration.TopDecl
 import kf_parse.lexer.tokenize
 import kf_parse.parser.new_parser
@@ -20,12 +19,12 @@ pub fun add_entry_file(modules: &var List<Module>, entry_file: str, crate_name: 
     if entry_file.byte_len() == 0 { return }
     rename_main_decls(modules)
     var entry = parse_entry_source(entry_file, read_file(entry_file).as_str(), smap)
-    stamp_module_owner(&var entry, new_crate_id(crate_name))
+    stamp_module_owner(&var entry, CrateId.new(crate_name))
     modules.push(entry)
 }
 
 pub fun parse_entry_source(path: str, src: str, smap: Ptr<SourceMap>): Module {
-    val fid = unsafe { smap.add_file(new_source_file(String.from(path), String.from(src))) }
+    val fid = unsafe { smap.add_file(SourceFile.new(String.from(path), String.from(src))) }
     var parser = new_parser(tokenize(src, fid))
     var module_path = List.new<String>()
     module_path.push(String.from("entry"))

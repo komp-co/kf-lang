@@ -4,8 +4,8 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
 import kf_core.ast.statement.Stmt
+import kf_core.ast.borrow.*
 
 /// `var t: str` and the like: a borrow whose value comes later.
 fun Stmt.declares_borrow_without_value(views: &List<String>): bool {

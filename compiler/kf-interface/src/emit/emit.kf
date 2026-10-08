@@ -9,6 +9,7 @@ import alloc.list.*
 import kf_core.span.*
 import kf_core.ast.*
 import kf_core.ast.declaration.TopDecl
+import kf_core.intern.*
 import json.writer.*
 import kf_interface.*
 
@@ -21,15 +22,15 @@ pub fun Module.emit_interface(crate_name: String, deps: &List<String>): String {
 
 pub fun Module.emit_interface_hashed(crate_name: String, deps: &List<String>, hashes: &List<String>): String {
     val empty: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
-    unsafe { *empty = new_source_map() }
+    unsafe { *empty = SourceMap.new() }
     return self.emit_interface_full(crate_name, deps, hashes, empty)
 }
 
 pub fun Module.emit_interface_full(crate_name: String, deps: &List<String>, hashes: &List<String>, smap: Ptr<SourceMap>): String {
-    val crate = new_crate_id(crate_name.as_str())
+    val crate = CrateId.new(crate_name.as_str())
     var doc = JsonWriter.object()
     doc.field_int64("kfi", interface_format_version())
-    doc.field_string("crate", crate_name.as_str())
+    doc.field_string("crate", crate_name)
     doc.field_string("compiler_abi", interface_compiler_abi())
     doc.field_string("runtime_abi", interface_runtime_abi())
     doc.field_string("target", interface_target())
@@ -61,10 +62,10 @@ fun Module.emit_ownership_glue(crate: CrateId): String {
     var arr = JsonWriter.array()
     while item in &glue {
         var object = JsonWriter.object()
-        object.field_string("type", item.type_name.as_str())
-        object.field_string("retain", item.retain.as_str())
-        object.field_string("drop", item.drop.as_str())
-        object.field_string("clone", item.clone.as_str())
+        object.field_string("type", item.type_name)
+        object.field_string("retain", item.retain)
+        object.field_string("drop", item.drop)
+        object.field_string("clone", item.clone)
         arr.write_raw(object.finish().as_str())
     }
     return arr.finish()
@@ -84,17 +85,17 @@ fun Module.emit_modules(crate: CrateId, smap: Ptr<SourceMap>): String {
     }
     // A module may hold nothing but exports.
     while imp in &self.imports {
-        if imp.is_pub && owner_is_in_crate(imp.owner.as_str(), crate) {
-            add_unique_path(&var paths, imp.owner.as_str())
+        if imp.is_pub && owner_is_in_crate(imp.owner, crate) {
+            add_unique_path(&var paths, imp.owner)
         }
     }
     var arr = JsonWriter.array()
     while item in &paths {
         var mod_obj = JsonWriter.object()
-        mod_obj.field_string("path", item.as_str())
-        mod_obj.field_raw("files", self.emit_module_files(crate, item.as_str(), smap).as_str())
-        mod_obj.field_raw("decls", self.emit_module_decls(crate, item.as_str(), &hidden, smap).as_str())
-        mod_obj.field_raw("reexports", self.emit_module_reexports(item.as_str()).as_str())
+        mod_obj.field_string("path", item)
+        mod_obj.field_raw("files", self.emit_module_files(crate, item, smap).as_str())
+        mod_obj.field_raw("decls", self.emit_module_decls(crate, item, &hidden, smap).as_str())
+        mod_obj.field_raw("reexports", self.emit_module_reexports(item).as_str())
         arr.write_raw(mod_obj.finish().as_str())
     }
     return arr.finish()
@@ -109,7 +110,7 @@ fun Module.emit_module_reexports(path: str): String {
             var object = JsonWriter.object()
             object.field_string("path", import_dotted_path(&imp.path).as_str())
             object.field_bool("wildcard", imp.wildcard)
-            object.field_string("as", imp.exposed.as_str())
+            object.field_string("as", imp.exposed)
             arr.write_raw(object.finish().as_str())
         }
     }
@@ -144,15 +145,15 @@ fun Module.emit_module_files(crate: CrateId, path: str, smap: Ptr<SourceMap>): S
         if td.crate.raw == crate.raw {
             if td.module_path.as_str() == path {
                 val stem = unsafe { smap.file_stem_of(td.span.file_id) }
-                if !stem.as_str().is_empty() {
-                    if !stems_contain(&stems, stem.as_str()) { stems.push(stem.clone()) }
+                if !stem.is_empty() {
+                    if !stems_contain(&stems, stem) { stems.push(stem.clone()) }
                 }
             }
         }
     }
     var arr = JsonWriter.array()
     while item in &stems {
-        arr.write_string(item.as_str())
+        arr.write_string(item)
     }
     return arr.finish()
 }
@@ -190,6 +191,10 @@ mutating fun JsonWriter.append_decl_entry(td: &TopDecl, m: &Module, crate: Crate
             self.write_raw(td.emit_template_entry(false, m, crate, smap).as_str())
             return
         }
+    }
+    if m.exports_template(td, crate) {
+        self.write_raw(td.emit_template_entry(false, m, crate, smap).as_str())
+        return
     }
     if !hidden_name_in(hidden, td.name.as_str()) { return }
     if td.generics.size() > 0 || td.is_constant() {

@@ -20,6 +20,8 @@ import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TopDeclKind
 import kf_core.ast.declaration.keep_flagged
 import kf_core.ast.statement.Stmt
+import kf_core.intern.*
+import kf_core.ast.expression.*
 
 /// Indexed by Sym id, which the interner hands out densely.
 pub struct Reached {
@@ -78,8 +80,8 @@ pub fun base_method_name(name: str): String {
 pub fun Reached.name_is_reached(name: Sym): bool {
     if self.reached_has(name) { return true }
     val base = base_method_name(name.as_str())
-    if base.as_str().byte_len() == 0 { return false }
-    return self.reached_has(intern(base.as_str()))
+    if base.byte_len() == 0 { return false }
+    return self.reached_has(intern(base))
 }
 
 /// `String_from__From__str` is `from`; "" without an owner prefix. The owner
@@ -137,8 +139,8 @@ fun Expr.collect_expr(out: &var List<Sym>, dyn_used: &var bool): void {
     if mc.byte_len() > 0 {
         out.push(self.mangled_callee)
         val decoded = mangled_method_name(mc)
-        if decoded.as_str().byte_len() > 0 {
-            out.push(intern(decoded.as_str()))
+        if decoded.byte_len() > 0 {
+            out.push(intern(decoded))
         }
     }
     when (self.kind) {

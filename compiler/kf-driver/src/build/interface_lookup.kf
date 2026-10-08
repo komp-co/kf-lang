@@ -27,7 +27,7 @@ impl InterfaceLookup {
     }
 
     pub fun path_of(name: str): String {
-        if self.staged.contains(&String.from(name)) { return crate_interface_path(self.staged_dir.as_str(), name) }
-        return crate_interface_path(self.target_dir.as_str(), name)
+        if self.staged.contains(&String.from(name)) { return crate_interface_path(self.staged_dir, name) }
+        return crate_interface_path(self.target_dir, name)
     }
 }

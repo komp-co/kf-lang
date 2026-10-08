@@ -1,12 +1,13 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
 import kf_core.ast.expression.BinOp
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import kf_core.intern.intern
+import kf_core.ast.pattern.*
 import kf_parse.lexer.*
 import kf_parse.parser.*
 
@@ -112,27 +113,27 @@ impl Parser {
         val span: Span = subject.span.merge(default.span)
         val binder = "__elv_${self.elv_ctr}"
         self.elv_ctr = self.elv_ctr + 1
-        val bsym = intern(binder.as_str())
+        val bsym = intern(binder)
 
         var some_payloads = List.new<Pattern>()
-        some_payloads.push(new_pattern(span, PatternKind.Identifier(bsym)))
+        some_payloads.push(Pattern.new(span, PatternKind.Identifier(bsym)))
         val some_pat: Ptr<Pattern> = unsafe { alloc<Pattern>() }
-        unsafe { *some_pat = new_pattern(span, PatternKind.Variant(intern("Some"), some_payloads)) }
+        unsafe { *some_pat = Pattern.new(span, PatternKind.Variant(intern("Some"), some_payloads)) }
         val carry: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *carry = Expr.new(span, ExprKind.Variable(bsym)) }
         var some_body = List.new<Stmt>()
         some_body.push(Stmt.new(span, StmtKind.Expression(carry)))
 
         val none_pat: Ptr<Pattern> = unsafe { alloc<Pattern>() }
-        unsafe { *none_pat = new_pattern(span, PatternKind.Variant(intern("None"), List.new<Pattern>())) }
+        unsafe { *none_pat = Pattern.new(span, PatternKind.Variant(intern("None"), List.new<Pattern>())) }
         val dflt: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *dflt = default }
         var none_body = List.new<Stmt>()
         none_body.push(Stmt.new(span, StmtKind.Expression(dflt)))
 
         var arms = List.new<Arm>()
-        arms.push(new_arm(span, some_pat, null, some_body))
-        arms.push(new_arm(span, none_pat, null, none_body))
+        arms.push(Arm.new(span, some_pat, null, some_body))
+        arms.push(Arm.new(span, none_pat, null, none_body))
 
         val subj: Ptr<Expr> = unsafe { alloc<Expr>() }
         unsafe { *subj = subject }
@@ -201,8 +202,8 @@ impl Parser {
         val pattern = self.parse_pattern()
         val span = subject.span.merge(pattern.span)
         var arms = List.new<Arm>()
-        arms.push(new_arm(span, Box.new(pattern), null, bool_body(span, true)))
-        arms.push(new_arm(span, Box.new(new_pattern(span, PatternKind.Wildcard)), null, bool_body(span, false)))
+        arms.push(Arm.new(span, Box.new(pattern), null, bool_body(span, true)))
+        arms.push(Arm.new(span, Box.new(Pattern.new(span, PatternKind.Wildcard)), null, bool_body(span, false)))
         return Expr.new(span, ExprKind.WhenExpr(Box.new(subject), arms))
     }
 

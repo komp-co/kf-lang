@@ -7,7 +7,6 @@ import alloc.list.*
 
 import kf_core.ast.Module
 import kf_core.ast.NameIndex
-import kf_core.ast.new_name_index
 import kf_core.ast.types.TypeRef
 
 pub struct VariantPayloads {
@@ -25,8 +24,8 @@ pub fun no_variant_payloads(): VariantPayloads {
         variants: List.new<String>(),
         indices: List.new<uint64>(),
         tynames: List.new<String>(),
-        by_variant: new_name_index(),
-        by_owner: new_name_index()
+        by_variant: NameIndex.new(),
+        by_owner: NameIndex.new()
     }
 }
 

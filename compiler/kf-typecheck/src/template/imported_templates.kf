@@ -1,0 +1,128 @@
+// A dependency's template, read from its interface: it expands for this
+// crate's structs that use its annotation as imported, and its names resolve
+// where it was written.
+
+import alloc.list.*
+
+import kf_core.intern.CrateId
+import kf_core.ast.Module
+import kf_core.intern.Sym
+import kf_core.intern.intern
+import kf_core.ast.declaration.*
+import kf_core.ast.annotation.*
+
+/// The annotation a dependency's `template` belongs to: the public one of
+/// its name in the template's own crate and module, which an importer uses.
+fun Module.imported_annotation(template: &TopDecl): uint64? {
+    while i in 0..self.decls.size() {
+        val td = self.decls.at(i)
+        if td.crate.raw != template.crate.raw || td.module_path.id != template.module_path.id { continue }
+        if td.name.id != template.name.id { continue }
+        when (td.kind) {
+            AnnotationDecl(_params, _target, is_pub) => if is_pub { return i }
+            _ => {}
+        }
+    }
+    return null
+}
+
+/// Whether `file` imports `name` from `module`, by name or with `.*`.
+fun Module.file_imports(file: uint32, module: Sym, name: Sym): bool {
+    while imp in &self.imports {
+        if imp.span.file_id != file || imp.is_pub || imp.alias.byte_len() > 0 { continue }
+        val path = imp.path.joined_path()
+        if imp.wildcard && path.as_str() == module.as_str() { return true }
+        val named = "${module.as_str()}.${name.as_str()}"
+        if !imp.wildcard && path.as_str() == named.as_str() { return true }
+    }
+    return false
+}
+
+fun List<String>.joined_path(): String {
+    var out = String.from("")
+    while i in 0..self.size() {
+        if i > 0 { out.append(".") }
+        out.append(self.at(i).as_str())
+    }
+    return out
+}
+
+/// The parameter names of the annotation at `index`, in order. A
+/// dependency's annotation crosses its interface without them; they are the
+/// fields of the argument struct beside it.
+fun Module.annotation_params(index: uint64): List<Sym> {
+    val declared = self.decls.at(index)
+    if declared.crate.raw == self.crate.raw { return declared.param_names() }
+    var names = List.new<Sym>()
+    while td in &self.decls {
+        if td.crate.raw != declared.crate.raw || td.module_path.id != declared.module_path.id { continue }
+        if td.name.id != declared.name.id { continue }
+        when (td.kind) {
+            Struct(fields, _pub) => {
+                while field in &fields {
+                    names.push(field.name)
+                }
+                if self.annotation_variadic(index) { names.push(declared.last_param_name()) }
+                return names
+            }
+            _ => {}
+        }
+    }
+    return names
+}
+
+fun TopDecl.last_param_name(): Sym {
+    return when (self.kind) {
+        AnnotationDecl(params, _target, _pub) => if params.size() > 0 { params.at(params.size() - 1).name } else {
+            intern("")
+        }
+        _ => intern("")
+    }
+}
+
+/// Whether the annotation at `index` takes the positional arguments left
+/// over in its last parameter.
+fun Module.annotation_variadic(index: uint64): bool {
+    return when (self.decls.at(index).kind) {
+        AnnotationDecl(params, _target, _pub) => {
+            params.size() > 0 && (*params.at(params.size() - 1).ty).variadic_element() != null
+        }
+        _ => false
+    }
+}
+
+fun Module.annotation_shape(index: uint64): AnnotationShape {
+    val name = self.decls.at(index).name
+    val params = self.annotation_params(index)
+    return AnnotationShape { name: name, params: params, variadic: self.annotation_variadic(index) }
+}
+
+/// What a template adds belongs to the marked struct's crate, written there as
+/// if by hand, wherever the template was read from.
+fun TopDecl.adopted(crate: CrateId, module: Sym): TopDecl {
+    var out = self.clone()
+    out.stamp_owner(crate, module)
+    out.written_here()
+    return out
+}
+
+mutating fun TopDecl.written_here(): void {
+    self.linkage = Linkage.Source
+    when (self.kind) {
+        ImplBlock(methods) => self.kind = TopDeclKind.ImplBlock(methods_written_here(&methods))
+        TraitImpl(trait_ref, methods) => {
+            self.kind = TopDeclKind.TraitImpl(Box.new((*trait_ref).clone()), methods_written_here(&methods))
+        }
+        _ => {}
+    }
+}
+
+fun methods_written_here(methods: &List<TopDecl>): List<TopDecl> {
+    var out = List.new<TopDecl>()
+    while method in &methods {
+        var copy = method.clone()
+        copy.written_here()
+        out.push(copy)
+    }
+    return out
+}

@@ -2,7 +2,6 @@
 
 import alloc.list.*
 
-import kf_core.ast.Intrinsic
 import kf_core.ast.expression.*
 
 /// Narrows the locals a return path must not release.
@@ -32,7 +31,7 @@ fun return_drops_after_eval(ep: Ptr<Expr>?, rel_count: uint64, ctx: &var RcCtx):
     val rp = ep ?: return false
     val rev = unsafe { *rp }
     if !rev.ty.is_move_only(ctx) { return true }
-    if rev.coerce != coerce_none() { return true }
+    if rev.coerce != Coercion.Identity { return true }
     return when (rev.kind) {
         Variable(_) => false
         _ => true
@@ -43,12 +42,12 @@ fun return_drops_after_eval(ep: Ptr<Expr>?, rel_count: uint64, ctx: &var RcCtx):
 /// below a subexpression that cannot hold a borrow, which is computed before
 /// the drops and keeps only the locals moved into it.
 fun Expr.collect_escaping_names(ctx: &var RcCtx, out: &var List<String>): void {
-    if self.coerce != coerce_addr_of() && self.ty.holds_no_borrow(ctx) {
+    if self.coerce != Coercion.AddrOf && self.ty.holds_no_borrow(ctx) {
         self.collect_moved_names(BorrowMode.Value, out)
         return
     }
     // A copy holds nothing of the local it was taken from.
-    if self.coerce == coerce_clone() { return }
+    if self.coerce == Coercion.Clone { return }
     when (self.kind) {
         Variable(name) => out.push(name.as_string())
         Release(name) => out.push(name.as_string())

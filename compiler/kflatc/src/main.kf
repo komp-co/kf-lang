@@ -1,5 +1,10 @@
+import core.args.arg_at
+import core.args.arg_count
 import kf_driver.cli.kflatc_cli
+import kf_query.serve.kflatc_serve
 
 fun main(): int32 {
+    // The editor's endpoint lives in kf-query, which builds on kf-driver.
+    if arg_count() > 0 && arg_at(0) == "serve" { return kflatc_serve() }
     return kflatc_cli()
 }

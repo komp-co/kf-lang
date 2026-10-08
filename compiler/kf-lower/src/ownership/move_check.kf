@@ -6,11 +6,13 @@ import alloc.list.*
 import kf_core.span.*
 import kf_core.ast.*
 import kf_core.ast.expression.Expr
-import kf_core.ast.expression.coerce_none
+import kf_core.ast.expression.Coercion
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.Variant
 import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
+import kf_core.intern.*
+import kf_core.ast.pattern.*
 
 pub mutating fun Module.move_check_module(diags: &var Diagnostics, mob_count: Ptr<MobCount>, smap: Ptr<SourceMap>, lints: &var Diagnostics, list_name: Sym): void {
     // Built once and shared by pointer: it holds move-only lists.
@@ -200,7 +202,7 @@ pub mutating fun Stmt.move_check_stmt(ctx: &var MoveCtx): void {
             var subj_mo = subj_owner.mc_is_move_only(ctx.move_only_names)
             if !subj_mo {
                 if mc_expr_is_self(&subj) {
-                    subj_mo = ctx.self_owner.byte_len() > 0 && ctx.move_only_names.contains(ctx.self_owner.as_str())
+                    subj_mo = ctx.self_owner.byte_len() > 0 && ctx.move_only_names.contains(ctx.self_owner)
                 }
             }
             // A fresh value is owned by nothing else, so a variant's binders
@@ -259,7 +261,7 @@ fun mc_expr_is_self(e: &Expr): bool {
 /// CONSTRAINT: rc_insert hoists exactly these subjects and consumes them, so
 /// the arms own the payloads their binders take.
 fun Expr.is_fresh_move_only_value(ctx: &var MoveCtx): bool {
-    if self.coerce != coerce_none() { return false }
+    if self.coerce != Coercion.Identity { return false }
     if !self.ty.mc_is_move_only(ctx.move_only_names) { return false }
     return when (self.kind) {
         Call(_n, _a) => true

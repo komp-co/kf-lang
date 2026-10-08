@@ -7,8 +7,8 @@ import alloc.list.*
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
 import kf_typecheck.types.*
 
 /// `expected` is the bound's parameter types. A slot that is unknown, or
@@ -26,7 +26,7 @@ fun Expr.report_written_params_against(expected: &List<Type>, open: &List<String
                 if written.is_poison() || written.type_eq(want) { continue }
                 val message = "lambda parameter `${param.name.as_str()}` is written `${written.display_type(ctx)}`, " +
                     "but the `Call` bound it is passed to asks for `${want.display_type(ctx)}`"
-                ctx.emit(new_diagnostic(Severity.Error, new_label(param.span, message)))
+                ctx.emit(Diagnostic.new(Severity.Error, Label.new(param.span, message)))
             }
         }
         _ => { }
@@ -50,9 +50,9 @@ fun TypeRef.resolve_quietly(ctx: &var TypeCtx): Type {
 pub fun Type.mentions_any(names: &List<String>): bool {
     if self.kind.kind_tag() == TAG_GENERIC() { return true }
     val mangled = mangle_type(self.clone())
-    while segment in &mangled.as_str().split("__") {
+    while segment in &mangled.split("__") {
         while name in &names {
-            if segment.as_str().equals(name.as_str()) { return true }
+            if segment.as_str().equals(name) { return true }
         }
     }
     return false

@@ -6,9 +6,9 @@ import alloc.list.*
 import kf_core.span.*
 import kf_core.ast.Import
 import kf_core.ast.Module
-import kf_core.ast.crate_id_poison
 import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
+import kf_core.intern.CrateId
 import kf_codegen.emit.glue.deep_clone_top_decl
 import kf_codegen.emit.glue.deep_clone_import
 
@@ -24,8 +24,8 @@ pub fun report_parse_errors(pdiags: &var Diagnostics, smap: Ptr<SourceMap>, json
         if json {
             d.print_json_diag(smap)
         } else {
-            val text = render(d, smap)
-            runtime_println(text.as_str())
+            val text = d.render(smap)
+            runtime_println(text)
         }
         n = n + 1
         i = i + 1
@@ -61,7 +61,7 @@ pub fun merge_module_lists(first: &List<Module>, count: uint64, then: &List<Modu
     var all_imports = List.new<Import>()
     first.add_modules_to(count, &var all_decls, &var all_imports)
     then.add_modules_to(then.size(), &var all_decls, &var all_imports)
-    return Module { crate: crate_id_poison(), path: path, decls: all_decls, imports: all_imports }
+    return Module { crate: CrateId.new_poison(), path: path, decls: all_decls, imports: all_imports }
 }
 
 fun List<Module>.add_modules_to(count: uint64, decls: &var List<TopDecl>, imports: &var List<Import>): void {

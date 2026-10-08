@@ -10,11 +10,11 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.Sym
-import kf_core.ast.intern
 import kf_core.ast.expression.*
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_lower.ownership.names_contains
 
 /// Everything an assignment needs to know before its RHS is marked.
@@ -92,8 +92,8 @@ pub fun place_rhs_take_ownership(rhs_ptr: Ptr<Expr>, ctx: &var RcCtx): void {
 
 /// True when it now is an owned copy.
 fun take_a_copy(rhs_ptr: Ptr<Expr>): bool {
-    if unsafe { rhs_ptr.coerce } != coerce_none() { return false }
-    unsafe { rhs_ptr.coerce = coerce_clone() }
+    if unsafe { rhs_ptr.coerce } != Coercion.Identity { return false }
+    unsafe { rhs_ptr.coerce = Coercion.Clone }
     return true
 }
 
@@ -108,7 +108,7 @@ pub fun self_read_assign_old(name: Sym, rhs_ptr: Ptr<Expr>, before: &AssignOwner
     val tmp_id = ctx.block_counter
     ctx.block_counter = tmp_id + 1
     val tmp_name = "__old_${u64_to_str(tmp_id)}"
-    val tmp_sym = intern(tmp_name.as_str())
+    val tmp_sym = intern(tmp_name)
     var v = Expr.new(span, ExprKind.Variable(name))
     v.ty = unsafe { (*rhs_ptr).ty }
     val vp: Ptr<Expr> = unsafe { alloc<Expr>() }

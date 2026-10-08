@@ -3,12 +3,14 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
+import kf_core.intern.intern
+import kf_core.intern.CrateId
 import kf_resolve.new_decl_table
 import kf_resolve.resolve_module
 import kf_typecheck.typecheck_module
@@ -16,24 +18,26 @@ import testing.test
 
 fun dup_test_decl(td: TopDecl): TopDecl {
     var owned = td
-    owned.crate = new_crate_id("sample")
+    owned.crate = CrateId.new("sample")
     owned.module_path = intern("sample.api")
     return owned
 }
 
 fun dup_test_method(name: str): TopDecl {
     val ret: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ret = TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())) }
-    return dup_test_decl(new_top_decl(no_span(), String.from(name), TopDeclKind.Function(List.new<Param>(), ret, List.new<Stmt>(), true, false, false, false)))
+    unsafe { *ret = TypeRef.new(Span.none(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())) }
+    return dup_test_decl(TopDecl.new(Span.none(), String.from(name), TopDeclKind.Function(List.new<Param>(), ret, List.new<Stmt>(), true, false, false, false)))
 }
 
 fun dup_test_diagnostics(first: str, second: str): List<Diagnostic> {
-    var module = Module { crate: new_crate_id("sample"), path: List.new<String>(), decls: List.new<TopDecl>(), imports: List.new<Import>() }
-    module.decls.push(dup_test_decl(new_top_decl(no_span(), String.from("Bag"), TopDeclKind.Struct(List.new<Field>(), true))))
+    var module = Module { crate: CrateId.new("sample"), path: List.new<String>(), decls: List.new<TopDecl>(), imports: List.new<Import>() }
+    module.decls.push(
+        dup_test_decl(TopDecl.new(Span.none(), String.from("Bag"), TopDeclKind.Struct(List.new<Field>(), true)))
+    )
     var methods = List.new<TopDecl>()
     methods.push(dup_test_method(first))
     methods.push(dup_test_method(second))
-    module.decls.push(dup_test_decl(new_top_decl(no_span(), String.from("Bag"), TopDeclKind.ImplBlock(methods))))
+    module.decls.push(dup_test_decl(TopDecl.new(Span.none(), String.from("Bag"), TopDeclKind.ImplBlock(methods))))
     var declarations = new_decl_table()
     resolve_module(&var module, &var declarations)
     return module.typecheck_module(&var declarations)
@@ -41,7 +45,7 @@ fun dup_test_diagnostics(first: str, second: str): List<Diagnostic> {
 
 fun dup_test_reported(diagnostics: &List<Diagnostic>, needle: str): bool {
     while diagnostic in &diagnostics {
-        if (diagnostic.primary.message.as_str()).contains(needle) { return true }
+        if (diagnostic.primary.message).contains(needle) { return true }
     }
     return false
 }

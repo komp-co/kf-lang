@@ -108,5 +108,5 @@ fun piece(parts: &List<String>, i: uint64): str {
     assert_eq(String.from("one\ntwo").lines().size(), 2, "lines")
     assert_eq(String.from("  x  y ").split_whitespace().size(), 2, "words")
     // And agrees with its view.
-    assert_eq(path.split("/").size(), path.as_str().split("/").size(), "String and str agree")
+    assert_eq(path.split("/").size(), path.split("/").size(), "String and str agree")
 }

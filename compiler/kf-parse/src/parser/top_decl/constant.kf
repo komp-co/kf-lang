@@ -1,7 +1,6 @@
 import kf_core.span.*
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TopDeclKind
-import kf_core.ast.declaration.new_top_decl
 import kf_parse.parser.*
 
 impl Parser {
@@ -19,7 +18,7 @@ impl Parser {
         }
         val _eq = self.expect_op(Operator.Eq, "after the type (a top-level `val` needs a value)")
         val value = Box.new(self.parse_value_operand())
-        var td = new_top_decl(span, name, TopDeclKind.Constant(ty, value, is_pub))
+        var td = TopDecl.new(span, name, TopDeclKind.Constant(ty, value, is_pub))
         td.name_span = name_at
         return td
     }

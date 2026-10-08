@@ -1,10 +1,10 @@
 import alloc.list.*
 
-import kf_core.ast.Sym
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
+import kf_core.intern.Sym
 import kf_typecheck.types.display_type
 import kf_typecheck.types.type_eq
 import kf_typecheck.types.can_coerce
@@ -28,14 +28,14 @@ pub mutating fun Expr.check_dyn_method_call(receiver: &Expr, method: Sym, args: 
     when (selected) {
         None => {
             val message = "no method `${method.as_string()}` on trait object `${receiver.ty.display_type(ctx)}`"
-            ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+            ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
             self.ty = Type.new_poison()
             return true
         }
         Some(slot) => {
             if slot.is_mutating && !receiver_info.mutable {
                 val message = "cannot self mutating method `${method.as_string()}` through shared trait object `${receiver.ty.display_type(ctx)}`"
-                ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+                ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
                 self.ty = Type.new_poison()
                 return true
             }
@@ -76,7 +76,7 @@ fun DynTraitLayout.dyn_layout_method(method: Sym): DynMethodSlot? {
 fun check_dyn_method_args(method: Sym, args: &var List<Expr>, expected: &List<Type>, call: &Expr, ctx: &var TypeCtx): bool {
     if args.size() != expected.size() {
         val message = "dynamic method `${method.as_string()}` called with the wrong number of arguments"
-        ctx.emit(new_diagnostic(Severity.Error, new_label(call.span, message)))
+        ctx.emit(Diagnostic.new(Severity.Error, Label.new(call.span, message)))
         return false
     }
     var valid = true
@@ -88,7 +88,7 @@ fun check_dyn_method_args(method: Sym, args: &var List<Expr>, expected: &List<Ty
         val coerced = argument.apply_expected(target.clone(), ctx)
         if !coerced && !actual.type_eq(target.clone()) && !ctx.fits(actual, target) {
             val message = "argument type does not match dynamic method `${method.as_string()}`"
-            ctx.emit(new_diagnostic(Severity.Error, new_label(argument.span, message)))
+            ctx.emit(Diagnostic.new(Severity.Error, Label.new(argument.span, message)))
             valid = false
         }
     }

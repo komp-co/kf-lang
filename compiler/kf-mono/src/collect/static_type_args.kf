@@ -47,7 +47,7 @@ fun method_own_arity(marities: &List<MethodArity>, owner: &String, method: str):
     key.append("_")
     key.append(method)
     while ma in &marities {
-        if ma.key.as_str().equals(key.as_str()) { return ma.count }
+        if ma.key.as_str().equals(key) { return ma.count }
     }
     return 0
 }

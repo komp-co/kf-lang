@@ -25,7 +25,7 @@ fun every_edit_kind_is_reached(): void {
     while seed in 0..400 {
         var rng = Rng.seeded(seed as uint64)
         val step = mutate_once(program(), &var rng)
-        if !seen.contains(step.name.as_str()) { seen.append("${step.name} ") }
+        if !seen.contains(step.name) { seen.append("${step.name} ") }
     }
     val kinds = ["delete", "duplicate", "swap", "splice", "truncate", "bytes", "keyword", "unbalance"]
     var missing = String.from("")

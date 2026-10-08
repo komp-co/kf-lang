@@ -115,7 +115,7 @@ fun TopDecl.lint_decl(smap: &SourceMap, walk: &var LintWalk): void {
 fun TopDecl.check_docs(name: str, at: Span, smap: &SourceMap, walk: &var LintWalk): void {
     val file = self.span.file_id
     if file == 0 || file as uint64 > smap.files.size() { return }
-    check_missing_docs(name, at, smap.files[(file - 1) as uint64].content.as_str(), self.span.start as uint64, walk)
+    check_missing_docs(name, at, smap.files[(file - 1) as uint64].content, self.span.start as uint64, walk)
 }
 
 fun lint_members(methods: &List<TopDecl>, smap: &SourceMap, walk: &var LintWalk): void {

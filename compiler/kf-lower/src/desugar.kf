@@ -7,6 +7,9 @@ import kf_core.ast.*
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.Variant
 import kf_core.ast.statement.*
+import kf_core.intern.*
+import kf_core.ast.pattern.*
+import kf_core.ast.expression.*
 
 pub mutating fun Module.desugar_module(): void {
     while i in 0..self.decls.size() {

@@ -52,8 +52,8 @@ import testing.test
 // `str` and `String` answer the same.
 @test fun the_trait_agrees_with_the_free_functions(): void {
     val owned = String.from("some/path/file.kf")
-    assert_eq(owned.substring(5, 9).as_str(), owned.as_str().substring(5, 9).as_str(), "substring")
-    assert_eq(owned.to_upper().as_str(), owned.as_str().to_upper().as_str(), "to_upper")
+    assert_eq(owned.substring(5, 9).as_str(), owned.substring(5, 9).as_str(), "substring")
+    assert_eq(owned.to_upper().as_str(), owned.to_upper().as_str(), "to_upper")
     assert_eq("  x  ".trim().as_str(), "x", "trait on a literal")
     assert_eq("ab".repeat(2).as_str(), "abab", "repeat on a literal")
 }

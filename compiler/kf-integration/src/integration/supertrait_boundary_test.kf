@@ -4,8 +4,8 @@
 import core.assert.assert_eq
 import kf_integration.harness.compile_project_separate
 import std.fs.scratch_path
-import kf_core.diagnostic.new_diagnostics
 import testing.test
+import kf_core.diagnostic.Diagnostics
 
 extern "C" fun system(cmd: str): int32
 
@@ -21,7 +21,7 @@ core = { path = "../kf_st_core" }
 """)
     var lib_src = String.from("pub trait Eq2 { fun eq2(other: Self): bool }\n")
     lib_src.append("pub trait Ord2: Eq2 { fun ord2(other: Self): int32 }\n")
-    write_file(scratch_path("kf_st_lib/src/lib.kf"), lib_src.as_str())
+    write_file(scratch_path("kf_st_lib/src/lib.kf"), lib_src)
     write_file(scratch_path("kf_st_app/kf.toml"), """[project]
 name = "stapp"
 kind = "bin"
@@ -36,7 +36,7 @@ stlib = { path = "../kf_st_lib" }
 /// The supertrait's name is asserted, not just an error count.
 fun compile_supertrait_app(app_src: str): int32 {
     write_supertrait_fixtures(app_src)
-    var errors = new_diagnostics()
+    var errors = Diagnostics.new()
     val _outputs = compile_project_separate(scratch_path("kf_st_app"), errors)
     return errors.error_count()
 }
@@ -46,7 +46,7 @@ fun compile_supertrait_app(app_src: str): int32 {
     src.append("struct Point { var x: int32 }\n\n")
     src.append("impl Ord2 for Point { fun ord2(other: Point): int32 { return 0 } }\n\n")
     src.append("fun main(): int32 { return 0 }\n")
-    val errors = compile_supertrait_app(src.as_str())
+    val errors = compile_supertrait_app(src)
     assert_eq(errors > 0, true, "Ord2 imported from another crate still requires Eq2")
 }
 
@@ -56,6 +56,6 @@ fun compile_supertrait_app(app_src: str): int32 {
     src.append("impl Ord2 for Point { fun ord2(other: Point): int32 { return 0 } }\n")
     src.append("impl Eq2 for Point { fun eq2(other: Point): bool { return self.x == other.x } }\n\n")
     src.append("fun main(): int32 { return 0 }\n")
-    val errors = compile_supertrait_app(src.as_str())
+    val errors = compile_supertrait_app(src)
     assert_eq(errors, 0, "both impls present across the boundary compiles clean")
 }

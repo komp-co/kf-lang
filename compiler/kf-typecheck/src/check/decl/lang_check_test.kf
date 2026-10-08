@@ -5,28 +5,31 @@ import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
-import kf_core.ast.annotation.new_annotation
+import kf_core.ast.annotation.Annotation
 import kf_resolve.new_decl_table
-import kf_core.span.no_span
+import kf_core.span.Span
+import kf_core.intern.intern
+import kf_core.intern.CrateId
+import kf_core.lang.*
 import kf_typecheck.typecheck_module
 import testing.test
 
 /// A struct owned by `crate`, carrying `annotations`.
 fun lang_decl(name: str, crate: str, annotations: List<Annotation>): TopDecl {
-    var declaration = new_top_decl(no_span(), String.from(name), TopDeclKind.Struct(List.new<Field>(), true))
-    declaration.crate = new_crate_id(crate)
+    var declaration = TopDecl.new(Span.none(), String.from(name), TopDeclKind.Struct(List.new<Field>(), true))
+    declaration.crate = CrateId.new(crate)
     declaration.annotations = annotations
     return declaration
 }
 
 fun lang_messages(decls: List<TopDecl>): uint64 {
-    var module = Module { crate: new_crate_id("application"), path: List.new<String>(), decls: decls,
+    var module = Module { crate: CrateId.new("application"), path: List.new<String>(), decls: decls,
         imports: List.new<Import>() }
     var table = new_decl_table()
     val diagnostics = module.typecheck_module(&var table)
     var count: uint64 = 0
     while diagnostic in &diagnostics {
-        if diagnostic.primary.message.as_str().contains("lang") { count = count + 1 }
+        if diagnostic.primary.message.contains("lang") { count = count + 1 }
     }
     return count
 }
@@ -55,7 +58,7 @@ fun an_unknown_lang_key_is_rejected(): void {
 @test
 fun a_lang_item_without_a_key_is_rejected(): void {
     var decls = List.new<TopDecl>()
-    decls.push(lang_decl("Text", "alloc", [new_annotation(no_span(), "lang", List.new<String>())]))
+    decls.push(lang_decl("Text", "alloc", [Annotation.new(Span.none(), "lang", List.new<String>())]))
     assert_eq(lang_messages(decls), 1, "`@lang` alone names nothing")
 }
 
@@ -71,10 +74,10 @@ fun a_lang_key_declared_twice_is_rejected(): void {
 fun a_function_cannot_be_a_lang_item(): void {
     var decls = List.new<TopDecl>()
     val ret: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ret = TypeRef.new(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
+    unsafe { *ret = TypeRef.new(Span.none(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
     val kind = TopDeclKind.Function(List.new<Param>(), ret, List.new<Stmt>(), true, false, false, false)
-    var helper = new_top_decl(no_span(), String.from("helper"), kind)
-    helper.crate = new_crate_id("alloc")
+    var helper = TopDecl.new(Span.none(), String.from("helper"), kind)
+    helper.crate = CrateId.new("alloc")
     helper.annotations.push(lang_annotation("string"))
     decls.push(helper)
     assert_eq(lang_messages(decls), 1, "only a type can be the language's string")
@@ -91,22 +94,22 @@ fun the_lang_key_is_read_from_the_annotation(): void {
 /// A function owned by `crate`, `@prelude` when `in_prelude`.
 fun prelude_decl(crate: str, in_prelude: bool): TopDecl {
     val ret: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ret = TypeRef.new(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
+    unsafe { *ret = TypeRef.new(Span.none(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
     val kind = TopDeclKind.Function(List.new<Param>(), ret, List.new<Stmt>(), true, false, false, false)
-    var helper = new_top_decl(no_span(), String.from("helper"), kind)
-    helper.crate = new_crate_id(crate)
-    if in_prelude { helper.annotations.push(new_annotation(no_span(), "prelude", List.new<String>())) }
+    var helper = TopDecl.new(Span.none(), String.from("helper"), kind)
+    helper.crate = CrateId.new(crate)
+    if in_prelude { helper.annotations.push(Annotation.new(Span.none(), "prelude", List.new<String>())) }
     return helper
 }
 
 fun prelude_messages(decls: List<TopDecl>): uint64 {
-    var module = Module { crate: new_crate_id("application"), path: List.new<String>(), decls: decls,
+    var module = Module { crate: CrateId.new("application"), path: List.new<String>(), decls: decls,
         imports: List.new<Import>() }
     var table = new_decl_table()
     val diagnostics = module.typecheck_module(&var table)
     var count: uint64 = 0
     while diagnostic in &diagnostics {
-        if diagnostic.primary.message.as_str().contains("prelude") { count = count + 1 }
+        if diagnostic.primary.message.contains("prelude") { count = count + 1 }
     }
     return count
 }

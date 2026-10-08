@@ -3,10 +3,10 @@
 
 import alloc.list.*
 
-import kf_core.ast.Sym
 import kf_core.ast.expression.Expr
 import kf_core.ast.types.Type
 import kf_core.ast.declaration.TopDecl
+import kf_core.intern.Sym
 
 /// The typed literal a use of a top-level `val` becomes.
 pub struct ConstantValue {
@@ -20,6 +20,7 @@ impl SigTable {
     pub mutating fun insert_constant(td: &TopDecl, is_pub: bool, ty: Type, value: Expr): void {
         self.constants.push(ConstantValue { name: td.name, owner_module: td.module_path, value: value })
         if td.is_internal { self.note_internal(td.module_path, td.name.as_str()) }
+        self.note_decl_sig(td.decl, self.sigs.size())
         self.insert(FnSignature {
             name: td.name.as_string(), params: List.new<Type>(), ret: ty, generics: List.new<String>(),
             is_static: false, is_mutating: false, owner_module: td.module_path, owner_crate: td.crate,

@@ -1,56 +1,56 @@
 import core.assert.assert_eq
 import alloc.list.*
-import kf_core.span.no_span
-import kf_core.ast.intern
-import kf_core.ast.lang_annotation
+import kf_core.span.Span
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.expression.UnaryOp
-import kf_core.ast.declaration.Annotation
-import kf_core.ast.declaration.AnnotationArg
-import kf_core.ast.declaration.MarkKind
+import kf_core.ast.annotation.Annotation
+import kf_core.ast.annotation.AnnotationArg
+import kf_core.ast.annotation.MarkKind
 import testing.test
+import kf_core.intern.intern
+import kf_core.lang.lang_annotation
 
 fun argument(name: str, kind: ExprKind): AnnotationArg {
-    return AnnotationArg { name: intern(name), value: Box.new(Expr.new(no_span(), kind)) }
+    return AnnotationArg { name: intern(name), value: Box.new(Expr.new(Span.none(), kind)) }
 }
 
 fun annotation_with(args: List<AnnotationArg>): Annotation {
-    return Annotation { name: intern("bench"), args: args, has_parens: true, span: no_span() }
+    return Annotation { name: intern("bench"), args: args, has_parens: true, span: Span.none() }
 }
 
 @test fun a_bare_annotation_renders_without_parentheses(): void {
-    val a = new_annotation(no_span(), "test", List.new<String>())
+    val a = Annotation.new(Span.none(), "test", [])
     assert_eq(a.to_source().as_str(), "test", "no argument list")
 }
 
 @test fun words_are_rendered_comma_separated(): void {
-    val a = new_annotation(no_span(), "derive", [String.from("Clone"), String.from("Equal")])
+    val a = Annotation.new(Span.none(), "derive", ["Clone", "Equal"])
     assert_eq(a.to_source().as_str(), "derive(Clone, Equal)", "as a person writes it")
 }
 
 @test fun a_string_argument_is_quoted_and_escaped(): void {
-    var args = List.new<AnnotationArg>()
-    args.push(argument("", ExprKind.LitStr(String.from("say \"hi\""))))
+    var args = []
+    args.push(argument("", ExprKind.LitStr("say \"hi\"")))
     assert_eq(annotation_with(args).to_source().as_str(), "bench(\"say \\\"hi\\\"\")", "quotes inside are escaped")
 }
 
 @test fun a_named_argument_renders_its_label(): void {
-    var args = List.new<AnnotationArg>()
+    var args = []
     args.push(argument("iterations", ExprKind.LitInt(100)))
     assert_eq(annotation_with(args).to_source().as_str(), "bench(iterations = 100)", "label, then value")
 }
 
 @test fun a_bool_argument_renders_as_a_keyword(): void {
-    var args = List.new<AnnotationArg>()
+    var args = []
     args.push(argument("", ExprKind.LitBool(true)))
     assert_eq(annotation_with(args).to_source().as_str(), "bench(true)", "not 1")
 }
 
 @test fun words_skip_named_arguments(): void {
-    var args = List.new<AnnotationArg>()
+    var args = []
     args.push(argument("", ExprKind.Variable(intern("Clone"))))
-    args.push(argument("label", ExprKind.LitStr(String.from("x"))))
+    args.push(argument("label", ExprKind.LitStr("x")))
     assert_eq(annotation_with(args).words().size(), 1, "only the positional name")
 }
 
@@ -60,14 +60,14 @@ fun annotation_with(args: List<AnnotationArg>): Annotation {
 }
 
 @test fun words_skip_a_number(): void {
-    var args = List.new<AnnotationArg>()
+    var args = []
     args.push(argument("", ExprKind.LitInt(3)))
     assert_eq(annotation_with(args).words().size(), 0, "a number is not a word")
 }
 
 @test fun a_negative_argument_keeps_its_sign(): void {
-    var args = List.new<AnnotationArg>()
-    val three = Expr.new(no_span(), ExprKind.LitInt(3))
+    var args = []
+    val three = Expr.new(Span.none(), ExprKind.LitInt(3))
     args.push(argument("", ExprKind.Unary(UnaryOp.Neg, Box.new(three))))
     assert_eq(annotation_with(args).to_source().as_str(), "bench(-3)", "the minus is written")
 }

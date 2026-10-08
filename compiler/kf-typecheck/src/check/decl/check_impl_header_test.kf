@@ -1,12 +1,14 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
 import kf_core.diagnostic.*
+import kf_core.intern.intern
+import kf_core.intern.CrateId
 import kf_resolve.new_decl_table
 import kf_resolve.resolve_module
 import kf_typecheck.typecheck_module
@@ -14,24 +16,26 @@ import testing.test
 
 fun header_decl(td: TopDecl, crate: str): TopDecl {
     var owned = td
-    owned.crate = new_crate_id(crate)
+    owned.crate = CrateId.new(crate)
     owned.module_path = intern("sample.api")
     return owned
 }
 
 fun header_struct(name: str, crate: str): TopDecl {
-    return header_decl(new_top_decl(no_span(), String.from(name), TopDeclKind.Struct(List.new<Field>(), true)), crate)
+    return header_decl(TopDecl.new(Span.none(), String.from(name), TopDeclKind.Struct(List.new<Field>(), true)), crate)
 }
 
 fun header_trait(name: str, crate: str): TopDecl {
-    return header_decl(new_top_decl(no_span(), String.from(name), TopDeclKind.TraitDecl(List.new<TopDecl>(), true, List.new<TypeRef>())), crate)
+    return header_decl(TopDecl.new(Span.none(), String.from(name), TopDeclKind.TraitDecl(List.new<TopDecl>(), true, List.new<TypeRef>())), crate)
 }
 
 fun header_impl(target: str, crate: str, params: List<String>): TopDecl {
-    var td = header_decl(new_top_decl(no_span(), String.from(target), TopDeclKind.ImplBlock(List.new<TopDecl>())), crate)
+    var td = header_decl(
+        TopDecl.new(Span.none(), String.from(target), TopDeclKind.ImplBlock(List.new<TopDecl>())), crate
+    )
     var generics = List.new<TypeParam>()
     while param in &params {
-        generics.push(new_type_param(no_span(), param))
+        generics.push(TypeParam.new(Span.none(), param))
     }
     td.generics = generics
     return td
@@ -48,7 +52,7 @@ fun one_param(name: str): List<String> {
 }
 
 fun header_diagnostics(decls: List<TopDecl>): List<Diagnostic> {
-    var module = Module { crate: new_crate_id("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
+    var module = Module { crate: CrateId.new("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
     var declarations = new_decl_table()
     resolve_module(&var module, &var declarations)
     return module.typecheck_module(&var declarations)
@@ -56,7 +60,7 @@ fun header_diagnostics(decls: List<TopDecl>): List<Diagnostic> {
 
 fun header_reported(diagnostics: &List<Diagnostic>, needle: str): bool {
     while diagnostic in &diagnostics {
-        if (diagnostic.primary.message.as_str()).contains(needle) { return true }
+        if (diagnostic.primary.message).contains(needle) { return true }
     }
     return false
 }
@@ -140,8 +144,10 @@ fun an_ordinary_type_parameter_is_accepted(): void {
 
 fun header_trait_impl(trait_name: str, target: str, crate: str): TopDecl {
     val tref: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *tref = TypeRef.new(no_span(), TypeRefKind.Named(intern(trait_name), List.new<TypeRef>())) }
-    return header_decl(new_top_decl(no_span(), String.from(target), TopDeclKind.TraitImpl(tref, List.new<TopDecl>())), crate)
+    unsafe { *tref = TypeRef.new(Span.none(), TypeRefKind.Named(intern(trait_name), List.new<TypeRef>())) }
+    return header_decl(
+        TopDecl.new(Span.none(), String.from(target), TopDeclKind.TraitImpl(tref, List.new<TopDecl>())), crate
+    )
 }
 
 // The `for` side is resolved too.

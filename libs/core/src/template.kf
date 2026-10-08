@@ -1,0 +1,89 @@
+// What a template reads while the program compiles, declared so it can be
+// looked up: a struct's field, an enum's variant, a variant's payload, and the
+// place the marked declaration is written. None of these is ever built: in a
+// template, `field` in `while field in T.fields` stands for a `TemplateField`,
+// and each fact it is asked for becomes a literal, or code, as the template
+// expands. Calling a method here at run time fails.
+//
+// Two facts have no signature to declare. `field.of(x)` and `payload.of(a)`
+// have the member's own type, which differs per member; and `field.type`, in
+// a type, is that type. The marked type's own facts are on `T` itself:
+// `T.name`, `T.fields` or `T.variants`, and `T.build(|field| e)`.
+
+/// A struct's field, as `while field in T.fields`, `T.fields.map(|field| e)`
+/// and the other member lists stand for it.
+pub view struct TemplateField {
+    /// Its name as written, `"user_id"`.
+    pub val name: str
+    /// Its position among the struct's fields, from 0.
+    pub val index: uint64
+    /// The line it is written on.
+    pub val line: uint32
+}
+
+impl TemplateField {
+    /// Whether the field carries `@A`; a condition on it is decided while the
+    /// program compiles, so the branch not taken need not check.
+    pub fun has<A>(): bool { fail(compile_time_only()) }
+
+    /// `@A`'s arguments on the field, a value of `A`'s argument struct; an
+    /// error where the field has no `@A`.
+    pub fun get<A>(): A { fail(compile_time_only()) }
+
+    /// The field read from `owner`, `owner.user_id`: a place as well as a
+    /// value, of the field's own type.
+    pub fun of<O, V>(owner: &O): V { fail(compile_time_only()) }
+}
+
+/// An enum's variant, as `while variant in T.variants` stands for it,
+/// written once per variant among a `when`'s arms too.
+pub view struct TemplateVariant {
+    /// Its name as written, `"Circle"`, for `${variant.name}(..a)` in a
+    /// pattern and `T.${variant.name}` in an expression.
+    pub val name: str
+    /// Its position among the enum's variants, from 0.
+    pub val index: uint64
+    /// The line it is written on.
+    pub val line: uint32
+    /// Its payloads, a list like `T.fields`: loop over it, or `map`, `filter`,
+    /// `all`, `any` or `size()` it.
+    pub val payloads: &TemplatePayload[]
+}
+
+impl TemplateVariant {
+    /// Whether the variant carries `@A`.
+    pub fun has<A>(): bool { fail(compile_time_only()) }
+
+    /// `@A`'s arguments on the variant.
+    pub fun get<A>(): A { fail(compile_time_only()) }
+
+    /// The variant, made with `e` written once per payload, the binder
+    /// standing for that payload: `T.Rect(e(0), e(1))`, or `T.Empty`.
+    pub fun build<E, V>(each: (TemplatePayload) -> E): V { fail(compile_time_only()) }
+}
+
+/// One payload of the variant a member loop is on.
+pub view struct TemplatePayload {
+    /// Its position among the variant's payloads, from 0.
+    pub val index: uint64
+}
+
+impl TemplatePayload {
+    /// The payload `..a` bound in the arm's pattern, `${variant.name}(..a)`,
+    /// of the payload's own type.
+    pub fun of<B, V>(rest: B): V { fail(compile_time_only()) }
+}
+
+/// Where the declaration a template adds to is written, as `site` stands for
+/// it.
+pub view struct TemplateSite {
+    /// Its file, relative to the crate root, `src/user.kf`, as an
+    /// `annotated<A>()` entry gives it.
+    pub val file: str
+    /// The line of its name.
+    pub val line: uint32
+    /// The column of its name.
+    pub val column: uint32
+}
+
+fun compile_time_only(): str { return "a template's facts are read while the program compiles, never run" }

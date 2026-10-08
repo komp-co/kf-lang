@@ -51,7 +51,7 @@ pub mutating fun Tally.record(job: &Job, verdict: &Verdict, known: &List<KnownFi
             return
         }
     }
-    val issue = issue_for(known, verdict.signature.as_str())
+    val issue = issue_for(known, verdict.signature)
     self.buckets.push(Bucket { signature: verdict.signature.clone(), issue: issue, count: 1, first: job.clone() })
 }
 
@@ -77,12 +77,12 @@ pub fun Campaign.run(first: uint64, last: uint64, work: &TempDir): Tally {
             val dir = "${work.path().as_str()}/slot${slot}"
             val job = make_job(self.mode, next, &self.corpus, &self.interfaces, &self.pieces)
             next = next + 1
-            if !job.stage(dir.as_str(), &self.interfaces) {
+            if !job.stage(dir, &self.interfaces) {
                 println("kf-fuzz: cannot write ${dir}")
                 free.push(slot)
                 continue
             }
-            when (self.limits.start(&job.crate_run(dir.as_str()))) {
+            when (self.limits.start(&job.crate_run(dir))) {
                 Ok(child) => running.push(Running { slot: slot, job: job, child: child })
                 Err(_) => {
                     println("kf-fuzz: cannot start ${self.limits.kflatc}")
@@ -102,7 +102,7 @@ pub fun Campaign.run(first: uint64, last: uint64, work: &TempDir): Tally {
             val done = running.remove(i) ?: break
             val dir = "${work.path().as_str()}/slot${done.slot}"
             val first_verdict = judge(status!!.exit_code(), read_log("${dir}/kflatc.log".as_str()).as_str())
-            val verdict = self.limits.refine(&done.job.crate_run(dir.as_str()), first_verdict)
+            val verdict = self.limits.refine(&done.job.crate_run(dir), first_verdict)
             tally.record(&done.job, &verdict, &self.known)
             free.push(done.slot)
             finished = true
@@ -124,7 +124,7 @@ pub fun Campaign.report(tally: &Tally, seconds: int64): void {
         println("  NEW    ${bucket.signature}  x${bucket.count}")
         println("         first: --seeds ${job.seed}..${job.seed} (${job.fixture}, ${what})")
         if !self.save_dir.is_empty() {
-            job.save(self.save_dir.as_str(), name.as_str())
+            job.save(self.save_dir, name)
             println("         saved ${self.save_dir}/${name}.kf")
         }
     }

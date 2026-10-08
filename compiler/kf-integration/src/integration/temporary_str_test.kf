@@ -17,13 +17,13 @@ fun reports_kept_temporary(name: str, source: str): bool {
     unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
     write_file("${root}/kf.toml".as_str(), "[project]\nname = \"str_probe\"\nkind = \"lib\"\n")
     val file = "${root}/src/lib.kf"
-    write_file(file.as_str(), source)
-    var crate = typed_crate_for(file.as_str())
+    write_file(file, source)
+    var crate = typed_crate_for(file)
     var table = new_decl_table()
     resolve_module(&var crate.module, &var table)
     val diags = typecheck_module(&var crate.module, &var table)
     while d in &diags {
-        if d.primary.message.as_str().contains("which points into a `String` freed at the end of") { return true }
+        if d.primary.message.contains("which points into a `String` freed at the end of") { return true }
     }
     return false
 }

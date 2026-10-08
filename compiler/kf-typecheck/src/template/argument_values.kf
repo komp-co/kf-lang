@@ -1,0 +1,108 @@
+// A use's arguments as code. A loop over a variadic argument,
+// `while rule in args.rules`, is written out once per value, with `rule`
+// standing for it; and a name an argument gives is code where it is used:
+// `args.check(x)` and `rule(x)` call the function it names, and `args.format`
+// in a type is the type.
+
+import alloc.list.*
+
+import kf_core.intern.Sym
+import kf_core.intern.intern
+import kf_core.ast.expression.list_literal.array_literal_callee
+import kf_core.ast.expression.list_literal.empty_list_literal_receiver
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.statement.Stmt
+
+/// The values of `args.p` when `p` is variadic, or null for anything else.
+fun Expr.argument_values(x: &Expansion): List<Expr>? {
+    val member = when (self.kind) {
+        FieldAccess(owner, member) => if owner.is_variable(intern("args")) { member } else { return null }
+        _ => return null
+    }
+    val value = x.argument(member) ?: return null
+    return value.list_elements()
+}
+
+/// The elements of a list literal, `[a, b]`, or null for anything else.
+fun Expr.list_elements(): List<Expr>? {
+    return when (self.kind) {
+        Call(callee, elements) => if callee.as_str() == array_literal_callee() { elements.clone() } else { null }
+        MethodCall(receiver, method, args) => {
+            val empty = receiver.is_variable(intern(empty_list_literal_receiver()))
+            if empty && method.as_str() == "new" && args.size() == 0 { List.new<Expr>() } else { null }
+        }
+        _ => null
+    }
+}
+
+/// One block per value, `binder` standing for it inside.
+fun Stmt.unroll_values(binder: Sym, values: &List<Expr>, body: &List<Stmt>, x: &var Expansion,
+    out: &var List<Stmt>): void {
+    var copies = List.new<List<Stmt>>()
+    while value in &values {
+        x.values.push(ValueBound { binder: binder, value: value.clone() })
+        val copy = cut_at_jump(&expand_stmts(body, x))
+        val _left = x.values.pop()
+        copies.push(copy.kept)
+        if copy.jump == Jump.Broke || copy.jump == Jump.Returned { break }
+    }
+    self.joined_copies(&copies, out)
+}
+
+/// The function `name` calls: the one a value binder or a name argument
+/// stands for, or `name` itself.
+fun Expansion.called(name: Sym): Sym {
+    val value = self.value_of(name) ?: return name
+    return value.declared_name() ?: name
+}
+
+/// The name a name argument gives, `Json` or `geo.Point`, as one symbol.
+fun Expr.declared_name(): Sym? {
+    return when (self.kind) {
+        Variable(name) => Option.Some(name)
+        FieldAccess(owner, member) => {
+            val path = owner.declared_name() ?: return null
+            Option.Some(intern("${path.as_str()}.${member.as_str()}"))
+        }
+        _ => null
+    }
+}
+
+/// `args.check(x)` when `check` gives a function's name: a call to it.
+fun Expr.argument_call(receiver: &Expr, method: Sym, args: &List<Expr>, x: &var Expansion): Expr? {
+    if !receiver.is_variable(intern("args")) { return null }
+    val value = x.argument(method) ?: return null
+    val callee = value.declared_name() ?: return null
+    var call = self.fact(ExprKind.Call(callee, expanded_exprs(args, x)))
+    call.written_at_use(x)
+    return call
+}
+
+/// The call resolves where the annotation's use is written, where its
+/// argument named the function.
+mutating fun Expr.written_at_use(x: &Expansion): void {
+    self.scope_module = x.home
+    self.scope_file = x.home_file
+}
+
+/// A type naming a value binder, `format`, or `args.format`: the type the
+/// name gives; null for any other type.
+fun TypeRef.argument_type_name(x: &Expansion): TypeRef? {
+    val given: Expr? = when (self.kind) {
+        Named(name, args) => if args.size() == 0 { x.value_of(name) } else { null }
+        Projection(owner, member) => {
+            val is_args = when (owner.kind) {
+                Named(name, args) => args.size() == 0 && name.as_str() == "args"
+                _ => false
+            }
+            if is_args { x.argument(member) } else { null }
+        }
+        _ => null
+    }
+    val value = given ?: return null
+    val name = value.declared_name() ?: return null
+    return TypeRef.new(self.span, TypeRefKind.Named(name, List.new<TypeRef>()))
+}

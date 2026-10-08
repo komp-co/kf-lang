@@ -1,30 +1,31 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.intern
-import kf_core.ast.lang_annotation
-import kf_core.ast.new_module
+import kf_core.span.Span
+import kf_core.ast.Module
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
 import kf_lower.ownership.TypeNameSet
 import testing.test
+import kf_core.intern.intern
+import kf_core.lang.lang_annotation
+import kf_lower.ownership.names_contains
 
 fun named_tref(n: str): Ptr<TypeRef> {
     val p: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *p = TypeRef.new(no_span(), TypeRefKind.Named(intern(n), List.new<TypeRef>())) }
+    unsafe { *p = TypeRef.new(Span.none(), TypeRefKind.Named(intern(n), List.new<TypeRef>())) }
     return p
 }
 
 fun struct_of(name: str, field_type: str): TopDecl {
     var fields = List.new<Field>()
-    fields.push(new_field(no_span(), String.from("f"), named_tref(field_type), false, true))
-    return new_top_decl(no_span(), String.from(name), TopDeclKind.Struct(fields, true))
+    fields.push(Field.new(Span.none(), String.from("f"), named_tref(field_type), false, true))
+    return TopDecl.new(Span.none(), String.from(name), TopDeclKind.Struct(fields, true))
 }
 
 fun free_names_of(decls: List<TopDecl>): TypeNameSet {
-    var m = new_module(List.new<String>())
+    var m = Module.new(List.new<String>())
     m.decls = decls
     return m.borrow_free_names(intern("String"), intern("List"))
 }
@@ -56,12 +57,12 @@ fun free_names_of(decls: List<TopDecl>): TypeNameSet {
 
 fun list_of(name: str, element: str, lang: bool): TopDecl {
     var args = List.new<TypeRef>()
-    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern(element), List.new<TypeRef>())))
+    args.push(TypeRef.new(Span.none(), TypeRefKind.Named(intern(element), List.new<TypeRef>())))
     val data: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *data = TypeRef.new(no_span(), TypeRefKind.Named(intern("Ptr"), args)) }
+    unsafe { *data = TypeRef.new(Span.none(), TypeRefKind.Named(intern("Ptr"), args)) }
     var fields = List.new<Field>()
-    fields.push(new_field(no_span(), String.from("data"), data, true, false))
-    var td = new_top_decl(no_span(), String.from(name), TopDeclKind.Struct(fields, true))
+    fields.push(Field.new(Span.none(), String.from("data"), data, true, false))
+    var td = TopDecl.new(Span.none(), String.from(name), TopDeclKind.Struct(fields, true))
     if lang { td.annotations.push(lang_annotation("list")) }
     return td
 }
@@ -86,12 +87,12 @@ fun list_of(name: str, element: str, lang: bool): TopDecl {
 
 @test fun a_struct_holding_a_list_of_strings_holds_no_borrow(): void {
     var args = List.new<TypeRef>()
-    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("String"), List.new<TypeRef>())))
+    args.push(TypeRef.new(Span.none(), TypeRefKind.Named(intern("String"), List.new<TypeRef>())))
     val items: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *items = TypeRef.new(no_span(), TypeRefKind.Named(intern("List"), args)) }
+    unsafe { *items = TypeRef.new(Span.none(), TypeRefKind.Named(intern("List"), args)) }
     var fields = List.new<Field>()
-    fields.push(new_field(no_span(), String.from("items"), items, true, true))
+    fields.push(Field.new(Span.none(), String.from("items"), items, true, true))
     var decls = List.new<TopDecl>()
-    decls.push(new_top_decl(no_span(), String.from("Holder"), TopDeclKind.Struct(fields, true)))
+    decls.push(TopDecl.new(Span.none(), String.from("Holder"), TopDeclKind.Struct(fields, true)))
     assert_eq(free_names_of(decls).contains("Holder"), true, "a list of owned strings owns them")
 }

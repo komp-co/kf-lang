@@ -1,0 +1,10 @@
+import core.assert.assert_eq
+
+import kf_core.intern.CrateId
+import testing.test
+
+@test
+fun crate_symbol_prefix_returns_owned_str(): void {
+    val prefix: String = CrateId.new("kf-core").symbol_prefix()
+    assert_eq(prefix.as_str(), "kf_core__", "crate prefixes are owned String values")
+}

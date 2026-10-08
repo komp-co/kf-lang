@@ -10,10 +10,10 @@ import kf_typecheck.typecheck_module
 import kf_core.diagnostic.*
 import kf_driver.fresh_source_map
 import kf_driver.collect_module_diags
-import kf_driver.editor.innermost_expr_at
-import kf_driver.editor.written_type
-import kf_driver.editor.path_for_file_id
-import kf_driver.editor.render_inlays_json
+import kf_query.editor.innermost_expr_at
+import kf_query.editor.written_type
+import kf_query.editor.path_for_file_id
+import kf_query.editor.render_inlays_json
 import kf_integration.harness.assemble_project
 import std.fs.scratch_path
 import testing.test
@@ -86,7 +86,7 @@ fun an_inlay_hint_names_the_type_of_an_unannotated_binding(): void {
     prepare_typed_fixture()
     val crate = typed_crate_for(typed_fixture_path())
     val json = render_inlays_json("main.kf", &crate)
-    assert_eq(json.as_str().contains("\"label\":\": int32\""), true, "`val total = add(1, 2)` is an int32")
+    assert_eq(json.contains("\"label\":\": int32\""), true, "`val total = add(1, 2)` is an int32")
 }
 
 @test
@@ -95,7 +95,7 @@ fun an_inlay_hint_sits_at_the_end_of_the_binder_name(): void {
     val crate = typed_crate_for(typed_fixture_path())
     val json = render_inlays_json("main.kf", &crate)
     // `val` at 80, so `total` ends at 89.
-    assert_eq(json.as_str().contains("\"byte_offset\":89"), true, "the hint lands where the name ends")
+    assert_eq(json.contains("\"byte_offset\":89"), true, "the hint lands where the name ends")
 }
 
 @test
@@ -131,11 +131,11 @@ fun a_desugared_loop_contributes_no_inlay_hints(): void {
     val crate = typed_crate_for(loop_fixture_path())
     val json = render_inlays_json("main.kf", &crate)
     // `var sum = 0` is the only written binding; its name ends at 32.
-    assert_eq(json.as_str().contains("\"byte_offset\":32"), true, "the written binding is hinted")
+    assert_eq(json.contains("\"byte_offset\":32"), true, "the written binding is hinted")
     // The loop variable `i` ends at 48.
-    assert_eq(json.as_str().contains("\"byte_offset\":48"), false, "the loop variable is not a binding site")
-    assert_eq(json.as_str().contains("RangeIter"), false, "no synthesized iterator type leaks out")
-    assert_eq(json.as_str().contains("Option__"), false, "no synthesized option type leaks out")
+    assert_eq(json.contains("\"byte_offset\":48"), false, "the loop variable is not a binding site")
+    assert_eq(json.contains("RangeIter"), false, "no synthesized iterator type leaks out")
+    assert_eq(json.contains("Option__"), false, "no synthesized option type leaks out")
 }
 
 @test
@@ -144,7 +144,7 @@ fun a_binder_span_survives_the_clone_every_body_goes_through(): void {
     // Merging deep-clones every decl; the binder must survive.
     val crate = typed_crate_for(typed_fixture_path())
     val json = render_inlays_json("main.kf", &crate)
-    assert_eq(json.as_str().contains("\"byte_offset\":89"), true, "the binder survives merge_module_list")
+    assert_eq(json.contains("\"byte_offset\":89"), true, "the binder survives merge_module_list")
 }
 
 // A misspelled method's fix covers the method name.
@@ -170,7 +170,7 @@ fun prepare_fix_fixture(): void {
     src.append("    val p = Point { x: 1 }\n")
     src.append("    return p.sunm()\n")
     src.append("}\n")
-    write_file(fix_fixture_path(), src.as_str())
+    write_file(fix_fixture_path(), src)
 }
 
 /// `typed_crate_for` drops diagnostics, so the check is re-run.
@@ -187,7 +187,7 @@ fun a_near_miss_method_is_named_in_the_message(): void {
     val diags = fix_fixture_diags()
     var said = false
     while diag in &diags {
-        if diag.primary.message.as_str().contains("did you mean `sum`?") { said = true }
+        if diag.primary.message.contains("did you mean `sum`?") { said = true }
     }
     assert_eq(said, true, "`sunm` is one edit from `sum`, and the message says so")
 }
@@ -197,7 +197,7 @@ fun a_near_miss_method_carries_a_fix_over_the_name_only(): void {
     val diags = fix_fixture_diags()
     var checked = false
     while d in &diags {
-        if fix_has_repair(&d.fix) {
+        if d.fix.has_repair() {
             checked = true
             assert_eq(d.fix.replacement.as_str(), "sum", "the repair writes the real method name")
             // `sunm` is 4 bytes; the call's own span opens at the receiver.
@@ -232,7 +232,7 @@ fun prepare_generic_fix_fixture(): void {
     src.append("    val c = Cell<int32> { item: 1 }\n")
     src.append("    return c.unwrp()\n")
     src.append("}\n")
-    write_file(generic_fix_fixture_path(), src.as_str())
+    write_file(generic_fix_fixture_path(), src)
 }
 
 fun generic_fix_fixture_diags(): List<Diagnostic> {
@@ -248,7 +248,7 @@ fun a_near_miss_on_a_generic_instance_is_named(): void {
     val diags = generic_fix_fixture_diags()
     var said = false
     while diag in &diags {
-        if diag.primary.message.as_str().contains("did you mean `unwrap`?") { said = true }
+        if diag.primary.message.contains("did you mean `unwrap`?") { said = true }
     }
     assert_eq(said, true, "the receiver reports as `Cell__int32`; the method lives on `Cell`")
 }
@@ -258,7 +258,7 @@ fun a_near_miss_on_a_generic_instance_carries_a_fix(): void {
     val diags = generic_fix_fixture_diags()
     var checked = false
     while d in &diags {
-        if fix_has_repair(&d.fix) {
+        if d.fix.has_repair() {
             checked = true
             assert_eq(d.fix.replacement.as_str(), "unwrap", "the repair writes the base impl's method name")
             assert_eq(d.fix.span.end - d.fix.span.start, 5 as uint32, "over `unwrp`, not the whole call")
@@ -286,15 +286,15 @@ fun a_far_off_name_on_a_generic_instance_stays_silent(): void {
     src.append("    val c = Cell<int32> { item: 1 }\n")
     src.append("    return c.frobnicate()\n")
     src.append("}\n")
-    write_file(scratch_path("kf_diag_fix_far/src/main.kf"), src.as_str())
+    write_file(scratch_path("kf_diag_fix_far/src/main.kf"), src)
     var crate = typed_crate_for(scratch_path("kf_diag_fix_far/src/main.kf"))
     var table = new_decl_table()
     resolve_module(&var crate.module, &var table)
     val diags = typecheck_module(&var crate.module, &var table)
     var suggested = false
     while diag in &diags {
-        if diag.primary.message.as_str().contains("did you mean") { suggested = true }
-        if fix_has_repair(diag.fix) { suggested = true }
+        if diag.primary.message.contains("did you mean") { suggested = true }
+        if diag.fix.has_repair() { suggested = true }
     }
     assert_eq(suggested, false, "`frobnicate` is nothing like `unwrap`, so nothing is offered")
 }
@@ -310,8 +310,8 @@ fun prepare_unused_fixture(): void {
     write_file(scratch_path("kf_unused_import/src/spare/spare.kf"), "pub struct Unwanted {\n    pub val b: int32\n}\n")
     var src = """import unused_import.helper.*
 import unused_import.spare.*
-import kf_driver.editor.path_for_file_id
-import kf_driver.editor.render_inlays_json
+import kf_query.editor.path_for_file_id
+import kf_query.editor.render_inlays_json
 
 pub fun probe(): int32 {
     val p = Pair { a: 1 }
@@ -325,7 +325,7 @@ pub fun probe(): int32 {
 fun unused_fixture_diags(): List<Diagnostic> {
     prepare_unused_fixture()
     val smap = fresh_source_map()
-    var pdiags = new_diagnostics()
+    var pdiags = Diagnostics.new()
     var merged = assemble_project(scratch_path("kf_unused_import"), smap, &var pdiags)
     return merged.collect_module_diags(smap)
 }
@@ -333,7 +333,7 @@ fun unused_fixture_diags(): List<Diagnostic> {
 fun says_unused(diags: &List<Diagnostic>, path: str): bool {
     while diag in &diags {
         val m = diag.primary.message
-        if m.as_str().contains("unused import") && m.as_str().contains(path) { return true }
+        if m.contains("unused import") && m.contains(path) { return true }
     }
     return false
 }
@@ -359,10 +359,10 @@ fun an_unused_import_is_a_warning_carrying_a_cautious_fix(): void {
     val diags = unused_fixture_diags()
     var checked = false
     while d in &diags {
-        if d.primary.message.as_str().contains("unused import") {
+        if d.primary.message.contains("unused import") {
             checked = true
             assert_eq(d.diag_is_warning(), true, "reported as a warning, not an error")
-            assert_eq(fix_is_machine_applicable(&d.fix), false, "so `komp check --fix` leaves it alone")
+            assert_eq(d.fix.is_machine_applicable(), false, "so `komp check --fix` leaves it alone")
             assert_eq(d.fix.replacement.as_str(), "", "the repair deletes rather than rewrites")
         }
     }
@@ -470,7 +470,7 @@ fun prepare_subst_fixture(): void {
     src.append("    val made = wrap<Tag>(Tag { n: 3 })\n")
     src.append("    return got.item.n + made.item.n\n")
     src.append("}\n")
-    write_file(subst_fixture_path(), src.as_str())
+    write_file(subst_fixture_path(), src)
 }
 
 @test
@@ -478,7 +478,7 @@ fun a_methods_inferred_instance_renders_the_way_it_was_written(): void {
     prepare_subst_fixture()
     val crate = typed_crate_for(subst_fixture_path())
     val json = render_inlays_json("main.kf", &crate)
-    assert_eq(json.as_str().contains("\"label\":\": Cell<Tag>\""), true, "`h.fetch()` returns a Cell<Tag>")
+    assert_eq(json.contains("\"label\":\": Cell<Tag>\""), true, "`h.fetch()` returns a Cell<Tag>")
 }
 
 @test
@@ -487,7 +487,7 @@ fun a_generic_functions_inferred_instance_renders_the_way_it_was_written(): void
     val crate = typed_crate_for(subst_fixture_path())
     val json = render_inlays_json("main.kf", &crate)
     // Absent, not merely outnumbered.
-    assert_eq(json.as_str().contains("Cell__Tag"), false, "no link name reaches the reader")
+    assert_eq(json.contains("Cell__Tag"), false, "no link name reaches the reader")
 }
 
 fun arity_fixture_path(): str {
@@ -513,7 +513,7 @@ fun prepare_arity_fixture(): void {
     src.append("    val p = Pair.left<int32>(1)\n")
     src.append("    return 0\n")
     src.append("}\n")
-    write_file(arity_fixture_path(), src.as_str())
+    write_file(arity_fixture_path(), src)
 }
 
 fun arity_fixture_diags(): List<Diagnostic> {
@@ -529,7 +529,7 @@ fun too_few_type_arguments_on_a_static_call_is_reported(): void {
     val diags = arity_fixture_diags()
     var said = false
     while diag in &diags {
-        if diag.primary.message.as_str().contains("takes 2 type arguments") { said = true }
+        if diag.primary.message.contains("takes 2 type arguments") { said = true }
     }
     assert_eq(said, true, "the arity mismatch is reported, not left for mono to crash on")
 }
@@ -540,10 +540,10 @@ fun a_type_argument_arity_message_names_both_counts(): void {
     var checked = false
     while diag in &diags {
         val msg = diag.primary.message.clone()
-        if msg.as_str().contains("takes 2 type arguments") {
+        if msg.contains("takes 2 type arguments") {
             checked = true
-            assert_eq(msg.as_str().contains("1 was supplied"), true, "the message says how many arrived")
-            assert_eq(msg.as_str().contains("Pair"), true, "and which type it is about")
+            assert_eq(msg.contains("1 was supplied"), true, "the message says how many arrived")
+            assert_eq(msg.contains("Pair"), true, "and which type it is about")
         }
     }
     assert_eq(checked, true, "the arity diagnostic is present to inspect")
@@ -573,7 +573,7 @@ fun prepare_field_fixture(): void {
     src.append("    val q = b.nope\n")
     src.append("    return 0\n")
     src.append("}\n")
-    write_file(field_fixture_path(), src.as_str())
+    write_file(field_fixture_path(), src)
 }
 
 fun field_fixture_diags(): List<Diagnostic> {
@@ -589,7 +589,7 @@ fun a_field_that_does_not_exist_is_reported(): void {
     val diags = field_fixture_diags()
     var said = false
     while diag in &diags {
-        if diag.primary.message.as_str().contains("no field `nope` on `Bag`") { said = true }
+        if diag.primary.message.contains("no field `nope` on `Bag`") { said = true }
     }
     assert_eq(said, true, "an absent field is named, not left for gcc")
 }
@@ -601,10 +601,10 @@ fun a_method_read_as_a_field_says_so(): void {
     var checked = false
     while diag in &diags {
         val msg = diag.primary.message.clone()
-        if msg.as_str().contains("no field `total`") {
+        if msg.contains("no field `total`") {
             checked = true
-            assert_eq(msg.as_str().contains("is a method"), true, "it says the name IS a method")
-            assert_eq(msg.as_str().contains("total()"), true, "and shows the call form")
+            assert_eq(msg.contains("is a method"), true, "it says the name IS a method")
+            assert_eq(msg.contains("total()"), true, "and shows the call form")
         }
     }
     assert_eq(checked, true, "the method-as-field diagnostic is present to inspect")
@@ -631,7 +631,7 @@ fun prepare_static_arity_fixture(): void {
     src.append("pub fun probe(): int32 {\n")
     src.append("    return Thing.takes_one()\n")
     src.append("}\n")
-    write_file(static_arity_fixture_path(), src.as_str())
+    write_file(static_arity_fixture_path(), src)
 }
 
 fun static_arity_fixture_diags(): List<Diagnostic> {
@@ -647,7 +647,7 @@ fun a_static_call_with_too_few_arguments_is_reported(): void {
     val diags = static_arity_fixture_diags()
     var said = false
     while diag in &diags {
-        if diag.primary.message.as_str().contains("takes_one") { said = true }
+        if diag.primary.message.contains("takes_one") { said = true }
     }
     assert_eq(said, true, "the static path reports arity like the other two, not silently poisons")
 }
@@ -658,10 +658,10 @@ fun a_static_arity_message_names_both_counts(): void {
     var checked = false
     while diag in &diags {
         val msg = diag.primary.message.clone()
-        if msg.as_str().contains("takes_one") {
+        if msg.contains("takes_one") {
             checked = true
-            assert_eq(msg.as_str().contains("expected 1"), true, "the declared count")
-            assert_eq(msg.as_str().contains("found 0"), true, "and the one written")
+            assert_eq(msg.contains("expected 1"), true, "the declared count")
+            assert_eq(msg.contains("found 0"), true, "and the one written")
         }
     }
     assert_eq(checked, true, "the arity diagnostic is present to inspect")

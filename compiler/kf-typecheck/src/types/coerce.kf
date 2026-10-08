@@ -1,19 +1,17 @@
-import kf_core.ast.Sym
-import kf_core.ast.intern
-import kf_core.ast.rebuilt
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
 import kf_typecheck.traits.key_segments
 import kf_typecheck.check.mangle_base_name
 import kf_typecheck.check.ty_from_frag_in_scope
 import kf_typecheck.check.lent_slice_name
-import kf_core.span.no_span
-import kf_core.ast.dyn_meta.dyn_trait_type
+import kf_core.span.Span
 import kf_core.ast.types.type_node
+import kf_core.intern.Sym
+import kf_core.intern.intern
 
 /// Binds `gname` from one param/argument pair through reference layers:
 /// a `&A` param routinely faces a bare `A` argument, and must bind so the
-/// argument gets `coerce_addr_of`. Poison when the pair says nothing.
+/// argument gets `Coercion.AddrOf`. Poison when the pair says nothing.
 pub fun Type.bind_generic_from_param(arg: &Type, gname: str, ctx: &var TypeCtx): Type {
     val pk: TypeKind = self.kind
     val ptag: uint64 = pk.kind_tag()
@@ -84,8 +82,8 @@ fun bind_generic_from_instance(pname: String, aname: String, gname: str, ctx: &v
     if !mangle_base_name(pname.clone()).as_str().equals(mangle_base_name(aname.clone()).as_str()) {
         return Type.new_poison()
     }
-    val psegs = key_segments(pname.as_str())
-    val asegs = key_segments(aname.as_str())
+    val psegs = key_segments(pname)
+    val asegs = key_segments(aname)
     if psegs.size() != asegs.size() { return Type.new_poison() }
     var i = 1
     while i < psegs.size() {
@@ -93,7 +91,7 @@ fun bind_generic_from_instance(pname: String, aname: String, gname: str, ctx: &v
             // Decoded in scope: the argument's names belong to this body, so
             // the caller's own `T` stays Generic and its bound is checked.
             // `psegs` are the callee's names and are only matched as text.
-            return ty_from_frag_in_scope(*asegs.at(i), no_span(), ctx)
+            return ty_from_frag_in_scope(*asegs.at(i), Span.none(), ctx)
         }
         i = i + 1
     }
@@ -106,18 +104,18 @@ pub fun Type.subst_generic(name: String, with_ty: Type): Type {
     if name.as_str().equals("") { return (*self) }
     when (self.kind) {
         Generic(tn) => {
-            if tn.as_str().equals(name.as_str()) { return with_ty }
+            if tn.as_str().equals(name) { return with_ty }
             return (*self)
         }
         Struct(n) => {
             val repl = mangle_type(with_ty)
-            val nn = subst_name_segments(n.as_str(), name.as_str(), repl.as_str())
-            return Type { kind: TypeKind.Struct(intern(nn.as_str())), provenance: self.provenance }
+            val nn = subst_name_segments(n.as_str(), name, repl)
+            return Type { kind: TypeKind.Struct(intern(nn)), provenance: self.provenance }
         }
         EnumTy(n) => {
             val repl = mangle_type(with_ty)
-            val nn = subst_name_segments(n.as_str(), name.as_str(), repl.as_str())
-            return Type { kind: TypeKind.EnumTy(intern(nn.as_str())), provenance: self.provenance }
+            val nn = subst_name_segments(n.as_str(), name, repl)
+            return Type { kind: TypeKind.EnumTy(intern(nn)), provenance: self.provenance }
         }
         DynTraitTy(object) => {
             var args = List.new<Type>()
@@ -128,7 +126,7 @@ pub fun Type.subst_generic(name: String, with_ty: Type): Type {
                 args.push(argument.subst_generic(name.clone(), with_ty.clone()))
                 i = i + 1
             }
-            val rebuilt = dyn_trait_type(unsafe { object.principal }, args, no_span())
+            val rebuilt = Type.new_dyn_trait(unsafe { object.principal }, args, Span.none())
             return Type { kind: rebuilt.kind, provenance: self.provenance }
         }
         PtrTo(p) => {
@@ -178,7 +176,7 @@ fun subst_name_segments(mangled: str, param: str, repl: str): String {
         if d0 == 95 && d1 == 95 {
             val seg = mangled.substring(seg_start, i)
             if emitted_any { out.append("__") }
-            if seg.as_str().equals(param) { out.append(repl) } else { out.append(seg.as_str()) }
+            if seg.as_str().equals(param) { out.append(repl) } else { out.append(seg) }
             emitted_any = true
             i = i + 2
             seg_start = i
@@ -188,7 +186,7 @@ fun subst_name_segments(mangled: str, param: str, repl: str): String {
     }
     val tail = mangled.substring(seg_start, n)
     if emitted_any { out.append("__") }
-    if tail.as_str().equals(param) { out.append(repl) } else { out.append(tail.as_str()) }
+    if tail.as_str().equals(param) { out.append(repl) } else { out.append(tail) }
     return out
 }
 

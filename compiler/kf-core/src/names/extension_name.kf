@@ -1,0 +1,26 @@
+import alloc.replace
+import kf_core.ast.types.*
+
+impl CName {
+    /// `<name>_ext_<receiver>`, single underscores only (`area_ext_List_Point`):
+    /// `__` is the generic-instance separator.
+    pub static fun extension_link(name: str, receiver: &TypeRef): String {
+        return "${name}_ext_${receiver.receiver_spelling()}"
+    }
+}
+
+impl TypeRef {
+    fun receiver_spelling(): String {
+        when (self.kind) {
+            Named(name, args) => {
+                var out = name.as_string().replace("__", "_")
+                while arg in &args {
+                    out.append("_")
+                    out.append(arg.receiver_spelling().as_str())
+                }
+                return out
+            }
+            _ => return "x"
+        }
+    }
+}

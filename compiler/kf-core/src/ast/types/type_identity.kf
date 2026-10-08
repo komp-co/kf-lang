@@ -1,4 +1,6 @@
-import kf_core.ast.*
+import core.text.last_index_of
+
+import kf_core.intern.*
 
 /// A user-defined type's identity: name, crate and module. The name alone is
 /// kept for diagnostics and unity C emission.
@@ -15,13 +17,13 @@ impl TypeIdentity {
     }
 
     pub static fun new_poison(): Self {
-        return Self { crate: crate_id_poison(), module: intern(""), name: intern("") }
+        return Self { crate: CrateId.new_poison(), module: intern(""), name: intern("") }
     }
 }
 
 impl Equal for TypeIdentity {
     fun equals(other: &TypeIdentity): bool {
-        if !self.crate.equals(other.crate) { return false }
+        if self.crate != other.crate { return false }
         if self.module.id != other.module.id { return false }
         return self.name.id == other.name.id
     }
@@ -34,11 +36,7 @@ pub fun canonical_type_identity(identity: TypeIdentity): Sym {
     text.append(identity.module.as_str())
     text.append("::")
     text.append(identity.name.as_str())
-    return intern(text.as_str())
-}
-
-pub fun named_struct_ty(identity: TypeIdentity, span: Span): Type {
-    return Type { kind: TypeKind.Struct(canonical_type_identity(identity)), provenance: Provenance.Declared(span) }
+    return intern(text)
 }
 
 pub fun type_identity_matches(actual: Sym, expected: TypeIdentity): bool {
@@ -51,31 +49,20 @@ pub fun type_identity_display(identity: Sym): String {
 
 /// The same over a `str`, for codegen, which holds names as String.
 pub fun identity_display_of(text: str): String {
-    val n = text.byte_len()
-    var start: uint64 = 0
-    var i: uint64 = 0
-    while i + 1 < n {
-        if text.byte_at(i) == 58 {
-            if text.byte_at(i + 1) == 58 { start = i + 2 }
-        }
-        i = i + 1
-    }
-    val display = text.substring(start, n)
-    return String.from(display.as_str())
+    val qualifier = text.last_index_of("::") ?: return String.from(text)
+    return text.substring(qualifier + 2, text.byte_len())
 }
 
 /// The crate segment of a `crate::module::Name` identity; poison for a bare
 /// name.
 pub fun canonical_identity_crate(identity: Sym): CrateId {
     val text = identity.as_str()
-    val n = text.byte_len()
-    var i: uint64 = 0
-    while i + 1 < n {
-        if text.byte_at(i) == 58 && text.byte_at(i + 1) == 58 {
-            val crate_name = text.substring(0, i)
-            return new_crate_id(crate_name.as_str())
-        }
-        i = i + 1
+    val crate_end = text.index_of("::") ?: return CrateId.new_poison()
+    return CrateId.new(text.substring(0, crate_end).as_str())
+}
+
+impl Type {
+    pub static fun new_named_struct(identity: TypeIdentity, span: Span): Type {
+        return Type { kind: TypeKind.Struct(canonical_type_identity(identity)), provenance: Provenance.Declared(span) }
     }
-    return crate_id_poison()
 }

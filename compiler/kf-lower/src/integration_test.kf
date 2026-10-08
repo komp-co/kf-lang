@@ -10,6 +10,9 @@ import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
+import kf_core.intern.CrateId
+import kf_core.intern.intern
+import kf_core.lang.*
 import kf_resolve.new_decl_table
 import kf_resolve.resolve_module
 import kf_typecheck.typecheck_module
@@ -18,16 +21,16 @@ import testing.test
 
 fun mk_void_ret(): Ptr<TypeRef> {
     val rp: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *rp = TypeRef.new(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
+    unsafe { *rp = TypeRef.new(Span.none(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
     return rp
 }
 
 @test fun integration_clean_module_zero_diags(): void {
     // params, ret, body, is_pub, is_unsafe, is_mutating, is_static
     val fn_kind = TopDeclKind.Function(List.new<Param>(), mk_void_ret(), List.new<Stmt>(), true, false, false, false)
-    val fn_td = new_top_decl(no_span(), String.from("main"), fn_kind)
+    val fn_td = TopDecl.new(Span.none(), String.from("main"), fn_kind)
     var m = Module {
-        crate: crate_id_poison(),
+        crate: CrateId.new_poison(),
         path: List.new<String>(),
         decls: List.new<TopDecl>(),
         imports: List.new<Import>()
@@ -38,7 +41,7 @@ fun mk_void_ret(): Ptr<TypeRef> {
     val _tc = typecheck_module(&var m, &var table)
     mono_module(&var m)
     val sm: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
-    unsafe { *sm = new_source_map() }
-    val diags = m.lower_module(sm, (&m).lang_type_name(lang_list_key()))
+    unsafe { *sm = SourceMap.new() }
+    val diags = m.lower_module(sm, (&m).lang_type_name(LangItem.List))
     assert_eq(diags.size() == 0, true, "clean module produces zero lower diagnostics")
 }

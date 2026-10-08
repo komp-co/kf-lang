@@ -1,12 +1,12 @@
 import alloc.list.*
 
 import kf_core.ast.Module
-import kf_core.ast.Sym
-import kf_core.ast.is_lang_name
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.Field
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.Variant
+import kf_core.intern.Sym
+import kf_core.lang.is_lang_name
 
 // Types whose values must be uniquely owned: a struct with a direct `Box`
 // field, a type with a user `Drop` impl, and, transitively, anything
@@ -32,7 +32,7 @@ pub mutating fun Module.compute_move_only_names(list_name: Sym): TypeNameSet {
         changed = false
         while td in &self.decls {
             val nm = td.name.as_string()
-            if !out.contains(nm.as_str()) {
+            if !out.contains(nm) {
                 var hit = false
                 when (td.kind) {
                     Struct(fields, _p) => { hit = fields_infect(fields, &out, list_name) }

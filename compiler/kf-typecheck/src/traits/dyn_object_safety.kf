@@ -1,18 +1,18 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.intern
 import kf_core.ast.types.Type
 import kf_core.ast.types.canonical_identity_crate
 import kf_core.ast.declaration.TopDecl
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
 import kf_typecheck.types.display_type
 import kf_typecheck.types.subst_all_generics
 import kf_core.ast.dyn_meta.*
+import kf_core.intern.intern
 
 pub fun Type.validate_dyn_trait(span: Span, ctx: &var TypeCtx): DynTraitLayout? {
-    val principal = dyn_trait_name(self)
+    val principal = self.dyn_trait_name()
     when (unsafe { (*ctx.sigs).find_trait_identity(principal) }) {
         None => return Option.None
         Some(info) => {
@@ -21,35 +21,35 @@ pub fun Type.validate_dyn_trait(span: Span, ctx: &var TypeCtx): DynTraitLayout? 
             if info.supertraits.size() > 0 {
                 val required = *info.supertraits.at(0)
                 val message = "trait `${info.name}` cannot be used as dyn because it requires `${required.name}` — supertrait vtables are not implemented yet"
-                ctx.emit(new_diagnostic(Severity.Error, new_label(required.span, message)))
+                ctx.emit(Diagnostic.new(Severity.Error, Label.new(required.span, message)))
                 return Option.None
             }
             if info.assoc_types.size() > 0 {
                 val associated = *info.assoc_types.at(0)
                 val member = associated.name
                 val message = "trait `${info.name}` cannot be used as dyn because it declares associated type `${member}`"
-                ctx.emit(new_diagnostic(Severity.Error, new_label(associated.span, message)))
+                ctx.emit(Diagnostic.new(Severity.Error, Label.new(associated.span, message)))
                 return Option.None
             }
             while method in &info.methods {
                 if method.has_method_generics {
                     val message = "trait method `${method.name}` cannot be used through dyn because it is generic"
-                    ctx.emit(new_diagnostic(Severity.Error, new_label(method.span, message)))
+                    ctx.emit(Diagnostic.new(Severity.Error, Label.new(method.span, message)))
                     return Option.None
                 }
                 if method.is_static {
                     val message = "static trait method `${method.name}` has no dynamic receiver"
-                    ctx.emit(new_diagnostic(Severity.Error, new_label(method.span, message)))
+                    ctx.emit(Diagnostic.new(Severity.Error, Label.new(method.span, message)))
                     return Option.None
                 }
                 if method.method_exposes_self() {
                     val message = "trait method `${method.name}` exposes `Self` outside its receiver"
-                    ctx.emit(new_diagnostic(Severity.Error, new_label(method.span, message)))
+                    ctx.emit(Diagnostic.new(Severity.Error, Label.new(method.span, message)))
                     return Option.None
                 }
             }
             val layout = self.build_dyn_layout(info, ctx)
-            decl_insert_dyn_layout(ctx.metadata_owner, clone_dyn_trait_layout(&layout))
+            decl_insert_dyn_layout(ctx.metadata_owner, layout.clone())
             return Option.Some(layout)
         }
     }
@@ -65,7 +65,7 @@ fun TraitInfo.trait_info_is_object_safe(): bool {
 }
 
 pub fun Type.dyn_layout_for(ctx: &var TypeCtx): DynTraitLayout? {
-    val identity = dyn_trait_identity(self)
+    val identity = self.dyn_trait_identity()
     val owner = ctx.metadata_owner
     if unsafe { owner as uint64 } != 0 {
         var i = 0
@@ -75,7 +75,7 @@ pub fun Type.dyn_layout_for(ctx: &var TypeCtx): DynTraitLayout? {
             i = i + 1
         }
     }
-    return self.validate_dyn_trait(no_span(), ctx)
+    return self.validate_dyn_trait(Span.none(), ctx)
 }
 
 pub fun Type.validate_dyn_placement(span: Span, ctx: &var TypeCtx): void {
@@ -87,7 +87,7 @@ fun Type.validate_dyn_position(span: Span, directly_borrowed: bool, ctx: &var Ty
         DynTraitTy(_) => {
             if !directly_borrowed {
                 val message = "`${self.display_type(ctx)}` is unsized and must be used directly behind `&` or `&var`"
-                ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
+                ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
                 return
             }
             val _layout = self.validate_dyn_trait(span, ctx)
@@ -134,7 +134,7 @@ fun Type.build_dyn_layout(info: TraitInfo, ctx: &TypeCtx): DynTraitLayout {
             params.push(subst_all_generics(param, &info.type_params, &args))
         }
         methods.push(DynMethodSlot {
-            name: intern(method.name.as_str()),
+            name: intern(method.name),
             params: params,
             ret: subst_all_generics(method.ret, &info.type_params, &args),
             is_mutating: method.is_mutating,
@@ -144,8 +144,8 @@ fun Type.build_dyn_layout(info: TraitInfo, ctx: &TypeCtx): DynTraitLayout {
     var layout_owner = canonical_identity_crate(info.identity)
     if layout_owner.is_poison() { layout_owner = ctx.owner_crate }
     return DynTraitLayout {
-        identity: dyn_trait_identity(self),
-        principal: dyn_trait_name(self),
+        identity: self.dyn_trait_identity(),
+        principal: self.dyn_trait_name(),
         args: args,
         methods: methods,
         owner: layout_owner,
@@ -155,7 +155,7 @@ fun Type.build_dyn_layout(info: TraitInfo, ctx: &TypeCtx): DynTraitLayout {
 
 fun Type.dyn_args_as_list(): List<Type> {
     var result = List.new<Type>()
-    val args = dyn_trait_args(self)
+    val args = self.dyn_trait_args()
     if unsafe { args as uint64 } == 0 { return result }
     var i = 0
     while i < unsafe { args.size() } {
@@ -181,7 +181,7 @@ fun Type.type_contains_self(): bool {
         RefTo(_, inner) => return type_contains_self(unsafe { &*inner })
         Projection(owner, _) => return type_contains_self(unsafe { &*owner })
         DynTraitTy(_) => {
-            val args = dyn_trait_args(self)
+            val args = self.dyn_trait_args()
             var i = 0
             while i < unsafe { args.size() } {
                 val argument = unsafe { args.get(i) }

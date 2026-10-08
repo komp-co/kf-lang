@@ -1,0 +1,89 @@
+// What a name stands for inside a template, which is never checked as
+// written: a member binder is a `TemplateField`, `TemplateVariant` or
+// `TemplatePayload` (`libs/core/src/template.kf`), `site` a `TemplateSite`,
+// and `args` the annotation's argument struct. Read from the template's text,
+// so a half-typed template still answers: a binder is introduced by
+// `while NAME in LIST` or `|NAME|` in a call on a list.
+
+import kf_core.ast.Module
+import kf_core.ast.declaration.TopDecl
+
+/// The type `name` stands for at `offset` inside a template, or "" when it
+/// is no binder there.
+pub fun TypedCrate.template_binder_type(name: str, offset: uint32): String {
+    if name == "" { return String.from("") }
+    val template = self.module.template_around(self.file_id, offset) ?: return String.from("")
+    if name == "site" { return String.from("TemplateSite") }
+    if name == "args" { return template.name.as_string() }
+    val src = self.source.as_str()
+    if template.decl_end as uint64 > src.byte_len() { return String.from("") }
+    val text = src.substring(template.span.start as uint64, template.decl_end as uint64)
+    return binder_type_in(text, name, template.template_param_name().as_str())
+}
+
+/// The template written around `offset` in `file_id`.
+fun Module.template_around(file_id: uint32, offset: uint32): TopDecl? {
+    while td in &self.decls {
+        val is_template = when (td.kind) {
+            Template(_kind, _marked, _body) => true
+            _ => false
+        }
+        if !is_template || td.span.file_id != file_id { continue }
+        if td.span.start <= offset && offset <= td.decl_end { return Option.Some(td.clone()) }
+    }
+    return null
+}
+
+fun TopDecl.template_param_name(): String {
+    return when (self.kind) {
+        Template(_kind, marked, _body) => marked.as_string()
+        _ => String.from("")
+    }
+}
+
+/// The binder `name`'s type in a template's `text`: from the list a loop
+/// walks, or the call a lambda is passed to.
+fun binder_type_in(text: str, name: str, marked: str): String {
+    val looped = "while ${name} in "
+    var from: uint64 = 0
+    while true {
+        val at = text.index_of_from(looped, from) ?: break
+        val start = at + looped.byte_len()
+        val end = text.index_of_from("{", start) ?: text.byte_len()
+        val found = list_type(text.substring(start, end).as_str())
+        if found.byte_len() > 0 { return String.from(found) }
+        from = at + 1
+    }
+    val lambda = "|${name}|"
+    from = 0
+    while true {
+        val at = text.index_of_from(lambda, from) ?: break
+        val found = lambda_type(text.substring(line_start(text, at), at).as_str(), marked)
+        if found.byte_len() > 0 { return found }
+        from = at + 1
+    }
+    return String.from("")
+}
+
+/// `T.fields`, `T.variants` or `variant.payloads`, and a filter of one.
+fun list_type(list: str): str {
+    if list.contains(".payloads") { return "TemplatePayload" }
+    if list.contains(".variants") { return "TemplateVariant" }
+    if list.contains(".fields") { return "TemplateField" }
+    return ""
+}
+
+/// What a lambda's parameter stands for, from the text before it on its
+/// line: the list a `map`, `filter`, `all` or `any` is called on, or
+/// `T.build`'s fields and a variant's `build` payloads.
+fun lambda_type(before: str, marked: str): String {
+    if before.ends_with("${marked}.build(".as_str()) { return String.from("TemplateField") }
+    if before.ends_with(".build(") { return String.from("TemplatePayload") }
+    return String.from(list_type(before))
+}
+
+fun line_start(text: str, at: uint64): uint64 {
+    var i = at
+    while i > 0 && text.byte_at(i - 1) != 10 { i = i - 1 }
+    return i
+}

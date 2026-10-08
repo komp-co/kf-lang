@@ -1,12 +1,12 @@
 import alloc.list.*
 
-import kf_core.ast.Intrinsic
-import kf_core.ast.intern
-import kf_core.ast.view
+import kf_core.ast.expression.view
+import kf_core.ast.types.view
 import kf_core.ast.expression.*
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import kf_core.ast.statement.SwitchArm
+import kf_core.intern.intern
 
 // `make().as_str()`: a fresh temporary that is only borrowed is owned by
 // nobody. A method receiver is hoisted to a local so it is dropped; receivers
@@ -81,7 +81,7 @@ fun hoist_borrowed_temps(ep: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>): 
 // Hoists a fresh move-only temporary to a dropped local.
 //
 // CONSTRAINT: the node's coercion is carried over. A hoisted argument is
-// passed by borrow and still needs `coerce_addr_of`.
+// passed by borrow and still needs `Coercion.AddrOf`.
 fun maybe_hoist_owned_temp(p: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>): void {
     val e = unsafe { *p }
     if !e.ty.is_move_only(ctx) { return }
@@ -106,9 +106,9 @@ fun maybe_hoist_owned_temp(p: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>):
     val tmp_name = "__tmp_${u64_to_str(tmp_id)}"
     val init: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *init = e }
-    unsafe { init.coerce = coerce_none() }
-    out.push(Stmt.new(e.span, StmtKind.LetVal(intern(tmp_name.as_str()), null, init)))
-    var v = Expr.new(e.span, ExprKind.Variable(intern(tmp_name.as_str())))
+    unsafe { init.coerce = Coercion.Identity }
+    out.push(Stmt.new(e.span, StmtKind.LetVal(intern(tmp_name), null, init)))
+    var v = Expr.new(e.span, ExprKind.Variable(intern(tmp_name)))
     v.ty = e.ty
     v.coerce = e.coerce
     unsafe { *p = v }
@@ -122,7 +122,7 @@ fun maybe_hoist_receiver(recv_ptr: Ptr<Expr>, ctx: &var RcCtx, out: &var List<St
 // it is hoisted. Only by borrow: a by-value argument is dropped by the callee.
 fun maybe_hoist_borrowed_arg(arg_ptr: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>): void {
     val coerce = unsafe { arg_ptr.coerce }
-    if coerce != coerce_addr_of() && coerce != coerce_to_cstr() { return }
+    if coerce != Coercion.AddrOf && coerce != Coercion.ToCStr { return }
     maybe_hoist_owned_temp(arg_ptr, ctx, out)
 }
 
@@ -147,7 +147,7 @@ fun hoist_operator_operands(ep: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>
 /// `val v = make().as_str()` keeps its temporary, and leaks it.
 fun hoist_bounded_temps(ep: Ptr<Expr>, ctx: &var RcCtx, out: &var List<Stmt>): void {
     val e = unsafe { &*ep }
-    if e.coerce != coerce_addr_of() && e.ty.holds_no_borrow(ctx) {
+    if e.coerce != Coercion.AddrOf && e.ty.holds_no_borrow(ctx) {
         hoist_borrowed_temps(ep, ctx, out)
         return
     }
@@ -285,7 +285,7 @@ pub mutating fun Stmt.rc_insert_stmt(ctx: &var RcCtx): void {
                     ctx.block_counter = tmp_id + 1
                     val tmp_name = "__discard_${u64_to_str(tmp_id)}"
                     ctx.add_heap_local(tmp_name.clone())
-                    self.kind = StmtKind.LetVal(intern(tmp_name.as_str()), null, take<Box<Expr>>(expr_ptr))
+                    self.kind = StmtKind.LetVal(intern(tmp_name), null, take<Box<Expr>>(expr_ptr))
                 }
                 _ => { }
             }
@@ -314,7 +314,7 @@ fun rc_insert_switch(subject: &Expr, arms: &var List<SwitchArm>, ctx: &var RcCtx
     val subj_enum = subject.when_subject_enum()
     // Declined owning payloads get generated names first, so the arm frame
     // drops them like any binder.
-    name_declined_payloads(arms, subj_enum.as_str(), ctx)
+    name_declined_payloads(arms, subj_enum, ctx)
     val consumes = subject.when_consumes_subject(arms, ctx)
     if consumes { ctx.rc_mark_moved(subj_name.clone()) }
     val owners = ctx.frame_stack.clone()
@@ -327,7 +327,7 @@ fun rc_insert_switch(subject: &Expr, arms: &var List<SwitchArm>, ctx: &var RcCtx
         val _i = ctx.push_frame(false)
         var owned = List.new<String>()
         if consumes {
-            owned = arm.arm_owned_names(subj_enum.as_str(), subj_name.as_str(), ctx)
+            owned = arm.arm_owned_names(subj_enum, subj_name, ctx)
             while item in &owned {
                 ctx.add_heap_local(item)
             }

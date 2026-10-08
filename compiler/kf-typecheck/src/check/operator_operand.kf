@@ -4,9 +4,9 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
 import kf_core.ast.types.Type
 import kf_core.ast.expression.*
+import kf_core.intern.*
 import kf_typecheck.types.TAG_PTR
 import kf_typecheck.types.TAG_REF
 import kf_typecheck.types.kind_tag
@@ -23,9 +23,9 @@ pub fun BinOp.check_binary_operands(lhs_ptr: Ptr<Expr>, rhs_ptr: Ptr<Expr>, span
     if ty.is_poison() { return ty }
     if !lhs.ty.operand_dispatches_to_its_trait() { return ty }
     lhs.ty.check_operator_impl_bounds(binop_method(*self), span, ctx)
-    if rhs.coerce != coerce_none() { return ty }
+    if rhs.coerce != Coercion.Identity { return ty }
     if !self.operator_trait_borrows_operand(ctx) { return ty }
-    unsafe { (*rhs_ptr).coerce = coerce_addr_of() }
+    unsafe { (*rhs_ptr).coerce = Coercion.AddrOf }
     return ty
 }
 
@@ -60,15 +60,15 @@ pub fun Type.borrow_intrinsic_method_operand(method: str, args: &var List<Expr>,
     val trait_name = intrinsic_method_trait(method, ctx)
     if trait_name.as_str().equals("") { return }
     val arg = args.at(0)
-    if arg.coerce != coerce_none() || arg.ty.is_poison() { return }
+    if arg.coerce != Coercion.Identity || arg.ty.is_poison() { return }
     if !arg.ty.type_eq(self) { return }
     if !trait_name.trait_method_borrows_operand(method, ctx) { return }
-    args.at_mut(0).coerce = coerce_addr_of()
+    args.at_mut(0).coerce = Coercion.AddrOf
 }
 
 fun intrinsic_method_trait(method: str, ctx: &var TypeCtx): Sym {
-    if method == "equals" { return ctx.lang_trait_name(lang_equal_key()) }
-    if method == "compare" { return ctx.lang_trait_name(lang_compare_key()) }
+    if method == "equals" { return ctx.lang_trait_name(LangItem.Equal) }
+    if method == "compare" { return ctx.lang_trait_name(LangItem.Compare) }
     return intern("")
 }
 
@@ -94,17 +94,17 @@ fun Sym.trait_method_borrows_operand(method: str, ctx: &var TypeCtx): bool {
 
 fun BinOp.operator_trait_name(ctx: &var TypeCtx): Sym {
     return when (self) {
-        Add => ctx.lang_trait_name(lang_add_key())
-        Sub => ctx.lang_trait_name(lang_sub_key())
-        Mul => ctx.lang_trait_name(lang_mul_key())
-        Div => ctx.lang_trait_name(lang_div_key())
+        Add => ctx.lang_trait_name(LangItem.Add)
+        Sub => ctx.lang_trait_name(LangItem.Sub)
+        Mul => ctx.lang_trait_name(LangItem.Mul)
+        Div => ctx.lang_trait_name(LangItem.Div)
         Mod => intern("Mod")
-        Eq => ctx.lang_trait_name(lang_equal_key())
-        NotEq => ctx.lang_trait_name(lang_equal_key())
-        Lt => ctx.lang_trait_name(lang_compare_key())
-        Gt => ctx.lang_trait_name(lang_compare_key())
-        LtEq => ctx.lang_trait_name(lang_compare_key())
-        GtEq => ctx.lang_trait_name(lang_compare_key())
+        Eq => ctx.lang_trait_name(LangItem.Equal)
+        NotEq => ctx.lang_trait_name(LangItem.Equal)
+        Lt => ctx.lang_trait_name(LangItem.Compare)
+        Gt => ctx.lang_trait_name(LangItem.Compare)
+        LtEq => ctx.lang_trait_name(LangItem.Compare)
+        GtEq => ctx.lang_trait_name(LangItem.Compare)
         Shl => intern("Shl")
         Shr => intern("Shr")
         BitAnd => intern("BitAnd")

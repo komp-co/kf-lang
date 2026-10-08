@@ -1,0 +1,54 @@
+import core.assert.assert_eq
+
+import kf_core.span.Span
+import kf_core.ast.declaration.TopDeclKind
+import testing.test
+import kf_core.ast.declaration.TopDecl
+
+@test
+fun new_declarations_default_to_source_linkage(): void {
+    val td = TopDecl.new(Span.none(), "f", TopDeclKind.Poison)
+    assert_eq(td.linkage.is_imported(), false, "parsed decls carry Source linkage")
+}
+
+@test
+fun imported_linkage_is_detected(): void {
+    assert_eq(Linkage.ImportedCompiled.is_imported(), true, "interface-loaded decls read as imported")
+}
+
+@test
+fun new_declarations_have_no_link_name(): void {
+    val td = TopDecl.new(Span.none(), "f", TopDeclKind.Poison)
+    assert_eq(td.link_name.as_str(), "", "link names come only from interfaces")
+}
+
+@test
+fun hidden_support_reads_as_imported(): void {
+    assert_eq(Linkage.HiddenSupport.is_imported(), true, "hidden support is bodyless like an import")
+}
+
+@test
+fun generic_template_is_not_imported(): void {
+    assert_eq(Linkage.GenericTemplate.is_imported(), false, "templates carry bodies and are re-checked")
+}
+
+@test
+fun generic_template_is_detected(): void {
+    assert_eq(Linkage.GenericTemplate.is_template(), true, "template linkage marks interface generics")
+}
+
+@test
+fun source_linkage_is_not_template(): void {
+    assert_eq(Linkage.Source.is_template(), false, "source decls are never interface templates")
+}
+
+@test
+fun hidden_support_is_detected(): void {
+    assert_eq(Linkage.HiddenSupport.is_hidden(), true, "hidden linkage marks support decls")
+}
+
+@test
+fun new_declarations_have_no_source_extent(): void {
+    val td = TopDecl.new(Span.none(), "f", TopDeclKind.Poison)
+    assert_eq(td.decl_end, 0 as uint32, "synthesized decls cannot be sliced back to source")
+}

@@ -1,0 +1,45 @@
+/// How a declaration's body relates to this build.
+pub enum Linkage {
+    Source
+    /// Loaded from a `.kfi`: signature only; the body is in the dependency's
+    /// archive under `link_name`.
+    ImportedCompiled
+    /// Compiled here and exported through this crate's interface.
+    ExportedCompiled
+    /// A generic template carried by an interface for the consumer to
+    /// instantiate.
+    GenericTemplate
+    /// A private declaration an exported template needs; invisible to consumer
+    /// source.
+    HiddenSupport
+}
+
+impl Linkage {
+    /// Bodyless, satisfied by a dependency archive: not type-checked, not
+    /// emitted.
+    pub fun is_imported(): bool {
+        return when (self) {
+            ImportedCompiled => true
+            HiddenSupport => true
+            _ => false
+        }
+    }
+
+    /// A template from an interface, or an instance materialized from one.
+    /// The consumer emits instances with internal linkage so several can
+    /// hold copies.
+    pub fun is_template(): bool {
+        return when (self) {
+            GenericTemplate => true
+            _ => false
+        }
+    }
+
+    /// Kept out of every export surface.
+    pub fun is_hidden(): bool {
+        return when (self) {
+            HiddenSupport => true
+            _ => false
+        }
+    }
+}

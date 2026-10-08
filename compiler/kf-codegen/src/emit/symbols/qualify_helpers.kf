@@ -1,11 +1,12 @@
 import alloc.list.*
 
-import kf_core.ast.*
 import kf_core.ast.types.*
 import kf_core.ast.expression.Expr
 
 import kf_core.ast.subst.subst_mangled_name
 import kf_core.ast.subst.monomorphized_type_name
+import kf_core.intern.*
+import kf_core.names.*
 
 /// `matched` false: not spelled `<owner>_<method>` at all, as opposed to an
 /// empty tail.
@@ -69,13 +70,13 @@ pub fun static_callee_owner_mangled(callee: str): String {
 /// `Cel_from__From__int32` is `Cel`, `Box__int32_new` is `Box`.
 pub fun static_callee_owner(callee: str): String {
     val prefix = static_callee_owner_mangled(callee)
-    val pn = prefix.as_str().byte_len()
+    val pn = prefix.byte_len()
     var k: uint64 = 0
     while k + 1 < pn {
-        val d0 = prefix.as_str().byte_at(k)
-        val d1 = prefix.as_str().byte_at(k + 1)
+        val d0 = prefix.byte_at(k)
+        val d1 = prefix.byte_at(k + 1)
         if d0 == 95 && d1 == 95 {
-            return prefix.as_str().substring(0, k)
+            return prefix.substring(0, k)
         }
         k = k + 1
     }
@@ -93,7 +94,7 @@ pub fun callee_targets_receiver(callee: str, receiver: str, method: str): bool {
     if callee_method_tail(callee, receiver, method).matched { return true }
     // A monomorphized owner (`Box__int32`) needs the normalizing compare.
     val owner = static_callee_owner(callee)
-    if owner.as_str().byte_len() == 0 { return true }
+    if owner.byte_len() == 0 { return true }
     return owner.as_str().equals(receiver)
 }
 
@@ -117,16 +118,16 @@ pub fun callee_method_tail(callee: str, owner: str, method: str): CalleeTail {
     var needle = String.from(owner)
     needle.append("_")
     needle.append(method)
-    if !callee.starts_with(needle.as_str()) { return no_callee_tail() }
+    if !callee.starts_with(needle) { return no_callee_tail() }
     val n = callee.byte_len()
-    val m = needle.as_str().byte_len()
+    val m = needle.byte_len()
     val rest = callee.substring(m, n)
-    val rest_len = rest.as_str().byte_len()
+    val rest_len = rest.byte_len()
     if rest_len == 0 { return CalleeTail { matched: true, tail: rest } }
     // The method segment ends the name or is followed by `__`.
     if rest_len < 2 { return no_callee_tail() }
-    if rest.as_str().byte_at(0) != 95 { return no_callee_tail() }
-    if rest.as_str().byte_at(1) != 95 { return no_callee_tail() }
+    if rest.byte_at(0) != 95 { return no_callee_tail() }
+    if rest.byte_at(1) != 95 { return no_callee_tail() }
     return CalleeTail { matched: true, tail: rest }
 }
 
@@ -153,7 +154,7 @@ fun method_segment_at(callee: str, method: str): uint64? {
     val n = callee.byte_len()
     var needle = String.from("_")
     needle.append(method)
-    val m = needle.as_str().byte_len()
+    val m = needle.byte_len()
     if m > n { return null }
     var found: uint64? = null
     var i = 0
@@ -196,7 +197,7 @@ pub fun mangle_suffix_after(owner: str, base: str): MangleSuffix {
     return MangleSuffix { matched: true, text: owner.substring(bn, on) }
 }
 
-fun rebuild_static_callee(ep: Ptr<Expr>, recv: Ptr<Expr>, method: Sym, recv_before: &String, names: &var List<String>, repls: &var List<TypeRef>): void {
+fun rebuild_static_callee(ep: Ptr<Expr>, recv: Ptr<Expr>, method: Sym, recv_before: &String, subst: &Substitution): void {
     val receiver = unsafe { *recv }
     when (receiver.kind) {
         Variable(name) => {
@@ -205,9 +206,9 @@ fun rebuild_static_callee(ep: Ptr<Expr>, recv: Ptr<Expr>, method: Sym, recv_befo
             // typecheck already split them from the method's own: folding the
             // whole written list in gave `B__int32_of__int32` for `B_of__int32`.
             val owner_mangled = static_callee_owner_before(unsafe { ep.mangled_callee.as_str() }, method.as_str())
-            val recv_suffix = mangle_suffix_after(owner_mangled.as_str(), recv_before.as_str())
+            val recv_suffix = mangle_suffix_after(owner_mangled, recv_before)
             if recv_suffix.matched {
-                concrete.append(subst_mangled_name(recv_suffix.text.as_str(), names, repls).as_str())
+                concrete.append(subst_mangled_name(recv_suffix.text, subst).as_str())
             } else {
                 // No callee to split: the written list, which is the receiver's
                 // whenever the method declares no parameters.
@@ -216,48 +217,48 @@ fun rebuild_static_callee(ep: Ptr<Expr>, recv: Ptr<Expr>, method: Sym, recv_befo
                     concrete = String.from(monomorphized_type_name(String.from(concrete.as_str()), &args).as_str())
                 }
             }
-            // The tail's type names take the prefix too.
+            // The tail's type subst.names take the prefix too.
             val raw_tail = static_callee_tail(unsafe { ep.mangled_callee.as_str() }, method.as_str())
-            val tail = subst_mangled_name(raw_tail.as_str(), names, repls)
+            val tail = subst_mangled_name(raw_tail, subst)
             var rebuilt = concrete + String.from("_") + method.as_string()
-            rebuilt.append(tail.as_str())
-            unsafe { ep.mangled_callee = intern(rebuilt.as_str()) }
+            rebuilt.append(tail)
+            unsafe { ep.mangled_callee = intern(rebuilt) }
         }
         _ => {}
     }
 }
 
-fun qualify_expr_args(args: &var List<Expr>, names: &var List<String>, repls: &var List<TypeRef>, rename_types: bool): void {
+fun qualify_expr_args(args: &var List<Expr>, subst: &Substitution, rename_types: bool): void {
     while i in 0..args.size() {
         val ap: Ptr<Expr> = unsafe { args.at_mut(i) as Ptr<Expr> }
-        qualify_expr_ptr(ap, names, repls, rename_types)
+        qualify_expr_ptr(ap, subst, rename_types)
     }
 }
 
-fun qualify_type_args(type_args: &var List<TypeRef>, names: &var List<String>, repls: &var List<TypeRef>): void {
+fun qualify_type_args(type_args: &var List<TypeRef>, subst: &Substitution): void {
     while i in 0..type_args.size() {
         val tp: Ptr<TypeRef> = unsafe { type_args.at_mut(i) as Ptr<TypeRef> }
-        qualify_tyref_ptr(tp, names, repls)
+        qualify_tyref_ptr(tp, subst)
     }
 }
 
 /// Respells type names inside a resolved Type. Kind-preserving: an EnumTy
 /// stays one, which codegen's enum paths need.
-pub fun qualify_type(t: Type, names: &var List<String>, repls: &var List<TypeRef>): Type {
+pub fun qualify_type(t: Type, subst: &Substitution): Type {
     when (t.kind) {
-        Struct(n) => return Type { kind: TypeKind.Struct(n.qualify_type_name(names, repls)), provenance: t.provenance }
-        EnumTy(n) => return Type { kind: TypeKind.EnumTy(n.qualify_type_name(names, repls)), provenance: t.provenance }
-        TraitTy(n) => return Type { kind: TypeKind.TraitTy(n.qualify_type_name(names, repls)), provenance: t.provenance }
+        Struct(n) => return Type { kind: TypeKind.Struct(n.qualify_type_name(subst)), provenance: t.provenance }
+        EnumTy(n) => return Type { kind: TypeKind.EnumTy(n.qualify_type_name(subst)), provenance: t.provenance }
+        TraitTy(n) => return Type { kind: TypeKind.TraitTy(n.qualify_type_name(subst)), provenance: t.provenance }
         PtrTo(p) => {
-            qualify_type_ptr(p, names, repls)
+            qualify_type_ptr(p, subst)
             return t
         }
         BoxOf(p) => {
-            qualify_type_ptr(p, names, repls)
+            qualify_type_ptr(p, subst)
             return t
         }
         RefTo(_mut, p) => {
-            qualify_type_ptr(p, names, repls)
+            qualify_type_ptr(p, subst)
             return t
         }
         FnTy(_signature) => {
@@ -266,28 +267,28 @@ pub fun qualify_type(t: Type, names: &var List<String>, repls: &var List<TypeRef
             val parts = t.fn_parts() ?: return t
             var params = List.new<Type>()
             while param in &parts.params {
-                params.push(qualify_type(param, names, repls))
+                params.push(qualify_type(param, subst))
             }
-            return Type.new_fn(params, qualify_type(parts.ret, names, repls), t.provenance)
+            return Type.new_fn(params, qualify_type(parts.ret, subst), t.provenance)
         }
         _ => return t
     }
 }
 
-fun qualify_type_ptr(p: Ptr<Type>, names: &var List<String>, repls: &var List<TypeRef>): void {
+fun qualify_type_ptr(p: Ptr<Type>, subst: &Substitution): void {
     val cur: Type = unsafe { *p }
-    val next = qualify_type(cur, names, repls)
+    val next = qualify_type(cur, subst)
     unsafe { *p = next }
 }
 
 // An exact table key, or a compound (`List__Point`) respelled per segment.
-fun Sym.qualify_type_name(names: &var List<String>, repls: &var List<TypeRef>): Sym {
-    val hit = rename_lookup(self.as_str(), names, repls)
-    if hit.as_str().byte_len() > 0 {
+fun Sym.qualify_type_name(subst: &Substitution): Sym {
+    val hit = rename_lookup(self.as_str(), subst)
+    if hit.byte_len() > 0 {
         return intern_string(hit)
     }
-    if is_mangled_decl_name(self.as_str()) {
-        return intern(subst_mangled_name(self.as_str(), names, repls).as_str())
+    if CName.is_mangled(self.as_str()) {
+        return intern(subst_mangled_name(self.as_str(), subst).as_str())
     }
     return Sym { id: self.id }
 }

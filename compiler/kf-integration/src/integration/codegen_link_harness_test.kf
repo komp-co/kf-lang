@@ -13,7 +13,7 @@ import std.process.*
 import kf_codegen.*
 import kf_codegen.runtime.emit_runtime_header
 import kf_integration.harness.compile_project_separate
-import kf_core.diagnostic.new_diagnostics
+import kf_core.diagnostic.Diagnostics
 
 /// A directory nothing else writes, so no stray header is resolved.
 fun link_dir(): str {
@@ -34,7 +34,7 @@ pub fun write_core_header_into(dir: str): bool {
 /// The header and the object: public glue is exported from the crate's own
 /// object, so the header alone leaves `<Type>__glue_drop` undefined.
 fun write_crate_artifacts_into(dir: str, project: str, name: str): bool {
-    var errors = new_diagnostics()
+    var errors = Diagnostics.new()
     val outs = compile_project_separate(project, &var errors)
     while o in &outs {
         if o.crate_name.as_str() == name {
@@ -43,12 +43,12 @@ fun write_crate_artifacts_into(dir: str, project: str, name: str): bool {
             header.append("/")
             header.append(name)
             header.append(".h")
-            write_file(header.as_str(), o.header.as_str())
+            write_file(header, o.header)
             var source = String.from(dir)
             source.append("/")
             source.append(name)
             source.append(".c")
-            write_file(source.as_str(), o.source.as_str())
+            write_file(source, o.source)
             return true
         }
     }
@@ -64,14 +64,14 @@ pub fun write_alloc_header_into(dir: str): bool {
 pub fun gcc_link(source: str, binary: str, asan: bool): int32 {
     var runtime_path = String.from(link_dir())
     runtime_path.append("/kf_runtime.h")
-    write_scratch(runtime_path.as_str(), emit_runtime_header().as_str())
+    write_scratch(runtime_path, emit_runtime_header().as_str())
     if !write_alloc_header_into(link_dir()) { return 1 }
     var include_flag = String.from("-I")
     include_flag.append(link_dir())
     var compiler = Command.new("gcc")
     if asan { compiler.arg("-fsanitize=address") }
     compiler.arg("-D_GNU_SOURCE")
-    compiler.arg(include_flag.as_str())
+    compiler.arg(include_flag)
     // A crate naming `String` includes `alloc.h`; these hand-built modules
     // have no dependency list to say so.
     compiler.arg("-include")
@@ -81,8 +81,8 @@ pub fun gcc_link(source: str, binary: str, asan: bool): int32 {
     var alloc_object = String.from(link_dir())
     alloc_object.append("/alloc.c")
     compiler.arg(source)
-    compiler.arg(core_object.as_str())
-    compiler.arg(alloc_object.as_str())
+    compiler.arg(core_object)
+    compiler.arg(alloc_object)
     compiler.arg("libs/core/native/core.c")
     compiler.arg("libs/core/native/core_hosted.c")
     compiler.arg("libs/alloc/native/alloc.c")

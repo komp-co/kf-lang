@@ -13,7 +13,7 @@ extern "C" fun system(cmd: str): int32
 /// A Point struct with a method, and `answer()` summing one.
 fun write_fixture_crate(root: str, x: str, y: str): void {
     val mk = "mkdir -p ${root}/src"
-    val _rc = unsafe { system(mk.as_str()) }
+    val _rc = unsafe { system(mk) }
     var src = String.from("pub struct Point {\n    pub val x: int32\n    pub val y: int32\n}\n\n")
     src.append("impl Point {\n    pub fun first(): int32 { return self.x }\n}\n\n")
     src.append("pub fun answer(): int32 {\n    val p = Point { x: ")
@@ -22,7 +22,7 @@ fun write_fixture_crate(root: str, x: str, y: str): void {
     src.append(y)
     src.append(" }\n    return p.first()\n}\n")
     val path = String.from(root) + String.from("/src/lib.kf")
-    write_file(path.as_str(), src.as_str())
+    write_file(path, src)
 }
 
 @test
@@ -35,8 +35,8 @@ fun same_names_in_two_crates_link_into_one_binary(): void {
     val _mk = unsafe { system("mkdir -p ${scratch_path("kf_sc1_out")}") }
     // core's native tier includes the header declaring its entry points.
     assert_eq(write_core_header_into(scratch_path("kf_sc1_out")), true, "core's header is what its native tier compiles against")
-    write_file(scratch_path("kf_sc1_out/a.c"), ca.as_str())
-    write_file(scratch_path("kf_sc1_out/b.c"), cb.as_str())
+    write_file(scratch_path("kf_sc1_out/a.c"), ca)
+    write_file(scratch_path("kf_sc1_out/b.c"), cb)
     write_file(scratch_path("kf_sc1_out/kf_runtime.h"), emit_runtime_header().as_str())
     write_file(scratch_path("kf_sc1_out/main.c"), """#include <stdint.h>
 int32_t sc1a__answer(void);
@@ -60,7 +60,7 @@ return 0 }
 """)
     val generated = compile_crate_separate(scratch_path("kf_sc8_alloc"), "sc8_alloc", false)
     val _mkout = unsafe { system("mkdir -p ${scratch_path("kf_sc8_out")}") }
-    write_file(scratch_path("kf_sc8_out/alloc.c"), generated.as_str())
+    write_file(scratch_path("kf_sc8_out/alloc.c"), generated)
     write_file(scratch_path("kf_sc8_out/kf_runtime.h"), emit_runtime_header().as_str())
     val rc = unsafe { system("cc -c ${scratch_path("kf_sc8_out/alloc.c")} -I${scratch_path("kf_sc8_out")} -o ${scratch_path("kf_sc8_out/alloc.o")} 2>/dev/null") }
     assert_eq(rc, 0, "generic alloc emits the qualified Point C type")

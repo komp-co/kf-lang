@@ -3,8 +3,9 @@ import alloc.list.*
 
 import kf_core.ast.*
 import kf_core.ast.declaration.TopDecl
-import kf_core.span.no_span
 import testing.test
+import kf_core.span.Span
+import kf_core.intern.*
 
 fun whole_module(owner: str, target: str): Reexport {
     return Reexport { owner: intern(owner), target: intern(target), offered: Sym { id: 0 }, exposed: Sym { id: 0 } }
@@ -97,7 +98,7 @@ fun forwarded_text(admitted: Sym, r: &Reexport): String {
 fun export_of(owner: str, module: List<String>, name: str, exposed: str): Import {
     var path = module
     path.push(String.from(name))
-    var imp = new_renaming_reexport(no_span(), path, String.from(exposed))
+    var imp = Import.new_renaming_reexport(Span.none(), path, String.from(exposed))
     imp.owner = String.from(owner)
     return imp
 }
@@ -113,7 +114,7 @@ fun named_import(module: str, name: str): Import {
     var path = List.new<String>()
     path.push(String.from(module))
     path.push(String.from(name))
-    return new_import(no_span(), path, false)
+    return Import.new(Span.none(), path, false)
 }
 
 @test fun a_named_import_of_an_exported_name_resolves(): void {

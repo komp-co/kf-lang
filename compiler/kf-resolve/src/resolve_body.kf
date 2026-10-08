@@ -1,12 +1,11 @@
-// Stamps every name that refers to a top-level declaration with its DeclId.
-// Parameters and locals keep the None they were parsed with; typecheck
-// resolves those.
+// Stamps every name that refers to a top-level declaration with the DeclId
+// of the one it means where it is written (see scope.kf). Parameters and
+// locals keep the None they were parsed with; typecheck resolves those.
 
 import alloc.list.*
 
-import kf_core.ast.Arm
-import kf_core.ast.Intrinsic
-import kf_core.ast.view
+import kf_core.ast.pattern.Arm
+import kf_core.ast.expression.view
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.FieldInit
 import kf_core.ast.declaration.DeclId
@@ -157,9 +156,9 @@ fun resolve_field_init_list(fields: &var List<FieldInit>, table: &var DeclTable)
 mutating fun Expr.stamp_name(table: &var DeclTable): void {
     var found: DeclId? = null
     when (self.kind) {
-        Variable(name) => found = table.lookup(name.as_str())
-        Call(name, _args) => found = table.lookup(name.as_str())
-        StructLit(name, _fields) => found = table.lookup(name.as_str())
+        Variable(name) => found = table.meant_here(name.as_str())
+        Call(name, _args) => found = table.meant_here(name.as_str())
+        StructLit(name, _fields) => found = table.type_named(name.as_str())
         _ => {}
     }
     if found.is_some() { self.decl = found }

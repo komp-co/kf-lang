@@ -1,13 +1,13 @@
 // A use of a binding whose type is still open, needing a type of its own:
 // the binding becomes it, or conflicts with the use that decided it first.
 
-import kf_core.ast.intern
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.span.Span
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
+import kf_core.intern.intern
 import kf_typecheck.types.display_type
 import kf_typecheck.types.type_eq
 
@@ -16,8 +16,8 @@ import kf_typecheck.types.type_eq
 /// `ty` is the provisional type, the caller retypes in place instead.
 mutating fun Expr.decides_on_recheck(init: Span, ty: Type, ctx: &var TypeCtx): bool {
     val name = self.variable_name()
-    if ctx.binding_uses(name.as_str()) <= 1 || self.ty.type_eq(ty) { return false }
-    ctx.decide_binding_on_recheck(name.as_str(), init, ty.clone(), self.span)
+    if ctx.binding_uses(name) <= 1 || self.ty.type_eq(ty) { return false }
+    ctx.decide_binding_on_recheck(name, init, ty.clone(), self.span)
     self.ty = ty
     return true
 }
@@ -26,13 +26,13 @@ mutating fun Expr.decides_on_recheck(init: Span, ty: Type, ctx: &var TypeCtx): b
 /// both, and true. False when the binding was never open.
 mutating fun Expr.conflicts_with_decision(expected: Type, ctx: &var TypeCtx): bool {
     val name = self.variable_name()
-    val decided_at = ctx.binding_decided_at(name.as_str())
+    val decided_at = ctx.binding_decided_at(name)
     if decided_at.is_none() || self.ty.is_poison() || self.ty.type_eq(expected) { return false }
     val decided = self.ty.display_type(ctx)
     val message = "`${name}` is `${decided}`, as an earlier use decided, " +
         "but this use expects `${expected.display_type(ctx)}`"
-    var diagnostic = new_diagnostic(Severity.Error, new_label(self.span, message))
-    diagnostic.secondary.push(new_label(decided_at, "decided `${decided}` here"))
+    var diagnostic = Diagnostic.new(Severity.Error, Label.new(self.span, message))
+    diagnostic.secondary.push(Label.new(decided_at, "decided `${decided}` here"))
     ctx.emit(diagnostic)
     self.ty = Type.new_poison()
     return true
@@ -44,8 +44,8 @@ mutating fun Expr.declares_decided(name: String, mutable: bool, ctx: &var TypeCt
     val preset = ctx.preset_for(self.span) ?: return false
     if !self.expect_or_reject(preset.ty.clone(), ctx) && !self.ty.is_poison() {
         val message = "this initializer cannot be `${preset.ty.display_type(ctx)}`, which a use of `${name}` needs"
-        var diagnostic = new_diagnostic(Severity.Error, new_label(self.span, message))
-        diagnostic.secondary.push(new_label(preset.decided_at, "needed here"))
+        var diagnostic = Diagnostic.new(Severity.Error, Label.new(self.span, message))
+        diagnostic.secondary.push(Label.new(preset.decided_at, "needed here"))
         ctx.emit(diagnostic)
     }
     ctx.declare_decided(name, &preset, mutable)
@@ -70,12 +70,12 @@ mutating fun TypeCtx.decide_by_store(name: str, value: &Expr, span: Span, target
 /// `target` is not. True when reported.
 mutating fun Expr.conflicts_with_narrowing(target: &Type, needed: str, ctx: &var TypeCtx): bool {
     val name = self.variable_name()
-    val narrowed_at = ctx.binding_narrowed_at(name.as_str())
+    val narrowed_at = ctx.binding_narrowed_at(name)
     if narrowed_at.is_none() { return false }
     val shown = target.display_type(ctx)
     val message = "`${name}` cannot be `${shown}` here: an earlier use needs it as ${needed}, which `${shown}` is not"
-    var diagnostic = new_diagnostic(Severity.Error, new_label(self.span, message))
-    diagnostic.secondary.push(new_label(narrowed_at, "used as ${needed} here"))
+    var diagnostic = Diagnostic.new(Severity.Error, Label.new(self.span, message))
+    diagnostic.secondary.push(Label.new(narrowed_at, "used as ${needed} here"))
     ctx.emit(diagnostic)
     self.ty = Type.new_poison()
     return true

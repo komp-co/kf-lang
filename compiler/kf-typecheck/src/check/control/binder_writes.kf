@@ -3,13 +3,14 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
-import kf_core.ast.expression.coerce_written_amp_var
+import kf_core.ast.expression.Coercion
 import kf_core.ast.statement.Stmt
-import kf_core.span.no_span
+import kf_core.span.Span
+import kf_core.intern.*
+import kf_core.ast.pattern.*
 import kf_typecheck.check.*
 import kf_typecheck.types.TAG_REF
 import kf_typecheck.types.kind_tag
@@ -133,7 +134,7 @@ fun List<Expr>.args_write_through(name: str, ty: &Type, ctx: &var TypeCtx): bool
 }
 
 fun Expr.expr_writes_through(name: str, ty: &Type, ctx: &var TypeCtx): bool {
-    if self.coerce == coerce_written_amp_var() && self.rooted_at(name) { return true }
+    if self.coerce == Coercion.WrittenAmpVar && self.rooted_at(name) { return true }
     return when (self.kind) {
         MethodCall(recv, method, args) => {
             recv.receiver_is_mutated(method, args.size(), name, ty, ctx) || recv.expr_writes_through(name, ty, ctx) ||
@@ -181,7 +182,7 @@ fun Expr.path_type(name: str, ty: &Type, ctx: &var TypeCtx): Type? {
 fun Type.field_type(field: Sym, ctx: &var TypeCtx): Type? {
     val was_quiet = ctx.quiet
     ctx.quiet = true
-    val found = check_field_access(self.clone(), field.as_string(), no_span(), ctx)
+    val found = check_field_access(self.clone(), field.as_string(), Span.none(), ctx)
     ctx.quiet = was_quiet
     if found.is_poison() { return null }
     return Option.Some(found)
@@ -208,7 +209,7 @@ pub mutating fun Expr.yield_ref_binder_value(expected: &Type, ctx: &var TypeCtx)
     if !ctx.ref_binders.contains(&name) { return false }
     val payload = autoderef_ty(self.ty.clone())
     if !payload.type_eq(expected.clone()) { return false }
-    var binder = Expr.new(self.span, ExprKind.Variable(intern(name.as_str())))
+    var binder = Expr.new(self.span, ExprKind.Variable(intern(name)))
     binder.ty = self.ty.clone()
     binder.decl = self.decl
     self.kind = ExprKind.Deref(Box.new(binder))

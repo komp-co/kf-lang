@@ -1,49 +1,51 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
+import kf_core.intern.CrateId
+import kf_core.intern.intern
 import kf_mono.mono_module
 import kf_mono.collect.has_decl
 import testing.test
 
 fun signature_test_ty(name: str, arg: str): Ptr<TypeRef> {
     var args = List.new<TypeRef>()
-    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern(arg), List.new<TypeRef>())))
+    args.push(TypeRef.new(Span.none(), TypeRefKind.Named(intern(arg), List.new<TypeRef>())))
     val out: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *out = TypeRef.new(no_span(), TypeRefKind.Named(intern(name), args)) }
+    unsafe { *out = TypeRef.new(Span.none(), TypeRefKind.Named(intern(name), args)) }
     return out
 }
 
 fun signature_test_template(name: str): TopDecl {
-    var decl = new_top_decl(no_span(), String.from(name), TopDeclKind.Struct(List.new<Field>(), true))
+    var decl = TopDecl.new(Span.none(), String.from(name), TopDeclKind.Struct(List.new<Field>(), true))
     var generics = List.new<TypeParam>()
-    generics.push(new_type_param(no_span(), String.from("T")))
+    generics.push(TypeParam.new(Span.none(), String.from("T")))
     decl.generics = generics
     return decl
 }
 
 fun signature_test_list_impl(): TopDecl {
     val kind = TopDeclKind.Function(List.new<Param>(), signature_test_ty("ListIter", "T"), List.new<Stmt>(), true, false, false, false)
-    val method = new_top_decl(no_span(), String.from("iter"), kind)
+    val method = TopDecl.new(Span.none(), String.from("iter"), kind)
     var methods = List.new<TopDecl>()
     methods.push(method)
-    var decl = new_top_decl(no_span(), String.from("List"), TopDeclKind.ImplBlock(methods))
+    var decl = TopDecl.new(Span.none(), String.from("List"), TopDeclKind.ImplBlock(methods))
     var generics = List.new<TypeParam>()
-    generics.push(new_type_param(no_span(), String.from("T")))
+    generics.push(TypeParam.new(Span.none(), String.from("T")))
     decl.generics = generics
     return decl
 }
 
 @test fun mono_closes_over_materialized_method_signatures(): void {
     var fields = List.new<Field>()
-    fields.push(new_field(no_span(), String.from("items"), signature_test_ty("List", "int32"), false, true))
-    val owner = new_top_decl(no_span(), String.from("Owner"), TopDeclKind.Struct(fields, true))
-    var module = Module { crate: crate_id_poison(), path: List.new<String>(), decls: List.new<TopDecl>(), imports: List.new<Import>() }
+    fields.push(Field.new(Span.none(), String.from("items"), signature_test_ty("List", "int32"), false, true))
+    val owner = TopDecl.new(Span.none(), String.from("Owner"), TopDeclKind.Struct(fields, true))
+    var module = Module { crate: CrateId.new_poison(), path: List.new<String>(), decls: List.new<TopDecl>(), imports: List.new<Import>() }
     module.decls.push(signature_test_template("List"))
     module.decls.push(signature_test_list_impl())
     module.decls.push(signature_test_template("ListIter"))
@@ -53,21 +55,23 @@ fun signature_test_list_impl(): TopDecl {
 }
 
 @test fun mono_does_not_seed_abstract_trait_signatures(): void {
-    var pair = new_top_decl(no_span(), String.from("Pair"), TopDeclKind.Struct(List.new<Field>(), true))
+    var pair = TopDecl.new(Span.none(), String.from("Pair"), TopDeclKind.Struct(List.new<Field>(), true))
     var generics = List.new<TypeParam>()
-    generics.push(new_type_param(no_span(), String.from("A")))
-    generics.push(new_type_param(no_span(), String.from("B")))
+    generics.push(TypeParam.new(Span.none(), String.from("A")))
+    generics.push(TypeParam.new(Span.none(), String.from("B")))
     pair.generics = generics
     var pair_args = List.new<TypeRef>()
-    pair_args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("A"), List.new<TypeRef>())))
-    pair_args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("B"), List.new<TypeRef>())))
+    pair_args.push(TypeRef.new(Span.none(), TypeRefKind.Named(intern("A"), List.new<TypeRef>())))
+    pair_args.push(TypeRef.new(Span.none(), TypeRefKind.Named(intern("B"), List.new<TypeRef>())))
     val ret: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ret = TypeRef.new(no_span(), TypeRefKind.Named(intern("Pair"), pair_args)) }
-    val method = new_top_decl(no_span(), String.from("clone"), TopDeclKind.Function(List.new<Param>(), ret, List.new<Stmt>(), true, false, false, false))
+    unsafe { *ret = TypeRef.new(Span.none(), TypeRefKind.Named(intern("Pair"), pair_args)) }
+    val method = TopDecl.new(Span.none(), String.from("clone"), TopDeclKind.Function(List.new<Param>(), ret, List.new<Stmt>(), true, false, false, false))
     var methods = List.new<TopDecl>()
     methods.push(method)
-    val trait_decl = new_top_decl(no_span(), String.from("Clone"), TopDeclKind.TraitDecl(methods, true, List.new<TypeRef>()))
-    var module = Module { crate: crate_id_poison(), path: List.new<String>(), decls: List.new<TopDecl>(), imports: List.new<Import>() }
+    val trait_decl = TopDecl.new(
+        Span.none(), String.from("Clone"), TopDeclKind.TraitDecl(methods, true, List.new<TypeRef>())
+    )
+    var module = Module { crate: CrateId.new_poison(), path: List.new<String>(), decls: List.new<TopDecl>(), imports: List.new<Import>() }
     module.decls.push(pair)
     module.decls.push(trait_decl)
     module.mono_module()

@@ -80,7 +80,7 @@ pub fun crash_place_in(text: str): String {
         if !repeated.is_empty() { return "recursion through ${repeated}" }
     }
     while frame in &frames {
-        if !is_library_frame(frame.name.as_str()) { return frame.name.clone() }
+        if !is_library_frame(frame.name) { return frame.name.clone() }
     }
     return String.from("")
 }
@@ -96,7 +96,7 @@ fun is_helper_frame(name: str): bool {
 /// share, counting from the outermost, that is not a helper.
 pub fun hang_place_in(text: str): String {
     var samples = List.new<List<Frame>>()
-    while part in &text.split("---") { samples.push(parse_frames(part.as_str())) }
+    while part in &text.split("---") { samples.push(parse_frames(part)) }
     if samples.size() < 2 { return String.from("") }
     var shared = String.from("")
     var depth: uint64 = 0
@@ -134,12 +134,12 @@ fun hang_script(): String {
 /// Reruns `run` under gdb. Without the memory limit, which gdb would exhaust.
 pub fun Limits.crash_place(run: &CrateRun): String {
     val _status = self.scripted(crash_script().as_str(), run, 0).status()
-    return crash_place_in(read_log(run.log.as_str()).as_str())
+    return crash_place_in(read_log(run.log).as_str())
 }
 
 /// Reruns `run`, and once it has run past the timeout, samples where it is
 /// three times.
 pub fun Limits.hang_place(run: &CrateRun): String {
     val _status = self.scripted(hang_script().as_str(), run, 0).status()
-    return hang_place_in(read_log(run.log.as_str()).as_str())
+    return hang_place_in(read_log(run.log).as_str())
 }

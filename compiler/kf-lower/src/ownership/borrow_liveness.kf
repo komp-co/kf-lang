@@ -16,6 +16,9 @@ import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
+import kf_core.ast.borrow.*
+import kf_core.ast.expression.*
+import kf_core.ast.types.*
 
 /// Keyed by the mangled `Type_method`: a name alone would conflate a mutating
 /// `append` on one type with a read-only one on another.
@@ -99,16 +102,16 @@ fun check_stmt_list(stmts: &List<Stmt>, facts: &LivenessFacts, ptable: Ptr<Param
         val origin = owning_origin(stmts, i, (stmts.at(i)).borrow_binding_origin(&facts.views), &facts.views)
         if origin.as_str() != "" {
             val bound = (stmts.at(i)).binding_name()
-            if !name_in(params, origin.as_str()) {
-                report_returned_borrow_of_local(stmts, i, bound.as_str(), origin.as_str(), &facts.views, diags)
+            if !name_in(params, origin) {
+                report_returned_borrow_of_local(stmts, i, bound, origin, &facts.views, diags)
             }
-            val last = last_use_index(stmts, bound.as_str(), i)
+            val last = last_use_index(stmts, bound, i)
             var j = i + 1
             while j <= last {
-                if (stmts.at(j)).stmt_disturbs(origin.as_str(), &facts.muts) {
-                    (stmts.at(j)).emit_outlives_error(bound.as_str(), origin.as_str(), diags)
-                } else if (stmts.at(j)).stmt_moves(origin.as_str(), ptable) {
-                    (stmts.at(j)).emit_moved_error(bound.as_str(), origin.as_str(), diags)
+                if (stmts.at(j)).stmt_disturbs(origin, &facts.muts) {
+                    (stmts.at(j)).emit_outlives_error(bound, origin, diags)
+                } else if (stmts.at(j)).stmt_moves(origin, ptable) {
+                    (stmts.at(j)).emit_moved_error(bound, origin, diags)
                 }
                 j = j + 1
             }
@@ -126,7 +129,7 @@ fun owning_origin(stmts: &List<Stmt>, at: uint64, origin: String, views: &List<S
         if (stmts.at(j)).binding_name().as_str() == current.as_str() {
             var further = (stmts.at(j)).borrow_binding_origin(views)
             if further.as_str() == "" && (stmts.at(j)).declares_borrow_without_value(views) {
-                further = assigned_borrow_origin(stmts, j + 1, current.as_str(), views)
+                further = assigned_borrow_origin(stmts, j + 1, current, views)
                 // Every value assigned borrows something that outlives the function.
                 if further.as_str() == "" { return further }
             }
@@ -139,7 +142,7 @@ fun owning_origin(stmts: &List<Stmt>, at: uint64, origin: String, views: &List<S
 
 fun Stmt.emit_outlives_error(borrow: str, origin: str, diags: &var Diagnostics): void {
     val message = "`${origin}` cannot be changed here: `${borrow}` borrows it and is still used afterwards"
-    diags.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+    diags.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
 }
 
 /// `val view = text.as_str()` then `return view`: TypeCheck catches the
@@ -150,7 +153,7 @@ fun report_returned_borrow_of_local(stmts: &List<Stmt>, from: uint64, bound: str
     while i < stmts.size() {
         if (stmts.at(i)).stmt_returns(bound, views) {
             val message = "cannot return `${bound}`: it borrows `${origin}`, which this function owns and drops at the return"
-            diags.emit(new_diagnostic(Severity.Error, new_label(stmts.at(i).span, message)))
+            diags.emit(Diagnostic.new(Severity.Error, Label.new(stmts.at(i).span, message)))
             return
         }
         i = i + 1
@@ -166,7 +169,7 @@ fun name_in(names: &List<String>, name: str): bool {
 
 fun Stmt.emit_moved_error(borrow: str, origin: str, diags: &var Diagnostics): void {
     val message = "`${origin}` cannot be moved here: `${borrow}` borrows it and is still used afterwards"
-    diags.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+    diags.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
 }
 
 /// The local a `val`/`var` initializer borrows from, or "".

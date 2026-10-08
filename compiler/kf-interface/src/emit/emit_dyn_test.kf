@@ -1,12 +1,14 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.ast.types.Provenance
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
 import testing.test
+import kf_core.intern.*
+import kf_core.ast.declaration.*
 
 fun dyn_interface_module(): Module {
     return dyn_interface_module_with(false)
@@ -17,13 +19,13 @@ fun dyn_interface_module(): Module {
 fun dyn_interface_module_with(send_mutating: bool): Module {
     var module = interface_test_module()
     var args = List.new<Type>()
-    args.push(Type { kind: TypeKind.Int32, provenance: Provenance.Inferred(no_span()) })
+    args.push(Type { kind: TypeKind.Int32, provenance: Provenance.Inferred(Span.none()) })
     var methods = List.new<DynMethodSlot>()
     var send_params = List.new<Type>()
-    send_params.push(Type { kind: TypeKind.Int32, provenance: Provenance.Inferred(no_span()) })
-    methods.push(DynMethodSlot { name: intern("send"), params: send_params, ret: Type { kind: TypeKind.Void, provenance: Provenance.Inferred(no_span()) }, is_mutating: send_mutating, slot: 0 })
-    methods.push(DynMethodSlot { name: intern("reset"), params: List.new<Type>(), ret: Type { kind: TypeKind.Bool, provenance: Provenance.Inferred(no_span()) }, is_mutating: true, slot: 1 })
-    val crate = new_crate_id("sample")
+    send_params.push(Type { kind: TypeKind.Int32, provenance: Provenance.Inferred(Span.none()) })
+    methods.push(DynMethodSlot { name: intern("send"), params: send_params, ret: Type { kind: TypeKind.Void, provenance: Provenance.Inferred(Span.none()) }, is_mutating: send_mutating, slot: 0 })
+    methods.push(DynMethodSlot { name: intern("reset"), params: List.new<Type>(), ret: Type { kind: TypeKind.Bool, provenance: Provenance.Inferred(Span.none()) }, is_mutating: true, slot: 1 })
+    val crate = CrateId.new("sample")
     val anchor = module.decls.at_mut(0)
     anchor.dyn_layouts.push(DynTraitLayout {
         identity: intern("Sink__int32"), principal: intern("Sink"), args: args, methods: methods,
@@ -33,7 +35,7 @@ fun dyn_interface_module_with(send_mutating: bool): Module {
     adapters.push(intern("sample__Point_send__Sink__int32"))
     adapters.push(intern("sample__Point_reset__Sink__int32"))
     anchor.dyn_vtables.push(DynVTableInstance {
-        layout: intern("Sink__int32"), receiver: Type { kind: TypeKind.Struct(intern("Point")), provenance: Provenance.Inferred(no_span()) },
+        layout: intern("Sink__int32"), receiver: Type { kind: TypeKind.Struct(intern("Point")), provenance: Provenance.Inferred(Span.none()) },
         receiver_identity: intern("Point"), symbol: intern("DynVTableInstance__Point__Sink__int32"), adapters: adapters,
         owner: crate, linkage: Linkage.Source
     })
@@ -47,19 +49,19 @@ pub fun emitted_dyn_interface(): String {
 
 @test fun dyn_interface_emits_layout_identity_and_arguments(): void {
     val output = emitted_dyn_interface()
-    assert_eq(interface_contains(output.as_str(), "\"dyn_traits\":[{\"identity\":\"Sink__int32\",\"principal\":\"Sink\",\"args\":[\"int32\"]"), true, "dynamic layout identity and concrete arguments are serialized")
+    assert_eq(interface_contains(output, "\"dyn_traits\":[{\"identity\":\"Sink__int32\",\"principal\":\"Sink\",\"args\":[\"int32\"]"), true, "dynamic layout identity and concrete arguments are serialized")
 }
 
 @test fun dyn_interface_emits_slots_in_declaration_order(): void {
     val output = emitted_dyn_interface()
     val expected = "\"methods\":[{\"name\":\"send\",\"slot\":0,\"mutating\":false,\"params\":[\"int32\"],\"ret\":\"void\"},{\"name\":\"reset\",\"slot\":1,\"mutating\":true"
-    assert_eq(interface_contains(output.as_str(), expected), true, "dynamic methods preserve slot order and signatures")
+    assert_eq(interface_contains(output, expected), true, "dynamic methods preserve slot order and signatures")
 }
 
 @test fun dyn_interface_emits_vtable_ownership_and_symbols(): void {
     val output = emitted_dyn_interface()
     val expected = "\"dyn_vtables\":[{\"layout\":\"Sink__int32\",\"receiver\":\"Point\",\"receiver_identity\":\"Point\",\"symbol\":\"DynVTableInstance__Point__Sink__int32\",\"owner\":\"sample\",\"linkage\":\"exported\""
-    assert_eq(interface_contains(output.as_str(), expected), true, "vtable identity, owner, and linkage are serialized")
+    assert_eq(interface_contains(output, expected), true, "vtable identity, owner, and linkage are serialized")
 }
 
 @test fun dyn_interface_uses_the_exact_cross_crate_c_symbol(): void {
@@ -84,7 +86,7 @@ pub fun emitted_dyn_interface(): String {
     anchor.dyn_vtables = List.new<DynVTableInstance>()
     anchor.dyn_vtables.push(requirement)
     val output = module.emit_interface(String.from("sample"), &List.new<String>())
-    assert_eq(interface_contains(output.as_str(), "\"dyn_vtables\":[]"), true, "consumer-local vtable requirements do not become exported ABI")
+    assert_eq(interface_contains(output, "\"dyn_vtables\":[]"), true, "consumer-local vtable requirements do not become exported ABI")
 }
 
 @test fun dyn_interface_emission_is_byte_identical(): void {

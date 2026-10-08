@@ -1,7 +1,7 @@
 import alloc.list.*
 
 import kf_core.ast.Module
-import kf_core.ast.type_retain_fn
+import kf_core.names.CName
 
 import kf_codegen.concat_all
 import kf_codegen.emit.TypeFacts
@@ -16,7 +16,7 @@ pub fun Module.emit_public_glue_declarations(): String {
 
 pub fun Module.emit_public_glue_definitions(lookup: &Module): String {
     val bodies = self.emit_all_glue_definitions(lookup)
-    return replace_glue_storage(bodies.as_str(), "static inline ", "")
+    return replace_glue_storage(bodies, "static inline ", "")
 }
 
 pub fun Module.emit_private_glue_definitions(lookup: &Module): String {
@@ -52,7 +52,7 @@ pub fun Module.collect_exported_glue_symbols(): List<String> {
 }
 
 fun append_glue_symbols(name: String, out: &var List<String>): void {
-    out.push(type_retain_fn(name.as_str()))
+    out.push(CName.retain_fn(name.as_str()))
     out.push(name.clone() + String.from("__glue_drop"))
     out.push(name + String.from("__glue_clone"))
 }
@@ -83,11 +83,11 @@ fun Module.emit_synthesized_clone_method_declarations(): String {
 /// `<T> <T>_clone(<T>* __self);`
 fun synthesized_clone_declaration(name: String): String {
     var out = ""
-    out.append(name.as_str())
+    out.append(name)
     out.append(" ")
-    out.append(name.as_str())
+    out.append(name)
     out.append("_clone(")
-    out.append(name.as_str())
+    out.append(name)
     out.append("* __self);\n")
     return out
 }
@@ -102,7 +102,7 @@ fun replace_glue_storage(source: str, needle: str, replacement: str): String {
         if glue_starts_with_at(source, needle, i) {
             if i > start {
                 val before = source.substring(start, i)
-                out.append(before.as_str())
+                out.append(before)
             }
             out.append(replacement)
             i = i + needle_len
@@ -113,7 +113,7 @@ fun replace_glue_storage(source: str, needle: str, replacement: str): String {
     }
     if start < source_len {
         val tail = source.substring(start, source_len)
-        out.append(tail.as_str())
+        out.append(tail)
     }
     return out
 }

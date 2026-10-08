@@ -13,11 +13,11 @@ pub struct Diagnostics {
     var counted: int32
 }
 
-pub fun new_diagnostics(): Diagnostics {
-    return Diagnostics { items: List.new<Diagnostic>(), counted: 0 }
-}
-
 impl Diagnostics {
+    pub static fun new(): Diagnostics {
+        return Diagnostics { items: [], counted: 0 }
+    }
+
     pub mutating fun emit(diag: Diagnostic): void {
         self.items.push(diag)
     }

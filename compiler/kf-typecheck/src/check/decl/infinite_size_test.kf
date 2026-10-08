@@ -2,14 +2,13 @@ import core.assert.assert_eq
 import alloc.list.*
 import alloc.hash_map.*
 
-import kf_core.ast.CrateId
-import kf_core.ast.intern
-import kf_core.ast.new_crate_id
 import kf_core.ast.types.Provenance
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
-import kf_core.span.no_span
 import testing.test
+import kf_core.span.Span
+import kf_core.intern.CrateId
+import kf_core.intern.intern
 
 fun edge_map(pairs: &List<String>): HashMap<String, List<String>> {
     var edges = HashMap.new<String, List<String>>()
@@ -43,17 +42,17 @@ fun graph(text: str): HashMap<String, List<String>> {
 }
 
 @test fun a_field_names_its_declared_type_by_crate_and_name(): void {
-    val t = Type { kind: TypeKind.Struct(intern("app::shapes::Point")), provenance: Provenance.Inferred(no_span()) }
-    assert_eq(inline_key(&t), layout_key(new_crate_id("app"), "Point"), "the crate keeps two `Point`s apart")
+    val t = Type { kind: TypeKind.Struct(intern("app::shapes::Point")), provenance: Provenance.Inferred(Span.none()) }
+    assert_eq(inline_key(&t), layout_key(CrateId.new("app"), "Point"), "the crate keeps two `Point`s apart")
 }
 
 @test fun a_field_names_an_instance_by_its_mangled_name(): void {
-    val t = Type { kind: TypeKind.EnumTy(intern("Option__A")), provenance: Provenance.Inferred(no_span()) }
+    val t = Type { kind: TypeKind.EnumTy(intern("Option__A")), provenance: Provenance.Inferred(Span.none()) }
     assert_eq(inline_key(&t), "*|Option__A", "no crate is written")
 }
 
 @test fun a_field_behind_a_pointer_holds_nothing_inline(): void {
-    val t = Type.new_box(Type.new_int32(no_span()), no_span())
+    val t = Type.new_box(Type.new_int32(Span.none()), Span.none())
     assert_eq(inline_key(&t), "", "a box is a pointer")
 }
 

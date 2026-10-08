@@ -11,6 +11,9 @@ import kf_core.ast.types.TypeIdentity
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.*
+import kf_resolve.DeclTable
+import kf_core.intern.*
+import kf_core.ast.annotation.*
 
 @derive(Clone)
 pub struct FnSignature {
@@ -286,6 +289,15 @@ pub struct SigTable {
     pub var imported_names: List<Sym>
     /// Whether find_imported_signature filters by the import map.
     pub var gate_visibility: bool
+    /// The method each `Deref` or `DerefMut` impl forwards to, by trait and
+    /// type name; see `TopDecl.deref_view`.
+    pub var deref_views: HashMap<String, Sym>
+    /// Resolve's table, which says which declaration a name means; null
+    /// when typing without one.
+    pub var decls: Ptr<DeclTable>
+    /// Each declaration's signature, at its id's `raw`; `none_index()` for
+    /// one without.
+    pub var decl_sigs: List<uint64>
     /// Declarations minted inside a body (lambdas), carried back to the module.
     pub var synth_decls: List<TopDecl>
     /// Lambda types bound to locals; invokable, not yet transferable.
@@ -350,9 +362,9 @@ pub fun new_sig_table(): SigTable {
         sig_index: HashMap.new<String, uint64>(),
         sig_next: List.new<uint64>(),
         sig_last: HashMap.new<String, uint64>(),
-        sig_heads: new_name_index(),
+        sig_heads: NameIndex.new(),
         structs: List.new<StructLayout>(),
-        struct_index: new_name_index(),
+        struct_index: NameIndex.new(),
         enums: List.new<EnumLayout>(),
         generic_infos: List.new<GenericInfo>(),
         traits: List.new<TraitInfo>(),
@@ -363,14 +375,17 @@ pub fun new_sig_table(): SigTable {
         bounds: List.new<BoundInfo>(),
         value_params: List.new<ValueParamInfo>(),
         type_identities: List.new<TypeIdentity>(),
-        identity_index: new_name_index(),
+        identity_index: NameIndex.new(),
         insts: List.new<GenericInst>(),
-        inst_index: new_name_index(),
+        inst_index: NameIndex.new(),
         smap: ptr_null<SourceMap>(),
         caller_files: List.new<uint32>(),
         imported_targets: List.new<Sym>(),
         imported_names: List.new<Sym>(),
         gate_visibility: false,
+        deref_views: HashMap.new<String, Sym>(),
+        decls: ptr_null<DeclTable>(),
+        decl_sigs: List.new<uint64>(),
         synth_decls: List.new<TopDecl>(),
         stored_lambda_types: List.new<Sym>(),
         // Declaration order: a struct literal lowers positionally.
@@ -393,8 +408,8 @@ pub fun new_sig_table(): SigTable {
         ext_names: List.new<Sym>(),
         ext_links: List.new<Sym>(),
         ext_trait_params: List.new<Sym>(),
-        ext_by_link: new_name_index(),
-        ext_by_name: new_name_index(),
+        ext_by_link: NameIndex.new(),
+        ext_by_name: NameIndex.new(),
         untyped_recv_spans: List.new<Span>(),
         untyped_recv_methods: List.new<Sym>(),
         fn_types: List.new<Type>(),
@@ -408,10 +423,10 @@ pub fun new_sig_table(): SigTable {
 
 impl SigTable {
     /// The empty name, meaning nothing is marked, is a miss.
-    pub fun lang_trait_name(key: str): Sym {
+    pub fun lang_trait_name(item: LangItem): Sym {
         var i = 0
         while i < self.lang_trait_keys.size() {
-            if self.lang_trait_keys.at(i).as_str().equals(key) {
+            if self.lang_trait_keys.at(i).as_str().equals(item.key()) {
                 return self.lang_trait_names.get(i)
             }
             i = i + 1
@@ -421,9 +436,9 @@ impl SigTable {
 
     /// Clone, Drop or Equal, by key.
     pub fun is_auto_trait(name: str): bool {
-        if name.equals(self.lang_trait_name(lang_clone_key()).as_str()) { return true }
-        if name.equals(self.lang_trait_name(lang_drop_key()).as_str()) { return true }
-        if name.equals(self.lang_trait_name(lang_equal_key()).as_str()) { return true }
+        if name.equals(self.lang_trait_name(LangItem.Clone).as_str()) { return true }
+        if name.equals(self.lang_trait_name(LangItem.Drop).as_str()) { return true }
+        if name.equals(self.lang_trait_name(LangItem.Equal).as_str()) { return true }
         return false
     }
 

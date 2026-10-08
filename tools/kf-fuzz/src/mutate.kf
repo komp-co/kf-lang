@@ -103,7 +103,7 @@ pub fun mutate_cut(text: str, pieces: &List<Piece>, rng: &var Rng): MutationResu
     }
     if choice == 1 {
         val copy = "${pieces.at(pick).text}${pieces.at(pick).text}"
-        return MutationResult { text: replace_piece(&pieces, pick, copy.as_str()), name: String.from("duplicate") }
+        return MutationResult { text: replace_piece(&pieces, pick, copy), name: String.from("duplicate") }
     }
     if choice == 2 {
         val first = if pick < other { pick } else { other }
@@ -130,7 +130,7 @@ pub fun mutate_cut(text: str, pieces: &List<Piece>, rng: &var Rng): MutationResu
     }
     if choice == 6 {
         val word = " ${keyword_at(rng.below(keyword_count()))} "
-        return MutationResult { text: insert_before(&pieces, pick, word.as_str()), name: String.from("keyword") }
+        return MutationResult { text: insert_before(&pieces, pick, word), name: String.from("keyword") }
     }
     var delimiters = List.new<uint64>()
     while at in &solid {
@@ -151,7 +151,7 @@ pub fun mutate(text: str, rng: &var Rng): MutationResult {
     var current = String.from(text)
     var names = List.new<String>()
     while _i in 0..1 + rng.below(3) {
-        val step = mutate_once(current.as_str(), rng)
+        val step = mutate_once(current, rng)
         names.push(step.name.clone())
         current = step.text
     }

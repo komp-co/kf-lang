@@ -7,6 +7,7 @@ import kf_core.span.*
 import kf_core.ast.*
 import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
+import kf_core.intern.CrateId
 import kf_parse.lexer.tokenize
 import kf_parse.parser.new_parser
 import kf_assemble.assemble_crate
@@ -23,27 +24,27 @@ import kf_driver.build.assemble_crate_list
 import kf_driver.build.merge_module_list
 import kf_driver.build.report_config_diags
 import kf_driver.build.report_parse_errors
-import kf_driver.editor.typed_crate_staged
+import kf_query.editor.typed_crate_staged
 import core.hash.hash_bytes
 
 /// One source string to C, without assembly. Assumes well-typed input.
 pub fun compile_source(src: str): String {
     var smap = fresh_source_map()
-    val fid = unsafe { smap.add_file(new_source_file(String.from("<input>"), String.from(src))) }
+    val fid = unsafe { smap.add_file(SourceFile.new(String.from("<input>"), String.from(src))) }
     val toks = tokenize(src, fid)
     var p = new_parser(toks)
     val source_module = p.parse_module(List.new<String>())
     while diag in &p.diags {
-        val text = render(diag, smap)
-        runtime_println(text.as_str())
+        val text = diag.render(smap)
+        runtime_println(text)
     }
-    var errors = new_diagnostics()
+    var errors = Diagnostics.new()
     val libs = bundled_libs()
     val core_root = "${libs}/core"
-    var core_diags = new_diagnostics()
-    val core_crate = assemble_crate(core_root.as_str(), String.from("core"), smap, &var core_diags)
+    var core_diags = Diagnostics.new()
+    val core_crate = assemble_crate(core_root, String.from("core"), smap, &var core_diags)
     val alloc_root = "${libs}/alloc"
-    val alloc_crate = assemble_crate(alloc_root.as_str(), String.from("alloc"), smap, &var core_diags)
+    val alloc_crate = assemble_crate(alloc_root, String.from("alloc"), smap, &var core_diags)
     var modules = core_crate.modules.clone()
     while module in &alloc_crate.modules {
         modules.push(module.clone())
@@ -63,7 +64,7 @@ pub fun compile_source(src: str): String {
     // As komp composes a unity build: the generated C, then the natives.
     var text = generated
     text.append("\n#define KF_NATIVE_UNITY 1\n")
-    text.append(native.as_str())
+    text.append(native)
     return text
 }
 
@@ -71,21 +72,21 @@ pub fun compile_source(src: str): String {
 pub fun compile_crate_separate(crate_root: str, crate_name: str, is_bin: bool): String {
     val crate_name_s = String.from(crate_name)
     val smap = fresh_source_map()
-    var pd = new_diagnostics()
+    var pd = Diagnostics.new()
     val c = assemble_crate(crate_root, crate_name_s, smap, &var pd)
     var merged = merge_modules(c.modules)
-    var errors = new_diagnostics()
+    var errors = Diagnostics.new()
     return merged.compile_module_separate(is_bin, &var errors, smap)
 }
 
 pub fun check_project(root_dir: str): int32 {
     val graph = FixtureGraph.of(root_dir)
     if !graph.error.is_empty() {
-        runtime_println(graph.error.as_str())
+        runtime_println(graph.error)
         return 1
     }
     val smap = fresh_source_map()
-    var pdiags = new_diagnostics()
+    var pdiags = Diagnostics.new()
     var merged = graph.assemble(smap, &var pdiags)
     val perrs = report_parse_errors(&var pdiags, smap, false)
     var cfg_diags = List.new<Diagnostic>()
@@ -112,7 +113,7 @@ impl FixtureGraph {
         val crates = self.sources()
         val none = no_overlay()
         var merged = merge_module_list(assemble_crate_list(&crates, smap, pdiags, true, &none))
-        if crates.size() > 0 { merged.crate = new_crate_id(crates.at(crates.size() - 1).name.as_str()) }
+        if crates.size() > 0 { merged.crate = CrateId.new(crates.at(crates.size() - 1).name.as_str()) }
         return merged
     }
 
@@ -126,7 +127,7 @@ impl FixtureGraph {
             cfg.apply_table_lint("lint configuration", row.substring(0, eq).as_str(),
                 row.substring(eq + 1, row.byte_len()).as_str(), diags)
         }
-        while row in &root.lint_options { cfg.apply_option_row(row.as_str(), diags) }
+        while row in &root.lint_options { cfg.apply_option_row(row, diags) }
         return cfg
     }
 }
@@ -142,15 +143,15 @@ fun FixtureGraph.compile_graph_outputs_with_interfaces(errors: &var Diagnostics,
     interfaces: Ptr<List<String>>): List<CrateCodegenOutput> {
     var out = List.new<CrateCodegenOutput>()
     if !self.error.is_empty() {
-        runtime_println(self.error.as_str())
+        runtime_println(self.error)
         errors.count_errors(1)
         return out
     }
     val smap = fresh_source_map()
-    var pdiags = new_diagnostics()
+    var pdiags = Diagnostics.new()
     var all_modules = List.new<Module>()
     while bc in &self.crates {
-        val c = assemble_crate(bc.root.as_str(), String.from(bc.name.as_str()), smap, &var pdiags)
+        val c = assemble_crate(bc.root, String.from(bc.name.as_str()), smap, &var pdiags)
         while j in 0..c.modules.size() {
             all_modules.push(deep_clone_module(c.modules.at(j)))
         }
@@ -159,8 +160,8 @@ fun FixtureGraph.compile_graph_outputs_with_interfaces(errors: &var Diagnostics,
     var pi = 0
     while pi < pdiags.size() {
         val d = pdiags.at(pi)
-        val text = render(d, smap)
-        runtime_println(text.as_str())
+        val text = d.render(smap)
+        runtime_println(text)
         perrs = perrs + 1
         pi = pi + 1
     }
@@ -169,14 +170,14 @@ fun FixtureGraph.compile_graph_outputs_with_interfaces(errors: &var Diagnostics,
     // The root crate id marks separate mode for Mono: instances become per-TU
     // static support.
     if self.crates.size() > 0 {
-        merged.crate = new_crate_id(self.crates.at(self.crates.size() - 1).name.as_str())
+        merged.crate = CrateId.new(self.crates.at(self.crates.size() - 1).name.as_str())
     }
     merged.run_interface_passes(errors, smap)
     var emitted_names = List.new<String>()
     var emitted_hashes = List.new<String>()
     while interface_crate in &self.crates {
         val dependency_hashes = dependency_interface_hashes(&interface_crate.deps, &emitted_names, &emitted_hashes)
-        val closure_errors = export_closure_diagnostics(&merged, new_crate_id(interface_crate.name.as_str()))
+        val closure_errors = export_closure_diagnostics(&merged, CrateId.new(interface_crate.name.as_str()))
         while closure_index in 0..closure_errors.size() {
             runtime_println(closure_errors.at(closure_index).as_str())
             errors.count_errors(1)
@@ -235,7 +236,7 @@ fun merge_modules(modules: &List<Module>): Module {
             all_imports.push((m.imports.at(k)).deep_clone_import())
         }
     }
-    return Module { crate: crate_id_poison(), path: path, decls: all_decls, imports: all_imports }
+    return Module { crate: CrateId.new_poison(), path: path, decls: all_decls, imports: all_imports }
 }
 
 /// As the file sits on disk, in the project around it. For tests, which

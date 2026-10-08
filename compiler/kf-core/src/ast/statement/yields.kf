@@ -1,0 +1,61 @@
+// What a statement yields when it ends a block used as a value.
+
+import alloc.list.*
+
+import kf_core.ast.expression.*
+import kf_core.ast.statement.*
+
+impl Stmt {
+    /// The value a statement yields, if it is an expression.
+    ///
+    /// CONSTRAINT: takes the statement, not the list. Passing a `when` binder's
+    /// list to a function makes the arm own and free it; `get` on it stays a
+    /// borrow.
+    pub fun value_expr(): Ptr<Expr>? {
+        return when (self.kind) {
+            Expression(e_ptr) => e_ptr
+            _ => null
+        }
+    }
+
+    /// Every path through `s` produces a value or jumps away; an `if` or `when`
+    /// answers through every branch. The parser and checker both ask.
+    internal fun tail_yields_value(): bool {
+        when (self.kind) {
+            Expression(_ep) => return true
+            Return(_) => return true
+            Break => return true
+            Continue => return true
+            If(_c, then_body, else_body) => {
+                if !list_yields_value(&then_body) { return false }
+                return list_yields_value(&else_body)
+            }
+            When(_subj, arms) => {
+                // Missing cases are left to the exhaustiveness check, which names
+                // them.
+                if arms.size() == 0 { return false }
+                while arm in &arms {
+                    if !list_yields_value(&arm.body) { return false }
+                }
+                return true
+            }
+            _ => return false
+        }
+        return false
+    }
+
+    /// A `return`, `break` or `continue`: a tail that yields by never finishing.
+    pub fun is_jump(): bool {
+        return when (self.kind) {
+            Return(_) => true
+            Break => true
+            Continue => true
+            _ => false
+        }
+    }
+}
+
+pub fun list_yields_value(stmts: &List<Stmt>): bool {
+    if stmts.size() == 0 { return false }
+    return (stmts.at(stmts.size() - 1)).tail_yields_value()
+}

@@ -1,36 +1,69 @@
-// `T.fields` with `filter(|field| c)` and `map(|field| e)`: a filter keeps the
-// fields its facts-only condition holds for, and `map` writes `e` out once per
-// field kept, into an array literal the library's adapters take.
+// `T.fields`, `T.variants` and a variant's `payloads`, with `filter(|m| c)`,
+// `map(|m| e)`, `all(|m| c)` and `any(|m| c)`: a filter keeps the members its
+// facts-only condition holds for, `map` writes `e` out once per member kept,
+// into an array literal the library's adapters take, and `all` and `any` join
+// their conditions with `&&` and `||`.
 
 import alloc.list.*
 
+import kf_core.intern.Sym
+import kf_core.ast.expression.BinOp
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 
-/// The fields `self` selects, as indices: all of `T.fields`, or what a chain
-/// of `filter`s keeps; null when `self` is no field list.
-fun Expr.selected_fields(x: &var Expansion): List<uint64>? {
+/// The members a list names, as indices: `T`'s fields or variants, or the
+/// payloads of `variant`.
+struct Selection {
+    val variant: uint64?
+    val kept: List<uint64>
+}
+
+impl Expansion {
+    /// `binder` standing for the `i`th member of what `selection` lists.
+    mutating fun bind_in(binder: Sym, selection: &Selection, i: uint64): void {
+        when (selection.variant) {
+            Some(variant) => self.bind_payload(binder, variant, i)
+            None => self.bind(binder, i)
+        }
+    }
+
+    /// The name of `T`'s member list: `variants` or `fields`.
+    fun members_name(): str { return if self.on_enum { "variants" } else { "fields" } }
+}
+
+/// What `self` selects; null when it is no member list.
+fun Expr.selected_fields(x: &var Expansion): Selection? {
     when (self.kind) {
         FieldAccess(owner, member) => {
-            if !owner.is_variable(x.marked) || member.as_str() != "fields" { return null }
-            var all = List.new<uint64>()
-            while i in 0..x.fields.size() {
-                all.push(i)
+            if owner.is_variable(x.marked) && member.as_str() == x.members_name() {
+                return Selection { variant: null, kept: indices(x.fields.size()) }
             }
-            return all
+            if !x.on_enum || member.as_str() != "payloads" { return null }
+            val variant = owner.bound_member(x) ?: return null
+            val count = x.fields.at(variant).payloads.size()
+            return Selection { variant: Option.Some(variant), kept: indices(count) }
         }
         MethodCall(receiver, method, args) => {
             if method.as_str() != "filter" { return null }
-            val kept = receiver.selected_fields(x) ?: return null
-            return self.filtered(&kept, &args, x)
+            val listed = receiver.selected_fields(x) ?: return null
+            val kept = self.filtered(&listed, &args, x)
+            return Selection { variant: listed.variant, kept: kept }
         }
         _ => return null
     }
 }
 
-/// The fields of `kept` the filter's condition holds for. A condition that
-/// is not facts alone is reported, and keeps none.
-fun Expr.filtered(kept: &List<uint64>, args: &List<Expr>, x: &var Expansion): List<uint64> {
+fun indices(count: uint64): List<uint64> {
+    var all = List.new<uint64>()
+    while i in 0..count {
+        all.push(i)
+    }
+    return all
+}
+
+/// The members of `listed` the filter's condition holds for. A condition
+/// that is not facts alone is reported, and keeps none.
+fun Expr.filtered(listed: &Selection, args: &List<Expr>, x: &var Expansion): List<uint64> {
     var out = List.new<uint64>()
     val lambda: FieldLambda? = if args.size() == 1 { args.at(0).field_lambda() } else { null }
     if lambda == null {
@@ -38,13 +71,13 @@ fun Expr.filtered(kept: &List<uint64>, args: &List<Expr>, x: &var Expansion): Li
         return out
     }
     val written = lambda ?: return out
-    while member in &kept {
-        x.bind(written.binder, member)
+    while member in &listed.kept {
+        x.bind_in(written.binder, listed, member)
         val decided = written.value.expanded(x).decided_bool()
         x.unbind()
         if decided == null {
-            val facts = "facts alone: `has<A>()`, `name` and `index`"
-            x.report(self.span, "`filter` keeps fields while the program compiles, so its condition is ${facts}")
+            val facts = "facts alone: `has<A>()`, `name`, `index` and `size()`"
+            x.report(self.span, "`filter` keeps members while the program compiles, so its condition is ${facts}")
             return List.new<uint64>()
         }
         if decided ?: false { out.push(member) }
@@ -52,31 +85,56 @@ fun Expr.filtered(kept: &List<uint64>, args: &List<Expr>, x: &var Expansion): Li
     return out
 }
 
-/// `map(|field| e)` over `kept`: `[e(a), e(b)]`.
-fun Expr.mapped(kept: &List<uint64>, args: &List<Expr>, x: &var Expansion): Expr {
+/// `e` written out once per member `listed` keeps.
+fun Expr.each_written(listed: &Selection, args: &List<Expr>, x: &var Expansion, method: str): List<Expr>? {
     val lambda: FieldLambda? = if args.size() == 1 { args.at(0).field_lambda() } else { null }
     if lambda == null {
-        x.report(self.span, String.from("`map` takes `|field| e`: one parameter, and one expression per field"))
-        return self.fact(ExprKind.Poison)
+        x.report(self.span, "`${method}` takes `|field| e`: one parameter, and one expression per member")
+        return null
     }
-    val written = lambda ?: return self.fact(ExprKind.Poison)
+    val written = lambda ?: return null
     var elements = List.new<Expr>()
-    while member in &kept {
-        x.bind(written.binder, member)
+    while member in &listed.kept {
+        x.bind_in(written.binder, listed, member)
         elements.push(written.value.expanded(x))
         x.unbind()
     }
+    return elements
+}
+
+/// `map(|field| e)` over `listed`: `[e(a), e(b)]`.
+fun Expr.mapped(listed: &Selection, args: &List<Expr>, x: &var Expansion): Expr {
+    val elements = self.each_written(listed, args, x, "map") ?: return self.fact(ExprKind.Poison)
     return Expr.new_list_literal(self.span, &elements)
 }
 
-/// A method called on a field list: `map`, `size()`, or an error naming
-/// what the list is for; null when `receiver` is no field list.
+/// `all(|m| c)` as `c(a) && c(b)`, `true` over no members; `any` with `||`
+/// and `false`.
+fun Expr.joined(listed: &Selection, args: &List<Expr>, x: &var Expansion, all: bool): Expr {
+    val method = if all { "all" } else { "any" }
+    val conditions = self.each_written(listed, args, x, method) ?: return self.fact(ExprKind.Poison)
+    var out = self.fact(ExprKind.LitBool(all))
+    while i in 0..conditions.size() {
+        val next = conditions.at(i).clone()
+        if i == 0 {
+            out = next
+            continue
+        }
+        val op = if all { BinOp.AndAnd } else { BinOp.OrOr }
+        out = self.fact(ExprKind.Binary(Box.new(out), op, Box.new(next)))
+    }
+    return out
+}
+
+/// A method called on a member list: `map`, `all`, `any`, `size()`, or an
+/// error naming what the list is for; null when `receiver` is no member list.
 fun Expr.field_list_call(receiver: &Expr, method: str, args: &List<Expr>, x: &var Expansion): Expr? {
     if method == "filter" { return null }
-    val kept = receiver.selected_fields(x) ?: return null
-    if method == "map" { return self.mapped(&kept, args, x) }
-    if method == "size" { return self.fact(ExprKind.LitInt(kept.size() as int64)) }
-    val uses = "loop over it, or `map`, `filter` or `size()` it"
-    x.report(self.span, "a field list is known only while the program compiles: ${uses}")
+    val listed = receiver.selected_fields(x) ?: return null
+    if method == "map" { return self.mapped(&listed, args, x) }
+    if method == "all" || method == "any" { return self.joined(&listed, args, x, method == "all") }
+    if method == "size" { return self.fact(ExprKind.LitInt(listed.kept.size() as int64)) }
+    val uses = "loop over it, or `map`, `filter`, `all`, `any` or `size()` it"
+    x.report(self.span, "a member list is known only while the program compiles: ${uses}")
     return self.fact(ExprKind.Poison)
 }

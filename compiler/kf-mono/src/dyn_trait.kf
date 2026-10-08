@@ -8,8 +8,11 @@ import kf_core.ast.statement.Stmt
 import kf_typecheck.*
 import kf_typecheck.types.resolved_projection_type
 import kf_typecheck.check.decl.assoc_projection_registry
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.ast.dyn_meta.*
+import kf_core.intern.*
+import kf_core.ast.expression.*
+import kf_core.ast.types.*
 
 pub mutating fun Module.mono_dyn_metadata(): void {
     val projections = assoc_projection_registry(self)
@@ -21,7 +24,7 @@ pub mutating fun Module.mono_dyn_metadata(): void {
 mutating fun TopDecl.normalize_dyn_decl(self_name: str, projections: Ptr<SigTable>): void {
     // CONSTRAINT: an independent copy. Replacing self.dyn_layouts frees its old
     // buffer, which a shallow copy would still read.
-    val old_layouts = clone_dyn_layout_list(&self.dyn_layouts)
+    val old_layouts = self.dyn_layouts.clone()
     var layouts = List.new<DynTraitLayout>()
     while old_layout in &old_layouts {
         val normalized = normalize_dyn_layout(old_layout, self_name, projections)
@@ -58,7 +61,7 @@ fun normalize_dyn_layout(layout: DynTraitLayout, self_name: str, projections: Pt
         args.push(argument.clone())
         type_args.push(argument)
     }
-    val dynamic = dyn_trait_type(layout.principal, type_args, no_span())
+    val dynamic = Type.new_dyn_trait(layout.principal, type_args, Span.none())
     var methods = List.new<DynMethodSlot>()
     while method in &layout.methods {
         var params = List.new<Type>()
@@ -72,7 +75,7 @@ fun normalize_dyn_layout(layout: DynTraitLayout, self_name: str, projections: Pt
         })
     }
     return DynTraitLayout {
-        identity: dyn_trait_identity(&dynamic), principal: layout.principal, args: args,
+        identity: dynamic.dyn_trait_identity(), principal: layout.principal, args: args,
         methods: methods, owner: layout.owner, imported: layout.imported
     }
 }
@@ -90,7 +93,7 @@ fun normalize_dyn_vtable(table: DynVTableInstance, old_layouts: &List<DynTraitLa
     val symbol_text = "DynVTableInstance__${receiver_identity.as_str()}__${layout_identity.as_str()}"
     return DynVTableInstance {
         layout: layout_identity, receiver: receiver, receiver_identity: receiver_identity,
-        symbol: intern(symbol_text.as_str()), adapters: clone_dyn_sym_list(&table.adapters),
+        symbol: intern(symbol_text), adapters: clone_dyn_sym_list(&table.adapters),
         owner: table.owner, linkage: table.linkage
     }
 }
@@ -169,7 +172,7 @@ fun Type.assert_dyn_type_concrete(): void {
         BoxOf(inner) => assert_dyn_type_concrete(unsafe { &*inner })
         RefTo(_, inner) => assert_dyn_type_concrete(unsafe { &*inner })
         DynTraitTy(_) => {
-            val args = dyn_trait_args(self)
+            val args = self.dyn_trait_args()
             var i = 0
             while i < unsafe { args.size() } {
                 val argument = unsafe { args.get(i) }

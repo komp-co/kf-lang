@@ -5,7 +5,7 @@
 import alloc.list.*
 import core.assert.assert_eq
 import std.fs.scratch_path
-import kf_driver.serve.ServeSession
+import kf_query.serve.ServeSession
 import kf_integration.harness.FixtureGraph
 import testing.test
 
@@ -77,7 +77,7 @@ fun references_after_a_hover_reach_the_sibling_file(): void {
     var session = serve_session()
     val _hover = session.answer(typed_request("hover", 90).as_str())
     val line = session.answer(typed_request("references", 90).as_str())
-    assert_eq(line.as_str().contains("other.kf\",\"byte_start\":36"), true, "a use in a sibling file counts")
+    assert_eq(line.contains("other.kf\",\"byte_start\":36"), true, "a use in a sibling file counts")
 }
 
 @test
@@ -96,7 +96,7 @@ fun references_see_a_use_staged_in_the_sibling_file(): void {
     val _before = session.answer(typed_request("references", 90).as_str())
     val text = "fun elsewhere(): int32 {\\n    return helper(9) + helper(8)\\n}\\n"
     val stage = "{\"id\":2,\"method\":\"stage\",\"params\":{\"path\":\"${other_path()}\",\"text\":\"${text}\"}}"
-    val _staged = session.answer(stage.as_str())
+    val _staged = session.answer(stage)
     val line = session.answer(typed_request("references", 90).as_str())
-    assert_eq(line.as_str().contains("other.kf\",\"byte_start\":48"), true, "the staged second call counts")
+    assert_eq(line.contains("other.kf\",\"byte_start\":48"), true, "the staged second call counts")
 }

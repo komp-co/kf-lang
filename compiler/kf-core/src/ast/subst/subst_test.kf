@@ -3,23 +3,24 @@ import core.assert.assert
 import core.assert.fail
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.intern
+import kf_core.span.Span
 import kf_core.ast.types.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import testing.test
+import kf_core.intern.intern
+import kf_core.names.Frag
 
 fun named_tr(n: str): TypeRef {
-    return TypeRef.new(no_span(), TypeRefKind.Named(intern(n), List.new<TypeRef>()))
+    return TypeRef.new(Span.none(), TypeRefKind.Named(intern(n), []))
 }
 
 fun dynamic_tr(arg: str): TypeRef {
-    var args = List.new<TypeRef>()
+    var args = []
     args.push(named_tr(arg))
-    return TypeRef.new(no_span(), TypeRefKind.DynTrait(intern("Display"), args))
+    return TypeRef.new(Span.none(), TypeRefKind.DynTrait(intern("Display"), args))
 }
 
 @test fun dynamic_type_ref_has_metadata_mangle(): void {
@@ -28,67 +29,57 @@ fun dynamic_tr(arg: str): TypeRef {
 }
 
 @test fun substitution_recurses_into_dynamic_arguments(): void {
-    var names = List.new<String>()
-    var replacements = List.new<TypeRef>()
-    names.push(String.from("T"))
-    replacements.push(named_tr("String"))
     val arg = dynamic_tr("T")
-    val out = arg.subst_type_ref(&var names, &var replacements)
+    var subst = Substitution.new()
+    subst.bind("T", named_tr("String"))
+    val out = arg.subst_type_ref(&subst)
     assert_eq(out.mangle_tyref().as_str(), "Dyn__Display__String", "dynamic arguments are substituted")
 }
 
 @test fun cloning_preserves_dynamic_arguments(): void {
     val tr = dynamic_tr("int32")
-    val out = tr.clone_type_ref()
+    val out = tr.clone()
     assert_eq(out.mangle_tyref().as_str(), "Dyn__Display__int32", "dynamic arguments survive deep cloning")
 }
 
 @test fun generic_name_builders_return_str(): void {
     var args = []
     args.push(named_tr("int32"))
-    val type_mangle: String = mangle_tyref(args.at(0))
-    val generic_name: String = monomorphized_type_name(String.from("List"), &args)
+    val type_mangle: MangledName = mangle_tyref(args.at(0))
+    val generic_name: MangledName = monomorphized_type_name("List", &args)
     assert_eq(type_mangle.as_str() == "int32" && generic_name.as_str() == "List__int32", true, "generic name builders return owned String text")
 }
 
 @test fun mangled_name_substitution_returns_str(): void {
-    var names = []
-    var repls = []
-    names.push(String.from("T"))
-    repls.push(named_tr("int32"))
-    val name: String = subst_mangled_name("alloc_array__T", &var names, &var repls)
+    var subst = Substitution.new()
+    subst.bind("T", named_tr("int32"))
+    val name: MangledName = subst_mangled_name("alloc_array__T", &subst)
     assert_eq(name.as_str(), "alloc_array__int32", "mangled substitution returns owned String text")
 }
 
 @test fun subst_replaces_bare_type_var(): void {
-    var names = []
-    var repls = []
-    names.push(String.from("T"))
-    repls.push(named_tr("int32"))
     val arg = named_tr("T")
-    val out = arg.subst_type_ref(&var names, &var repls)
+    var subst = Substitution.new()
+    subst.bind("T", named_tr("int32"))
+    val out = arg.subst_type_ref(&subst)
     assert_eq(out.mangle_tyref().as_str(), "int32", "T → int32")
 }
 
 @test fun subst_leaves_unmapped_var_alone(): void {
-    var names = []
-    var repls = []
-    names.push(String.from("T"))
-    repls.push(named_tr("int32"))
     val arg = named_tr("U")
-    val out = arg.subst_type_ref(&var names, &var repls)
+    var subst = Substitution.new()
+    subst.bind("T", named_tr("int32"))
+    val out = arg.subst_type_ref(&subst)
     assert_eq(out.mangle_tyref().as_str(), "U", "U unmapped → U")
 }
 
 @test fun subst_recurses_into_args(): void {
-    var args = List.new<TypeRef>()
+    var args = []
     args.push(named_tr("T"))
-    val list_t = TypeRef.new(no_span(), TypeRefKind.Named(intern("List"), args))
-    var names = List.new<String>()
-    var repls = List.new<TypeRef>()
-    names.push(String.from("T"))
-    repls.push(named_tr("String"))
-    val out = list_t.subst_type_ref(&var names, &var repls)
+    val list_t = TypeRef.new(Span.none(), TypeRefKind.Named(intern("List"), args))
+    var subst = Substitution.new()
+    subst.bind("T", named_tr("String"))
+    val out = list_t.subst_type_ref(&subst)
     assert_eq(out.mangle_tyref().as_str(), "List__String", "List<T> → List<String>")
 }
 
@@ -97,32 +88,30 @@ fun dynamic_tr(arg: str): TypeRef {
     args.push(named_tr("int32"))
     args.push(named_tr("str"))
     val n = monomorphized_type_name("Pair", &args)
-    assert_eq(n, "Pair__int32__str", "Pair<int32,str>")
+    assert_eq(n.as_str(), "Pair__int32__str", "Pair<int32,str>")
 }
 
 @test fun mono_name_no_args_is_bare(): void {
-    val empty_args = List.new<TypeRef>()
+    val empty_args = []
     val n = monomorphized_type_name("Foo", &empty_args)
-    assert_eq(n, "Foo", "no args → bare")
+    assert_eq(n.as_str(), "Foo", "no args → bare")
 }
 
 // Must agree with mangle_struct_name in kf-mono: "List__int32".
 @test fun user_generic_list_matches_builtin_convention(): void {
     var args = []
     args.push(named_tr("int32"))
-    val n = monomorphized_type_name(String.from("List"), &args)
-    assert_eq(n, "List__int32", "user List<int32> == builtin List__int32")
+    val n = monomorphized_type_name("List", &args)
+    assert_eq(n.as_str(), "List__int32", "user List<int32> == builtin List__int32")
 }
 
 @test fun subst_rewrites_a_folded_call_callee(): void {
-    var call = Expr.new(no_span(), ExprKind.Call(intern("alloc"), List.new<Expr>()))
+    var call = Expr.new(Span.none(), ExprKind.Call(intern("alloc"), []))
     call.type_args.push(named_tr("T"))
     call.mangled_callee = intern("alloc__T")
-    var names = List.new<String>()
-    var repls = []
-    names.push("T")
-    repls.push(named_tr("aa__Point"))
-    val out = call.subst_expr(&var names, &var repls)
+    var subst = Substitution.new()
+    subst.bind("T", named_tr("aa__Point"))
+    val out = call.subst_expr(&subst)
     assert_eq(out.mangled_callee.as_str(), "alloc__aa__Point", "materialized calls substitute folded type fragments")
 }
 
@@ -130,7 +119,7 @@ fun let_anno_mangle(s: Stmt): String {
     when (s.kind) {
         LetVal(_n, ty_ptr, _i) => {
             val p = ty_ptr ?: return "<none>"
-            return mangle_tyref(unsafe { &*p })
+            return mangle_tyref(unsafe { &*p }).display()
         }
         _ => return "?"
     }
@@ -140,66 +129,61 @@ fun mk_let_t(): Stmt {
     val ty_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *ty_ptr = named_tr("T") }
     val init_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *init_ptr = Expr.new(no_span(), ExprKind.Variable(intern("x"))) }
-    return Stmt.new(no_span(), StmtKind.LetVal(intern("y"), ty_ptr, init_ptr))
+    unsafe { *init_ptr = Expr.new(Span.none(), ExprKind.Variable(intern("x"))) }
+    return Stmt.new(Span.none(), StmtKind.LetVal(intern("y"), ty_ptr, init_ptr))
 }
 
 @test fun subst_rewrites_let_annotation_in_body(): void {
-    var names = []
-    var repls = []
-    names.push(String.from("T"))
-    repls.push(named_tr("int32"))
-    val s2 = subst_stmt(mk_let_t(), &var names, &var repls)
+    var subst = Substitution.new()
+    subst.bind("T", named_tr("int32"))
+    val s2 = subst_stmt(mk_let_t(), &subst)
     assert_eq(let_anno_mangle(s2).as_str(), "int32", "let annotation T → int32")
 }
 
 @test fun subst_does_not_mutate_original(): void {
-    var names = []
-    var repls = []
-    names.push(String.from("T"))
-    repls.push(named_tr("int32"))
     val s = mk_let_t()
-    val s2 = s.subst_stmt(&var names, &var repls)
+    var subst = Substitution.new()
+    subst.bind("T", named_tr("int32"))
+    val s2 = s.subst_stmt(&subst)
     assert_eq(let_anno_mangle(s).as_str(), "T", "original stays T (deep clone)")
     assert_eq(let_anno_mangle(s2).as_str(), "int32", "clone substituted")
 }
 
 @test fun subst_mangled_name_rewrites_folded_builtin(): void {
-    var names = []
-    var repls = []
-    names.push(String.from("T"))
-    repls.push(named_tr("int32"))
-    val out = subst_mangled_name("alloc_array__T", &var names, &var repls)
+    var subst = Substitution.new()
+    subst.bind("T", named_tr("int32"))
+    val out = subst_mangled_name("alloc_array__T", &subst)
     assert_eq(out.as_str(), "alloc_array__int32", "alloc_array__T[T:=int32] -> alloc_array__int32")
 }
 
 @test fun subst_mangled_name_leaves_plain_name(): void {
-    var names = []
-    var repls = []
-    names.push(String.from("T"))
-    repls.push(named_tr("int32"))
-    val out = subst_mangled_name("compute_total", &var names, &var repls)
+    var subst = Substitution.new()
+    subst.bind("T", named_tr("int32"))
+    val out = subst_mangled_name("compute_total", &subst)
     assert_eq(out.as_str(), "compute_total", "plain name untouched")
 }
 
+fun binds_t(): Substitution {
+    var subst = Substitution.new()
+    subst.bind("T", named_tr("int32"))
+    return subst
+}
+
 @test fun a_compound_names_its_parameter_segment(): void {
-    val names = [String.from("T")]
-    assert_eq("List__T__get".has_param_segment(&names), true, "the middle segment is T")
+    val segments = Frag.segments("List__T__get")
+    assert_eq(binds_t().binds_one_of(&segments), true, "the middle segment is T")
 }
 
 @test fun a_parameter_inside_a_segment_is_not_named(): void {
-    var names = List.new<String>()
-    names.push(String.from("T"))
-    assert_eq("List__Tree".has_param_segment(&names), false, "Tree only starts with T")
+    val segments = Frag.segments("List__Tree")
+    assert_eq(binds_t().binds_one_of(&segments), false, "Tree only starts with T")
 }
 
 @test fun subst_type_replaces_bare_generic(): void {
-    var names = List.new<String>()
-    var repls = List.new<TypeRef>()
-    names.push(String.from("T"))
-    repls.push(named_tr("int32"))
-    val gen_t = Type { kind: TypeKind.Generic(intern("T")), provenance: Provenance.Inferred(no_span()) }
-    val out = gen_t.subst_type(&var names, &var repls)
+    val gen_t = Type { kind: TypeKind.Generic(intern("T")), provenance: Provenance.Inferred(Span.none()) }
+    var subst = Substitution.new()
+    subst.bind("T", named_tr("int32"))
+    val out = gen_t.subst_type(&subst)
     when (out.kind) {
         Int32 => assert(true, "Generic(T) -> int32")
         _ => fail("expected Int32")
@@ -207,13 +191,11 @@ fun mk_let_t(): Stmt {
 }
 
 @test fun subst_type_recurses_into_ptr_of_bare_struct(): void {
-    var names = List.new<String>()
-    var repls = List.new<TypeRef>()
-    names.push(String.from("T"))
-    repls.push(named_tr("int32"))
-    val struct_t = Type { kind: TypeKind.Struct(intern("T")), provenance: Provenance.Inferred(no_span()) }
-    val ptr_struct_t = Type.new_ptr(struct_t, no_span())
-    val out = ptr_struct_t.subst_type(&var names, &var repls)
+    val struct_t = Type { kind: TypeKind.Struct(intern("T")), provenance: Provenance.Inferred(Span.none()) }
+    val ptr_struct_t = Type.new_ptr(struct_t, Span.none())
+    var subst = Substitution.new()
+    subst.bind("T", named_tr("int32"))
+    val out = ptr_struct_t.subst_type(&subst)
     when (out.kind) {
         PtrTo(p) => {
             val inner = unsafe { *p }
@@ -227,12 +209,10 @@ fun mk_let_t(): Stmt {
 }
 
 @test fun subst_type_rewrites_compound_struct_name(): void {
-    var names = List.new<String>()
-    var repls = List.new<TypeRef>()
-    names.push(String.from("T"))
-    repls.push(named_tr("int32"))
-    val buf_t = Type { kind: TypeKind.Struct(intern("Buffer__T")), provenance: Provenance.Inferred(no_span()) }
-    val out = buf_t.subst_type(&var names, &var repls)
+    val buf_t = Type { kind: TypeKind.Struct(intern("Buffer__T")), provenance: Provenance.Inferred(Span.none()) }
+    var subst = Substitution.new()
+    subst.bind("T", named_tr("int32"))
+    val out = buf_t.subst_type(&subst)
     when (out.kind) {
         Struct(n) => assert_eq(n.as_str(), "Buffer__int32", "Buffer__T -> Buffer__int32")
         _ => fail("expected Struct")
@@ -273,12 +253,12 @@ fun TypeRef.proj_owner_addr(): uint64 {
 fun projection_tr(owner_name: str, member: str): TypeRef {
     val owner: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *owner = named_tr(owner_name) }
-    return TypeRef.new(no_span(), TypeRefKind.Projection(owner, intern(member)))
+    return TypeRef.new(Span.none(), TypeRefKind.Projection(owner, intern(member)))
 }
 
 @test fun cloning_keeps_a_projection(): void {
     val source = projection_tr("Widget", "Out")
-    val copy = source.clone_type_ref()
+    val copy = source.clone()
     assert_eq(copy.proj_member_name().as_str(), "Out", "the projected name survives the clone")
     assert_eq(copy.proj_owner_name().as_str(), "Widget", "the owner survives the clone")
 }
@@ -286,7 +266,7 @@ fun projection_tr(owner_name: str, member: str): TypeRef {
 // A shared owner pointer would be freed twice.
 @test fun a_cloned_projection_owns_its_owner(): void {
     val source = projection_tr("Widget", "Out")
-    val copy = source.clone_type_ref()
+    val copy = source.clone()
     val shared = copy.proj_owner_addr() == source.proj_owner_addr()
     assert_eq(shared, false, "the clone allocates its own owner node")
 }
@@ -294,11 +274,9 @@ fun projection_tr(owner_name: str, member: str): TypeRef {
 // Substituting a projection substitutes its owner.
 
 fun subst_one(tr: TypeRef, name: str, replacement: TypeRef): TypeRef {
-    var names = List.new<String>()
-    names.push(String.from(name))
-    var repls = List.new<TypeRef>()
-    repls.push(replacement)
-    return tr.subst_type_ref(&var names, &var repls)
+    var subst = Substitution.new()
+    subst.bind(String.from(name), replacement)
+    return tr.subst_type_ref(&subst)
 }
 
 @test fun substituting_rewrites_a_projection_owner(): void {
@@ -326,7 +304,7 @@ fun subst_one(tr: TypeRef, name: str, replacement: TypeRef): TypeRef {
 // owner there too.
 
 fun ty_proj(owner: Type, member: str): Type {
-    return Type.new_projection(owner, intern(member), no_span())
+    return Type.new_projection(owner, intern(member), Span.none())
 }
 
 fun Type.ty_proj_member(): String {
@@ -347,44 +325,40 @@ fun Type.ty_name_of(): String {
     when (self.kind) {
         Generic(n) => return n.as_string()
         Struct(n) => return n.as_string()
-        _ => return String.from("<other>")
+        _ => return "<other>"
     }
 }
 
 fun subst_one_ty(t: Type, name: str, replacement: TypeRef): Type {
-    var names = List.new<String>()
-    names.push(String.from(name))
-    var repls = List.new<TypeRef>()
-    repls.push(replacement)
-    return t.subst_type(&var names, &var repls)
+    var subst = Substitution.new()
+    subst.bind(String.from(name), replacement)
+    return t.subst_type(&subst)
 }
 
 @test fun substituting_rewrites_a_projection_type_owner(): void {
-    val src = ty_proj(Type.new_generic(String.from("C"), no_span()), "Out")
+    val src = ty_proj(Type.new_generic("C", Span.none()), "Out")
     val out = subst_one_ty(src, "C", named_tr("Widget"))
     assert_eq(out.ty_proj_owner_name().as_str(), "Widget", "the owner is substituted")
     assert_eq(out.ty_proj_member().as_str(), "Out", "it is still a projection")
 }
 
 @test fun substituting_leaves_an_unrelated_projection_type_alone(): void {
-    val src = ty_proj(Type.new_generic(String.from("C"), no_span()), "Out")
+    val src = ty_proj(Type.new_generic("C", Span.none()), "Out")
     val out = subst_one_ty(src, "D", named_tr("Widget"))
     assert_eq(out.ty_proj_owner_name().as_str(), "C", "an unmatched owner is untouched")
 }
 
 // Unresolved is not broken: poison would suppress errors around it.
 @test fun a_projection_type_is_not_poison(): void {
-    val src = ty_proj(Type.new_generic(String.from("C"), no_span()), "Out")
+    val src = ty_proj(Type.new_generic("C", Span.none()), "Out")
     assert_eq(src.is_poison(), false, "an unresolved projection is not an error type")
 }
 
 @test fun subst_type_keeps_a_box_argument_a_box(): void {
-    var names = List.new<String>()
-    var repls = List.new<TypeRef>()
-    names.push(String.from("T"))
-    repls.push(dynamic_box_tr("Item"))
-    val gen_t = Type { kind: TypeKind.Generic(intern("T")), provenance: Provenance.Inferred(no_span()) }
-    val out = gen_t.subst_type(&var names, &var repls)
+    val gen_t = Type { kind: TypeKind.Generic(intern("T")), provenance: Provenance.Inferred(Span.none()) }
+    var subst = Substitution.new()
+    subst.bind("T", dynamic_box_tr("Item"))
+    val out = gen_t.subst_type(&subst)
     when (out.kind) {
         BoxOf(_inner) => assert(true, "T := Box<Item> is a Box")
         _ => fail("expected a Box, not a struct named Box__Item")
@@ -392,7 +366,7 @@ fun subst_one_ty(t: Type, name: str, replacement: TypeRef): Type {
 }
 
 fun dynamic_box_tr(arg: str): TypeRef {
-    var args = List.new<TypeRef>()
+    var args = []
     args.push(named_tr(arg))
-    return TypeRef.new(no_span(), TypeRefKind.Named(intern("Box"), args))
+    return TypeRef.new(Span.none(), TypeRefKind.Named(intern("Box"), args))
 }

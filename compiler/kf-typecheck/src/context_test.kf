@@ -4,6 +4,6 @@ import kf_core.diagnostic.*
 /// as a test process is short-lived.
 pub fun leaked_diagnostics(): Ptr<Diagnostics> {
     val sink: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
-    unsafe { *sink = new_diagnostics() }
+    unsafe { *sink = Diagnostics.new() }
     return sink
 }

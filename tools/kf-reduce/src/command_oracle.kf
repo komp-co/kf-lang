@@ -22,17 +22,17 @@ impl Oracle for CommandOracle {
     mutating fun interesting(lines: &List<String>): bool {
         self.tries = self.tries + 1
         val text = lines.join("\n")
-        if write_text(self.candidate_path.as_str(), text.as_str()).is_err() {
+        if write_text(self.candidate_path, text).is_err() {
             println("kf-reduce: cannot write ${self.candidate_path}")
             return false
         }
         var command = Command.new(self.program.as_str())
-        while arg in &self.args { command.arg(arg.as_str()) }
-        command.arg(self.candidate_path.as_str())
+        while arg in &self.args { command.arg(arg) }
+        command.arg(self.candidate_path)
         command.stdout_to(Path.new("/dev/null"))
         if !command.status().success() { return false }
         self.kept = self.kept + 1
-        val _saved = write_text(self.best_path.as_str(), text.as_str())
+        val _saved = write_text(self.best_path, text)
         println("kf-reduce: ${lines.size()} lines (try ${self.tries})")
         return true
     }

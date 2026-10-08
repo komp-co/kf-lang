@@ -4,7 +4,7 @@
 import kf_integration.harness.typed_crate_for
 import core.assert.assert_eq
 
-import kf_driver.editor.render_inlays_json
+import kf_query.editor.render_inlays_json
 import std.fs.scratch_path
 import testing.test
 
@@ -36,5 +36,5 @@ fun an_inlay_names_the_type_a_later_use_decided(): void {
     prepare_decided_fixture()
     val crate = typed_crate_for(decided_fixture_path())
     val json = render_inlays_json("main.kf", &crate)
-    assert_eq(json.as_str().contains("int32"), false, "no binding is left at the provisional int32")
+    assert_eq(json.contains("int32"), false, "no binding is left at the provisional int32")
 }

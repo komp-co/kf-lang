@@ -1,37 +1,37 @@
 import core.assert.*
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.Sym
-import kf_core.ast.intern
+import kf_core.span.Span
 import kf_core.ast.types.Provenance
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.statement.*
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_codegen.emit.new_local_env
 import testing.test
 
 fun guard_expr(name: str): Ptr<Expr> {
     val g: Ptr<Expr> = unsafe { alloc<Expr>() }
-    var e = Expr.new(no_span(), ExprKind.Variable(intern(name)))
-    e.ty = Type { kind: TypeKind.Bool, provenance: Provenance.Inferred(no_span()) }
+    var e = Expr.new(Span.none(), ExprKind.Variable(intern(name)))
+    e.ty = Type { kind: TypeKind.Bool, provenance: Provenance.Inferred(Span.none()) }
     unsafe { *g = e }
     return g
 }
 
 fun guarded_arm(tag: SwitchTag, guard: Box<Expr>?): SwitchArm {
-    return SwitchArm.new(no_span(), tag, List.new<Sym>(), guard, List.new<Stmt>())
+    return SwitchArm.new(Span.none(), tag, List.new<Sym>(), guard, List.new<Stmt>())
 }
 
 fun guard_switch_c(arms: List<SwitchArm>): String {
     val sp: Ptr<Expr> = unsafe { alloc<Expr>() }
-    var subj = Expr.new(no_span(), ExprKind.Variable(intern("x")))
-    subj.ty = Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(no_span()) }
+    var subj = Expr.new(Span.none(), ExprKind.Variable(intern("x")))
+    subj.ty = Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(Span.none()) }
     unsafe { *sp = subj }
     var env = new_local_env()
-    return emit_stmt(Stmt.new(no_span(), StmtKind.Switch(sp, arms)), 0, &var env)
+    return emit_stmt(Stmt.new(Span.none(), StmtKind.Switch(sp, arms)), 0, &var env)
 }
 
 // Two arms, one guarded: the switch is gone and the guard is in the test.
@@ -77,8 +77,8 @@ fun guard_switch_c(arms: List<SwitchArm>): String {
     arms.push(guarded_arm(SwitchTag.IntLit(0), null))
     arms.push(guarded_arm(SwitchTag.Wildcard, null))
     val c = guard_switch_c(arms)
-    assert_eq(guard_contains(c.as_str(), "switch ("), true, "still a switch")
-    assert_eq(guard_contains(c.as_str(), "case 0:"), true, "still a case label")
+    assert_eq(guard_contains(c, "switch ("), true, "still a switch")
+    assert_eq(guard_contains(c, "case 0:"), true, "still a case label")
 }
 
 // Local copy: the crate's substring helpers are file-private.

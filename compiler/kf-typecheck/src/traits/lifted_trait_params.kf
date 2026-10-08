@@ -36,7 +36,7 @@ fun TraitImplInfo.lifted_names(ctx: &var TypeCtx): List<String> {
     var out = List.new<String>()
     if self.generics.as_str() == "" { return out }
     val own = self.type_name.static_recv_arity(ctx)
-    val names = self.generics.as_str().split("__")
+    val names = self.generics.split("__")
     while i in own..names.size() { out.push(names.at(i).clone()) }
     return out
 }

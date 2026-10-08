@@ -7,8 +7,8 @@ import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.FieldInit
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
 import kf_typecheck.types.bind_generic_from_param
 import kf_typecheck.types.type_to_type_ref
 
@@ -24,7 +24,7 @@ mutating fun Expr.infer_struct_type_args(name: str, fields: &var List<FieldInit>
     val layout = template.layout
     var args = List.new<TypeRef>()
     while param in &template.type_params {
-        val bound = layout.bind_from_fields(fields, param.as_str(), ctx) ?: return self.report_unbound(name, param, ctx)
+        val bound = layout.bind_from_fields(fields, param, ctx) ?: return self.report_unbound(name, param, ctx)
         args.push(bound.type_to_type_ref(self.span))
     }
     self.type_args = args
@@ -50,7 +50,7 @@ fun StructLayout.bind_from_fields(fields: &List<FieldInit>, param: str, ctx: &va
 fun Expr.report_unbound(name: str, param: &String, ctx: &var TypeCtx): bool? {
     val message = "cannot infer `${param}` for `${name}` from its fields: " +
         "write the type arguments, as `${name}<...> { ... }`"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
     return false
 }
 

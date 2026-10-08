@@ -1,0 +1,20 @@
+//! build: fail
+//! deps: core
+// An annotation has at most one template per kind it marks.
+
+annotation counted on struct
+
+template counted on struct T {
+    fun T.count(): int64 { return T.fields.size() }
+}
+
+template counted on struct T {
+    fun T.total(): int64 { return 0 }
+}
+
+@counted
+struct Pair {
+    val a: int32
+}
+
+fun main(): int32 { return 0 }

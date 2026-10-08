@@ -1,0 +1,231 @@
+// A template is written in the crate declaring its annotation and expands in
+// the crates importing it, for their own structs. Needs two crates, so not a
+// tests/cases file.
+
+import core.assert.assert_eq
+import alloc.path.Path
+import kf_integration.harness.komp_build
+import std.fs.create_dir_all
+import std.fs.remove_dir_all
+import std.fs.scratch_path
+import std.fs.write_text
+import testing.test
+
+extern "C" fun system(cmd: str): int32
+
+fun across_dir(name: str): str {
+    return scratch_path("kf_template_across_${name}")
+}
+
+fun write_across_crate(name: str, kind: str, deps: str, source: str): void {
+    val dir = across_dir(name)
+    val _cleared = remove_dir_all(dir)
+    val _made = create_dir_all(Path.new("${dir}/src".as_str()))
+    val file = if kind == "lib" { "lib.kf" } else { "main.kf" }
+    val _manifest = write_text("${dir}/kf.toml".as_str(),
+        "[project]\nname = \"${name}\"\nkind = \"${kind}\"\n${deps}")
+    val _source = write_text("${dir}/src/${file}".as_str(), source)
+}
+
+fun weighing_library(): str {
+    return """pub trait Weighed {
+    fun weight(): int64
+}
+
+pub annotation weighed(scale: int64 = 1) on struct
+pub annotation skip on field
+
+fun scaled(n: int64, scale: int64): int64 { return n * scale }
+
+template weighed on struct T {
+    impl Weighed for T {
+        fun weight(): int64 {
+            val kept = T.fields.filter(|field| !field.has<skip>()).map(|field| field.of(self) as int64)
+            return scaled(kept.fold(0 as int64, |sum: int64, x: int64| sum + x), args.scale)
+        }
+    }
+}
+"""
+}
+
+fun uses_weighing(): String {
+    write_across_crate("tw_lib", "lib", "", weighing_library())
+    return String.from("\n[dependencies]\ntw_lib = { path = \"../kf_template_across_tw_lib\" }\n")
+}
+
+@test
+fun a_template_expands_for_the_structs_of_a_crate_importing_it(): void {
+    write_across_crate("tw_app", "bin", uses_weighing().as_str(), """import tw_lib.Weighed
+import tw_lib.skip
+import tw_lib.weighed
+
+@weighed(10)
+struct Parcel {
+    val a: int32
+    @skip
+    val b: int32
+    val c: int64
+}
+
+@weighed
+struct Single {
+    val v: int32
+}
+
+fun main(): int32 {
+    val w = Parcel { a: 1, b: 100, c: 2 }.weight()
+    val s = Single { v: 5 }.weight()
+    return (w + s - 35) as int32
+}
+""")
+    val app = across_dir("tw_app")
+    assert_eq(komp_build(app, ""), 0, "the library's template adds `impl Weighed` in the app")
+    val ran = unsafe { system("${app}/target/kflat/tw_app") }
+    assert_eq(ran, 0, "with the use's arguments, defaults and member annotations")
+}
+
+@test
+fun a_template_calls_its_crate_s_private_helper_and_its_user_cannot(): void {
+    write_across_crate("tw_private", "bin", uses_weighing().as_str(), """import tw_lib.weighed
+
+@weighed
+struct Single {
+    val v: int32
+}
+
+fun main(): int32 { return scaled(1, 2) as int32 }
+""")
+    assert_eq(komp_build(across_dir("tw_private"), "") != 0, true, "`scaled` is private to `tw_lib`")
+}
+
+@test
+fun annotated_in_a_template_lists_the_uses_of_the_crate_it_expands_into(): void {
+    write_across_crate("tw_count_lib", "lib", "", """pub annotation listed on struct
+
+template listed on struct T {
+    fun T.listed_count(): uint64 {
+        return annotated<listed>().size()
+    }
+}
+""")
+    val deps = "\n[dependencies]\ntw_count_lib = { path = \"../kf_template_across_tw_count_lib\" }\n"
+    write_across_crate("tw_count_app", "bin", deps, """import tw_count_lib.listed
+
+@listed
+struct First {
+    val v: int32
+}
+
+@listed
+struct Second {
+    val v: int32
+}
+
+fun main(): int32 { return First { v: 1 }.listed_count() as int32 - 2 }
+""")
+    val app = across_dir("tw_count_app")
+    assert_eq(komp_build(app, ""), 0, "the query names the app's structs")
+    assert_eq(unsafe { system("${app}/target/kflat/tw_count_app") }, 0, "both of them")
+}
+
+@test
+fun an_enum_template_expands_for_the_enums_of_a_crate_importing_it(): void {
+    write_across_crate("tw_enum_lib", "lib", "", """pub annotation counted on enum
+
+template counted on enum T {
+    fun T.payload_count(): int64 {
+        return when (self) {
+            while variant in T.variants {
+                \${variant.name}(..a) => variant.payloads.size()
+            }
+        }
+    }
+}
+""")
+    val deps = "\n[dependencies]\ntw_enum_lib = { path = \"../kf_template_across_tw_enum_lib\" }\n"
+    write_across_crate("tw_enum_app", "bin", deps, """import tw_enum_lib.counted
+
+@counted
+enum Event {
+    Click(int32, int32)
+    Quit
+}
+
+fun main(): int32 { return (Event.Click(1, 2).payload_count() + Event.Quit.payload_count() - 2) as int32 }
+""")
+    val app = across_dir("tw_enum_app")
+    assert_eq(komp_build(app, ""), 0, "the library's enum template adds `payload_count` in the app")
+    assert_eq(unsafe { system("${app}/target/kflat/tw_enum_app") }, 0, "an arm per variant")
+}
+
+@test
+fun a_keyed_template_lives_with_its_key_in_another_crate(): void {
+    write_across_crate("tk_derive", "lib", "", """pub annotation deriving(traits: trait..) on <struct, enum>
+""")
+    val on_derive = "\n[dependencies]\ntk_derive = { path = \"../kf_template_across_tk_derive\" }\n"
+    write_across_crate("tk_count", "lib", on_derive, """import tk_derive.deriving
+
+pub trait Counted {
+    fun count(): int64
+}
+
+fun tally(n: uint64): int64 { return n as int64 }
+
+template deriving(Counted) on struct T {
+    impl Counted for T {
+        fun count(): int64 { return tally(T.fields.size()) }
+    }
+}
+""")
+    val deps = "${on_derive}tk_count = { path = \"../kf_template_across_tk_count\" }\n"
+    write_across_crate("tk_app", "bin", deps, """import tk_derive.deriving
+import tk_count.Counted
+
+@deriving(Counted)
+struct Point {
+    val x: int32
+    val y: int32
+}
+
+fun main(): int32 { return Point { x: 1, y: 2 }.count() as int32 - 2 }
+""")
+    val app = across_dir("tk_app")
+    assert_eq(komp_build(app, ""), 0, "the key's crate adds `impl Counted` for the app's struct")
+    assert_eq(unsafe { system("${app}/target/kflat/tk_app") }, 0, "two fields")
+}
+
+@test
+fun a_template_calls_the_functions_its_use_names_in_another_crate(): void {
+    write_across_crate("tn_lib", "lib", "", """pub annotation checked(rules: fun..) on struct
+
+template checked on struct T {
+    fun T.valid(): bool {
+        while field in T.fields {
+            while rule in args.rules {
+                if !rule(field.of(self) as int64) { return false }
+            }
+        }
+        return true
+    }
+}
+""")
+    val deps = "\n[dependencies]\ntn_lib = { path = \"../kf_template_across_tn_lib\" }\n"
+    write_across_crate("tn_app", "bin", deps, """import tn_lib.checked
+
+fun positive(n: int64): bool { return n > 0 }
+
+@checked(positive)
+struct Reading {
+    val level: int32
+}
+
+fun main(): int32 {
+    val ok = Reading { level: 5 }
+    val bad = Reading { level: -5 }
+    return if ok.valid() && !bad.valid() { 0 } else { 1 }
+}
+""")
+    val app = across_dir("tn_app")
+    assert_eq(komp_build(app, ""), 0, "the app's private `positive` is called where the use names it")
+    assert_eq(unsafe { system("${app}/target/kflat/tn_app") }, 0, "the rule runs per field")
+}

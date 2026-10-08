@@ -1,10 +1,10 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.intern
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
+import kf_core.intern.intern
 import kf_parse.parser.*
 
 /// Declaration-site `<A, B>` as use-site TypeRefs, for re-reading a trait
@@ -42,14 +42,14 @@ impl Parser {
             unsafe { self.advance() } // consume `for`
             val written_args = trait_args.clone()
             val trait_ref_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-            unsafe { *trait_ref_ptr = TypeRef.new(first_at, TypeRefKind.Named(intern(first.as_str()), trait_args)) }
+            unsafe { *trait_ref_ptr = TypeRef.new(first_at, TypeRefKind.Named(intern(first), trait_args)) }
             val target = self.expect_name("impl target")
             val target_at = unsafe { self.peek().span }
             unsafe { self.advance() }
             val tps = self.parse_type_params()
             var methods = self.parse_brace_methods()
             val by_trait = lift_trait_arg_params(&declared, &tps, &written_args, &var methods)
-            var td = new_top_decl(span, target, TopDeclKind.TraitImpl(trait_ref_ptr, methods))
+            var td = TopDecl.new(span, target, TopDeclKind.TraitImpl(trait_ref_ptr, methods))
             td.name_span = target_at
             td.generics = if has_list { self.merge_declared_params(&declared, &tps, &by_trait) } else { tps }
             return td
@@ -62,13 +62,13 @@ impl Parser {
             // The impl's generics are the target's parameters.
             val trait_args = type_params_to_refs(first_tps)
             val trait_ref_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-            unsafe { *trait_ref_ptr = TypeRef.new(first_at, TypeRefKind.Named(intern(first.as_str()), trait_args)) }
+            unsafe { *trait_ref_ptr = TypeRef.new(first_at, TypeRefKind.Named(intern(first), trait_args)) }
             val target = self.expect_name("impl target")
             val target_at = unsafe { self.peek().span }
             unsafe { self.advance() }
             val tps = self.parse_type_params()
             val methods = self.parse_brace_methods()
-            var td = new_top_decl(span, target, TopDeclKind.TraitImpl(trait_ref_ptr, methods))
+            var td = TopDecl.new(span, target, TopDeclKind.TraitImpl(trait_ref_ptr, methods))
             td.name_span = target_at
             td.generics = if has_list {
                 self.merge_declared_params(&declared, &tps, &List.new<TypeParam>())
@@ -79,7 +79,7 @@ impl Parser {
         }
 
         val methods = self.parse_brace_methods()
-        var td = new_top_decl(span, first, TopDeclKind.ImplBlock(methods))
+        var td = TopDecl.new(span, first, TopDeclKind.ImplBlock(methods))
         td.name_span = first_at
         td.generics = if has_list {
             self.merge_declared_params(&declared, &first_tps, &List.new<TypeParam>())
@@ -131,7 +131,7 @@ impl Parser {
         if is_op(self.peek(), Operator.Eq) {
             unsafe { self.advance() } // consume `=`
             val chosen = self.parse_type_ref_ptr()
-            methods.push(new_top_decl(span, name, TopDeclKind.AssocTypeBinding(chosen)))
+            methods.push(TopDecl.new(span, name, TopDeclKind.AssocTypeBinding(chosen)))
             return
         }
         var bounds = List.new<TypeRef>()
@@ -148,7 +148,7 @@ impl Parser {
                 if self.pos == before { break }
             }
         }
-        methods.push(new_top_decl(span, name, TopDeclKind.AssocType(bounds)))
+        methods.push(TopDecl.new(span, name, TopDeclKind.AssocType(bounds)))
     }
 
     /// A member, with the `@...` run above it recorded on it.
@@ -225,7 +225,7 @@ impl Parser {
         }
 
         if !is_keyword(self.peek(), Keyword.Fun) {
-            return new_top_decl(span, "", TopDeclKind.Poison)
+            return TopDecl.new(span, "", TopDeclKind.Poison)
         }
         unsafe { self.advance() } // consume `fun`
 
@@ -237,7 +237,7 @@ impl Parser {
 
         val ret = if self.take_op(Operator.Colon) { self.parse_type_ref_ptr() } else { poison_type_ref_at(span) }
 
-        var td = new_top_decl(span, name, TopDeclKind.Extern(params, ret, is_pub, false))
+        var td = TopDecl.new(span, name, TopDeclKind.Extern(params, ret, is_pub, false))
         td.name_span = name_at
         return td
     }

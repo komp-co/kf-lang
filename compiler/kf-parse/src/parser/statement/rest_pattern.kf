@@ -1,0 +1,22 @@
+// `..a` among a variant's payloads, in a template: every payload of the
+// variant a member loop is on, each bound to a name `payload.of(a)` reads.
+
+import kf_core.ast.pattern.Pattern
+import kf_core.ast.pattern.PatternKind
+import kf_core.intern.intern
+import kf_parse.parser.*
+
+impl Parser {
+    /// One payload's pattern, or `..a` inside a template.
+    mutating fun parse_payload_pattern(): Pattern {
+        if !is_op(self.peek(), Operator.DotDot) { return self.parse_pattern() }
+        val at = self.peek().span
+        self.advance() // consume `..`
+        val name = self.expect_name("payloads binder")
+        self.advance()
+        if self.template_param.as_str().byte_len() == 0 {
+            self.parse_err(at, String.from("`..name` binds a variant's payloads only in a template's arm"))
+        }
+        return Pattern.new(at, PatternKind.Identifier(intern("..${name.as_str()}")))
+    }
+}

@@ -12,7 +12,7 @@
 
 import alloc.list.*
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.ast.types.*
 import kf_core.ast.expression.Expr
@@ -23,7 +23,10 @@ import kf_typecheck.traits.trait_ref_head_name
 import kf_typecheck.traits.trait_ref_args_key
 import kf_typecheck.traits.assoc_owner_key
 import kf_typecheck.check.autoderef_ty
-import kf_core.ast.dyn_meta.dyn_trait_type
+import kf_core.ast.types.Type
+import kf_core.intern.*
+import kf_core.names.*
+import kf_core.ast.expression.*
 
 pub mutating fun Module.subst_projections_module(sigs: Ptr<SigTable>): void {
     while i in 0..self.decls.size() {
@@ -209,10 +212,10 @@ pub fun Type.resolved_projection_type(self_name: str, sigs: Ptr<SigTable>): Type
             val inner = resolved_projection_type(unsafe { &*owner }, self_name, sigs)
             val key = inner.projection_type_owner_key(self_name)
             if key.as_str().equals("") { return self.rebuilt_projection(inner, member) }
-            if unsafe { sigs.count_assoc_bindings(key.as_str(), member.as_str()) } != 1 {
+            if unsafe { sigs.count_assoc_bindings(key, member.as_str()) } != 1 {
                 return self.rebuilt_projection(inner, member)
             }
-            val chosen = unsafe { sigs.lookup_assoc_binding(key.as_str(), member.as_str()) }
+            val chosen = unsafe { sigs.lookup_assoc_binding(key, member.as_str()) }
             // A poison choice was already reported; the projection is kept for
             // a later run.
             if chosen.is_poison() { return self.rebuilt_projection(inner, member) }
@@ -227,7 +230,7 @@ pub fun Type.resolved_projection_type(self_name: str, sigs: Ptr<SigTable>): Type
                 args.push(argument.resolved_projection_type(self_name, sigs))
                 i = i + 1
             }
-            val rebuilt = dyn_trait_type(unsafe { object.principal }, args, no_span())
+            val rebuilt = Type.new_dyn_trait(unsafe { object.principal }, args, Span.none())
             return Type { kind: rebuilt.kind, provenance: self.provenance }
         }
         PtrTo(p) => {
@@ -247,14 +250,14 @@ pub fun Type.resolved_projection_type(self_name: str, sigs: Ptr<SigTable>): Type
         }
         // As a type argument the projection lives in the instance name.
         Struct(n) => {
-            if !name_has_projection_marker(n.as_str()) { return (*self) }
+            if !MangledProjection.may_be_in(n.as_str()) { return (*self) }
             val nn = resolved_proj_segments(n.as_str(), self_name, sigs)
-            return Type { kind: TypeKind.Struct(intern(nn.as_str())), provenance: self.provenance }
+            return Type { kind: TypeKind.Struct(intern(nn)), provenance: self.provenance }
         }
         EnumTy(n) => {
-            if !name_has_projection_marker(n.as_str()) { return (*self) }
+            if !MangledProjection.may_be_in(n.as_str()) { return (*self) }
             val nn = resolved_proj_segments(n.as_str(), self_name, sigs)
-            return Type { kind: TypeKind.EnumTy(intern(nn.as_str())), provenance: self.provenance }
+            return Type { kind: TypeKind.EnumTy(intern(nn)), provenance: self.provenance }
         }
         _ => return (*self)
     }
@@ -264,34 +267,34 @@ pub fun Type.resolved_projection_type(self_name: str, sigs: Ptr<SigTable>): Type
 /// choice (`List__Proj__Inc__Out__EndProj` -> `List__int32`); others copied
 /// through. A projection nested in another's owner resolves on a later pass.
 fun resolved_proj_segments(mangled: str, self_name: str, sigs: Ptr<SigTable>): String {
-    val segs = mangle_segments(mangled)
+    val segs = Frag.segments(mangled)
     var out = ""
     var emitted = false
     var i = 0
     while i < segs.size() {
         var seg = *segs.at(i)
         var step = 1
-        if is_projection_open(seg.as_str()) {
-            val close = projection_close_index(&segs, i)
+        if MangledProjection.opens(seg.as_str()) {
+            val close = MangledProjection.close_index(&segs, i)
             // `Proj__<owner segments>__<member>__EndProj`.
             if close > i + 2 {
                 var owner = joined_segments(&segs, i + 1, close - 1)
                 // Inside an impl, `Self` names the target.
                 if owner.as_str().equals("Self") { owner = String.from(self_name) }
                 val member = *segs.at(close - 1)
-                if unsafe { sigs.count_assoc_bindings(owner.as_str(), member.as_str()) } == 1 {
-                    val chosen = unsafe { sigs.lookup_assoc_binding(owner.as_str(), member.as_str()) }
+                if unsafe { sigs.count_assoc_bindings(owner, member) } == 1 {
+                    val chosen = unsafe { sigs.lookup_assoc_binding(owner, member) }
                     // A poison choice was already reported; kept for later.
                     if !chosen.is_poison() {
                         seg = mangle_type(chosen)
-                        seg.append(projection_close_tail(segs.at(close).as_str()).as_str())
+                        seg.append(MangledProjection.close_tail(segs.at(close).as_str()).as_str())
                         step = close + 1 - i
                     }
                 }
             }
         }
         if emitted { out.append("__") }
-        out.append(seg.as_str())
+        out.append(seg)
         emitted = true
         i = i + step
     }
@@ -300,13 +303,13 @@ fun resolved_proj_segments(mangled: str, self_name: str, sigs: Ptr<SigTable>): S
 
 /// Unchanged when it holds none.
 fun Sym.resolved_proj_name(self_name: str, sigs: Ptr<SigTable>): Sym {
-    if !name_has_projection_marker(self.as_str()) { return Sym { id: self.id } }
+    if !MangledProjection.may_be_in(self.as_str()) { return Sym { id: self.id } }
     return intern(resolved_proj_segments(self.as_str(), self_name, sigs).as_str())
 }
 
 /// For a mangled name being built rather than rewritten.
 pub fun resolved_proj_mangle(name: str, sigs: Ptr<SigTable>): String {
-    if !name_has_projection_marker(name) { return String.from(name) }
+    if !MangledProjection.may_be_in(name) { return String.from(name) }
     return resolved_proj_segments(name, "", sigs)
 }
 
@@ -364,8 +367,8 @@ fun complete_pending_callee(p: Ptr<Expr>, self_name: str, sigs: Ptr<SigTable>): 
             val n = callee.byte_len()
             val tail = callee.substring(1, n)
             var full = owner
-            full.append(tail.as_str())
-            unsafe { p.mangled_callee = intern(full.as_str()) }
+            full.append(tail)
+            unsafe { p.mangled_callee = intern(full) }
         }
         _ => return
     }

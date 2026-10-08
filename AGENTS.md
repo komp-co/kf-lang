@@ -33,11 +33,12 @@ build.sh     — root-level compiler build entry point
 The passes run in order `kf-parse` → `kf-assemble` → `kf-resolve` →
 `kf-typecheck` → `kf-mono` → `kf-lower` → `kf-codegen`. `kf-core` holds the
 shared AST and diagnostics, `kf-interface` the compiled crate metadata
-(`.kfi`), `kf-driver` the compiler's entry points (one crate, `check`,
-`serve` and the editor answers it gives). `kf-integration` holds the
-whole-project tests: it reads a fixture's crates through `komp metadata` and
-builds it by running komp (`KOMP`, which `komp test` sets). `kflatc`, the one
-binary, links kf-driver and turns one crate into C. komp, which drives it, is
+(`.kfi`), `kf-driver` the compiler's entry points (one crate, `check`), and
+`kf-query` the `serve` protocol and the editor answers it gives.
+`kf-integration` holds the whole-project tests: it reads a fixture's crates
+through `komp metadata` and builds it by running komp (`KOMP`, which `komp
+test` sets). `kflatc`, the one binary, links kf-driver and kf-query and turns
+one crate into C. komp, which drives it, is
 komp-co/komp's: this repository uses the released komp `bootstrap/stage0.toml`
 pins and never its source. What the two agree on (the files kflatc writes,
 which files make a crate, the `serve` protocol) is kflatc's documented command
@@ -73,6 +74,24 @@ no single-file mode.
 - **A module is the directory, not the file.** Splitting a file inside its
   directory changes no import; adding a sub-directory creates a new module and
   touches every importer.
+- **A function belongs to its type.** One whose subject is a type its crate
+  defines is a method in an `impl`, and a constructor is `static fun new`
+  (`new_poison`, `new_aliased` for the others). Extension functions are for
+  types another crate owns. The receiver is not repeated in the name:
+  `TypeRef.is_borrow`, not `type_ref_is_borrow`.
+- **A family with a subject but no value is a struct of statics.** The C
+  identifiers the compiler emits are `CName.local`, `CName.field`; the mangle
+  fragments are `Frag.borrow`, `Frag.function`. A free `pub fun` is the
+  exception, for a word the whole compiler speaks (`intern`).
+- **A fixed set of words is a constant.** `val RUNTIME_TYPE_NAMES: str[]`
+  and `contains`, not a `when` with one `=> true` per word.
+- **Declare no wider than the use.** `scripts/visibility.py` lists what
+  could be `internal` or private; narrow it, and let `komp lint` object.
+- **Text is text, not numbers.** A byte is compared with a char literal
+  (`b == '_' as uint8`), and a search is the library call that names it
+  (`contains`, `index_of`, `split`, `ends_with`) rather than a byte loop.
+- **A crate's `README.md` is its map**: its modules and the rules that hold
+  across them. A change to the modules updates it.
 - **File length ratchets on growth.** `scripts/check_file_sizes.sh` fails when
   a file grows past its recorded size, or crosses 350 lines without a baseline
   entry. Imports and comment-only lines are not counted. Split it, or bless it

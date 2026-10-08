@@ -3,11 +3,11 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.diagnostic.*
-import kf_core.ast.intern
 import kf_core.ast.types.Provenance
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
 import kf_core.ast.expression.*
+import kf_core.intern.intern
 import kf_lower.new_reached
 import testing.test
 
@@ -25,7 +25,7 @@ fun ctx_with_one_sink(name: String, borrow_sink: bool): MoveCtx {
     val count: Ptr<MobCount> = unsafe { alloc<MobCount>() }
     unsafe { *count = MobCount { n: 0 } }
     val map: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
-    unsafe { *map = new_source_map() }
+    unsafe { *map = SourceMap.new() }
     val wp: Ptr<WarnState> = unsafe { alloc<WarnState>() }
     // No module: each test asserts one warning at a time.
     unsafe { *wp = WarnState {
@@ -41,16 +41,16 @@ fun ctx_with_one_sink(name: String, borrow_sink: bool): MoveCtx {
 fun sink_test_call(callee: str): Expr {
     var args = List.new<Expr>()
     args.push(mk_str_var(String.from("x")))
-    var call = Expr.new(no_span(), ExprKind.Call(intern(callee), args))
+    var call = Expr.new(Span.none(), ExprKind.Call(intern(callee), args))
     call.mangled_callee = intern(callee)
-    call.ty = Type.new_void(no_span())
+    call.ty = Type.new_void(Span.none())
     return call
 }
 
-fun Expr.sink_test_first_arg_coerce(): uint8 {
+fun Expr.sink_test_first_arg_coerce(): Coercion {
     when (self.kind) {
         Call(_, args) => return args.at(0).coerce
-        _ => return coerce_none()
+        _ => return Coercion.Identity
     }
 }
 
@@ -61,7 +61,7 @@ fun Expr.sink_test_first_arg_coerce(): uint8 {
     first.move_check_expr_value(&var ctx)
     var second = sink_test_call("borrow")
     second.move_check_expr_value(&var ctx)
-    assert_eq(first.sink_test_first_arg_coerce() == coerce_clone(), false, "reference sink never auto-clones")
+    assert_eq(first.sink_test_first_arg_coerce() == Coercion.Clone, false, "reference sink never auto-clones")
 }
 
 @test fun reference_sink_call_leaves_local_owned(): void {
@@ -79,33 +79,33 @@ fun Expr.sink_test_first_arg_coerce(): uint8 {
     first.move_check_expr_value(&var ctx)
     var second = sink_test_call("consume")
     second.move_check_expr_value(&var ctx)
-    assert_eq(first.sink_test_first_arg_coerce() == coerce_clone(), true, "repeated value sink clones prior consume")
+    assert_eq(first.sink_test_first_arg_coerce() == Coercion.Clone, true, "repeated value sink clones prior consume")
 }
 
 // `Option.None` parses as a field access; a variant owns nothing.
 
 fun mob_enum_ty(name: str): Type {
-    return Type { kind: TypeKind.EnumTy(intern(name)), provenance: Provenance.Inferred(no_span()) }
+    return Type { kind: TypeKind.EnumTy(intern(name)), provenance: Provenance.Inferred(Span.none()) }
 }
 
 fun mob_field_of(recv: Expr, field: str, ty: Type): Expr {
     val p: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *p = recv }
-    var e = Expr.new(no_span(), ExprKind.FieldAccess(p, intern(field)))
+    var e = Expr.new(Span.none(), ExprKind.FieldAccess(p, intern(field)))
     e.ty = ty
     return e
 }
 
 /// TypeCheck does not walk a constructor's receiver, so it stays poison.
 fun mob_variant_ctor(enum_name: str, variant: str): Expr {
-    val recv = Expr.new(no_span(), ExprKind.Variable(intern(enum_name)))
+    val recv = Expr.new(Span.none(), ExprKind.Variable(intern(enum_name)))
     return mob_field_of(recv, variant, mob_enum_ty(enum_name))
 }
 
 /// A real field read: its receiver is typed.
 fun mob_field_read(owner: str, field: str, enum_name: str): Expr {
-    var recv = Expr.new(no_span(), ExprKind.Variable(intern("holder")))
-    recv.ty = Type { kind: TypeKind.Struct(intern(owner)), provenance: Provenance.Inferred(no_span()) }
+    var recv = Expr.new(Span.none(), ExprKind.Variable(intern("holder")))
+    recv.ty = Type { kind: TypeKind.Struct(intern(owner)), provenance: Provenance.Inferred(Span.none()) }
     return mob_field_of(recv, field, mob_enum_ty(enum_name))
 }
 
@@ -123,15 +123,15 @@ fun a_field_read_of_an_enum_is_a_borrow_path(): void {
 // decide.
 @test
 fun a_generic_enums_variant_is_recognised(): void {
-    val recv = Expr.new(no_span(), ExprKind.Variable(intern("Option")))
+    val recv = Expr.new(Span.none(), ExprKind.Variable(intern("Option")))
     val e = mob_field_of(recv, "None", mob_enum_ty("Option__SourceFile"))
     assert_eq(e.is_variant_construction(), true, "`Option.None` on an `Option<SourceFile>`")
 }
 
 @test
 fun a_non_enum_field_access_is_untouched(): void {
-    var recv = Expr.new(no_span(), ExprKind.Variable(intern("holder")))
-    recv.ty = Type { kind: TypeKind.Struct(intern("Holder")), provenance: Provenance.Inferred(no_span()) }
-    val e = mob_field_of(recv, "name", Type { kind: TypeKind.Struct(intern("String")), provenance: Provenance.Inferred(no_span()) })
+    var recv = Expr.new(Span.none(), ExprKind.Variable(intern("holder")))
+    recv.ty = Type { kind: TypeKind.Struct(intern("Holder")), provenance: Provenance.Inferred(Span.none()) }
+    val e = mob_field_of(recv, "name", Type { kind: TypeKind.Struct(intern("String")), provenance: Provenance.Inferred(Span.none()) })
     assert_eq(e.is_variant_construction(), false, "a String field is not a variant")
 }

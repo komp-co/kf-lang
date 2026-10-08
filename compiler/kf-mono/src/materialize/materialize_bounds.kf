@@ -6,16 +6,15 @@
 import alloc.list.*
 
 import kf_core.ast.Module
-import kf_core.ast.Sym
-import kf_core.ast.fn_frag_parts
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TypeParam
 import kf_typecheck.*
 import kf_typecheck.types.trait_args_key
 import kf_typecheck.traits.type_param_key
-import kf_core.ast.subst.clone_type_ref
 import kf_core.ast.subst.subst_tref_list
+import kf_core.intern.Sym
+import kf_core.names.Frag
 
 /// Register every `impl Trait for Type` so `type_implements` can answer.
 /// CONSTRAINT: runs before `normalize_trait_impls`, while the `TraitImpl`
@@ -57,18 +56,16 @@ pub fun TopDecl.template_accepts_args(args: &List<TypeRef>, sigs: Ptr<SigTable>,
     // Bounds are read at the instance's types:
     // `impl Iterable<T> for Wrap<I: Sink<T>, T>` at `<Counter, uint64>` asks
     // whether `Counter` implements `Sink<uint64>`, not `Sink<T>`.
-    var names = List.new<String>()
-    var repls = List.new<TypeRef>()
+    var subst = Substitution.new()
     while g in 0..self.generics.size() {
         if g < args.size() {
-            names.push(self.generics.at(g).name.as_string())
-            repls.push(clone_type_ref(args.at(g)))
+            subst.bind(self.generics.at(g).name.as_string(), args.at(g).clone())
         }
     }
     while i in 0..self.generics.size() {
         val tp = self.generics.at(i)
         if i < args.size() {
-            if !(args.at(i)).arg_meets_bounds(tp, sigs, copy_name, &var names, &var repls) { return false }
+            if !(args.at(i)).arg_meets_bounds(tp, sigs, copy_name, &subst) { return false }
         }
     }
     return true
@@ -78,8 +75,7 @@ fun TypeRef.arg_meets_bounds(
     tp: &TypeParam,
     sigs: Ptr<SigTable>,
     copy_name: Sym,
-    names: &var List<String>,
-    repls: &var List<TypeRef>
+    subst: &Substitution
 ): bool {
     if tp.bounds.size() == 0 { return true }
 
@@ -94,7 +90,7 @@ fun TypeRef.arg_meets_bounds(
     }
 
     val base = self.tyref_base_name()
-    if fn_frag_parts(base.as_str()) != null { return tp.bounded_by_copy_alone(copy_name) }
+    if Frag.function_parts(base.as_str()) != null { return tp.bounded_by_copy_alone(copy_name) }
     // A projection or poison is undecidable here; typecheck judges it.
     if base.as_str().equals("") { return true }
     while b in &tp.bounds {
@@ -103,8 +99,8 @@ fun TypeRef.arg_meets_bounds(
                 // Substitute the bound's own arguments first: for
                 // `Rev<I: Iterator<T>, T>` the registry holds `Iterator<int32>`,
                 // never `Iterator<T>`.
-                val bound_args = subst_tref_list(&targs, names, repls)
-                val ok = unsafe { sigs.type_implements(base.as_str(), trait_sym.as_str(), trait_args_key(&bound_args).as_str()) }
+                val bound_args = subst_tref_list(&targs, subst)
+                val ok = unsafe { sigs.type_implements(base, trait_sym.as_str(), trait_args_key(&bound_args).as_str()) }
                 if !ok { return false }
             }
             _ => { }

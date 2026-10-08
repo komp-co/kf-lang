@@ -1,8 +1,8 @@
 import core.assert.assert_eq
 
 import kf_core.ast.types.TypeRef
-import kf_core.span.no_span
 import testing.test
+import kf_core.span.Span
 
 fun dyn_type_mutability(src: str): int32 {
     var p = parser_for(src)
@@ -99,7 +99,7 @@ fun first_param_type(src: str): TypeRef {
     val td = p.parse_top_decl()
     when (td.kind) {
         Function(params, _, _, _, _, _, _) => return unsafe { *params.at(0).ty }
-        _ => return TypeRef.new_poison(no_span())
+        _ => return TypeRef.new_poison(Span.none())
     }
 }
 

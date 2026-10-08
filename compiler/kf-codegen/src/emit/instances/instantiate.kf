@@ -3,11 +3,10 @@
 // type precedes any container of it. Collected from written TypeRefs (fields,
 // payloads, signatures, annotations) and from inferred Types.
 
-import kf_core.ast.*
 import kf_core.ast.types.Type
 import kf_core.ast.types.type_identity_display
 
-import kf_core.ast.dyn_meta.dyn_trait_identity
+import kf_core.names.*
 import kf_codegen.emit.c_type_name
 
 /// A mangled element name's C type: primitives map (`int32` -> `int32_t`);
@@ -31,10 +30,10 @@ pub fun cname_of_mangle(elem: str): String {
     // A borrow's C type is `X*`, with no release or clone, so a container of
     // borrows does not own the pointees. Mutability lives in the fragment, not
     // in C.
-    if fn_frag_parts(elem) != null { return c_type_name(String.from(elem)) }
-    val borrowed = borrow_frag_inner(elem)
-    if borrowed.as_str().byte_len() > 0 {
-        var out = cname_of_mangle(borrowed.as_str())
+    if Frag.function_parts(elem) != null { return c_type_name(String.from(elem)) }
+    val borrowed = Frag.borrow_inner(elem)
+    if borrowed.byte_len() > 0 {
+        var out = cname_of_mangle(borrowed)
         out.append("*")
         return out
     }
@@ -63,30 +62,30 @@ pub fun type_mangle(t: Type): String {
         Struct(n) => return type_identity_display(n)
         EnumTy(n) => return type_identity_display(n)
         TraitTy(n) => return type_identity_display(n)
-        DynTraitTy(_) => return dyn_trait_identity(&t).as_string()
+        DynTraitTy(_) => return t.dyn_trait_identity().as_string()
         Generic(n) => return String.from(n.as_str())
         PtrTo(p) => {
             val inner = type_mangle(unsafe { *p })
             var result = String.from("Ptr__")
-            result.append(inner.as_str())
+            result.append(inner)
             return result
         }
         BoxOf(p) => {
             val inner = type_mangle(unsafe { *p })
             var result = String.from("Box__")
-            result.append(inner.as_str())
+            result.append(inner)
             return result
         }
         RefTo(is_mut, p) => {
             val borrowed = unsafe { *p }
             when (borrowed.kind) {
                 DynTraitTy(_) => {
-                    return "Dyn__${dyn_trait_identity(&borrowed).as_string()}"
+                    return "Dyn__${borrowed.dyn_trait_identity().as_string()}"
                 }
                 _ => { }
             }
             val inner = type_mangle(borrowed)
-            return borrow_frag(is_mut, inner.as_str())
+            return Frag.borrow(is_mut, inner.as_str())
         }
         FnTy(_s) => {
             val parts = t.fn_parts() ?: return String.from("poison")
@@ -94,13 +93,13 @@ pub fun type_mangle(t: Type): String {
             while param in &parts.params {
                 params.push(type_mangle(param))
             }
-            return fn_frag(&params, type_mangle(parts.ret).as_str())
+            return Frag.function(&params, type_mangle(parts.ret).as_str())
         }
         Projection(owner, member) => {
             val inner = type_mangle(unsafe { *owner })
-            return projection_mangle_frag(inner.as_str(), member.as_str())
+            return Frag.projection(inner.as_str(), member.as_str())
         }
-        Value(v) => return value_frag(v)
+        Value(v) => return Frag.value(v)
         Poison => return String.from("poison")
     }
 }

@@ -9,8 +9,8 @@ import kf_integration.harness.komp_build
 import kf_integration.harness.komp_check
 import kf_integration.harness.compile_project_separate
 import std.fs.scratch_path
-import kf_core.diagnostic.new_diagnostics
 import testing.test
+import kf_core.diagnostic.Diagnostics
 
 extern "C" fun system(cmd: str): int32
 
@@ -93,7 +93,7 @@ fun generic_source_and_interface_consumer_c_are_identical(): void {
     // be identical.
     val first = build_generic_fixture()
     val interface_c = read_file(scratch_path("kf_sc6_gen_app/target/kflat/gen_app.c"))
-    var errors = new_diagnostics()
+    var errors = Diagnostics.new()
     val outputs = compile_project_separate(scratch_path("kf_sc6_gen_app"), errors)
     val clean = errors.error_count() == 0
     val source_c = outputs.at(outputs.size() - 1).source

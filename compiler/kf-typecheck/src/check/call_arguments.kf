@@ -4,15 +4,13 @@
 import alloc.list.*
 
 import kf_core.span.Span
-import kf_core.ast.Sym
-import kf_core.ast.intern
-import kf_core.ast.empty_list_literal_receiver
-import kf_core.ast.CrateId
+import kf_core.intern.Sym
+import kf_core.intern.intern
+import kf_core.ast.expression.empty_list_literal_receiver
+import kf_core.intern.CrateId
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.Param
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
 import kf_typecheck.types.display_type
 
 /// The callee whose parameters a call's arguments are arranged against.
@@ -133,7 +131,7 @@ pub fun Param.check_default(ty: Type, ctx: &var TypeCtx): void {
     var value = (*written).clone()
     if !value.is_constant_default(ctx) {
         val message = "a default is a constant: a literal, `null`, `[]`, an enum variant or a top-level `val`"
-        ctx.emit(new_diagnostic(Severity.Error, new_label(value.span, message)))
+        ctx.emit(Diagnostic.new(Severity.Error, Label.new(value.span, message)))
         return
     }
     if !value.is_bare_null() { check_local_initializer(&var value, ctx) }
@@ -142,7 +140,7 @@ pub fun Param.check_default(ty: Type, ctx: &var TypeCtx): void {
     val name = self.name.as_str()
     val shown = value.ty.display_type(ctx)
     val message = "the default of `${name}` is `${shown}`, but `${name}` is `${ty.display_type(ctx)}`"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(value.span, message)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(value.span, message)))
 }
 
 fun Expr.is_constant_default(ctx: &var TypeCtx): bool {
@@ -288,7 +286,7 @@ fun List<String>.quoted_list(): String {
 }
 
 fun call_argument_error(span: Span, message: String, ctx: &var TypeCtx): bool {
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
     return false
 }
 

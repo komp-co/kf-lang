@@ -1,65 +1,67 @@
 import alloc.list.*
 import core.assert.assert_eq
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
 import testing.test
+import kf_core.intern.intern
+import kf_core.intern.CrateId
 
 fun interface_type_ptr(name: str): Ptr<TypeRef> {
     val out: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *out = TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
+    unsafe { *out = TypeRef.new(Span.none(), TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
     return out
 }
 
 @test
 fun interface_trait_suffix_owns_generic_suffix(): void {
     var args = List.new<TypeRef>()
-    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
-    val trait_ref = TypeRef.new(no_span(), TypeRefKind.Named(intern("Display"), args))
-    val m = new_module(List.new<String>())
+    args.push(TypeRef.new(Span.none(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    val trait_ref = TypeRef.new(Span.none(), TypeRefKind.Named(intern("Display"), args))
+    val m = Module.new(List.new<String>())
     val suffix: String = interface_trait_suffix(trait_ref, &m)
     assert_eq(suffix.as_str(), "Display__int32", "generic trait suffix is owned String text")
 }
 
 fun interface_owned_decl(td: TopDecl): TopDecl {
     var owned = td
-    owned.crate = new_crate_id("sample")
+    owned.crate = CrateId.new("sample")
     owned.module_path = intern("sample.api")
     return owned
 }
 
 pub fun interface_test_module(): Module {
-    val crate = new_crate_id("sample")
+    val crate = CrateId.new("sample")
     var decls = List.new<TopDecl>()
 
     var fields = List.new<Field>()
-    fields.push(new_field(no_span(), String.from("visible"), interface_type_ptr("int32"), false, true))
-    fields.push(new_field(no_span(), String.from("hidden"), interface_type_ptr("int32"), true, false))
-    val point = new_top_decl(no_span(), String.from("Point"), TopDeclKind.Struct(fields, true))
+    fields.push(Field.new(Span.none(), String.from("visible"), interface_type_ptr("int32"), false, true))
+    fields.push(Field.new(Span.none(), String.from("hidden"), interface_type_ptr("int32"), true, false))
+    val point = TopDecl.new(Span.none(), String.from("Point"), TopDeclKind.Struct(fields, true))
     decls.push(interface_owned_decl(point))
 
     var params = List.new<Param>()
-    params.push(new_param(no_span(), String.from("point"), interface_type_ptr("Point")))
-    val distance = new_top_decl(no_span(), String.from("distance"), TopDeclKind.Function(params, interface_type_ptr("int32"), List.new<Stmt>(), true, false, false, false))
+    params.push(Param.new(Span.none(), String.from("point"), interface_type_ptr("Point")))
+    val distance = TopDecl.new(Span.none(), String.from("distance"), TopDeclKind.Function(params, interface_type_ptr("int32"), List.new<Stmt>(), true, false, false, false))
     decls.push(interface_owned_decl(distance))
 
-    val private_fn = new_top_decl(no_span(), String.from("helper"), TopDeclKind.Function(List.new<Param>(), interface_type_ptr("void"), List.new<Stmt>(), false, false, false, false))
+    val private_fn = TopDecl.new(Span.none(), String.from("helper"), TopDeclKind.Function(List.new<Param>(), interface_type_ptr("void"), List.new<Stmt>(), false, false, false, false))
     decls.push(interface_owned_decl(private_fn))
 
-    val trait_method = new_top_decl(no_span(), String.from("display"), TopDeclKind.Function(List.new<Param>(), interface_type_ptr("String"), List.new<Stmt>(), true, false, false, false))
+    val trait_method = TopDecl.new(Span.none(), String.from("display"), TopDeclKind.Function(List.new<Param>(), interface_type_ptr("String"), List.new<Stmt>(), true, false, false, false))
     var trait_methods = List.new<TopDecl>()
     trait_methods.push(trait_method)
-    val display_trait = new_top_decl(no_span(), String.from("Displayable"), TopDeclKind.TraitDecl(trait_methods, true, List.new<TypeRef>()))
+    val display_trait = TopDecl.new(Span.none(), String.from("Displayable"), TopDeclKind.TraitDecl(trait_methods, true, List.new<TypeRef>()))
     decls.push(interface_owned_decl(display_trait))
 
-    val impl_method = new_top_decl(no_span(), String.from("display"), TopDeclKind.Function(List.new<Param>(), interface_type_ptr("String"), List.new<Stmt>(), true, false, false, false))
+    val impl_method = TopDecl.new(Span.none(), String.from("display"), TopDeclKind.Function(List.new<Param>(), interface_type_ptr("String"), List.new<Stmt>(), true, false, false, false))
     var impl_methods = List.new<TopDecl>()
     impl_methods.push(impl_method)
-    val display_impl = new_top_decl(no_span(), String.from("Point"), TopDeclKind.TraitImpl(interface_type_ptr("Displayable"), impl_methods))
+    val display_impl = TopDecl.new(Span.none(), String.from("Point"), TopDeclKind.TraitImpl(interface_type_ptr("Displayable"), impl_methods))
     decls.push(interface_owned_decl(display_impl))
 
     return Module {
@@ -111,63 +113,63 @@ fun repeated_interface_output_is_byte_identical(): void {
 fun interface_carries_version_and_abi_metadata(): void {
     val m = interface_test_module()
     val out = m.emit_interface(String.from("sample"), &List.new<String>())
-    assert_eq(interface_contains(out.as_str(), "\"kfi\":21,\"crate\":\"sample\",\"compiler_abi\":\"komp-1\",\"runtime_abi\":\"kflat-runtime-1\""), true, "interface starts with versioned compiler metadata")
+    assert_eq(interface_contains(out, "\"kfi\":22,\"crate\":\"sample\",\"compiler_abi\":\"komp-1\",\"runtime_abi\":\"kflat-runtime-1\""), true, "interface starts with versioned compiler metadata")
 }
 
 @test
 fun interface_emits_the_current_version(): void {
     val m = interface_test_module()
     val out = m.emit_interface(String.from("sample"), &List.new<String>())
-    assert_eq(interface_contains(out.as_str(), "\"kfi\":21"), true, "emitted interfaces carry kfi version 20")
+    assert_eq(interface_contains(out, "\"kfi\":22"), true, "emitted interfaces carry kfi version 22")
 }
 
 @test
 fun interface_carries_original_module_path(): void {
     val m = interface_test_module()
     val out = m.emit_interface(String.from("sample"), &List.new<String>())
-    assert_eq(interface_contains(out.as_str(), "\"path\":\"sample.api\""), true, "module path is preserved")
+    assert_eq(interface_contains(out, "\"path\":\"sample.api\""), true, "module path is preserved")
 }
 
 @test
 fun interface_carries_public_function_link_name(): void {
     val m = interface_test_module()
     val out = m.emit_interface(String.from("sample"), &List.new<String>())
-    assert_eq(interface_contains(out.as_str(), "\"link_name\":\"sample__distance\""), true, "archive symbol is recorded")
+    assert_eq(interface_contains(out, "\"link_name\":\"sample__distance\""), true, "archive symbol is recorded")
 }
 
 @test
 fun interface_preserves_private_field_visibility(): void {
     val m = interface_test_module()
     val out = m.emit_interface(String.from("sample"), &List.new<String>())
-    assert_eq(interface_contains(out.as_str(), "\"name\":\"hidden\",\"type\":\"int32\",\"var\":true,\"pub\":false"), true, "private ABI field stays private to KFlat")
+    assert_eq(interface_contains(out, "\"name\":\"hidden\",\"type\":\"int32\",\"var\":true,\"pub\":false"), true, "private ABI field stays private to KFlat")
 }
 
 @test
 fun interface_omits_private_functions(): void {
     val m = interface_test_module()
     val out = m.emit_interface(String.from("sample"), &List.new<String>())
-    assert_eq(interface_contains(out.as_str(), "\"name\":\"helper\""), false, "private function is not exported")
+    assert_eq(interface_contains(out, "\"name\":\"helper\""), false, "private function is not exported")
 }
 
 @test
 fun interface_carries_public_trait_signatures(): void {
     val m = interface_test_module()
     val out = m.emit_interface(String.from("sample"), &List.new<String>())
-    assert_eq(interface_contains(out.as_str(), "\"kind\":\"trait\",\"hidden\":false,\"name\":\"Displayable\""), true, "public trait signature is exported")
+    assert_eq(interface_contains(out, "\"kind\":\"trait\",\"hidden\":false,\"name\":\"Displayable\""), true, "public trait signature is exported")
 }
 
 @test
 fun interface_carries_trait_impl_signatures(): void {
     val m = interface_test_module()
     val out = m.emit_interface(String.from("sample"), &List.new<String>())
-    assert_eq(interface_contains(out.as_str(), "\"kind\":\"trait_impl\",\"hidden\":false,\"target\":\"Point\""), true, "trait implementation signature is exported")
+    assert_eq(interface_contains(out, "\"kind\":\"trait_impl\",\"hidden\":false,\"target\":\"Point\""), true, "trait implementation signature is exported")
 }
 
 @test
 fun interface_carries_trait_impl_method_link_name(): void {
     val m = interface_test_module()
     val out = m.emit_interface(String.from("sample"), &List.new<String>())
-    assert_eq(interface_contains(out.as_str(), "\"name\":\"display\",\"link_name\":\"sample__Point_display__Displayable\""), true, "trait implementation method records its archive symbol")
+    assert_eq(interface_contains(out, "\"name\":\"display\",\"link_name\":\"sample__Point_display__Displayable\""), true, "trait implementation method records its archive symbol")
 }
 
 @test
@@ -178,7 +180,7 @@ fun interface_records_dependency_hashes(): void {
     var hashes = List.new<String>()
     hashes.push(String.from("12345"))
     val out = m.emit_interface_hashed(String.from("sample"), &deps, &hashes)
-    assert_eq(interface_contains(out.as_str(), "\"name\":\"dep\",\"hash\":\"12345\""), true, "dependency interface hash is serialized")
+    assert_eq(interface_contains(out, "\"name\":\"dep\",\"hash\":\"12345\""), true, "dependency interface hash is serialized")
 }
 
 @test
@@ -186,5 +188,5 @@ fun interface_records_public_ownership_glue(): void {
     val m = interface_test_module()
     val out = m.emit_interface(String.from("sample"), &List.new<String>())
     val record = "\"glue\":[{\"type\":\"Point\",\"retain\":\"kf__retain__sample__Point\",\"drop\":\"sample__Point_drop\",\"clone\":\"sample__Point_clone\"}],\"dyn_traits\""
-    assert_eq(interface_contains(out.as_str(), record), true, "ownership glue precedes dynamic metadata")
+    assert_eq(interface_contains(out, record), true, "ownership glue precedes dynamic metadata")
 }

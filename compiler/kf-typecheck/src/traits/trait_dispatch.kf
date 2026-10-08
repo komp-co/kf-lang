@@ -4,7 +4,7 @@ import kf_core.ast.types.*
 import kf_core.ast.expression.Expr
 import kf_typecheck.types.*
 import kf_typecheck.check.*
-import kf_core.span.no_span
+import kf_core.span.Span
 
 import kf_typecheck.note_import_use
 
@@ -16,14 +16,14 @@ pub fun static_trait_method_callee(type_name: String, method_name: String, args:
     var i = 0
     while i < unsafe { (*ctx.sigs).trait_impls.size() } {
         val trait_impl = unsafe { *(*ctx.sigs).trait_impls.at(i) }
-        if trait_impl.type_name.as_str().equals(base.as_str()) {
-            if !ctx.is_auto_trait(trait_impl.trait_name.as_str()) {
+        if trait_impl.type_name.as_str().equals(base) {
+            if !ctx.is_auto_trait(trait_impl.trait_name) {
                 var suffix = trait_impl.trait_name.clone()
                 if !trait_impl.trait_args.as_str().equals("") {
                     suffix = suffix + String.from("__") + trait_impl.trait_args.clone()
                 }
                 val candidate = type_name.clone() + String.from("_") + method_name.clone() + String.from("__") + suffix
-                when (unsafe { (*ctx.sigs).find_signature(candidate.as_str()) }) {
+                when (unsafe { (*ctx.sigs).find_signature(candidate) }) {
                     Some(sig) => {
                         if sig.is_static && sig.params.size() == args.size() {
                             // The method's own parameters, `N` lifted from an
@@ -32,7 +32,7 @@ pub fun static_trait_method_callee(type_name: String, method_name: String, args:
                             // `static_call_params`.
                             var all_args = type_args.clone()
                             val n_recv = type_name.static_recv_arity(ctx)
-                            infer_static_method_type_args(&sig, n_recv, &var all_args, args, no_span(), ctx)
+                            infer_static_method_type_args(&sig, n_recv, &var all_args, args, Span.none(), ctx)
                             val sparams = sig.static_call_params(&all_args, ctx)
                             var fits = true
                             while j in 0..args.size() {
@@ -83,15 +83,15 @@ fun bounded_trait_callee(gname: String, method_name: String, ctx: &var TypeCtx):
     var i = 0
     while i < unsafe { (*ctx.sigs).bounds.size() } {
         val b = unsafe { *(*ctx.sigs).bounds.at(i) }
-        if b.owner.as_str().equals(ctx.fn_owner.as_str()) {
-            if b.param.as_str().equals(gname.as_str()) {
-                val direct = trait_dispatch_suffix(b.trait_name.as_str(), b.trait_args.as_str(), method_name.as_str(), ctx)
+        if b.owner.as_str().equals(ctx.fn_owner) {
+            if b.param.as_str().equals(gname) {
+                val direct = trait_dispatch_suffix(b.trait_name, b.trait_args, method_name, ctx)
                 if !direct.as_str().equals("") {
                     return gname + String.from("_") + method_name + String.from("__") + direct
                 }
-                val required = supertrait_closure_reqs(unsafe { &*ctx.sigs }, b.trait_name.as_str(), b.trait_args.as_str())
+                val required = supertrait_closure_reqs(unsafe { &*ctx.sigs }, b.trait_name, b.trait_args)
                 while sreq in &required {
-                    val inherited = trait_dispatch_suffix(sreq.name.as_str(), sreq.args.as_str(), method_name.as_str(), ctx)
+                    val inherited = trait_dispatch_suffix(sreq.name, sreq.args, method_name, ctx)
                     if !inherited.as_str().equals("") {
                         return gname + String.from("_") + method_name + String.from("__") + inherited
                     }
@@ -155,16 +155,16 @@ pub fun receiver_declares_trait_method(receiver_ty: Type, method_name: String, c
     var i = 0
     while i < unsafe { (*ctx.sigs).trait_impls.size() } {
         val trait_impl = unsafe { *(*ctx.sigs).trait_impls.at(i) }
-        if trait_impl.type_name.as_str().equals(base.as_str()) {
+        if trait_impl.type_name.as_str().equals(base) {
             var suffix = trait_impl.trait_name.clone()
             if !trait_impl.trait_args.as_str().equals("") {
                 suffix = suffix + String.from("__") + trait_impl.trait_args.clone()
             }
             val method_prefix = "_${method_name}__"
             val on_receiver = type_name.clone() + method_prefix.clone() + suffix.clone()
-            if unsafe { (*ctx.sigs).find_signature(on_receiver.as_str()) }.is_some() { return true }
+            if unsafe { (*ctx.sigs).find_signature(on_receiver) }.is_some() { return true }
             val on_template = base.clone() + method_prefix + suffix
-            if unsafe { (*ctx.sigs).find_signature(on_template.as_str()) }.is_some() { return true }
+            if unsafe { (*ctx.sigs).find_signature(on_template) }.is_some() { return true }
         }
         i = i + 1
     }
@@ -176,13 +176,13 @@ pub fun select_instance_trait_method(receiver_ty: Type, method_name: String, arg
     val type_name = recv.kind.trait_impl_owner_name()
     if type_name.as_str().equals("") { return no_trait_callee() }
     val base = mangle_base_name(type_name.clone())
-    val binding = recv_type_bindings(type_name.clone(), no_span(), ctx)
+    val binding = recv_type_bindings(type_name.clone(), Span.none(), ctx)
     var found = no_trait_callee()
     var i = 0
     while i < unsafe { (*ctx.sigs).trait_impls.size() } {
         val trait_impl = unsafe { *(*ctx.sigs).trait_impls.at(i) }
-        if trait_impl.type_name.as_str().equals(base.as_str()) {
-            if !ctx.is_auto_trait(trait_impl.trait_name.as_str()) {
+        if trait_impl.type_name.as_str().equals(base) {
+            if !ctx.is_auto_trait(trait_impl.trait_name) {
                 // The template's suffix uses the impl's own `T`; the symbol on
                 // a monomorphized receiver uses what `T` stands for.
                 var template_suffix = trait_impl.trait_name.clone()
@@ -191,18 +191,18 @@ pub fun select_instance_trait_method(receiver_ty: Type, method_name: String, arg
                     template_suffix = template_suffix + String.from("__") + trait_impl.trait_args.clone()
                     // Projections in the impl's arguments resolve through the
                     // receiver, as the definition's suffix does.
-                    val subst_args = subst_trait_args(trait_impl.trait_args.as_str(), &binding.names, &binding.types, true)
-                    suffix = suffix + String.from("__") + resolved_proj_mangle(subst_args.as_str(), ctx.sigs)
+                    val subst_args = subst_trait_args(trait_impl.trait_args, &binding.names, &binding.types, true)
+                    suffix = suffix + String.from("__") + resolved_proj_mangle(subst_args, ctx.sigs)
                 }
                 val method_prefix = "_${method_name}__"
                 val candidate = type_name.clone() + method_prefix.clone() + suffix
                 var sig_name = candidate.clone()
-                var sig_opt = unsafe { (*ctx.sigs).find_signature(candidate.as_str()) }
+                var sig_opt = unsafe { (*ctx.sigs).find_signature(candidate) }
                 if sig_opt.is_none() {
                     // Registered under the template; the symbol stays the
                     // receiver's, which is what mono materializes.
                     sig_name = base.clone() + method_prefix + template_suffix
-                    sig_opt = unsafe { (*ctx.sigs).find_signature(sig_name.as_str()) }
+                    sig_opt = unsafe { (*ctx.sigs).find_signature(sig_name) }
                 }
                 when (sig_opt) {
                     Some(sig) => {
@@ -216,7 +216,7 @@ pub fun select_instance_trait_method(receiver_ty: Type, method_name: String, arg
                                 while j in 0..args.size() {
                                     if !bound.is_poison() { break }
                                     val param = subst_recv(*sig.params.at(j + 1), &binding)
-                                    bound = param.bind_generic_from_param(&args.at(j).ty, name.as_str(), ctx)
+                                    bound = param.bind_generic_from_param(&args.at(j).ty, name, ctx)
                                 }
                                 if bound.is_poison() { fits = false }
                                 lifted.push(bound)
@@ -232,7 +232,7 @@ pub fun select_instance_trait_method(receiver_ty: Type, method_name: String, arg
                                     names.push(lifted_names.at(k).clone())
                                     types.push(lifted.at(k).clone())
                                 }
-                                val bound_args = subst_trait_args(trait_impl.trait_args.as_str(), &names, &types, true)
+                                val bound_args = subst_trait_args(trait_impl.trait_args, &names, &types, true)
                                 lifted_candidate = "${type_name}${method_prefix}${trait_impl.trait_name}__${bound_args}"
                             }
                             while j in 0..args.size() {
@@ -271,7 +271,7 @@ pub fun select_instance_trait_method(receiver_ty: Type, method_name: String, arg
     if !found.symbol.as_str().equals("") {
         when (recv.kind) {
             Struct(identity) => {
-                val link = unsafe { (*ctx.sigs).lookup_method_link(identity, method_name.as_str()) }
+                val link = unsafe { (*ctx.sigs).lookup_method_link(identity, method_name) }
                 if !link.as_str().equals("") {
                     return TraitCallee {
                         symbol: link.as_string(), sig_name: found.sig_name, lifted: found.lifted,
@@ -324,14 +324,14 @@ pub fun qualified_trait_method_callee(trait_name: String, method_name: String, a
             var i = 0
             while i < unsafe { (*ctx.sigs).trait_impls.size() } {
                 val trait_impl = unsafe { *(*ctx.sigs).trait_impls.at(i) }
-                if trait_impl.type_name.as_str().equals(base.as_str()) {
-                    if trait_impl.trait_name.as_str().equals(trait_name.as_str()) {
+                if trait_impl.type_name.as_str().equals(base) {
+                    if trait_impl.trait_name.as_str().equals(trait_name) {
                         var suffix = trait_impl.trait_name.clone()
                         if !trait_impl.trait_args.as_str().equals("") {
                             suffix = suffix + String.from("__") + trait_impl.trait_args.clone()
                         }
                         val candidate = type_name.clone() + String.from("_") + method_name.clone() + String.from("__") + suffix
-                        when (unsafe { (*ctx.sigs).find_signature(candidate.as_str()) }) {
+                        when (unsafe { (*ctx.sigs).find_signature(candidate) }) {
                             Some(sig) => {
                                 if !sig.is_static && sig.params.size() == args.size() {
                                     if !found.as_str().equals("") { return "" }

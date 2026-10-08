@@ -3,9 +3,9 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.intern
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
+import kf_core.intern.intern
 import kf_parse.parser.*
 
 impl Parser {

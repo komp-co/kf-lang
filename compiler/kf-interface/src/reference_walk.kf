@@ -3,8 +3,8 @@
 
 import alloc.list.*
 
-import kf_core.ast.Intrinsic
-import kf_core.ast.view
+import kf_core.ast.expression.view
+import kf_core.ast.types.view
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.type_identity_display
@@ -60,6 +60,7 @@ fun TopDecl.collect_references_inner(out: &var List<String>, with_bodies: bool):
             collect_tyref_ptr_names(unsafe { trait_ref as Ptr<TypeRef> }, out)
             collect_method_names(methods, out, with_bodies)
         }
+        Template(_kind, _marked, body) => collect_method_names(body, out, with_bodies)
         _ => {}
     }
 }
@@ -127,8 +128,8 @@ fun Type.collect_resolved_type_names(out: &var List<String>): void {
         EnumTy(name) => out.push(type_identity_display(name))
         TraitTy(name) => out.push(type_identity_display(name))
         DynTraitTy(_) => {
-            out.push(type_identity_display(dyn_trait_name(self)))
-            val args = dyn_trait_args(self)
+            out.push(type_identity_display(self.dyn_trait_name()))
+            val args = self.dyn_trait_args()
             var i = 0
             while i < unsafe { args.size() } {
                 val argument = unsafe { args.get(i) }

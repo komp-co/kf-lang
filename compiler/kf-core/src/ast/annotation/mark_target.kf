@@ -1,0 +1,145 @@
+// What a declared annotation may mark: kinds of declaration, or functions of
+// a type, where `_` and a trailing `..` stand for anything.
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.annotation.*
+import kf_core.ast.types.*
+import kf_core.intern.*
+
+/// A kind of declaration, or of a type's member, an annotation may mark by
+/// kind.
+@derive(Clone, Equal)
+pub enum MarkKind {
+    Function
+    Struct
+    Enum
+    Trait
+    Field
+    Variant
+}
+
+/// One kind in `on struct: Plugin, enum`, and the traits a marked type of
+/// that kind implements.
+@derive(Clone)
+pub struct KindTarget {
+    pub val kind: MarkKind
+    pub val bounds: List<TypeRef>
+}
+
+/// What a declared annotation may mark.
+@derive(Clone)
+pub enum MarkTarget {
+    /// `on (A) -> R`: a function of exactly that type.
+    Function(Box<TypeRef>)
+    /// `on fun, struct: Plugin`: any declaration of a listed kind.
+    Kinds(List<KindTarget>)
+    /// `on (bool, _, ..) -> _`: a function whose type matches, `_` standing
+    /// for any one type and a trailing `..` for any further parameters.
+    Signature(List<TypeRef>, bool, Box<TypeRef>)
+}
+
+impl MarkTarget {
+    /// What a bare `annotation NAME` marks: a `() -> void` function.
+    pub static fun new_default(span: Span): MarkTarget {
+        val void_ref = Box.new(TypeRef.new(span, TypeRefKind.Named(intern("void"), [])))
+        return MarkTarget.Function(Box.new(TypeRef.new(span, TypeRefKind.Function([], void_ref))))
+    }
+}
+
+impl MarkKind {
+    /// `fun`, `struct`, `field`..., as written after `on`.
+    pub fun word(): str {
+        return when (self) {
+            Function => "fun"
+            Struct => "struct"
+            Enum => "enum"
+            Trait => "trait"
+            Field => "field"
+            Variant => "variant"
+        }
+    }
+
+    /// A struct's field or an enum's variant, as against a declaration.
+    pub fun is_member(): bool {
+        return when (self) {
+            Field => true
+            Variant => true
+            _ => false
+        }
+    }
+}
+
+/// The kind `word` names; null for anything else.
+pub fun mark_kind_of(word: str): MarkKind? {
+    return when word {
+        "fun" => MarkKind.Function
+        "struct" => MarkKind.Struct
+        "enum" => MarkKind.Enum
+        "trait" => MarkKind.Trait
+        "field" => MarkKind.Field
+        "variant" => MarkKind.Variant
+        _ => null
+    }
+}
+
+impl MarkTarget {
+    /// `on any`: every declaration kind, without bounds.
+    pub static fun new_any_kind(): MarkTarget {
+        var kinds = []
+        kinds.push(KindTarget { kind: MarkKind.Function, bounds: [] })
+        kinds.push(KindTarget { kind: MarkKind.Struct, bounds: [] })
+        kinds.push(KindTarget { kind: MarkKind.Enum, bounds: [] })
+        kinds.push(KindTarget { kind: MarkKind.Trait, bounds: [] })
+        return MarkTarget.Kinds(kinds)
+    }
+
+    /// The listed kinds; empty for a function type.
+    pub fun kinds(): List<KindTarget> {
+        return when (self) {
+            Kinds(listed) => listed.clone()
+            _ => []
+        }
+    }
+}
+
+impl TypeRef {
+    /// `_`, any one type.
+    pub fun is_wildcard(): bool {
+        return when (self.kind) {
+            Named(name, args) => args.size() == 0 && name.as_str() == "_"
+            _ => false
+        }
+    }
+
+    /// `_`, `&_` or `&var _`: a wildcard where a signature pattern admits one.
+    pub fun is_wildcard_slot(): bool {
+        return when (self.kind) {
+            Reference(_is_mutable, inner) => inner.is_wildcard()
+            _ => self.is_wildcard()
+        }
+    }
+
+    /// A `_` anywhere inside, including the type itself.
+    pub fun mentions_wildcard(): bool {
+        if self.is_wildcard() { return true }
+        when (self.kind) {
+            Named(_name, args) => return args.any_mentions_wildcard()
+            DynTrait(_name, args) => return args.any_mentions_wildcard()
+            Function(params, ret) => return params.any_mentions_wildcard() || ret.mentions_wildcard()
+            Reference(_is_mutable, inner) => return inner.mentions_wildcard()
+            Array(element, _size) => return element.mentions_wildcard()
+            Projection(owner, _member) => return owner.mentions_wildcard()
+            Value(_v) => return false
+            Poison => return false
+        }
+    }
+}
+
+fun List<TypeRef>.any_mentions_wildcard(): bool {
+    while item in &self {
+        if item.mentions_wildcard() { return true }
+    }
+    return false
+}

@@ -4,7 +4,6 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.new_crate_id
 import kf_core.diagnostic.*
 import kf_parse.lexer.tokenize
 import kf_parse.parser.*
@@ -23,15 +22,15 @@ fun unread_loop_variable(): str {
 
 /// The span of the first diagnostic the source lints report over `src`.
 fun first_lint_span(src: str): Span {
-    var smap = new_source_map()
-    val file = smap.add_file(new_source_file(String.from("loop_fixture.kf"), String.from(src)))
+    var smap = SourceMap.new()
+    val file = smap.add_file(SourceFile.new(String.from("loop_fixture.kf"), String.from(src)))
     var parser = new_parser(tokenize(src, file))
     var path = List.new<String>()
     path.push(String.from("fixture"))
     var m = parser.parse_module(path)
-    stamp_module_owner(&var m, new_crate_id("fixture"))
-    val found = lint_module(&m, &smap, &no_lint_options())
-    if found.is_empty() { return no_span() }
+    stamp_module_owner(&var m, CrateId.new("fixture"))
+    val found = lint_module(&m, &smap, &LintOptions.none())
+    if found.is_empty() { return Span.none() }
     return found[0].primary.span
 }
 

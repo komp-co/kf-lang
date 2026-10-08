@@ -1,7 +1,9 @@
 import kf_core.span.Span
-import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
+import kf_core.intern.*
+import kf_core.lang.LangItem
+import kf_core.lang.lang_placeholder
 import kf_parse.lexer.*
 
 /// "_" for anything but an identifier.
@@ -52,7 +54,7 @@ impl Parser {
                         unsafe { self.advance() }
                         val owner_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
                         unsafe { *owner_ptr = tr }
-                        tr = TypeRef.new(t.span, TypeRefKind.Projection(owner_ptr, intern(mname.as_str())))
+                        tr = TypeRef.new(t.span, TypeRefKind.Projection(owner_ptr, intern(mname)))
                     } else {
                         self.parse_err(member.span, String.from("expected an associated type name after `.` in a type"))
                         tr = TypeRef.new_poison(t.span)
@@ -137,7 +139,7 @@ impl Parser {
             val base = parsed
             var oargs = List.new<TypeRef>()
             oargs.push(base)
-            parsed = TypeRef.new(type_span, TypeRefKind.Named(lang_placeholder(lang_option_key()), oargs))
+            parsed = TypeRef.new(type_span, TypeRefKind.Named(lang_placeholder(LangItem.Option), oargs))
         }
         return parsed
     }
@@ -221,7 +223,7 @@ impl Parser {
             var args = List.new<TypeRef>()
             args.push(parsed)
             args.push(length)
-            parsed = TypeRef.new(span, TypeRefKind.Named(lang_placeholder(lang_array_key()), args))
+            parsed = TypeRef.new(span, TypeRefKind.Named(lang_placeholder(LangItem.Array), args))
         }
         return parsed
     }
@@ -277,17 +279,17 @@ impl Parser {
 /// named by their lang keys.
 fun borrow_type_ref(span: Span, mutable: bool, inner: Box<TypeRef>): TypeRef {
     val element = inner.unsized_array_element() ?: return TypeRef.new(span, TypeRefKind.Reference(mutable, inner))
-    val key = if mutable { lang_slice_mut_key() } else { lang_slice_key() }
+    val item = if mutable { LangItem.SliceMut } else { LangItem.Slice }
     var args = List.new<TypeRef>()
     args.push(element)
-    return TypeRef.new(span, TypeRefKind.Named(lang_placeholder(key), args))
+    return TypeRef.new(span, TypeRefKind.Named(lang_placeholder(item), args))
 }
 
 /// `T` when this is `T[]`.
 fun TypeRef.unsized_array_element(): TypeRef? {
     when (self.kind) {
         Named(head, args) => {
-            if head.id != lang_placeholder(lang_array_key()).id || args.size() != 2 { return null }
+            if head.id != lang_placeholder(LangItem.Array).id || args.size() != 2 { return null }
             if !args.at(1).is_wildcard() { return null }
             return args.at(0).clone()
         }

@@ -7,6 +7,7 @@ import alloc.list.*
 
 import kf_core.ast.*
 import kf_core.diagnostic.*
+import kf_core.intern.*
 import kf_typecheck.import_uses_of
 
 fun narrow_threshold(): uint64 { return 3 }
@@ -26,7 +27,7 @@ pub fun Module.wildcard_import_diags(sp: Ptr<SigTable>): List<Diagnostic> {
         val target = targets.get(i)
         val file = files.get(i)
         val imp = self.imports.at(i)
-        if target.id != 0 && !imp.is_pub && contains_file(&own, file) && imp.wildcard && import_is_written(imp) {
+        if target.id != 0 && !imp.is_pub && contains_file(&own, file) && imp.wildcard && imp.is_written() {
             if !self.target_reexports(&targets, target) {
                 val names = import_uses_of(sp, file, target)
                 if narrowable(&names) {
@@ -53,7 +54,7 @@ fun narrowable(names: &List<Sym>): bool {
 fun Import.wildcard_import_warning(names: &List<Sym>): Diagnostic {
     val module = import_path_text(&self.path)
     var msg = String.from("wildcard import `")
-    msg.append(module.as_str())
+    msg.append(module)
     msg.append(".*` supplies ")
     if names.size() == 1 {
         msg.append("one name")
@@ -63,12 +64,12 @@ fun Import.wildcard_import_warning(names: &List<Sym>): Diagnostic {
     }
     msg.append("; name ")
     if names.size() == 1 { msg.append("it") } else { msg.append("them") }
-    val replacement = named_import_lines(module.as_str(), names)
+    val replacement = named_import_lines(module, names)
     // CONSTRAINT: the title is built from a borrow before the replacement is
     // moved, or the fix carries freed bytes.
     var title = String.from("replace with ")
-    title.append(replacement.as_str())
-    val d = lint_at("wildcard_import", self.span, msg)
+    title.append(replacement)
+    val d = Diagnostic.lint_at("wildcard_import", self.span, msg)
     return with_fix_applic(d, self.span, replacement, title, Applicability.MaybeIncorrect)
 }
 

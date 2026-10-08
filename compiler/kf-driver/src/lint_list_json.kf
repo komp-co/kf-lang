@@ -13,29 +13,29 @@ pub fun lint_list_json(cfg: &LintConfig): String {
     var writer = JsonWriter.object()
     writer.key("groups")
     writer.begin_array()
-    val groups = lint_groups()
-    while group in &groups { writer.write_string(group.as_str()) }
+    val groups = LintInfo.groups()
+    while group in &groups { writer.write_string(group) }
     writer.end_array()
     writer.key("lints")
     writer.begin_array()
-    val all = lint_registry()
+    val all = LintInfo.all()
     while group in &groups {
         while info in &all {
             if info.group.as_str() != group.as_str() { continue }
             writer.begin_object()
-            writer.field_string("name", info.name.as_str())
-            writer.field_string("group", info.group.as_str())
-            writer.field_string("level", lint_level_name(cfg.configured_level(info.name.as_str())))
-            writer.field_string("default", lint_level_name(info.default))
-            writer.field_string("description", info.description.as_str())
+            writer.field_string("name", info.name)
+            writer.field_string("group", info.group)
+            writer.field_string("level", (cfg.configured_level(info.name)).name())
+            writer.field_string("default", info.default.name())
+            writer.field_string("description", info.description)
             writer.key("options")
             writer.begin_array()
             while option in &info.options {
                 writer.begin_object()
-                writer.field_string("key", option.key.as_str())
-                writer.field_int64("value", cfg.options.get(info.name.as_str(), option.key.as_str()))
+                writer.field_string("key", option.key)
+                writer.field_int64("value", cfg.options.get(info.name, option.key))
                 writer.field_int64("default", option.default)
-                writer.field_string("description", option.description.as_str())
+                writer.field_string("description", option.description)
                 writer.end_object()
             }
             writer.end_array()

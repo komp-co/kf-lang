@@ -3,9 +3,9 @@
 // front; the consumer re-parses it.
 
 import kf_core.span.*
-import kf_core.ast.CrateId
+import kf_core.intern.CrateId
 import kf_core.ast.Module
-import kf_core.ast.Sym
+import kf_core.intern.Sym
 import kf_core.ast.declaration.TopDecl
 import json.writer.*
 
@@ -31,7 +31,7 @@ pub fun TopDecl.template_source_slice(smap: Ptr<SourceMap>): String {
                 out.append("\n")
             }
             val piece = content.substring(start, end)
-            out.append(piece.as_str())
+            out.append(piece)
             return out
         }
         None => return ""
@@ -46,7 +46,7 @@ pub fun TopDecl.emit_template_entry(hidden: bool, m: &Module, crate: CrateId, sm
     o.field_string("name", self.name.as_str())
     val slice = self.template_source_slice(smap)
     val src = if slice.byte_len() == 0 { slice } else { self.foreign_imports_source(m, crate) + slice }
-    o.field_string("src", src.as_str())
+    o.field_string("src", src)
     return o.finish()
 }
 

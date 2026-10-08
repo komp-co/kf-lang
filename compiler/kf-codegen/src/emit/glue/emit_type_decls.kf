@@ -7,9 +7,8 @@ import alloc.hash_map.*
 
 import kf_core.ast.Module
 import kf_core.ast.NameIndex
-import kf_core.ast.decl_index
-import kf_core.ast.type_retain_fn
 import kf_core.ast.types.TypeRef
+import kf_core.names.CName
 
 import kf_codegen.concat_all
 import kf_codegen.emit.mangle_named
@@ -72,7 +71,7 @@ fun visit_type_body(name: String, m: &Module, index: &NameIndex, visited: &var H
 /// `index` is `m.decl_index()`.
 pub fun by_value_type_deps(name: String, m: &Module, index: &NameIndex): List<String> {
     var deps = List.new<String>()
-    val positions = index.positions(name.as_str())
+    val positions = index.positions(name)
     while p in 0..positions.size() {
         val td = m.decls.at(positions.get(p))
         val k = td.kind
@@ -106,7 +105,7 @@ fun add_byval_dep(deps: &var List<String>, tr: &TypeRef, m: &Module, index: &Nam
                 if is_user_type_name(n.as_str(), m, index) { deps.push(n.as_string()) }
             } else {
                 val mangled = mangle_named(n.as_string(), args)
-                if is_user_type_name(mangled.as_str(), m, index) { deps.push(mangled) }
+                if is_user_type_name(mangled, m, index) { deps.push(mangled) }
             }
         }
         // An array's storage holds its elements by value.
@@ -129,7 +128,7 @@ fun is_user_type_name(name: str, m: &Module, index: &NameIndex): bool {
 }
 
 fun emit_type_body_for(name: String, m: &Module, index: &NameIndex): String {
-    val positions = index.positions(name.as_str())
+    val positions = index.positions(name)
     while p in 0..positions.size() {
         val td = m.decls.at(positions.get(p))
         val k = td.kind
@@ -155,7 +154,7 @@ fun emit_type_body_for(name: String, m: &Module, index: &NameIndex): String {
 
 fun guard_generic_layout(name: String, body: String): String {
     var out = "#ifndef KF_GENERIC_LAYOUT_${name}\n#define KF_GENERIC_LAYOUT_${name}\n"
-    out.append(body.as_str())
+    out.append(body)
     out.append("#endif\n")
     return out
 }
@@ -214,7 +213,7 @@ fun op_protos_for(name: String): String {
     parts.push(String.from("static inline "))
     parts.push(name.clone())
     parts.push(String.from(" "))
-    parts.push(type_retain_fn(name.as_str()))
+    parts.push(CName.retain_fn(name.as_str()))
     parts.push(String.from("("))
     parts.push(name.clone())
     parts.push(String.from(" v);\n"))
@@ -238,7 +237,7 @@ fun op_protos_for(name: String): String {
 // even when only a pointer to it is stored.
 pub fun named_type_deps(name: String, m: &Module, index: &NameIndex): List<String> {
     var deps = List.new<String>()
-    val positions = index.positions(name.as_str())
+    val positions = index.positions(name)
     while p in 0..positions.size() {
         val td = m.decls.at(positions.get(p))
         val k = td.kind
@@ -273,7 +272,7 @@ fun add_named_dep(deps: &var List<String>, tr: &TypeRef, m: &Module, index: &Nam
                 if is_user_type_name(n.as_str(), m, index) { deps.push(n.as_string()) }
             } else {
                 val mangled = mangle_named(n.as_string(), args)
-                if is_user_type_name(mangled.as_str(), m, index) { deps.push(mangled) }
+                if is_user_type_name(mangled, m, index) { deps.push(mangled) }
             }
         }
         Reference(_mut, inner) => add_named_dep(deps, unsafe { *inner }, m, index)

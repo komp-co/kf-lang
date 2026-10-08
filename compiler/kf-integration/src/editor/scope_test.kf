@@ -5,7 +5,7 @@ import kf_integration.harness.typed_crate_for
 import kf_integration.harness.typed_crate_for_overlay
 import core.assert.assert_eq
 import std.fs.scratch_path
-import kf_driver.editor.render_completion_json
+import kf_query.editor.render_completion_json
 import testing.test
 
 extern "C" fun system(cmd: str): int32
@@ -88,7 +88,7 @@ fun scope_at(marker: str): String {
 
 fun offers(json: str, label: str): bool {
     val needle = "\"label\":\"${label}\","
-    return json.contains(needle.as_str())
+    return json.contains(needle)
 }
 
 @test
@@ -226,8 +226,8 @@ kind = "lib"
 helperlib = { path = "../kf_query_scope_dep" }
 """)
     val src = app_source(with_import)
-    write_file(app_path(), src.as_str())
-    val offset = index_of(src.as_str(), "// MARK_DEP")
+    write_file(app_path(), src)
+    val offset = index_of(src, "// MARK_DEP")
     val crate = typed_crate_for(app_path())
     return render_completion_json("main.kf", offset, &crate)
 }
@@ -287,11 +287,11 @@ fun index_of(hay: str, needle: str): uint32 {
 fun every_marker_is_found(): void {
     // A missing marker would read as offset 0.
     val src = scope_fixture_source()
-    assert_eq(index_of(src.as_str(), "// MARK_THEN") > 0, true, "MARK_THEN")
-    assert_eq(index_of(src.as_str(), "// MARK_ELSE") > 0, true, "MARK_ELSE")
-    assert_eq(index_of(src.as_str(), "// MARK_AFTER") > 0, true, "MARK_AFTER")
-    assert_eq(index_of(src.as_str(), "// MARK_LOOP") > 0, true, "MARK_LOOP")
-    assert_eq(index_of(src.as_str(), "// MARK_ARM") > 0, true, "MARK_ARM")
+    assert_eq(index_of(src, "// MARK_THEN") > 0, true, "MARK_THEN")
+    assert_eq(index_of(src, "// MARK_ELSE") > 0, true, "MARK_ELSE")
+    assert_eq(index_of(src, "// MARK_AFTER") > 0, true, "MARK_AFTER")
+    assert_eq(index_of(src, "// MARK_LOOP") > 0, true, "MARK_LOOP")
+    assert_eq(index_of(src, "// MARK_ARM") > 0, true, "MARK_ARM")
 }
 
 @test

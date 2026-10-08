@@ -1,11 +1,11 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.Pattern
-import kf_core.ast.Sym
+import kf_core.ast.pattern.Pattern
 import kf_core.ast.expression.Expr
 import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
+import kf_core.intern.Sym
 
 mutating fun MoveCtx.snapshot_moved(): List<MovedEntry> {
     var snap = List.new<MovedEntry>()
@@ -60,8 +60,8 @@ fun check_branch_divergence(then_set: List<MovedEntry>, else_set: List<MovedEntr
 
 fun emit_branch_divergence(name: String, branch_site: Span, if_span: Span, ctx: &var MoveCtx): void {
     val msg = "`${name}` moved in some branches but not others"
-    var d = error_at(if_span, msg)
-    d.secondary.push(new_label(branch_site, String.from("moved here in one branch")))
+    var d = Diagnostic.error_at(if_span, msg)
+    d.secondary.push(Label.new(branch_site, String.from("moved here in one branch")))
     ctx.ctx_emit(d)
 }
 
@@ -208,6 +208,6 @@ fun declare_pattern_binds_borrowed(pp: Ptr<Pattern>, ctx: &var MoveCtx): void {
 
 fun emit_loop_move_leak(name: String, site: Span, ctx: &var MoveCtx): void {
     val msg = "`${name}` moved inside loop body would re-move on next iteration"
-    val d = error_at(site, msg)
+    val d = Diagnostic.error_at(site, msg)
     ctx.ctx_emit(d)
 }

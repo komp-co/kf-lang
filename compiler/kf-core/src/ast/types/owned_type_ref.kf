@@ -1,0 +1,25 @@
+// Borrowed views of optional owned nodes, for passes that read or rewrite a
+// node in place through a pointer. The view never owns: the Box does.
+
+import kf_core.ast.types.*
+
+pub fun Option<Box<TypeRef>>.view(): Ptr<TypeRef>? {
+    return when (self) {
+        Some(node) => node
+        None => null
+    }
+}
+
+pub fun Option<Ptr<TypeRef>>.adopt(): Box<TypeRef>? {
+    return when (self) {
+        Some(node) => Option.Some<Box<TypeRef>>(node)
+        None => null
+    }
+}
+
+pub fun Option<Box<TypeRef>>.duplicate(): Box<TypeRef>? {
+    return when (self) {
+        Some(node) => Option.Some<Box<TypeRef>>(Box.new(node.clone()))
+        None => null
+    }
+}

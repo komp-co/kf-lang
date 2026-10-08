@@ -6,11 +6,11 @@
 
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.intern
+import kf_core.span.Span
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import kf_core.ast.statement.SwitchArm
+import kf_core.intern.intern
 import kf_lower.ownership.names_contains
 
 /// An `if`'s two branches, each walked from the owners before it.
@@ -44,7 +44,7 @@ fun RcCtx.moved_since(before: &List<String>): List<String> {
     val now = self.owned_heap_locals()
     var out = List.new<String>()
     while name in &before {
-        if !names_contains(&now, name.as_str()) { out.push(name.clone()) }
+        if !names_contains(&now, name) { out.push(name.clone()) }
     }
     return out
 }
@@ -52,7 +52,7 @@ fun RcCtx.moved_since(before: &List<String>): List<String> {
 /// Adds the names in `moved` that `into` lacks.
 fun add_moved(into: &var List<String>, moved: &List<String>): void {
     while name in &moved {
-        if !names_contains(into, name.as_str()) { into.push(name.clone()) }
+        if !names_contains(into, name) { into.push(name.clone()) }
     }
 }
 
@@ -60,8 +60,8 @@ fun add_moved(into: &var List<String>, moved: &List<String>): void {
 fun release_kept(body: &var List<Stmt>, moved_here: &List<String>, moved_anywhere: &List<String>): void {
     var releases = List.new<Stmt>()
     while name in &moved_anywhere {
-        if !names_contains(moved_here, name.as_str()) {
-            releases.push(Stmt.new(no_span(), StmtKind.Release(intern(name.as_str()))))
+        if !names_contains(moved_here, name) {
+            releases.push(Stmt.new(Span.none(), StmtKind.Release(intern(name))))
         }
     }
     append_releases(body, releases)

@@ -1,15 +1,14 @@
-// `break` and `continue` in a member loop, whose copies stand one after
-// another. A jump the facts decide ends the copies there; one decided at run
+// `break`, `continue` and `return` in a member loop, whose copies stand one
+// after another. A jump the facts decide ends the copies there; one decided at run
 // time is lowered: each copy is a loop of one pass, `continue` leaves it, and
 // `break` also sets a flag the later copies test.
 
 import alloc.list.*
 
 import kf_core.span.Span
-import kf_core.ast.Arm
-import kf_core.ast.Sym
-import kf_core.ast.intern
-import kf_core.ast.rebuilt
+import kf_core.ast.pattern.Arm
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.expression.UnaryOp
@@ -21,6 +20,7 @@ enum Jump {
     Neither
     Continued
     Broke
+    Returned
 }
 
 /// A copy's statements up to the first jump every run reaches, and which.
@@ -29,7 +29,8 @@ struct CutCopy {
     val jump: Jump
 }
 
-/// `stmts` cut at a `break` or `continue` reached whatever the program does:
+/// `stmts` cut at a `break`, `continue` or `return` reached whatever the
+/// program does:
 /// one standing in the copy, or in a block a decided `if` left.
 fun cut_at_jump(stmts: &List<Stmt>): CutCopy {
     var kept = List.new<Stmt>()
@@ -37,6 +38,10 @@ fun cut_at_jump(stmts: &List<Stmt>): CutCopy {
         when (stmt.kind) {
             Break => return CutCopy { kept: kept, jump: Jump.Broke }
             Continue => return CutCopy { kept: kept, jump: Jump.Continued }
+            Return(_value) => {
+                kept.push(stmt.clone())
+                return CutCopy { kept: kept, jump: Jump.Returned }
+            }
             If(condition, body, other) => {
                 if condition.is_true_literal() && other.size() == 0 {
                     val inner = cut_at_jump(&body)

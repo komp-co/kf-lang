@@ -10,6 +10,8 @@ import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.Param
 import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
+import kf_core.intern.*
+import kf_core.lang.LangItem
 
 /// Lower cannot depend on kf-driver, so it reads the crate root directly.
 extern "C" fun kf_local_root(): str
@@ -21,7 +23,7 @@ fun span_is_in_a_dependency(span: Span, ctx: &var MoveCtx): bool {
     if root.byte_len() == 0 { return false }
     val path = unsafe { (*ctx.smap).file_path_of(span.file_id) }
     if path.as_str().equals("") { return false }
-    return !path.as_str().starts_with(root)
+    return !path.starts_with(root)
 }
 
 /// Per-function move-check state, in parallel lists.
@@ -135,7 +137,7 @@ fun param_sinks_of(params: &List<Param>): List<bool> {
 fun param_lends_of(params: &List<Param>): List<bool> {
     var ps = List.new<bool>()
     while param in &params {
-        ps.push(type_ref_is_borrow(unsafe { &*(param.ty) }))
+        ps.push((unsafe { &*(param.ty) }).is_borrow())
     }
     return ps
 }
@@ -286,7 +288,7 @@ impl MoveCtx {
 pub fun Module.copy_type_names(): TypeNameSet {
     var out = new_type_name_set()
     while td in &self.decls {
-        if td.implemented_lang_trait.as_str() == lang_copy_key() { out.add(td.name.as_string()) }
+        if td.implemented_lang_trait.as_str() == LangItem.Copy.key() { out.add(td.name.as_string()) }
     }
     return out
 }

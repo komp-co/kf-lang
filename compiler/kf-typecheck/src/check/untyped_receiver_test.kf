@@ -1,7 +1,7 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.diagnostic.*
 import kf_typecheck.new_sig_table
 import testing.test
@@ -9,7 +9,7 @@ import testing.test
 fun table_with_one_untyped_call(): Ptr<SigTable> {
     val sigs: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *sigs = new_sig_table() }
-    record_untyped_receiver(no_span(), "get", sigs)
+    record_untyped_receiver(Span.none(), "get", sigs)
     return sigs
 }
 
@@ -23,8 +23,8 @@ fun table_with_one_untyped_call(): Ptr<SigTable> {
 @test fun an_untyped_receiver_is_silent_behind_a_reported_error(): void {
     val sigs = table_with_one_untyped_call()
     var found = List.new<Diagnostic>()
-    val label = new_label(no_span(), String.from("no method `next` on `int32`"))
-    found.push(new_diagnostic(Severity.Error, label))
+    val label = Label.new(Span.none(), String.from("no method `next` on `int32`"))
+    found.push(Diagnostic.new(Severity.Error, label))
     val diags = untyped_receiver_diags(sigs, &found)
     assert_eq(diags.size(), 0, "that error is the explanation")
 }

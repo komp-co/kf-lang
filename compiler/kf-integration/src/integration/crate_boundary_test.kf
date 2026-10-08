@@ -9,8 +9,8 @@ import kf_codegen.*
 import kf_codegen.runtime.emit_runtime_header
 import kf_integration.harness.compile_project_separate
 import std.fs.scratch_path
-import kf_core.diagnostic.new_diagnostics
 import testing.test
+import kf_core.diagnostic.Diagnostics
 
 extern "C" fun system(cmd: str): int32
 
@@ -27,7 +27,7 @@ core = { path = "../kf_sc2_core" }
     var lib_src = String.from("pub struct Point {\n    pub val x: int32\n    pub val y: int32\n}\n\n")
     lib_src.append("impl Point {\n    pub fun sum(): int32 { return self.x + self.y }\n}\n\n")
     lib_src.append("pub fun answer(): int32 {\n    val p = Point { x: 40, y: 2 }\n    return p.sum()\n}\n")
-    write_file(scratch_path("kf_sc2_lib/src/lib.kf"), lib_src.as_str())
+    write_file(scratch_path("kf_sc2_lib/src/lib.kf"), lib_src)
     write_file(scratch_path("kf_sc2_app/kf.toml"), """[project]
 name = "sc2app"
 kind = "bin"
@@ -43,12 +43,12 @@ sc2lib = { path = "../kf_sc2_lib" }
     return 1
 }
 """)
-    write_file(scratch_path("kf_sc2_app/src/main.kf"), app_src.as_str())
+    write_file(scratch_path("kf_sc2_app/src/main.kf"), app_src)
 }
 
 fun build_sc2(): List<CrateCodegenOutput> {
     write_sc2_fixtures()
-    var errors = new_diagnostics()
+    var errors = Diagnostics.new()
     return compile_project_separate(scratch_path("kf_sc2_app"), &var errors)
 }
 
@@ -71,8 +71,8 @@ fun non_generic_call_crosses_a_tu_boundary(): void {
     while o in &outs {
         val h_path = String.from(scratch_path("kf_sc2_out/")) + o.crate_name.clone() + String.from(".h")
         val c_path = String.from(scratch_path("kf_sc2_out/")) + o.crate_name.clone() + String.from(".c")
-        write_file(h_path.as_str(), o.header.as_str())
-        write_file(c_path.as_str(), o.source.as_str())
+        write_file(h_path, o.header)
+        write_file(c_path, o.source)
     }
     write_file(scratch_path("kf_sc2_out/kf_runtime.h"), emit_runtime_header().as_str())
     val rc = unsafe { system("cc -fsanitize=address -I${scratch_path("kf_sc2_out")} ${scratch_path("kf_sc2_out/core.c")} ${scratch_path("kf_sc2_out/sc2lib.c")} ${scratch_path("kf_sc2_out/sc2app.c")} libs/core/native/core.c libs/core/native/core_hosted.c -lm -o ${scratch_path("kf_sc2_out/bin")} && ${scratch_path("kf_sc2_out/bin")}") }
@@ -83,14 +83,14 @@ fun non_generic_call_crosses_a_tu_boundary(): void {
 fun consumer_source_has_no_dependency_bodies(): void {
     val outs = build_sc2()
     val app_c = output_source(&outs, "sc2app")
-    assert_eq(sc2_contains(app_c.as_str(), "int32_t sc2lib__answer(void) {"), false, "imported declarations generate calls, not bodies")
+    assert_eq(sc2_contains(app_c, "int32_t sc2lib__answer(void) {"), false, "imported declarations generate calls, not bodies")
 }
 
 @test
 fun owner_source_carries_its_bodies(): void {
     val outs = build_sc2()
     val lib_c = output_source(&outs, "sc2lib")
-    assert_eq(sc2_contains(lib_c.as_str(), "int32_t sc2lib__answer(void) {"), true, "the owning crate defines its functions")
+    assert_eq(sc2_contains(lib_c, "int32_t sc2lib__answer(void) {"), true, "the owning crate defines its functions")
 }
 
 @test
@@ -113,7 +113,7 @@ fun write_drop_member_fixtures(): void {
     mk.append(" ${core_dir} ${lib_dir} ${app_dir}")
     mk.append(" && mkdir -p ${core_dir}/src ${lib_dir}/src ${app_dir}/src")
     mk.append(" && cp -R libs/core/src/. ${core_dir}/src/")
-    val _mk = unsafe { system(mk.as_str()) }
+    val _mk = unsafe { system(mk) }
     write_file(scratch_path("kf_sc2_core/kf.toml"), "[project]\nname = \"core\"\nkind = \"lib\"\n")
     write_file(scratch_path("kf_sc2_droplib/kf.toml"), """[project]
 name = "sc2droplib"
@@ -165,7 +165,7 @@ fun main(): int32 {
 
 fun build_drop_member(): List<CrateCodegenOutput> {
     write_drop_member_fixtures()
-    var errors = new_diagnostics()
+    var errors = Diagnostics.new()
     return compile_project_separate(scratch_path("kf_sc2_dropapp"), &var errors)
 }
 
@@ -173,8 +173,8 @@ fun build_drop_member(): List<CrateCodegenOutput> {
 fun consumer_glue_drops_a_dependency_member(): void {
     val outs = build_drop_member()
     val app_c = output_source(&outs, "sc2dropapp")
-    val public_path = sc2_contains(app_c.as_str(), "sc2dropapp__Holder v) {\n    sc2droplib__Res__glue_drop(v.r);")
-    val private_path = sc2_contains(app_c.as_str(), "sc2dropapp__Hidden v) {\n    sc2droplib__Res__glue_drop(v.r);")
+    val public_path = sc2_contains(app_c, "sc2dropapp__Holder v) {\n    sc2droplib__Res__glue_drop(v.r);")
+    val private_path = sc2_contains(app_c, "sc2dropapp__Hidden v) {\n    sc2droplib__Res__glue_drop(v.r);")
     assert_eq(public_path && private_path, true, "a pub and a private struct both drop the dependency's Drop member")
 }
 
@@ -186,15 +186,15 @@ fun a_dependency_drop_runs_inside_a_consumer_struct(): void {
     while o in &outs {
         val h_path = String.from(scratch_path("kf_sc2_dropout/")) + o.crate_name.clone() + String.from(".h")
         val c_path = String.from(scratch_path("kf_sc2_dropout/")) + o.crate_name.clone() + String.from(".c")
-        write_file(h_path.as_str(), o.header.as_str())
-        write_file(c_path.as_str(), o.source.as_str())
+        write_file(h_path, o.header)
+        write_file(c_path, o.source)
     }
     write_file(scratch_path("kf_sc2_dropout/kf_runtime.h"), emit_runtime_header().as_str())
     var link = String.from("cc -fsanitize=address")
     link.append(" -I${out} ${out}/core.c ${out}/sc2droplib.c ${out}/sc2dropapp.c")
     link.append(" libs/core/native/core.c libs/core/native/core_hosted.c -lm")
     link.append(" -o ${out}/bin && ${out}/bin")
-    val rc = unsafe { system(link.as_str()) }
+    val rc = unsafe { system(link) }
     assert_eq(rc, 0, "the dependency's drop ran when main's scope released the consumer's struct")
 }
 

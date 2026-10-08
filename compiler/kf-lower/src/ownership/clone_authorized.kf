@@ -18,7 +18,7 @@ pub fun Module.compute_clone_names(): List<String> {
             ImplBlock(methods) => {
                 if impl_has_clone_method(&methods) {
                     val nm = td.name.as_string()
-                    if !names_contains(&out, nm.as_str()) { out.push(nm) }
+                    if !names_contains(&out, nm) { out.push(nm) }
                 }
             }
             _ => { }
@@ -50,7 +50,7 @@ pub fun Type.clone_is_authorized(clone_names: &List<String>): bool {
 pub fun Type.unauthorized_clone_name(): String {
     when (self.kind) {
         BoxOf(inner) => return unauthorized_clone_name(unsafe { &*inner })
-        _ => return without_crate_prefix(self.clone().mangle_frag())
+        _ => return without_crate_prefix(self.clone().mangle_frag().display())
     }
 }
 

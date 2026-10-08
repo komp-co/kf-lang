@@ -7,6 +7,8 @@ pub struct SourceFile {
     pub val content: String
 }
 
-pub fun new_source_file(path: String, content: String): SourceFile {
-    return SourceFile { path: path, content: content }
+impl SourceFile {
+    pub static fun new(path: String, content: String): SourceFile {
+        return SourceFile { path: path, content: content }
+    }
 }

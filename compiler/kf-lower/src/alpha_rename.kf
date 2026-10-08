@@ -16,6 +16,11 @@ import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.Variant
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import kf_core.intern.*
+import kf_core.ast.pattern.*
+import kf_core.ast.expression.*
+import kf_core.ast.types.adopt
+import kf_core.ast.types.view
 
 // One scope's (original -> renamed) pairs; a non-shadowing binding maps to
 // itself.
@@ -70,7 +75,7 @@ mutating fun RnCtx.rn_bind(name: Sym): Sym {
     if self.rn_visible(name) {
         val suffix = "${self.counter}"
         val fresh = name.as_string() + String.from("__shadow") + suffix
-        nn = intern(fresh.as_str())
+        nn = intern(fresh)
         self.counter = self.counter + 1
     }
     val n = self.scopes.size()

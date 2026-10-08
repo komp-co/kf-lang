@@ -3,7 +3,8 @@ import alloc.list.*
 import kf_core.span.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.*
-import kf_core.ast.annotation.any_kind_target
+import kf_core.ast.annotation.MarkTarget
+import kf_core.ast.annotation.*
 import kf_parse.parser.*
 
 impl Parser {
@@ -27,9 +28,10 @@ impl Parser {
         val name_at = self.peek().span
         val name = self.expect_name("annotation")
         unsafe { self.advance() }
-        val params = if is_op(self.peek(), Operator.LParen) { self.parse_param_list() } else { List.new<Param>() }
-        val target = if self.at_word("on") { self.parse_mark_target() } else { default_mark_target(name_at) }
-        var td = new_top_decl(span, name, TopDeclKind.AnnotationDecl(params, target, is_pub))
+        val has_params = is_op(self.peek(), Operator.LParen)
+        val params = if has_params { self.parse_annotation_params() } else { List.new<Param>() }
+        val target = if self.at_word("on") { self.parse_mark_target() } else { MarkTarget.new_default(name_at) }
+        var td = TopDecl.new(span, name, TopDeclKind.AnnotationDecl(params, target, is_pub))
         td.name_span = name_at
         td.generics = type_params
         return td
@@ -43,7 +45,7 @@ impl Parser {
         if is_op(self.peek(), Operator.LParen) { return self.parse_signature_target() }
         if self.at_word("any") {
             unsafe { self.advance() }
-            return any_kind_target()
+            return MarkTarget.new_any_kind()
         }
         val bracketed = self.take_op(Operator.Lt)
         var kinds = List.new<KindTarget>()
@@ -57,7 +59,7 @@ impl Parser {
             val example = "`on <struct: Plugin, enum>`"
             self.parse_err(at, "a list of kinds with a bound goes in brackets: ${example}")
         }
-        if kinds.size() == 0 { return default_mark_target(at) }
+        if kinds.size() == 0 { return MarkTarget.new_default(at) }
         return MarkTarget.Kinds(kinds)
     }
 

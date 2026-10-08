@@ -1,0 +1,16 @@
+// `site.file`, `site.line` and `site.column`: where the declaration a
+// template adds to is written, as literals, the file relative to the crate
+// root as an `annotated<A>()` entry gives it.
+
+import kf_core.intern.Sym
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+
+fun Expr.site_fact(member: Sym, x: &var Expansion): Expr {
+    val name = member.as_str()
+    if name == "file" { return self.fact(ExprKind.LitStr(x.site.file_path.clone())) }
+    if name == "line" { return self.fact(ExprKind.LitInt(x.site.line as int64)) }
+    if name == "column" { return self.fact(ExprKind.LitInt(x.site.col as int64)) }
+    x.report(self.span, "`site` has no fact `${name}`: it has ${listed_facts("TemplateSite")}")
+    return self.fact(ExprKind.Poison)
+}

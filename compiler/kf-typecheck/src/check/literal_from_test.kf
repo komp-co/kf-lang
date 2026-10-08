@@ -1,11 +1,11 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.intern
+import kf_core.span.Span
 import kf_core.ast.types.Provenance
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
+import kf_core.intern.intern
 import kf_resolve.*
 import kf_typecheck.new_sig_table
 import kf_typecheck.new_type_ctx
@@ -26,11 +26,11 @@ fun literal_from_ctx(trait_args: str): TypeCtx {
         arg_count: 1
     }
     unsafe { signatures.insert_trait_impl(from) }
-    return new_type_ctx(Type.new_void(no_span()), unsafe { &var *leaked_diagnostics() }, declarations, signatures)
+    return new_type_ctx(Type.new_void(Span.none()), unsafe { &var *leaked_diagnostics() }, declarations, signatures)
 }
 
 fun name_ty(): Type {
-    return Type { kind: TypeKind.Struct(intern("Name")), provenance: Provenance.Inferred(no_span()) }
+    return Type { kind: TypeKind.Struct(intern("Name")), provenance: Provenance.Inferred(Span.none()) }
 }
 
 @test fun a_from_str_impl_takes_a_string_literal(): void {

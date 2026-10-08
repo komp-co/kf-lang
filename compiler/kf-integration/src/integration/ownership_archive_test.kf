@@ -104,26 +104,26 @@ fun dependency_value_early_return_is_asan_clean(): void {
 fun dependency_source_owns_one_drop_definition(): void {
     val _built = build_ownership_from_interface(false)
     val source = read_file(scratch_path("kf_sc5_parcel_app/target/kflat/parcel_lib.c"))
-    assert_eq(ownership_count(source.as_str(), "void parcel_lib__Parcel__glue_drop(parcel_lib__Parcel v) {"), 1, "dependency source owns one drop definition")
+    assert_eq(ownership_count(source, "void parcel_lib__Parcel__glue_drop(parcel_lib__Parcel v) {"), 1, "dependency source owns one drop definition")
 }
 
 @test
 fun consumer_calls_dependency_drop_symbol(): void {
     val _built = build_ownership_from_interface(false)
     val source = read_file(scratch_path("kf_sc5_parcel_app/target/kflat/parcel_app.c"))
-    assert_eq(ownership_contains(source.as_str(), "parcel_lib__Parcel__glue_drop("), true, "consumer calls the dependency drop symbol")
+    assert_eq(ownership_contains(source, "parcel_lib__Parcel__glue_drop("), true, "consumer calls the dependency drop symbol")
 }
 
 @test
 fun consumer_contains_no_dependency_drop_body(): void {
     val _built = build_ownership_from_interface(false)
     val source = read_file(scratch_path("kf_sc5_parcel_app/target/kflat/parcel_app.c"))
-    assert_eq(ownership_contains(source.as_str(), "void parcel_lib__Parcel__glue_drop(parcel_lib__Parcel v) {"), false, "consumer contains no dependency drop body")
+    assert_eq(ownership_contains(source, "void parcel_lib__Parcel__glue_drop(parcel_lib__Parcel v) {"), false, "consumer contains no dependency drop body")
 }
 
 @test
 fun dependency_header_declares_drop_symbol(): void {
     val _built = build_ownership_from_interface(false)
     val header = read_file(scratch_path("kf_sc5_parcel_app/target/kflat/parcel_lib.h"))
-    assert_eq(ownership_contains(header.as_str(), "void parcel_lib__Parcel__glue_drop(parcel_lib__Parcel v);"), true, "dependency header declares drop")
+    assert_eq(ownership_contains(header, "void parcel_lib__Parcel__glue_drop(parcel_lib__Parcel v);"), true, "dependency header declares drop")
 }

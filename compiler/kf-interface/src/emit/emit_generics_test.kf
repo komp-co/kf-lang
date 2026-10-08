@@ -5,7 +5,7 @@ import kf_core.span.*
 import kf_core.ast.*
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TopDeclKind
-import kf_core.ast.declaration.new_top_decl
+import kf_core.intern.*
 import kf_parse.lexer.tokenize
 import kf_parse.parser.new_parser
 import kf_interface.parse.*
@@ -13,17 +13,17 @@ import testing.test
 
 fun generics_source_map(): Ptr<SourceMap> {
     val smap: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
-    unsafe { *smap = new_source_map() }
+    unsafe { *smap = SourceMap.new() }
     return smap
 }
 
 // Templates can only be sliced from a file registered in the SourceMap.
 fun mapped_module(src: str, crate_name: str, smap: Ptr<SourceMap>): Module {
-    val fid = unsafe { smap.add_file(new_source_file(String.from("lib.kf"), String.from(src))) }
+    val fid = unsafe { smap.add_file(SourceFile.new(String.from("lib.kf"), String.from(src))) }
     val tokens = tokenize(src, fid)
     var p = new_parser(tokens)
     val parsed = p.parse_module(List.new<String>())
-    val crate = new_crate_id(crate_name)
+    val crate = CrateId.new(crate_name)
     var decls = List.new<TopDecl>()
     while i in 0..parsed.decls.size() {
         var td = *parsed.decls.at(i)
@@ -64,7 +64,7 @@ fun generics_contains(haystack: str, needle: str): bool {
 @test
 fun template_entry_carries_declaration_source(): void {
     val out = emit_mapped("pub fun id<T>(x: T): T { return x }")
-    assert_eq(generics_contains(out.as_str(), "\"kind\":\"generic\",\"hidden\":false,\"name\":\"id\",\"src\":\"pub fun id<T>(x: T): T { return x }\""), true, "template crosses as its own source text")
+    assert_eq(generics_contains(out, "\"kind\":\"generic\",\"hidden\":false,\"name\":\"id\",\"src\":\"pub fun id<T>(x: T): T { return x }\""), true, "template crosses as its own source text")
 }
 
 @test
@@ -80,26 +80,26 @@ fun template_emission_is_deterministic(): void {
 @test
 fun hidden_helper_rides_along_marked_hidden(): void {
     val out = emit_mapped("pub fun run<T>(x: T): T { helper()\nreturn x }\nfun helper(): void { }")
-    assert_eq(generics_contains(out.as_str(), "\"kind\":\"fun\",\"hidden\":true,\"name\":\"helper\",\"pub\":false,\"link_name\":\"sample__helper\""), true, "private helper crosses bodyless with its archive symbol")
+    assert_eq(generics_contains(out, "\"kind\":\"fun\",\"hidden\":true,\"name\":\"helper\",\"pub\":false,\"link_name\":\"sample__helper\""), true, "private helper crosses bodyless with its archive symbol")
 }
 
 @test
 fun private_fun_without_template_stays_out(): void {
     val out = emit_mapped("pub fun visible(): void { }\nfun helper(): void { }")
-    assert_eq(generics_contains(out.as_str(), "helper"), false, "no template means no hidden support")
+    assert_eq(generics_contains(out, "helper"), false, "no template means no hidden support")
 }
 
 @test
 fun template_annotation_is_reconstructed(): void {
     val out = emit_mapped("@derive(Default)\npub struct Wrap<T> { val v: T }")
-    assert_eq(generics_contains(out.as_str(), "\"src\":\"@derive(Default)\\npub struct Wrap<T> { val v: T }\""), true, "annotation rides in front of the slice")
+    assert_eq(generics_contains(out, "\"src\":\"@derive(Default)\\npub struct Wrap<T> { val v: T }\""), true, "annotation rides in front of the slice")
 }
 
 fun round_trip_generics(src: str): InterfaceLoad {
     val emit_map = generics_source_map()
     val m = mapped_module(src, "sample", emit_map)
     val encoded = m.emit_interface_full(String.from("sample"), &List.new<String>(), &List.new<String>(), emit_map)
-    return parse_interface_mapped(encoded.as_str(), generics_source_map())
+    return parse_interface_mapped(encoded, generics_source_map())
 }
 
 fun InterfaceLoad.find_decl(name: str): TopDecl {
@@ -109,7 +109,7 @@ fun InterfaceLoad.find_decl(name: str): TopDecl {
             if td.name.as_str() == name { return td.clone() }
         }
     }
-    return new_top_decl(no_span(), "", TopDeclKind.Poison)
+    return TopDecl.new(Span.none(), "", TopDeclKind.Poison)
 }
 
 @test
@@ -169,7 +169,7 @@ fun restored_hidden_helper_keeps_link_name(): void {
 
 @test
 fun corrupt_template_source_is_a_normal_load_error(): void {
-    val source = "{\"kfi\":21,\"crate\":\"sample\",\"compiler_abi\":\"komp-1\",\"runtime_abi\":\"kflat-runtime-1\",\"target\":\"x86_64-linux-gnu\",\"deps\":[],\"glue\":[],\"dyn_traits\":[],\"dyn_vtables\":[],\"modules\":[{\"path\":\"sample.api\",\"files\":[],\"decls\":[{\"kind\":\"generic\",\"hidden\":false,\"name\":\"id\",\"src\":\"fun id<T>(\"}],\"reexports\":[]}]}"
+    val source = "{\"kfi\":22,\"crate\":\"sample\",\"compiler_abi\":\"komp-1\",\"runtime_abi\":\"kflat-runtime-1\",\"target\":\"x86_64-linux-gnu\",\"deps\":[],\"glue\":[],\"dyn_traits\":[],\"dyn_vtables\":[],\"modules\":[{\"path\":\"sample.api\",\"files\":[],\"decls\":[{\"kind\":\"generic\",\"hidden\":false,\"name\":\"id\",\"src\":\"fun id<T>(\"}],\"reexports\":[]}]}"
     val loaded = parse_interface(source)
     assert_eq(loaded.ok, false, "unparseable template text is diagnosed, not crashed on")
 }

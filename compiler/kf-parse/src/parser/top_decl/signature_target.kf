@@ -2,8 +2,7 @@ import alloc.list.*
 
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
-import kf_core.ast.declaration.MarkTarget
-import kf_core.ast.declaration.default_mark_target
+import kf_core.ast.annotation.MarkTarget
 import kf_parse.parser.*
 
 impl Parser {
@@ -25,11 +24,11 @@ impl Parser {
         }
         if !self.take_op(Operator.RParen) {
             self.parse_err(self.peek().span, String.from("unclosed function type: missing `)`"))
-            return default_mark_target(span)
+            return MarkTarget.new_default(span)
         }
         if !self.take_op(Operator.ThinArrow) {
             self.parse_err(span, String.from("expected a function type after `on`, such as `(Request) -> Response`"))
-            return default_mark_target(span)
+            return MarkTarget.new_default(span)
         }
         val ret = self.parse_type_ref()
         self.reject_misplaced_wildcards(&params, &ret)

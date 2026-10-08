@@ -5,11 +5,11 @@
 
 import alloc.list.*
 
-import kf_core.ast.intern
 import kf_core.ast.types.*
 import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 import kf_core.span.*
+import kf_core.intern.intern
 import kf_typecheck.types.*
 
 /// Arity is checked by the caller.
@@ -19,13 +19,13 @@ pub fun TraitMethodReq.check_impl_method_types(tname: &String, trait_ref: &TypeR
             if params.size() != self.params.size() { return }
             val targs = trait_ref_arg_names(unsafe { *trait_ref })
             while i in 0..params.size() {
-                val want = expected_trait_type(*self.params.at(i), tname.as_str(), &targs, target, self_ty, ctx)
+                val want = expected_trait_type(*self.params.at(i), tname, &targs, target, self_ty, ctx)
                 val got = impl_written_type(unsafe { *(params.at(i).ty) }, target, ctx)
                 if !want.impl_type_matches(&got) {
                     emit_signature_err(diags, params.at(i).span, "parameter", &want, &got, self, tname, ctx)
                 }
             }
-            val want_ret = expected_trait_type(self.ret, tname.as_str(), &targs, target, self_ty, ctx)
+            val want_ret = expected_trait_type(self.ret, tname, &targs, target, self_ty, ctx)
             val got_ret = impl_written_type(unsafe { *ret_ptr }, target, ctx)
             if !want_ret.impl_type_matches(&got_ret) {
                 emit_signature_err(diags, impl_method.span, "return type", &want_ret, &got_ret, self, tname, ctx)
@@ -100,7 +100,7 @@ fun emit_signature_err(diags: &var Diagnostics, span: Span, what: str, want: &Ty
     val wanted = want.display_type(ctx)
     val actual = got.display_type(ctx)
     val message = "`${req.name.as_str()}` declares ${what} `${actual.as_str()}` where trait `${tname.as_str()}` requires `${wanted.as_str()}`"
-    diags.emit(new_diagnostic(Severity.Error, new_label(span, message)))
+    diags.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
 }
 
 /// Generic impls carry their parameters: `impl Compare for Pair<A, B>` reads
@@ -108,7 +108,7 @@ fun emit_signature_err(diags: &var Diagnostics, span: Span, what: str, want: &Ty
 pub fun impl_self_type(target: str, gnames: &List<String>, span: Span, ctx: &var TypeCtx): Type {
     var args = List.new<TypeRef>()
     while gname in &gnames {
-        args.push(TypeRef.new(span, TypeRefKind.Named(intern(gname.as_str()), List.new<TypeRef>())))
+        args.push(TypeRef.new(span, TypeRefKind.Named(intern(gname), List.new<TypeRef>())))
     }
     return (TypeRef.new(span, TypeRefKind.Named(intern(target), args))).resolve_type_ref(ctx)
 }

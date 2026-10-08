@@ -4,12 +4,12 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.Sym
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.declaration.Param
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import kf_core.intern.Sym
 
 fun gather_assignment(target: Sym, value: Ptr<Expr>, params: &List<Param>, ctx: &var TypeCtx,
     found: &var List<LambdaCapture>, locals: &var List<String>): void {

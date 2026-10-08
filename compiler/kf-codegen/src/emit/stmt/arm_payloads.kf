@@ -48,7 +48,7 @@ pub mutating fun ArmPayloads.add_arm_payloads(m: &Module): void {
                         val pt = *v.payloads.at(pj)
                         // A binder rc owns releases as its `Box` would: pointee, then box.
                         val rel = pt.boxed_release() ?: release_fn_for_ctype(pt.c_type().as_str())
-                        val key = arm_payload_key(ename.as_str(), v.name.as_string().as_str(), pj)
+                        val key = arm_payload_key(ename, v.name.as_string().as_str(), pj)
                         if !self.rels.contains(&key) { self.rels.insert(key, rel) }
                         pj = pj + 1
                     }

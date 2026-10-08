@@ -6,6 +6,7 @@ import alloc.list.*
 
 import kf_core.ast.*
 import kf_core.diagnostic.*
+import kf_core.intern.*
 
 /// One resolved export: `owner` offers `offered` from `target` under the name
 /// `exposed`. A poison `offered` (and `exposed`) is every name, unrenamed.
@@ -48,7 +49,7 @@ fun Module.resolve_reexports(module_paths: &var List<Sym>, decl_names: &var List
 
 /// An extension is called by its receiver, so it keeps its name.
 fun Module.reexport_of(imp: &Import, target: Sym, diags: &var List<Diagnostic>): Reexport {
-    val owner = intern(imp.owner.as_str())
+    val owner = intern(imp.owner)
     if imp.wildcard { return Reexport { owner: owner, target: target, offered: Sym { id: 0 }, exposed: Sym { id: 0 } } }
     val offered = import_admitted_name(&imp.path)
     if imp.exposed.as_str() == "" {
@@ -56,9 +57,9 @@ fun Module.reexport_of(imp: &Import, target: Sym, diags: &var List<Diagnostic>):
     }
     if self.declares_extension(target, offered) {
         val why = "is an extension, which is called by its receiver: export it without `as`"
-        diags.push(error_at(imp.span, "`${offered.as_str()}` ${why}"))
+        diags.push(Diagnostic.error_at(imp.span, "`${offered.as_str()}` ${why}"))
     }
-    return Reexport { owner: owner, target: target, offered: offered, exposed: intern(imp.exposed.as_str()) }
+    return Reexport { owner: owner, target: target, offered: offered, exposed: intern(imp.exposed) }
 }
 
 fun Module.declares_extension(module: Sym, name: Sym): bool {
@@ -171,7 +172,7 @@ fun forwarded_admission(admitted: Sym, r: &Reexport): Sym? {
         if admission_real(part).as_str() != r.exposed.as_str() { return Option.None }
         written = admission_written(part)
     }
-    val next = renamed_admission(written.as_str(), r.offered.as_str())
+    val next = renamed_admission(written, r.offered.as_str())
     if alias.as_str() == "" { return Option.Some(next) }
     return Option.Some(intern("${alias.as_str()} ${next.as_str()}"))
 }
