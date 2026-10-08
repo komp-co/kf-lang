@@ -9,6 +9,8 @@ import kf_core.diagnostic.alternatives
 pub enum AnnotationTarget {
     /// `@test`, `@disabled`.
     Function
+    /// `@prelude` — a function, or an annotation used without an import.
+    FunctionOrAnnotation
     /// `@derive`, `@no_mangle`.
     StructOrEnum
     /// `@lang` — a type or trait the language builds on.
@@ -36,7 +38,7 @@ impl AnnotationInfo {
             AnnotationInfo { name: "derive", target: AnnotationTarget.StructOrEnum, takes_args: true },
             AnnotationInfo { name: "no_mangle", target: AnnotationTarget.StructOrEnum, takes_args: false },
             AnnotationInfo { name: "lang", target: AnnotationTarget.StructEnumOrTrait, takes_args: true },
-            AnnotationInfo { name: "prelude", target: AnnotationTarget.Function, takes_args: false },
+            AnnotationInfo { name: "prelude", target: AnnotationTarget.FunctionOrAnnotation, takes_args: false },
             AnnotationInfo { name: "receiver_params", target: AnnotationTarget.Extension, takes_args: true },
             AnnotationInfo { name: "receiver_trait", target: AnnotationTarget.Extension, takes_args: true }
         ]
@@ -50,6 +52,13 @@ impl AnnotationInfo {
 
     pub static fun is_known(kind: str): bool {
         return AnnotationInfo.named(kind).is_some()
+    }
+
+    /// A built-in a crate may declare itself: a use that finds a declaration
+    /// is that annotation, and the built-in answers only where none is seen.
+    /// Core declares `derive`, with a template per derivable trait.
+    pub static fun may_be_declared(kind: str): bool {
+        return kind == "derive"
     }
 
     /// Every one as it is written, as the end of an "expected ..." message.
@@ -70,6 +79,11 @@ impl AnnotationTarget {
         return when (self) {
             Function => when (declaration.kind) {
                 Function(_p, _r, _b, _pub, _u, _m, _s) => true
+                _ => false
+            }
+            FunctionOrAnnotation => when (declaration.kind) {
+                Function(_p, _r, _b, _pub, _u, _m, _s) => true
+                AnnotationDecl(_params, _target, _pub) => true
                 _ => false
             }
             StructOrEnum => when (declaration.kind) {
@@ -93,6 +107,7 @@ impl AnnotationTarget {
     pub fun phrase(): str {
         return when (self) {
             Function => "a function"
+            FunctionOrAnnotation => "a function or an annotation"
             StructOrEnum => "a struct or enum"
             StructEnumOrTrait => "a struct, enum or trait"
             Extension => "an extension function"

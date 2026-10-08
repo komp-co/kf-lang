@@ -10,11 +10,15 @@ import kf_core.diagnostic.*
 import kf_core.intern.*
 import kf_core.lang.*
 import kf_core.ast.annotation.*
+import kf_typecheck.template.sees_declared_annotation
 
 pub fun Module.validate_annotations(diags: &var Diagnostics): void {
     while td in &self.decls {
         // Each annotation is judged on its own.
         while item in &td.annotations {
+            // A declared `derive` is checked as any declared annotation is.
+            val kind = item.name.as_str()
+            if AnnotationInfo.may_be_declared(kind) && self.sees_declared_annotation(td, kind) { continue }
             td.validate_one_annotation(item, diags)
         }
         if td.crate.raw == self.crate.raw { td.validate_member_annotations(diags) }
@@ -78,8 +82,12 @@ pub mutating fun Module.expand_derives(): void {
     var synth = List.new<TopDecl>()
     while td in &self.decls {
         val options = (&td).annotation_words("derive")
+        // A declared `derive` expands its templates; `Clone` and `Copy`
+        // stay the compiler's, as copying is.
+        val declared = options.size() > 0 && self.sees_declared_annotation(&td, "derive")
         while option in &options {
             val entry = DeriveInfo.named(option.as_str()) ?: continue
+            if declared && !entry.is_copying() { continue }
             if derive_admits(entry, &td) {
                 val trait_sym = self.lang_trait_name(entry.lang)
                 synth.push(expand_one_derive(entry.expander, &td, trait_sym))

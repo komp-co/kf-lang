@@ -43,6 +43,11 @@ fun total(xs: Slice<int32>): int32 {
 /// The typed lints over a bin project whose `main` runs `body`: their codes,
 /// space-separated, and the first fix's span as `start..end`.
 fun deref_lints(name: str, body: str): String {
+    return deref_lints_beside(name, "", body)
+}
+
+/// `deref_lints`, with `decls` declared before `main`.
+fun deref_lints_beside(name: str, decls: str, body: str): String {
     val dir = scratch_path(name)
     val _cleared = remove_dir_all(dir)
     val _made = create_dir_all(Path.new("${dir}/src".as_str()))
@@ -52,7 +57,7 @@ fun deref_lints(name: str, body: str): String {
     val manifest = "${project}${deps}${testing_dev_dependency()}"
     val _manifest = write_text("${dir}/kf.toml".as_str(), manifest)
     val prelude = "import alloc.list.*\nimport alloc.string.*\nimport core.slice.Slice\n\n"
-    val src = "${prelude}${helpers()}fun main(): int32 {\n${body}\n}\n"
+    val src = "${prelude}${helpers()}${decls}fun main(): int32 {\n${body}\n}\n"
     val _source = write_text("${dir}/src/main.kf".as_str(), src)
     val smap = fresh_source_map()
     var pdiags = Diagnostics.new()
@@ -119,4 +124,14 @@ fun a_view_that_infers_a_type_argument_keeps_its_call(): void {
 fun a_view_of_a_temporary_keeps_its_call(): void {
     val body = "    return if takes(String.from(\"hi\").as_str()) { 0 } else { 1 }"
     assert_eq(deref_lints("deref_temporary", body).as_str(), "", "a callee might keep a view of it")
+}
+
+@test
+fun a_view_of_self_in_a_trait_impl_is_reported(): void {
+    val trait_decl = "trait Measured {\n    fun measure(): bool\n}\n\n"
+    val impl_decl = "impl Measured for String {\n    fun measure(): bool { return takes(self.as_str()) }\n}\n\n"
+    val decls = "${trait_decl}${impl_decl}"
+    val body = "    return if String.from(\"hi\").measure() { 0 } else { 1 }"
+    val found = deref_lints_beside("deref_self", decls, body)
+    assert_eq(found.starts_with("needless_deref "), true, "`self` lends itself as any String does")
 }

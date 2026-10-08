@@ -209,5 +209,7 @@ fun Module.is_marked_by_any(td: &TopDecl, annotation: uint64): bool {
     if !td.has_annotation(declared.name.as_str()) { return false }
     val resolved = self.own_annotation(declared.name, td.module_path)
     if declared.crate.raw == self.crate.raw { return resolved == annotation }
-    return resolved == null && self.file_imports(td.span.file_id, declared.module_path, declared.name)
+    if resolved != null { return false }
+    if self.file_imports(td.span.file_id, declared.module_path, declared.name) { return true }
+    return declared.has_annotation("prelude") && !self.imports_annotation(td.span.file_id, declared.name)
 }

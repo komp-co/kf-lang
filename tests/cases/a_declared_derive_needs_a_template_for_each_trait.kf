@@ -1,0 +1,23 @@
+//! build: fail
+//! deps: core
+// Once a crate declares `derive`, a trait it lists needs a keyed template,
+// core's own traits included: the built-in `Equal` does not answer for it.
+
+annotation derive(traits: trait..) on <struct, enum>
+
+trait Counted {
+    fun count(): int64
+}
+
+template derive(Counted) on struct T {
+    impl Counted for T {
+        fun count(): int64 { return T.fields.size() }
+    }
+}
+
+@derive(Counted, Equal)
+struct Point {
+    val x: int32
+}
+
+fun main(): int32 { return 0 }

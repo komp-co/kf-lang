@@ -38,6 +38,27 @@ fun Module.file_imports(file: uint32, module: Sym, name: Sym): bool {
     return false
 }
 
+/// Whether `file` imports a dependency's annotation `name`, from any module:
+/// one it imports shadows the prelude's.
+fun Module.imports_annotation(file: uint32, name: Sym): bool {
+    while td in &self.decls {
+        if td.crate.raw == self.crate.raw || td.name.id != name.id || !td.is_annotation() { continue }
+        if self.file_imports(file, td.module_path, name) { return true }
+    }
+    return false
+}
+
+/// Whether `td`'s use of `name` finds a declared annotation, as a template
+/// expands for it: a built-in a crate may declare answers only where none is.
+pub fun Module.sees_declared_annotation(td: &TopDecl, name: str): bool {
+    while i in 0..self.decls.size() {
+        val declared = self.decls.at(i)
+        if declared.name.as_str() != name || !declared.is_annotation() { continue }
+        if self.is_marked_by_any(td, i) { return true }
+    }
+    return false
+}
+
 fun List<String>.joined_path(): String {
     var out = String.from("")
     while i in 0..self.size() {

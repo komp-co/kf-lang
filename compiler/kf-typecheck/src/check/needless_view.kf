@@ -62,9 +62,6 @@ pub mutating fun Expr.note_view_as_receiver(method: str, ctx: &var TypeCtx): voi
 fun Expr.settled_by(call: Span, ctx: &var TypeCtx): bool {
     val name = self.variable_name()
     if name.byte_len() == 0 { return false }
-    // CONSTRAINT: `self` lent as a `str` emits a broken C cast today (#189),
-    // so the call stays until codegen handles it.
-    if name.as_str() == "self" { return true }
     if ctx.open_init(name) != null { return true }
     val at = ctx.binding_decided_at(name)
     return !at.is_none() && at.file_id == call.file_id && at.start >= call.start && at.end <= call.end

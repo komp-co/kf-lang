@@ -499,6 +499,42 @@ you asked for rather than something that happened to work.
 `Copy` is checked where it is derived: every field must itself be `Copy`, and
 the type must not implement `Drop`. See [Copy](memory.md#copy).
 
+### Declaring `derive`
+
+`derive` is the one built-in a crate may declare itself, as an ordinary
+annotation taking trait names, with a [keyed template](templates.md#keyed-templates)
+for each trait it derives. A use that sees the declaration expands those
+templates instead, and a listed trait with no template is an error at its name.
+`Clone` and `Copy` still come from the compiler, which does the copying, but a
+declared `derive` lists them only if it has a template for them, which may be
+empty:
+
+```kflat
+annotation derive(traits: trait..) on <struct, enum>
+
+trait Counted {
+    fun count(): int64
+}
+
+template derive(Counted) on struct T {
+    impl Counted for T {
+        fun count(): int64 { return T.fields.size() }
+    }
+}
+
+@derive(Counted)
+struct Point {
+    val x: int32
+    val y: int32
+}
+
+fun main(): int32 { return (Point { x: 1, y: 2 }.count() - 2) as int32 }
+```
+
+Core is to declare `derive` this way, with a template for each trait the table
+above lists, so that deriving is code a library writes rather than the
+compiler's.
+
 ## @allow
 
 `@allow(...)` silences the named lints for diagnostics inside the declaration
@@ -568,7 +604,10 @@ Resolution asks the mark, never the crate name: the caller's own module
 answers first, then its imports, then any `@prelude` function. A name the
 caller's module defines or imports still shadows a prelude name.
 
-Only `core`, `alloc` and `std` may use it, and only on a function. Every
-*other* `pub` function in the standard library is no longer ambient — it is
-reachable only by importing its module. The prelude is deliberately small;
-helpers like `str.last_index_of` or `str.replace` are not in it.
+Only `core`, `alloc` and `std` may use it, on a function or on an annotation
+declaration. A `@prelude` annotation is used without an import, as `@derive` will
+be once core declares it; a crate's own annotation of the name, or one its file
+imports, still comes first. Every *other* `pub` function in the standard library
+is no longer ambient — it is reachable only by importing its module. The prelude
+is deliberately small; helpers like `str.last_index_of` or `str.replace` are not
+in it.

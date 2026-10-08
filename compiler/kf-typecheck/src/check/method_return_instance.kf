@@ -62,24 +62,24 @@ fun Type.register_returned_instance(span: Span, ctx: &var TypeCtx): void {
 /// The marker is reserved-prefixed and carries mutability, so `&var T` reads
 /// back as one, and `Ptr__X` and `Box__X` as the builtin around `X`.
 fun String.tref_from_frag(span: Span, ctx: &var TypeCtx): TypeRef {
-    val function = ctx.fn_type_for(self.as_str())
+    val function = ctx.fn_type_for(self)
     if function != null { return function!!.type_to_type_ref(span) }
     val value = Frag.value_of(self.as_str())
     if value != null { return TypeRef.new(span, TypeRefKind.Value(value ?: 0)) }
     val builtins = ["Ptr", "Box"]
     while builtin in &builtins {
-        if self.as_str().starts_with("${builtin}__") {
+        if self.starts_with("${builtin}__") {
             var pointee = List.new<TypeRef>()
-            pointee.push(self.as_str().substring(5, self.byte_len()).tref_from_frag(span, ctx))
+            pointee.push(self.substring(5, self.byte_len()).tref_from_frag(span, ctx))
             return TypeRef.new(span, TypeRefKind.Named(intern(builtin), pointee))
         }
     }
-    val named = TypeRef.new(span, TypeRefKind.Named(intern(self.as_str()), List.new<TypeRef>()))
-    if unsafe { (*ctx.sigs).find_struct(self.as_str(), ctx.owner_crate) }.is_some() { return named }
-    if unsafe { (*ctx.sigs).find_enum(self.as_str(), ctx.owner_crate) }.is_some() { return named }
-    val inner = ref_key_inner(self.as_str())
+    val named = TypeRef.new(span, TypeRefKind.Named(intern(self), List.new<TypeRef>()))
+    if unsafe { (*ctx.sigs).find_struct(self, ctx.owner_crate) }.is_some() { return named }
+    if unsafe { (*ctx.sigs).find_enum(self, ctx.owner_crate) }.is_some() { return named }
+    val inner = ref_key_inner(self)
     if inner.byte_len() == 0 { return named }
-    val is_mut = ref_key_is_mut(self.as_str())
+    val is_mut = ref_key_is_mut(self)
     val inner_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *inner_ptr = inner.tref_from_frag(span, ctx) }
     return TypeRef.new(span, TypeRefKind.Reference(is_mut, inner_ptr))
@@ -88,16 +88,16 @@ fun String.tref_from_frag(span: Span, ctx: &var TypeCtx): TypeRef {
 /// A fragment naming a concrete type. An unpinned parameter (`T`) spells
 /// itself, and an instance around it would claim arguments nobody supplied.
 fun String.frag_names_a_type(ctx: &var TypeCtx): bool {
-    if ctx.fn_type_for(self.as_str()) != null { return true }
+    if ctx.fn_type_for(self) != null { return true }
     val t = ty_from_mangle_frag(self.clone(), Span.none(), ctx.string_name())
     if t.kind.kind_tag() != TAG_STRUCT() { return true }
-    val as_struct = unsafe { (*ctx.sigs).find_struct(self.as_str(), ctx.owner_crate) }
+    val as_struct = unsafe { (*ctx.sigs).find_struct(self, ctx.owner_crate) }
     if as_struct.is_some() { return true }
-    val as_enum = unsafe { (*ctx.sigs).find_enum(self.as_str(), ctx.owner_crate) }
+    val as_enum = unsafe { (*ctx.sigs).find_enum(self, ctx.owner_crate) }
     if as_enum.is_some() { return true }
     // A borrow is never declared, so ask about what it borrows; otherwise
     // `Option<&T>` decodes to nothing and its payload binder goes untyped.
-    val inner = ref_key_inner(self.as_str())
+    val inner = ref_key_inner(self)
     if inner.byte_len() > 0 { return inner.frag_names_a_type(ctx) }
     return false
 }

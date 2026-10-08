@@ -217,6 +217,8 @@ pub struct DeclaredAnnotation {
     pub val crate: CrateId
     pub val module: Sym
     pub val is_pub: bool
+    /// `@prelude`: seen without an import.
+    pub val is_prelude: bool
     pub val params: List<Param>
     pub val target: MarkTarget
     /// A function target's type, or a pattern's with poison for each `_`,

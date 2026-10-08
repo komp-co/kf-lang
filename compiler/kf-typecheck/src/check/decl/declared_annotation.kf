@@ -29,7 +29,8 @@ pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: &var Di
         when (td.kind) {
             AnnotationDecl(own_params, own_target, is_pub) => {
                 val own = td.crate.raw == self.crate.raw
-                val reserved = AnnotationInfo.is_known(td.name.as_str())
+                val name = td.name.as_str()
+                val reserved = AnnotationInfo.is_known(name) && !AnnotationInfo.may_be_declared(name)
                 if reserved {
                     if own {
                         val message = "`@${td.name.as_str()}` is a built-in annotation and cannot be declared"
@@ -48,7 +49,8 @@ pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: &var Di
                     }
                     val function_type = own_target.function_type(&td, if own { decls } else { null }, sigs, diags)
                     val declared = DeclaredAnnotation {
-                        name: td.name, crate: td.crate, module: td.module_path, is_pub: is_pub, params: params,
+                        name: td.name, crate: td.crate, module: td.module_path, is_pub: is_pub,
+                        is_prelude: (&td).has_annotation("prelude"), params: params,
                         target: own_target.clone(), function_type: function_type, type_params: td.generics.clone()
                     }
                     table.annotations.push(declared)
@@ -62,7 +64,7 @@ pub fun Module.register_declared_annotations(sigs: Ptr<SigTable>, diags: &var Di
         while annotation in &td.annotations {
             val kind = annotation.name.as_str()
             if kind.equals("") { continue }
-            if AnnotationInfo.is_known(kind) { continue }
+            if table.is_built_in_use(kind, td.span.file_id, self.crate, td.module_path) { continue }
             td.register_annotation_use(annotation, &top_level_owner(), sigs, diags, table, &var found)
         }
         td.register_member_annotations(sigs, diags, table, &var found)
