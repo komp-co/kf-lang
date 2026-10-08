@@ -323,25 +323,6 @@ impl Parser {
         return Pattern.new_poison(pat_span)
     }
 
-    /// `p | p | ...`. `|` binds looser than a range's `..`, so `1..5 | 9` is
-    /// two alternatives.
-    mutating fun parse_arm_pattern(): Pattern {
-        val first = self.parse_pattern()
-        if !is_op(self.peek(), Operator.Pipe) { return first }
-        val start = first.span
-        var end = first.span
-        var alternatives = List.new<Pattern>()
-        alternatives.push(first)
-        while is_op(self.peek(), Operator.Pipe) {
-            unsafe { self.advance() }
-            val next = self.parse_pattern()
-            end = next.span
-            alternatives.push(next)
-        }
-        val span = Span { file_id: start.file_id, start: start.start, end: end.end }
-        return Pattern.new(span, PatternKind.Or(alternatives))
-    }
-
     /// A literal already read, or the low bound of `low..high` / `low..=high`.
     mutating fun literal_or_range(span: Span, low: int64, is_char: bool): Pattern {
         val inclusive = is_op(self.peek(), Operator.DotDotEq)

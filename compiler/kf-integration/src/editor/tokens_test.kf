@@ -134,3 +134,43 @@ fun an_index_bracket_is_no_token(): void {
     val start = shapes_source().index_of("[0]")!!
     assert_eq(shapes_tokens().as_str().contains("\"byte_start\":${start},"), false, "the `[` of `ys[0]`")
 }
+
+fun optional_source(): str {
+    return """pub struct Spot {
+    pub val line: int32
+}
+
+pub fun find(n: int32): Spot? {
+    if n > 0 { return Spot { line: n } }
+    return null
+}
+
+pub fun first_line(): int32 {
+    return find(1)?.line ?: 0
+}
+"""
+}
+
+fun optional_tokens(): String {
+    val root = scratch_path("kf_query_token_optional")
+    unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
+    write_file("${root}/kf.toml", "[project]\nname = \"query_token_optional\"\nkind = \"lib\"\n")
+    write_file("${root}/src/lib.kf", optional_source())
+    val crate = typed_crate_for("${root}/src/lib.kf")
+    return render_tokens_json("lib.kf", &crate)
+}
+
+// The checker writes `null` as `Option.None`, whose `Option` no one wrote.
+@test
+fun the_null_literal_is_no_token(): void {
+    val start = optional_source().index_of("null")!!
+    assert_eq(optional_tokens().as_str().contains("\"byte_start\":${start},"), false, "a keyword, not a type (#129)")
+}
+
+// `?.` wraps the field in a `Some` the author never wrote.
+@test
+fun a_field_read_through_a_safe_call_is_a_field(): void {
+    val start = optional_source().index_of("?.line")!! + 2
+    val token = "{\"byte_start\":${start},\"byte_end\":${start + 4},\"type\":\"field\""
+    assert_eq(optional_tokens().as_str().contains(token), true, "`line` of `find(1)?.line`, not a variant (#130)")
+}

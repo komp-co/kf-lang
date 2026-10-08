@@ -1,0 +1,34 @@
+// A one-file program checked as `komp check` would check it, for tests that
+// read what the checker says.
+
+import alloc.list.*
+import alloc.path.Path
+import std.fs.absolute
+
+import kf_core.diagnostic.Diagnostics
+import kf_driver.fresh_source_map
+import kf_driver.new_lint_config
+import kf_driver.checked_diagnostics
+import std.fs.create_dir_all
+import std.fs.remove_dir_all
+import std.fs.scratch_path
+import std.fs.write_text
+
+/// What checking `source` as a one-file bin reports, a message a line.
+pub fun check_messages(name: str, source: str): String {
+    val dir = scratch_path(name)
+    val _cleared = remove_dir_all(dir)
+    val _made = create_dir_all(Path.new("${dir}/src"))
+    val libs = absolute("libs").normalized().raw
+    val deps = "[dependencies]\ncore = { path = \"${libs}/core\" }\nalloc = { path = \"${libs}/alloc\" }\n"
+    val _manifest = write_text("${dir}/kf.toml", "[project]\nname = \"${name}\"\nkind = \"bin\"\n${deps}")
+    val _source = write_text("${dir}/src/main.kf", source)
+    val smap = fresh_source_map()
+    var pdiags = Diagnostics.new()
+    var merged = assemble_project(dir, smap, &var pdiags)
+    var out = String.from("")
+    while d in &merged.checked_diagnostics(smap, &new_lint_config()) {
+        out.append("${d.primary.message}\n")
+    }
+    return out
+}

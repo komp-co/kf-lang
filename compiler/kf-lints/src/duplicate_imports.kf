@@ -1,0 +1,56 @@
+// `duplicate_import`: an import a line above in the same file already makes,
+// as written. Deleting it changes nothing, so its repair is applied
+// unattended, unlike `unused_import`'s.
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.Import
+import kf_core.ast.Module
+import kf_core.diagnostic.*
+
+/// Each repeated import among the files `files`.
+pub fun check_duplicate_imports(m: &Module, files: &List<uint32>, out: &var List<Diagnostic>): void {
+    var seen: List<Import> = []
+    while imp in &m.imports {
+        if !files.contains_file(imp.span.file_id) || seen.has_span(imp.span) { continue }
+        if seen.has_twin_of(imp) {
+            val message = "`${imp.written()}` is imported above already; remove this line"
+            val d = Diagnostic.lint_at("duplicate_import", imp.span, message)
+            val line = Span { file_id: imp.span.file_id, start: imp.span.start, end: imp.span.end + 1 }
+            out.push(with_fix(d, line, String.from(""), String.from("remove the repeated import")))
+        }
+        seen.push(imp.clone())
+    }
+}
+
+fun Import.written(): String {
+    var out = ""
+    while i in 0..self.path.size() {
+        if i > 0 { out.append(".") }
+        out.append(self.path[i])
+    }
+    if self.wildcard { out.append(".*") }
+    if !self.alias.is_empty() { out.append(" as ${self.alias}") }
+    return out
+}
+
+/// The same line in the same file: a sibling file's copy of the list.
+fun List<Import>.has_span(span: Span): bool {
+    while imp in &self {
+        if imp.span.file_id == span.file_id && imp.span.start == span.start { return true }
+    }
+    return false
+}
+
+/// An import in the same file that says exactly what `imp` says.
+fun List<Import>.has_twin_of(imp: &Import): bool {
+    while other in &self {
+        val same_file = other.span.file_id == imp.span.file_id
+        if same_file && other.is_pub == imp.is_pub && other.exposed == imp.exposed &&
+            other.written() == imp.written() {
+            return true
+        }
+    }
+    return false
+}

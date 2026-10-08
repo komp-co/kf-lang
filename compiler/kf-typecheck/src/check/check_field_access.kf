@@ -48,7 +48,7 @@ pub fun check_field_access(receiver_ty: Type, field_name: String, _span: Span, c
     }
     // The layout is here without the field: decidable. The earlier exits are
     // states a valid program passes through.
-    emit_no_such_field(sname, field_name, &layout, _span, ctx)
+    emit_no_such_field(sname, recv_ty.display_type(ctx), field_name, &layout, _span, ctx)
     return Type.new_poison()
 }
 
@@ -75,8 +75,10 @@ fun emit_field_on_enum(ename: String, field_name: String, span: Span, ctx: &var 
 
 /// Usually a method without parentheses (`xs.size`), in which case the
 /// message says so rather than offering a near miss.
-fun emit_no_such_field(type_name: String, field_name: String, layout: &StructLayout, span: Span, ctx: &var TypeCtx): void {
-    var msg = "no field `${field_name.as_str()}` on `${type_name.as_str()}`"
+/// `type_name` finds its methods; `shown` is how the message names it.
+fun emit_no_such_field(type_name: String, shown: String, field_name: String, layout: &StructLayout, span: Span,
+    ctx: &var TypeCtx): void {
+    var msg = "no field `${field_name.as_str()}` on `${shown}`"
     if type_has_method_named(type_name, field_name, ctx) {
         msg.append(" — `")
         msg.append(field_name)

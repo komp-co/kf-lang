@@ -26,6 +26,7 @@ pub fun lint_module(m: &Module, smap: &SourceMap, options: &LintOptions): List<D
         check_unsafe_blocks(file, source.path, source.content, options, &var walk.found)
     }
     report_gone_rows(&files.baseline_keys(options), options, &var walk.found)
+    check_duplicate_imports(m, &files, &var walk.found)
     return walk.found
 }
 

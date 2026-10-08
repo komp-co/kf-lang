@@ -138,6 +138,29 @@ included; `|` binds looser than `..`, so `0..5 | 9` is two alternatives. A
 guard applies to the whole arm: in `1 | 2 | 3 if loud`, `loud` is tested
 whichever alternative matched.
 
+A long alternation wraps like a long expression: a trailing `|` continues it
+on the next line. A line may also start with `|`, which puts each alternative
+on a line of its own:
+
+```kflat
+fun is_vowel(c: char): bool {
+    return when c {
+        'a' | 'e' | 'i' |
+        'o' | 'u' => true
+        _ => false
+    }
+}
+
+fun is_additive(op: Op): bool {
+    return when op {
+        Plus
+        | Minus => true
+        Star
+        | Slash => false
+    }
+}
+```
+
 An alternative cannot bind a name, since the name would be unset whenever
 another alternative matched:
 

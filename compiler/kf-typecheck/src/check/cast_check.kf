@@ -25,7 +25,7 @@ fun reject_enum_to_number_cast(from: Type, to: Type, span: Span, ctx: &var TypeC
     if from.is_poison() { return }
     if !is_numeric(to) { return }
     if !from.type_is_enum_layout(ctx) { return }
-    val msg = "`${mangle_type(from).as_str()}` is an enum and cannot be cast to a number — " +
+    val msg = "`${from.display_type(ctx)}` is an enum and cannot be cast to a number — " +
         "test it with `.is_some()` / `.is_none()`, or match it"
     ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
 }
