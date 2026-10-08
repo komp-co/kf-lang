@@ -62,3 +62,5 @@ impl Bounded for uint64 {
     static fun min_value(): uint64 { return 0 }
     static fun max_value(): uint64 { return 18446744073709551615 }
 }
+
+impl Default for uint64 { static fun default(): uint64 { return 0 } }

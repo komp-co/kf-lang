@@ -27,3 +27,5 @@ impl Hash for bool {
         return mix_uint64(0)
     }
 }
+
+impl Default for bool { static fun default(): bool { return false } }

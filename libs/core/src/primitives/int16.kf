@@ -62,3 +62,5 @@ impl Bounded for int16 {
     static fun min_value(): int16 { return -32767 - 1 }
     static fun max_value(): int16 { return 32767 }
 }
+
+impl Default for int16 { static fun default(): int16 { return 0 } }
