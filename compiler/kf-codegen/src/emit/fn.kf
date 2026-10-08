@@ -30,9 +30,14 @@ fun deref_self_expr_ptr(ep: Ptr<Expr>, owner: str): void {
             if name.as_str().equals("self") {
                 val esp: Span = e.span
                 val inner: Ptr<Expr> = unsafe { alloc<Expr>() }
-                unsafe { *inner = e }
+                // The slot's conversion applies to the `(*self)` value, not to
+                // the pointer: `(*__self).data`, never `(*(__self).data)`.
+                var bare = e
+                bare.coerce = Coercion.Identity
+                unsafe { *inner = bare }
                 var d = Expr.new(esp, ExprKind.Deref(inner))
                 d.ty = Type { kind: TypeKind.Struct(intern(owner)), provenance: Provenance.Inferred(esp) }
+                d.coerce = e.coerce
                 unsafe { *ep = d }
             }
         }

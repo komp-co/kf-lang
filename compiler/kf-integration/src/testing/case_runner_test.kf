@@ -136,9 +136,12 @@ fun prepare_case(path: str, spec: &CaseSpec): String {
     rm_args.push(dir)
     val _cleaned = run("rm", rm_args)
 
+    // CONSTRAINT: kept in a local. The list holds a view of it, which a
+    // temporary would leave dangling before `run` reads it.
+    val src_dir = "${dir}/src"
     var mkdir_args = List.new<str>()
     mkdir_args.push("-p")
-    mkdir_args.push("${dir}/src".as_str())
+    mkdir_args.push(src_dir)
     if run("mkdir", mkdir_args) != 0 {
         return String.from("could not create the case project directory")
     }
