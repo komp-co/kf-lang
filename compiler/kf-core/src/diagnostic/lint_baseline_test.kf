@@ -5,7 +5,8 @@ import testing.test
 @test
 fun rows_parse_and_comments_are_skipped(): void {
     var problems: List<String> = []
-    val baseline = LintBaseline.parse("# a comment\n\nlong_file 640 src/a b.kf\nunsafe_block 2 src/c.kf\n", &var problems)
+    val text = "# a comment\n\nlong_file 640 src/a b.kf\nunsafe_block 2 src/c.kf\n"
+    val baseline = LintBaseline.parse(text, &var problems)
     assert_eq(problems.size(), 0, "two good rows")
     assert_eq(baseline.rows.size(), 2, "both read")
     assert_eq(baseline.rows[0].path.as_str(), "src/a b.kf", "a path runs to the end of the line")
