@@ -62,7 +62,10 @@ impl Expr {
             Variable(name) => return name.as_string()
             FieldAccess(base, _) => return (unsafe { &*base }).borrow_root_in(views)
             Deref(inner) => return (unsafe { &*inner }).borrow_root_in(views)
-            MethodCall(receiver, _, _) => return (unsafe { &*receiver }).borrow_root_in(views)
+            // A static call's receiver names a type, which lends nothing.
+            MethodCall(receiver, _, _) => {
+                if !self.is_static_call { return (unsafe { &*receiver }).borrow_root_in(views) }
+            }
             DynCoerce(inner, _) => return (unsafe { &*inner }).borrow_root_in(views)
             Cast(inner, _) => return (unsafe { &*inner }).borrow_root_in(views)
             _ => {}
@@ -77,6 +80,9 @@ impl Expr {
         var roots = []
         when (self.kind) {
             Call(_name, args) => args.add_lent_roots(views, &var roots)
+            MethodCall(_receiver, _name, args) => {
+                if self.is_static_call { args.add_lent_roots(views, &var roots) }
+            }
             Intrinsic(_intrinsic, args) => args.add_lent_roots(views, &var roots)
             StructLit(_name, fields) => {
                 while field in &fields {

@@ -1,0 +1,22 @@
+//! run: exit 42
+//! deps: core
+// `Label.of(name)` answers a borrow of `name`: the type in front of a static
+// call is no value, so nothing the function owns is borrowed, and the result
+// can be bound and returned.
+
+struct Label { }
+
+impl Label {
+    static fun of(name: str): str {
+        return name
+    }
+}
+
+fun labelled(name: str): str {
+    val label = Label.of(name)
+    return label
+}
+
+fun main(): int32 {
+    return if labelled("answer") == "answer" { 42 } else { 1 }
+}
