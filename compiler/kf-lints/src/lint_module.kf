@@ -21,10 +21,46 @@ pub fun lint_module(m: &Module, smap: &SourceMap, options: &LintOptions): List<D
         if file != 0 && !files.contains_file(file) { files.push(file) }
     }
     while file in &files {
-        val source = smap.files[(file - 1) as uint64].content.as_str()
-        check_source_text(file, source, options, &var walk.found)
+        val source = smap.files[(file - 1) as uint64]
+        check_source_text(file, source.content, options, &var walk.found)
+        check_unsafe_blocks(file, source.path, source.content, options, &var walk.found)
     }
+    report_gone_rows(&files.baseline_keys(options), options, &var walk.found)
     return walk.found
+}
+
+/// What each ratchet lint counts in each of `m`'s own files, for a baseline
+/// to record.
+pub fun ratchet_counts(m: &Module, smap: &SourceMap, options: &LintOptions): List<RatchetCount> {
+    var out: List<RatchetCount> = []
+    val files = m.linted_files()
+    while file in &files {
+        val source = smap.files[(file - 1) as uint64]
+        while count in &source_ratchet_counts(file, source.content, options) { out.push(count.clone()) }
+        when (unsafe_block_count(file, source.path, source.content, options)) {
+            Some(count) => out.push(count)
+            None => { }
+        }
+    }
+    return out
+}
+
+/// The files `m`'s own declarations are written in, in order of first use.
+fun Module.linted_files(): List<uint32> {
+    var files = List.new<uint32>()
+    while decl in &self.decls {
+        if decl.crate.raw != self.crate.raw || decl.linkage.is_imported() || decl.linkage.is_template() { continue }
+        val file = decl.span.file_id
+        if file != 0 && !files.contains_file(file) { files.push(file) }
+    }
+    return files
+}
+
+/// Each file's path as the baseline writes it.
+fun List<uint32>.baseline_keys(options: &LintOptions): List<String> {
+    var out: List<String> = []
+    while file in &self { out.push(String.from(options.baseline.key_of(file))) }
+    return out
 }
 
 /// What the lints that read types find in `m`'s own functions, once `m`

@@ -75,7 +75,11 @@ pub fun CompileUnit.check_crate(interfaces: &InterfaceLookup, overlay: &Overlay,
     var merged = merge_module_list(modules)
     // The checked crate, or every "is this file mine?" lint returns nothing.
     merged.crate = CrateId.new(self.name.as_str())
-    val source_lints = apply_lint_levels(lint_module(&merged, &*smap, &cfg.options), &merged, cfg)
+    var options = cfg.baseline_options(&*smap, self.root)
+    var updated = List.new<Diagnostic>()
+    if cfg.update_baseline { options = cfg.update_baseline_from(&merged, &*smap, &options, &var updated) }
+    var source_lints = apply_lint_levels(lint_module(&merged, &*smap, &options), &merged, cfg)
+    while d in &updated { source_lints.push(d.clone()) }
     var diagnostics = merged.checked_diagnostics(smap, cfg)
     while d in &source_lints { diagnostics.push(d.clone()) }
     if count_errors(&diagnostics) == 0 {

@@ -71,12 +71,12 @@ pub fun kflatc_cli(): int32 {
             continue
         }
         // Read off the command line by the lint config and the reporter.
-        if flag == "-q" || flag == "--quiet" || flag == "--deny-warnings" {
+        if flag == "-q" || flag == "--quiet" || flag == "--deny-warnings" || flag == "--update-lint-baseline" {
             i = i + 1
             continue
         }
         if flag == "-A" || flag == "-W" || flag == "-D" || flag == "--lint" || flag == "--lint-toml" ||
-            flag == "--lint-toml-error" || flag == "--lint-toml-option" {
+            flag == "--lint-toml-error" || flag == "--lint-toml-option" || flag == "--lint-baseline" {
             i = i + 2
             continue
         }

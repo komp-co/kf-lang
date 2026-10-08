@@ -1,0 +1,108 @@
+// The ratchet lints, `long_file`, `long_line` and `unsafe_block`: what they
+// count, and what a baseline row lets a file keep.
+
+import core.assert.assert_eq
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.diagnostic.*
+import kf_core.intern.CrateId
+import kf_parse.lexer.tokenize
+import kf_parse.parser.*
+import kf_assemble.stamp_module_owner
+import kf_lints.lint_module
+import testing.test
+
+/// The codes the source lints report over `src`, written at `path` under the
+/// baseline's `src/`, in order and space-separated.
+fun ratchet_codes(src: str, path: str, options: &LintOptions): String {
+    var smap = SourceMap.new()
+    val file = smap.add_file(SourceFile.new(String.from(path), String.from(src)))
+    var parser = new_parser(tokenize(src, file))
+    var path_parts = List.new<String>()
+    path_parts.push(String.from("fixture"))
+    var m = parser.parse_module(path_parts)
+    stamp_module_owner(&var m, CrateId.new("fixture"))
+    var with_keys = options.clone()
+    with_keys.baseline.crate_prefix = String.from("src/")
+    with_keys.baseline.note_file(file, "src/${path}")
+    val found = lint_module(&m, &smap, &with_keys)
+    var codes = String.from("")
+    while d in &found {
+        if !codes.is_empty() { codes.append(" ") }
+        codes.append(d.code)
+    }
+    return codes
+}
+
+/// Options holding `rows` as the baseline's text.
+fun with_rows(rows: str): LintOptions {
+    var options = LintOptions.none()
+    var problems: List<String> = []
+    options.baseline = LintBaseline.parse(rows, &var problems)
+    assert_eq(problems.size(), 0, "the rows parse")
+    return options
+}
+
+fun unsafe_src(): str {
+    return """fun f(p: Ptr<int32>): int32 {
+    // unsafe { in a comment }
+    val _s = "unsafe { in a string }"
+    return unsafe { *p }
+}
+"""
+}
+
+@test
+fun an_unsafe_block_is_counted_from_the_tokens(): void {
+    val found = ratchet_codes(unsafe_src(), "a.kf", &LintOptions.none())
+    assert_eq(found.as_str(), "unsafe_block", "the block alone; its spelling in a comment or a string is not one")
+}
+
+@test
+fun a_test_file_can_be_left_out_of_unsafe_block(): void {
+    var options = LintOptions.none()
+    options.set("unsafe_block", "tests", 0)
+    assert_eq(ratchet_codes(unsafe_src(), "a_test.kf", &options).as_str(), "", "`tests = 0` skips `_test.kf` files")
+    assert_eq(ratchet_codes(unsafe_src(), "a.kf", &options).as_str(), "unsafe_block", "and only those")
+}
+
+@test
+fun a_row_keeps_the_blocks_a_file_has(): void {
+    val options = with_rows("unsafe_block 1 src/a.kf\n")
+    assert_eq(ratchet_codes(unsafe_src(), "a.kf", &options).as_str(), "", "the row allows the one block")
+}
+
+@test
+fun long_file_counts_lines_of_code_alone(): void {
+    var options = LintOptions.none()
+    options.set("long_file", "max_lines", 3)
+    val src = "import a.b\nimport c.d\n// a comment\n    // and another\nfun f(): void {\n}\n"
+    assert_eq(ratchet_codes(src, "a.kf", &options).as_str(), "", "two lines of code; imports and comments aside")
+    val longer = "${src}fun g(): void {\n}\n"
+    assert_eq(ratchet_codes(longer, "a.kf", &options).as_str(), "long_file", "four lines of code")
+}
+
+@test
+fun a_file_past_its_row_reports_each_long_line(): void {
+    var options = with_rows("long_line 1 src/a.kf\n")
+    options.set("long_line", "max_columns", 10)
+    assert_eq(ratchet_codes("fun a_long_name(): void { }\n", "a.kf", &options).as_str(), "", "one, as the row allows")
+    val two = "fun a_long_name(): void { }\nfun another_long_name(): void { }\n"
+    assert_eq(ratchet_codes(two, "a.kf", &options).as_str(), "long_line long_line", "two past a row of one")
+}
+
+@test
+fun a_row_above_the_count_is_reported(): void {
+    var options = with_rows("long_line 3 src/a.kf\n")
+    options.set("long_line", "max_columns", 10)
+    val found = ratchet_codes("fun a_long_name(): void { }\n", "a.kf", &options)
+    assert_eq(found.as_str(), "long_line", "the file shrank, so its row should come down")
+}
+
+@test
+fun a_row_for_a_file_the_crate_does_not_have_is_reported(): void {
+    val options = with_rows("long_file 900 src/gone.kf\nlong_file 900 elsewhere/kept.kf\n")
+    val found = ratchet_codes("fun f(): void { }\n", "a.kf", &options)
+    assert_eq(found.as_str(), "long_file", "`src/gone.kf` is under this crate; `elsewhere/` is another's")
+}
