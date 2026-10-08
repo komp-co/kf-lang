@@ -1,0 +1,89 @@
+// The ratchet lints' baseline on disk: `--lint-baseline PATH` names it, and
+// `--update-lint-baseline` rewrites the checked crate's rows from what its
+// files hold now, keeping every other crate's.
+
+import core.args.arg_count
+import core.args.arg_at
+import alloc.list.*
+import alloc.path.Path
+import std.fs.absolute
+import std.fs.is_file
+import std.fs.read_to_string
+import std.fs.write_text
+
+import kf_core.span.*
+import kf_core.ast.Module
+import kf_core.diagnostic.*
+import kf_lints.RatchetCount
+import kf_lints.ratchet_counts
+
+/// What the baseline file holds, before any file is matched to its rows.
+pub mutating fun LintConfig.load_baseline(diags: &var List<Diagnostic>): void {
+    while i in 0..arg_count() {
+        if arg_at(i) == "--update-lint-baseline" { self.update_baseline = true }
+        if arg_at(i) == "--lint-baseline" && i + 1 < arg_count() {
+            self.baseline_path = absolute(arg_at(i + 1)).normalized().raw
+        }
+    }
+    if self.baseline_path.is_empty() || !is_file(self.baseline_path) { return }
+    var text = String.from("")
+    when (read_to_string(self.baseline_path)) {
+        Ok(read) => text = read
+        Err(_) => {
+            diags.push(Diagnostic.error_at(Span.none(), "cannot read ${self.baseline_path}"))
+            return
+        }
+    }
+    var problems: List<String> = []
+    self.options.baseline = LintBaseline.parse(text, &var problems)
+    while problem in &problems {
+        diags.push(Diagnostic.error_at(Span.none(), "${self.baseline_path}: ${problem}"))
+    }
+}
+
+/// `options`, with each of `smap`'s files given its path as the baseline
+/// writes it, and the crate at `root` its directory's.
+pub fun LintConfig.baseline_options(smap: &SourceMap, root: str): LintOptions {
+    var options = self.options.clone()
+    if self.baseline_path.is_empty() { return options }
+    val dir = "${Path.new(self.baseline_path).parent().raw}/"
+    options.baseline.crate_prefix = "${relative_to(dir, root)}/"
+    while i in 0..smap.files.size() {
+        options.baseline.note_file((i + 1) as uint32, relative_to(dir, smap.files[i].path).as_str())
+    }
+    return options
+}
+
+/// `path` under `dir`, which ends in `/`; "" outside it.
+fun relative_to(dir: str, path: str): String {
+    val full = absolute(path).normalized().raw
+    if !full.starts_with(dir) { return String.from("") }
+    return full.substring(dir.byte_len(), full.byte_len())
+}
+
+/// Rewrites the baseline with `m`'s counts in place of its old rows, and
+/// answers the options that hold the new rows. A count within its lint's
+/// limit, or of a lint that is allowed, needs no row.
+pub fun LintConfig.update_baseline_from(m: &Module, smap: &SourceMap, options: &LintOptions,
+    diags: &var List<Diagnostic>): LintOptions {
+    var fresh: List<BaselineRow> = []
+    while count in &ratchet_counts(m, smap, options) {
+        if count.count <= count.limit || self.configured_level(count.lint).is_allow() { continue }
+        val path = options.baseline.key_of(count.file_id)
+        if path == "" { continue }
+        fresh.push(BaselineRow { lint: count.lint.clone(), count: count.count, path: String.from(path) })
+    }
+    val header = """# How far past its limit each file was when its ratchet lint went in.
+# Shrinking is always allowed; growing needs this file updated in the same
+# commit. Regenerate with `komp lint --update-baseline`.
+"""
+    val text = options.baseline.rendered_with(&fresh, header)
+    when (write_text(self.baseline_path, text)) {
+        Ok(_) => { }
+        Err(_) => diags.push(Diagnostic.error_at(Span.none(), "cannot write ${self.baseline_path}"))
+    }
+    var problems: List<String> = []
+    var updated = options.clone()
+    updated.baseline.rows = LintBaseline.parse(text, &var problems).rows
+    return updated
+}

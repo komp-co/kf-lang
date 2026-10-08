@@ -1,0 +1,136 @@
+// A ratchet's record: how far past its limit each file already was when the
+// ratchet went in. A file may shrink; growing past its row is reported.
+//
+//   # comment
+//   long_file 640 compiler/kf-typecheck/src/check/check_call.kf
+//   unsafe_block 5 compiler/kf-codegen/src/emit/dyn_traits/dyn_trait.kf
+//
+// Paths are relative to the baseline's own directory, `/`-separated.
+
+import alloc.list.*
+
+/// One row: `lint` allows `count` in the file at `path`.
+@derive(Clone)
+pub struct BaselineRow {
+    pub val lint: String
+    pub val count: int64
+    pub val path: String
+}
+
+@derive(Clone)
+pub struct LintBaseline {
+    pub var rows: List<BaselineRow>
+    /// Each source file's path as the rows write it, at its file id - 1;
+    /// "" for a file outside the baseline's directory.
+    var keys: List<String>
+    /// The checked crate's directory as the rows write paths, ending in `/`;
+    /// "" when no baseline was given.
+    pub var crate_prefix: String
+}
+
+impl LintBaseline {
+    pub static fun none(): LintBaseline {
+        return LintBaseline { rows: [], keys: [], crate_prefix: String.from("") }
+    }
+
+    /// The rows of `text`, and in `problems` each line that is not one.
+    pub static fun parse(text: str, problems: &var List<String>): LintBaseline {
+        var out = LintBaseline.none()
+        var line_start: uint64 = 0
+        var number = 0
+        while line_start < text.byte_len() {
+            val line_end = text.index_of_from("\n", line_start) ?: text.byte_len()
+            number = number + 1
+            val line = text.substring(line_start, line_end).trim()
+            line_start = line_end + 1
+            if line.is_empty() || line.starts_with("#") { continue }
+            when (BaselineRow.parse(line)) {
+                Some(row) => out.rows.push(row)
+                None => problems.push("line ${number}: expected `LINT COUNT PATH`, found `${line}`")
+            }
+        }
+        return out
+    }
+
+    /// The file `file_id` is at `key`, as the rows write paths.
+    pub mutating fun note_file(file_id: uint32, key: str): void {
+        while self.keys.size() < file_id as uint64 { self.keys.push(String.from("")) }
+        self.keys.set((file_id - 1) as uint64, String.from(key))
+    }
+
+    /// The path the rows write for `file_id`; "" for none.
+    pub fun key_of(file_id: uint32): str {
+        if file_id == 0 || file_id as uint64 > self.keys.size() { return "" }
+        return self.keys[(file_id - 1) as uint64]
+    }
+
+    /// What `lint`'s row allows the file `file_id`; None without a row.
+    pub fun allowed(lint: str, file_id: uint32): int64? {
+        val key = self.key_of(file_id)
+        if key == "" { return null }
+        while row in &self.rows {
+            if row.lint.as_str() == lint && row.path.as_str() == key { return row.count }
+        }
+        return null
+    }
+
+    /// A row under the checked crate's directory.
+    pub fun is_this_crates(row: &BaselineRow): bool {
+        return !self.crate_prefix.is_empty() && row.path.starts_with(self.crate_prefix)
+    }
+
+    /// The rows outside the checked crate, then `fresh`, by path and then
+    /// lint, under `header`.
+    pub fun rendered_with(fresh: &List<BaselineRow>, header: str): String {
+        var kept: List<BaselineRow> = []
+        while row in &self.rows {
+            if !self.is_this_crates(row) { kept.push(row.clone()) }
+        }
+        while row in &fresh { kept.push(row.clone()) }
+        kept.sort_rows()
+        var out = String.from(header)
+        while row in &kept { out.append("${row.lint} ${row.count} ${row.path}\n") }
+        return out
+    }
+}
+
+impl BaselineRow {
+    /// `LINT COUNT PATH`, the path running to the end of the line.
+    static fun parse(line: str): BaselineRow? {
+        val first = line.index_of(" ") ?: return null
+        val rest = line.substring(first + 1, line.byte_len())
+        val second = rest.index_of(" ") ?: return null
+        val count = whole_count(rest.substring(0, second)) ?: return null
+        val path = rest.substring(second + 1, rest.byte_len())
+        if path.is_empty() { return null }
+        return BaselineRow { lint: line.substring(0, first), count: count, path: path }
+    }
+
+    fun sorts_before(other: &BaselineRow): bool {
+        val by_path = self.path.compare(&other.path)
+        if by_path != 0 { return by_path < 0 }
+        return self.lint.compare(&other.lint) < 0
+    }
+}
+
+/// By path, then lint: one file's rows together, in a stable order.
+mutating fun List<BaselineRow>.sort_rows(): void {
+    while i in 1..self.size() {
+        var j = i
+        while j > 0 && self[j].sorts_before(&self[j - 1]) {
+            self.swap(j, j - 1)
+            j = j - 1
+        }
+    }
+}
+
+fun whole_count(text: str): int64? {
+    if text.byte_len() == 0 || text.byte_len() > 18 { return null }
+    var value: int64 = 0
+    while i in 0..text.byte_len() {
+        val byte = text.byte(i)
+        if byte < 48 || byte > 57 { return null }
+        value = value * 10 + (byte - 48) as int64
+    }
+    return value
+}

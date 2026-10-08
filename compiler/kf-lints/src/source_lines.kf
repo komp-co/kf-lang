@@ -9,27 +9,69 @@ import kf_core.diagnostic.*
 /// `long_line`, `long_file` and `todo_comment` over the file `file_id`.
 pub fun check_source_text(file_id: uint32, text: str, options: &LintOptions, out: &var List<Diagnostic>): void {
     val max_columns = options.get("long_line", "max_columns")
+    val long = long_lines(file_id, text, max_columns)
+    var messages: List<String> = []
+    while at in &long {
+        val columns = columns_between(text, at.start as uint64, at.end as uint64)
+        messages.push("this line is ${columns} columns wide; the most is ${max_columns}")
+    }
+    val over = "lines over ${max_columns} columns"
+    report_ratchet(&long_line_count(file_id, &long), &long, &messages, over, options, out)
+    val size = long_file_count(file_id, text, options)
+    val start: List<Span> = [Span { file_id: file_id, start: 0, end: 0 }]
+    val message: List<String> = ["this file has ${size.count} lines of code; the most is ${size.limit}"]
+    report_ratchet(&size, &start, &message, "lines of code", options, out)
     var line_start: uint64 = 0
-    var lines: int64 = 0
     while line_start < text.byte_len() {
-        var line_end = line_start
-        while line_end < text.byte_len() && text.byte(line_end) != 10 { line_end = line_end + 1 }
-        lines = lines + 1
-        val columns = columns_between(text, line_start, line_end)
-        if columns > max_columns {
-            val at = Span { file_id: file_id, start: line_start as uint32, end: line_end as uint32 }
-            out.push(
-                Diagnostic.lint_at("long_line", at, "this line is ${columns} columns wide; the most is ${max_columns}")
-            )
-        }
+        val line_end = line_end_from(text, line_start)
         check_todo(file_id, text, line_start, line_end, out)
         line_start = line_end + 1
     }
-    val max_lines = options.get("long_file", "max_lines")
-    if lines > max_lines {
-        val at = Span { file_id: file_id, start: 0, end: 0 }
-        out.push(Diagnostic.lint_at("long_file", at, "this file is ${lines} lines long; the most is ${max_lines}"))
+}
+
+/// What `long_line` and `long_file` count in the file `file_id`.
+pub fun source_ratchet_counts(file_id: uint32, text: str, options: &LintOptions): List<RatchetCount> {
+    val long = long_lines(file_id, text, options.get("long_line", "max_columns"))
+    return [long_line_count(file_id, &long), long_file_count(file_id, text, options)]
+}
+
+fun long_line_count(file_id: uint32, long: &List<Span>): RatchetCount {
+    return RatchetCount { lint: String.from("long_line"), file_id: file_id, count: long.size() as int64, limit: 0 }
+}
+
+/// Lines of code: an import or a line holding only a `//` comment says
+/// nothing about how much the file does.
+fun long_file_count(file_id: uint32, text: str, options: &LintOptions): RatchetCount {
+    var lines: int64 = 0
+    var line_start: uint64 = 0
+    while line_start < text.byte_len() {
+        val line_end = line_end_from(text, line_start)
+        val line = text.substring(line_start, line_end)
+        if !line.trim().starts_with("//") && !line.starts_with("import ") { lines = lines + 1 }
+        line_start = line_end + 1
     }
+    val limit = options.get("long_file", "max_lines")
+    return RatchetCount { lint: String.from("long_file"), file_id: file_id, count: lines, limit: limit }
+}
+
+/// Each line wider than `max_columns`.
+fun long_lines(file_id: uint32, text: str, max_columns: int64): List<Span> {
+    var out: List<Span> = []
+    var line_start: uint64 = 0
+    while line_start < text.byte_len() {
+        val line_end = line_end_from(text, line_start)
+        if columns_between(text, line_start, line_end) > max_columns {
+            out.push(Span { file_id: file_id, start: line_start as uint32, end: line_end as uint32 })
+        }
+        line_start = line_end + 1
+    }
+    return out
+}
+
+fun line_end_from(text: str, line_start: uint64): uint64 {
+    var line_end = line_start
+    while line_end < text.byte_len() && text.byte(line_end) != 10 { line_end = line_end + 1 }
+    return line_end
 }
 
 /// Characters, not bytes: a UTF-8 continuation byte adds no column.

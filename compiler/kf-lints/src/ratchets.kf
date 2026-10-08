@@ -1,0 +1,64 @@
+// The ratchet lints: counts a file may not grow past. `long_file` counts lines
+// of code, `long_line` lines over the column limit, `unsafe_block` `unsafe`
+// blocks. Without a baseline row, a count past the lint's limit is reported;
+// with one, a count past the row, and a count under it, so the row comes down
+// as the file does.
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.diagnostic.*
+
+/// What updating the baseline writes for one lint and file.
+pub struct RatchetCount {
+    pub val lint: String
+    pub val file_id: uint32
+    pub val count: int64
+    /// What the count may reach with no baseline row.
+    pub val limit: int64
+}
+
+/// `lint`'s `count` in the file `file_id`, one diagnostic per span of `at`
+/// with the message beside it in `messages` when the count is past what the
+/// file is allowed; `what` names the thing counted, plural.
+pub fun report_ratchet(count: &RatchetCount, at: &List<Span>, messages: &List<String>, what: str,
+    options: &LintOptions, out: &var List<Diagnostic>): void {
+    val lint = count.lint.as_str()
+    when (options.baseline.allowed(lint, count.file_id)) {
+        Some(allowed) => {
+            if count.count > allowed {
+                val past = "; the file has ${count.count} ${what} and lint-baseline.txt allows ${allowed}"
+                while i in 0..at.size() { out.push(Diagnostic.lint_at(lint, at[i], "${messages[i]}${past}")) }
+            } else if count.count < allowed {
+                val start = Span { file_id: count.file_id, start: 0, end: 0 }
+                val lower = "lower its row with `komp lint --update-baseline`"
+                val has = "which has ${count.count}"
+                val message = "lint-baseline.txt allows ${allowed} ${what} in this file, ${has}; ${lower}"
+                out.push(Diagnostic.lint_at(lint, start, message))
+            }
+        }
+        None => {
+            if count.count <= count.limit { return }
+            while i in 0..at.size() { out.push(Diagnostic.lint_at(lint, at[i], messages[i].clone())) }
+        }
+    }
+}
+
+/// The checked crate's rows for files it no longer has: `present` holds the
+/// path of each of its files, as the rows write them.
+pub fun report_gone_rows(present: &List<String>, options: &LintOptions, out: &var List<Diagnostic>): void {
+    val baseline = &options.baseline
+    while row in &baseline.rows {
+        if !baseline.is_this_crates(row) || present.contains_path(row.path) { continue }
+        val drop = "drop it with `komp lint --update-baseline`"
+        val message = "lint-baseline.txt has a row for `${row.path}`, which this crate does not have; ${drop}"
+        out.push(Diagnostic.lint_at(row.lint.as_str(), Span.none(), message))
+    }
+}
+
+fun List<String>.contains_path(path: str): bool {
+    while item in &self {
+        if item.as_str() == path { return true }
+    }
+    return false
+}
