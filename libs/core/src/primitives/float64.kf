@@ -58,3 +58,5 @@ impl Float for float64 {
     static fun e(): float64 { return 2.718281828459045 }
     static fun epsilon(): float64 { return 0.0000000000000002220446049250313 }
 }
+
+impl Default for float64 { static fun default(): float64 { return 0.0 } }

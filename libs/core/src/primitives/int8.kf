@@ -62,3 +62,5 @@ impl Bounded for int8 {
     static fun min_value(): int8 { return 0 - 127 - 1 }
     static fun max_value(): int8 { return 127 }
 }
+
+impl Default for int8 { static fun default(): int8 { return 0 } }

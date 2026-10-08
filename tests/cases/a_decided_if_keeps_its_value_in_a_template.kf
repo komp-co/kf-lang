@@ -1,0 +1,28 @@
+//! run: exit 0
+//! deps: core
+// An `if` the facts decide, standing as a `when` arm's value, keeps the
+// branch taken as that value.
+
+annotation tag on variant
+annotation labeled on enum
+
+template labeled on enum T {
+    fun T.label(): str {
+        return when (self) {
+            while variant in T.variants {
+                ${variant.name} => if variant.has<tag>() { "tagged" } else { variant.name }
+            }
+        }
+    }
+}
+
+@labeled
+enum Side {
+    @tag
+    Left
+    Right
+}
+
+fun main(): int32 {
+    return if Side.Left.label() == "tagged" && Side.Right.label() == "Right" { 0 } else { 1 }
+}

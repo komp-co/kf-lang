@@ -915,6 +915,36 @@ moves. `Slice.from_raw(ptr, len)` and `SliceMut.from_raw` build one from a
 pointer inside `unsafe`, where the caller vouches that the elements outlive
 it.
 
+## Variant names: `@named`
+
+`@named` gives an enum `name()`, its variant as text, and
+`T.from_name(s)`, the variant without payloads that text spells. `case`
+chooses the spelling, a `NameCase` from `AsWritten`, the default, to `Snake`,
+`Kebab`, `Camel`, `Pascal`, `ShoutingSnake`, `Lower` and `Upper`, and
+`@spelled("...")` on a variant gives it its own:
+
+```kflat
+@named(case = NameCase.Kebab)
+enum Flag {
+    DryRun
+    @spelled("-v")
+    Verbose
+    Jobs(int32)
+}
+
+fun main(): int32 {
+    if Flag.DryRun.name() != "dry-run" || Flag.Jobs(4).name() != "jobs" { return 1 }
+    val verbose = Flag.from_name("-v") ?: return 2
+    if verbose.name() != "-v" { return 3 }
+    return if Flag.from_name("jobs") == null { 0 } else { 4 }
+}
+```
+
+Both are written out by a template as the program compiles, so `name()`
+returns a literal and allocates nothing. `from_name` cannot build a variant
+with payloads, so it never returns one, and when two variants spell the
+same, the first wins.
+
 ## AnnotatedFunction and AnnotatedItem
 
 The entries of `annotated<A>()`: declarations carrying a

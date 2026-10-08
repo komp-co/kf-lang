@@ -53,3 +53,5 @@ impl Float for float32 {
     static fun e(): float32 { return 2.71828183 }
     static fun epsilon(): float32 { return 0.00000011920929 }
 }
+
+impl Default for float32 { static fun default(): float32 { return 0.0 } }

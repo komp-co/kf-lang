@@ -62,3 +62,5 @@ impl Bounded for uint16 {
     static fun min_value(): uint16 { return 0 }
     static fun max_value(): uint16 { return 65535 }
 }
+
+impl Default for uint16 { static fun default(): uint16 { return 0 } }

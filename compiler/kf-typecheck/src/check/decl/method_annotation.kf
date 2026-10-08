@@ -94,7 +94,7 @@ fun register_members(members: &List<TopDecl>, owner: &MethodOwner, sigs: Ptr<Sig
     while member in &members {
         while annotation in &member.annotations {
             val kind = annotation.name.as_str()
-            if kind.equals("") || AnnotationInfo.is_known(kind) { continue }
+            if kind.equals("") || AnnotationInfo.is_known(kind) || member.is_derived_clone_marker(kind) { continue }
             member.register_annotation_use(annotation, owner, sigs, pass_diags, table, diags)
         }
     }
@@ -119,4 +119,10 @@ fun reject_on_trait_members(members: &List<TopDecl>, sigs: Ptr<SigTable>, table:
             diags.push(Diagnostic.new(Severity.Error, Label.new(at, message)))
         }
     }
+}
+
+/// `@derive(Clone)` on a `clone` the compiler made, which tells codegen the
+/// type's clone glue answers it. Such a method has no name written.
+fun TopDecl.is_derived_clone_marker(kind: str): bool {
+    return kind == "derive" && self.name_span.is_none()
 }

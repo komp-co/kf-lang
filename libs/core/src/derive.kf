@@ -1,0 +1,109 @@
+// `@derive(Equal, Hash)`: an impl of each listed trait, written by that
+// trait's `derive` template below. Nothing here is the compiler's: a
+// library makes its own trait derivable the same way, with a
+// `template derive(Trait)` beside the trait.
+
+import core.traits.Clone
+import core.traits.Copy
+import core.traits.Default
+import core.traits.Equal
+import core.hash.Hash
+
+/// Derives each listed trait from its `derive` template; a trait without one
+/// is an error at its name.
+@prelude
+pub annotation derive(traits: trait..) on <struct, enum>
+
+// The compiler copies, so `Clone` and `Copy` add no code here: a derived
+// `Clone` is the permission to copy, and a derived `Copy` is checked to hold
+// only `Copy` fields and no `Drop`.
+template derive(Clone) on struct T { }
+template derive(Clone) on enum T { }
+template derive(Copy) on struct T { }
+template derive(Copy) on enum T { }
+
+/// Equal when every field is.
+template derive(Equal) on struct T {
+    impl Equal for T where T.fields: Equal {
+        fun equals(other: &T): bool {
+            return T.fields.all(|field| field.of(self) == field.of(other))
+        }
+    }
+}
+
+/// Equal when both are the same variant with equal payloads.
+template derive(Equal) on enum T {
+    impl Equal for T where T.variants: Equal {
+        fun equals(other: &T): bool {
+            return when (self) {
+                while variant in T.variants {
+                    ${variant.name}(..a) => when (other) {
+                        ${variant.name}(..b) => variant.payloads.all(|payload| payload.of(a) == payload.of(b))
+                        _ => false
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// The fields' hashes, combined in order.
+template derive(Hash) on struct T {
+    impl Hash for T where T.fields: Hash {
+        fun hash(): uint64 {
+            var h: uint64 = 0
+            while field in T.fields {
+                h = if field.index == 0 { field.of(self).hash() } else { h * 31 + field.of(self).hash() }
+            }
+            return h
+        }
+    }
+}
+
+/// The variant's place, combined with its payloads' hashes in order.
+template derive(Hash) on enum T {
+    impl Hash for T where T.variants: Hash {
+        fun hash(): uint64 {
+            var h: uint64 = 0
+            when (self) {
+                while variant in T.variants {
+                    ${variant.name}(..a) => {
+                        h = variant.index as uint64
+                        while payload in variant.payloads {
+                            h = h * 31 + payload.of(a).hash()
+                        }
+                    }
+                }
+            }
+            return h
+        }
+    }
+}
+
+/// Every field at its type's default.
+template derive(Default) on struct T {
+    impl Default for T where T.fields: Default {
+        static fun default(): T {
+            return T.build(|field| derived_default_of<field.type>())
+        }
+    }
+}
+
+/// The first variant without payloads.
+template derive(Default) on enum T {
+    impl Default for T {
+        static fun default(): T {
+            if T.variants.filter(|variant| variant.payloads.size() == 0).size() == 0 {
+                compile_error("`${T.name}` has no variant without payloads, which `Default` needs")
+            }
+            while variant in T.variants.filter(|variant| variant.payloads.size() == 0) {
+                return T.${variant.name}
+            }
+        }
+    }
+}
+
+/// `D`'s default, for a template naming a field's type. In the prelude
+/// because the template expands in the crate that derives.
+@prelude
+pub fun derived_default_of<D: Default>(): D { return D.default() }
