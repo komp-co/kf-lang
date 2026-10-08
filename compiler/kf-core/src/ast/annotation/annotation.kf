@@ -1,8 +1,6 @@
 // An annotation as written above a declaration, and reading and writing its
 // arguments.
 
-import alloc.list.*
-
 import kf_core.span.Span
 import kf_core.intern.intern
 import kf_core.ast.expression.array_literal_callee

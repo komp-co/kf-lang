@@ -1,5 +1,3 @@
-import alloc.list.*
-
 import kf_core.ast.statement.Stmt
 
 pub mutating fun Stmt.mono_stmt(): void {

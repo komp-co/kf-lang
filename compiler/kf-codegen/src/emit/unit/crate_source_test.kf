@@ -1,6 +1,5 @@
 // A layout the header defines must not be defined again in the source.
 
-import alloc.list.*
 import core.assert.assert_eq
 
 import kf_core.span.Span

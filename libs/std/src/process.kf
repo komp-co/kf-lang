@@ -1,4 +1,3 @@
-import alloc.list.*
 import alloc.path.*
 
 /// Hosted child-process builder. Arguments never pass through a shell.
@@ -34,9 +33,14 @@ extern "C" fun kf_process_status(program: str, args: &List<String>, working_dir:
 extern "C" fun kf_process_exec(program: str, working_dir: str, stdout_path: str): int32
 extern "C" fun getpid(): int32
 
-/// This process's id, which no other running process shares.
-pub fun process_id(): int32 {
-    return getpid()
+/// The running process.
+pub struct Process { }
+
+impl Process {
+    /// This process's id, which no other running process shares.
+    pub static fun id(): int32 {
+        return getpid()
+    }
 }
 
 impl Command {

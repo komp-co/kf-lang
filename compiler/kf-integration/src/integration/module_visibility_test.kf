@@ -5,7 +5,6 @@
 import core.assert.assert_eq
 import kf_integration.harness.check_project
 import kf_integration.harness.komp_build
-import std.fs.scratch_root
 import testing.test
 
 extern "C" fun system(cmd: str): int32
@@ -13,7 +12,7 @@ extern "C" fun system(cmd: str): int32
 /// `outer.inner` holds one `pub` and one private function, and `sibling.kf`,
 /// in `main.kf`'s own module, one private function; `main.kf` is `body`.
 fun prepare_visibility_fixture(name: str, body: str): int32 {
-    val cmd = "rm -rf ${scratch_root()}/${name} ${scratch_root()}/${name}_libs && mkdir -p ${scratch_root()}/${name}/src/outer/inner && cp -r libs ${scratch_root()}/${name}_libs"
+    val cmd = "rm -rf ${Dir.scratch()}/${name} ${Dir.scratch()}/${name}_libs && mkdir -p ${Dir.scratch()}/${name}/src/outer/inner && cp -r libs ${Dir.scratch()}/${name}_libs"
     val prep = unsafe { system(cmd) }
     if prep != 0 { return prep }
 
@@ -26,24 +25,24 @@ fun prepare_visibility_fixture(name: str, body: str): int32 {
     toml.append("_libs/core\" }\nalloc = { path = \"../")
     toml.append(name)
     toml.append("_libs/alloc\" }\n")
-    val toml_path = "${scratch_root()}/${name}/kf.toml"
-    write_file(toml_path, toml)
+    val toml_path = "${Dir.scratch()}/${name}/kf.toml"
+    File.write(toml_path, toml).unwrap()
 
-    val deep_path = "${scratch_root()}/${name}/src/outer/inner/deep.kf"
-    write_file(deep_path, """fun private_value(): int32 { return 7 }
+    val deep_path = "${Dir.scratch()}/${name}/src/outer/inner/deep.kf"
+    File.write(deep_path, """fun private_value(): int32 { return 7 }
 pub fun public_value(): int32 { return 42 }
-""")
+""").unwrap()
 
-    val sibling_path = "${scratch_root()}/${name}/src/sibling.kf"
-    write_file(sibling_path, "fun sibling_value(): int32 { return 3 }\n")
+    val sibling_path = "${Dir.scratch()}/${name}/src/sibling.kf"
+    File.write(sibling_path, "fun sibling_value(): int32 { return 3 }\n").unwrap()
 
-    val main_path = "${scratch_root()}/${name}/src/main.kf"
-    write_file(main_path, body)
+    val main_path = "${Dir.scratch()}/${name}/src/main.kf"
+    File.write(main_path, body).unwrap()
     return 0
 }
 
 fun check_fixture(name: str): int32 {
-    var dir = "${scratch_root()}/"
+    var dir = "${Dir.scratch()}/"
     dir.append(name)
     return check_project(dir)
 }
@@ -85,29 +84,29 @@ fun files_of_one_module_share_scope(): void {
 /// calls it. `import_line` is written verbatim above `main`, so passing ""
 /// produces a crate with no import anywhere.
 fun prepare_dependency_fixture(name: str, import_line: str): int32 {
-    val cmd = "rm -rf ${scratch_root()}/${name}_dep ${scratch_root()}/${name}_app && mkdir -p ${scratch_root()}/${name}_dep/src ${scratch_root()}/${name}_app/src"
+    val cmd = "rm -rf ${Dir.scratch()}/${name}_dep ${Dir.scratch()}/${name}_app && mkdir -p ${Dir.scratch()}/${name}_dep/src ${Dir.scratch()}/${name}_app/src"
     val prep = unsafe { system(cmd) }
     if prep != 0 { return prep }
 
-    val dep_toml = "${scratch_root()}/${name}_dep/kf.toml"
-    write_file(dep_toml, "[project]\nname = \"vis_dep\"\nversion = \"0.1.0\"\nkind = \"lib\"\n")
+    val dep_toml = "${Dir.scratch()}/${name}_dep/kf.toml"
+    File.write(dep_toml, "[project]\nname = \"vis_dep\"\nversion = \"0.1.0\"\nkind = \"lib\"\n").unwrap()
 
-    val dep_src = "${scratch_root()}/${name}_dep/src/lib.kf"
-    write_file(dep_src, "pub fun answer(): int32 { return 42 }\n")
+    val dep_src = "${Dir.scratch()}/${name}_dep/src/lib.kf"
+    File.write(dep_src, "pub fun answer(): int32 { return 42 }\n").unwrap()
 
-    val app_toml_path = "${scratch_root()}/${name}_app/kf.toml"
+    val app_toml_path = "${Dir.scratch()}/${name}_app/kf.toml"
     val app_toml = "[project]\nname = \"vis_app\"\nversion = \"0.1.0\"\nkind = \"bin\"\n\n[dependencies]\nvis_dep = { path = \"../${name}_dep\" }\n"
-    write_file(app_toml_path, app_toml)
+    File.write(app_toml_path, app_toml).unwrap()
 
-    val main_path = "${scratch_root()}/${name}_app/src/main.kf"
+    val main_path = "${Dir.scratch()}/${name}_app/src/main.kf"
     var main_src = String.from(import_line)
     main_src.append("fun main(): int32 { return answer() - 42 }\n")
-    write_file(main_path, main_src)
+    File.write(main_path, main_src).unwrap()
     return 0
 }
 
 fun build_app_fixture(name: str): int32 {
-    val dir = "${scratch_root()}/${name}_app"
+    val dir = "${Dir.scratch()}/${name}_app"
     return komp_build(dir, "")
 }
 

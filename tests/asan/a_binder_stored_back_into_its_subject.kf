@@ -1,7 +1,6 @@
 //! asan: clean
 // A binder grown in place and stored back into its own subject: the store
 // and the growth are one list, freed once.
-import alloc.list.*
 
 enum Kind {
     Items(List<String>)

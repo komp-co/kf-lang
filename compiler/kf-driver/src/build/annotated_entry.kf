@@ -4,8 +4,6 @@
 // `__user_main`, so the passes after this still find the entry by its name.
 // A bare `fun main` stays shorthand for `@main`.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind

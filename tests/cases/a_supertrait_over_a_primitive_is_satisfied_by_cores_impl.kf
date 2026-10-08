@@ -4,7 +4,6 @@
 // and an operator sees its trait through a bound's supertrait: an umbrella
 // trait stands for a list of bounds.
 
-import alloc.list.*
 
 // Declared here, so a user's trait is tested rather than core's umbrella.
 pub trait Seed { static fun seed(): Self }

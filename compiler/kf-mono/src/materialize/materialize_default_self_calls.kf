@@ -5,8 +5,6 @@
 // CONSTRAINT: runs after all generic materialization, so `owner_name` is
 // already the final concrete name.
 
-import alloc.list.*
-
 import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.statement.Stmt

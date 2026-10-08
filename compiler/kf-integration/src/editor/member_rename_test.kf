@@ -3,7 +3,6 @@
 
 import kf_integration.harness.typed_crate_for
 import core.assert.assert_eq
-import std.fs.scratch_path
 import kf_query.editor.render_rename_json
 import testing.test
 
@@ -38,10 +37,10 @@ pub fun probe(n: int32): int32 {
 
 /// Renames the name `into` bytes into the first `needle`.
 fun member_rename(needle: str, into: uint64, new_name: str): String {
-    val root = scratch_path("kf_query_member_rename")
+    val root = Dir.scratch_path("kf_query_member_rename")
     unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
-    write_file("${root}/kf.toml", "[project]\nname = \"query_member_rename\"\nkind = \"lib\"\n")
-    write_file("${root}/src/lib.kf", member_rename_source())
+    File.write("${root}/kf.toml", "[project]\nname = \"query_member_rename\"\nkind = \"lib\"\n").unwrap()
+    File.write("${root}/src/lib.kf", member_rename_source()).unwrap()
     val crate = typed_crate_for("${root}/src/lib.kf")
     val offset = member_rename_source().index_of(needle)!! + into
     return render_rename_json("lib.kf", offset as uint32, new_name, &crate)

@@ -2,9 +2,6 @@
 // type, of a type that holds it, or of a by-value instance such as `A?`.
 // Behind a pointer (`Box`, `List`, a borrow) the same cycle is fine.
 
-import alloc.list.*
-import alloc.hash_map.*
-
 import kf_core.ast.Module
 import kf_core.ast.types.Type
 import kf_core.ast.declaration.TopDecl

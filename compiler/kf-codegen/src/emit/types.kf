@@ -1,7 +1,5 @@
 // TypeRef to C type. Generic instance names are already mangled.
 
-import alloc.list.*
-
 import kf_core.ast.types.*
 import kf_core.names.*
 import kf_codegen.concat

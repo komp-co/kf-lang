@@ -1,8 +1,6 @@
 // A member loop where declarations or fields go: the items one loop holds,
 // written out once per field with its binder standing for that field.
 
-import alloc.list.*
-
 import kf_core.ast.declaration.*
 
 /// Each declaration expanded in order, a member loop's once per field.

@@ -1,7 +1,6 @@
 import kf_integration.harness.typed_crate_for
 import kf_integration.harness.typed_crate_for_overlay
 import core.assert.assert_eq
-import std.fs.scratch_path
 import kf_query.editor.render_completion_json
 import kf_query.editor.render_hover_json
 import kf_query.editor.render_signature_json
@@ -27,14 +26,14 @@ pub fun probe(): int32 {
 }
 
 fun extension_fixture_path(): str {
-    return scratch_path("kf_query_extension/src/main.kf")
+    return Dir.scratch_path("kf_query_extension/src/main.kf")
 }
 
 fun extension_crate(): TypedCrate {
-    val root = scratch_path("kf_query_extension")
+    val root = Dir.scratch_path("kf_query_extension")
     unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
-    write_file(scratch_path("kf_query_extension/kf.toml"), "[project]\nname = \"query_extension\"\nkind = \"lib\"\n")
-    write_file(extension_fixture_path(), extension_fixture_source())
+    File.write(Dir.scratch_path("kf_query_extension/kf.toml"), "[project]\nname = \"query_extension\"\nkind = \"lib\"\n").unwrap()
+    File.write(extension_fixture_path(), extension_fixture_source()).unwrap()
     return typed_crate_for(extension_fixture_path())
 }
 
@@ -85,12 +84,12 @@ pub fun probe(ps: &List<Point>): int32 {
 }
 
 fun trait_receiver_crate(): TypedCrate {
-    val root = scratch_path("kf_query_trait_receiver")
+    val root = Dir.scratch_path("kf_query_trait_receiver")
     unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
     val manifest = "[project]\nname = \"query_trait_receiver\"\nkind = \"lib\"\n"
-    write_file(scratch_path("kf_query_trait_receiver/kf.toml"), manifest)
-    write_file(scratch_path("kf_query_trait_receiver/src/main.kf"), trait_receiver_source())
-    return typed_crate_for(scratch_path("kf_query_trait_receiver/src/main.kf"))
+    File.write(Dir.scratch_path("kf_query_trait_receiver/kf.toml"), manifest).unwrap()
+    File.write(Dir.scratch_path("kf_query_trait_receiver/src/main.kf"), trait_receiver_source()).unwrap()
+    return typed_crate_for(Dir.scratch_path("kf_query_trait_receiver/src/main.kf"))
 }
 
 @test
@@ -135,12 +134,12 @@ pub fun probe(): int32 {
 }
 
 fun front_declared_crate(): TypedCrate {
-    val root = scratch_path("kf_query_front_declared")
+    val root = Dir.scratch_path("kf_query_front_declared")
     unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
     val manifest = "[project]\nname = \"query_front_declared\"\nkind = \"lib\"\n"
-    write_file(scratch_path("kf_query_front_declared/kf.toml"), manifest)
-    write_file(scratch_path("kf_query_front_declared/src/main.kf"), front_declared_source())
-    return typed_crate_for(scratch_path("kf_query_front_declared/src/main.kf"))
+    File.write(Dir.scratch_path("kf_query_front_declared/kf.toml"), manifest).unwrap()
+    File.write(Dir.scratch_path("kf_query_front_declared/src/main.kf"), front_declared_source()).unwrap()
+    return typed_crate_for(Dir.scratch_path("kf_query_front_declared/src/main.kf"))
 }
 
 @test
@@ -182,11 +181,11 @@ pub fun probe(): int32 {
 
 /// `Mute` has its own `level` and is not `Loud`.
 fun bounded_crate(): TypedCrate {
-    val root = scratch_path("kf_query_bounded")
+    val root = Dir.scratch_path("kf_query_bounded")
     unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
-    write_file(scratch_path("kf_query_bounded/kf.toml"), "[project]\nname = \"query_bounded\"\nkind = \"lib\"\n")
-    write_file(scratch_path("kf_query_bounded/src/main.kf"), bounded_source())
-    return typed_crate_for(scratch_path("kf_query_bounded/src/main.kf"))
+    File.write(Dir.scratch_path("kf_query_bounded/kf.toml"), "[project]\nname = \"query_bounded\"\nkind = \"lib\"\n").unwrap()
+    File.write(Dir.scratch_path("kf_query_bounded/src/main.kf"), bounded_source()).unwrap()
+    return typed_crate_for(Dir.scratch_path("kf_query_bounded/src/main.kf"))
 }
 
 fun after_the_bounded_dot(): uint32 {

@@ -1,4 +1,3 @@
-import alloc.list.*
 import kf_core.ast.declaration.Param
 import kf_core.intern.Sym
 

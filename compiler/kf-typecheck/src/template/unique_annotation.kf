@@ -2,8 +2,6 @@
 // most once. A second use is an error naming the first. It is checked per
 // crate, as everything about annotations is.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.diagnostic.*
 

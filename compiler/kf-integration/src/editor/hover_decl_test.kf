@@ -2,14 +2,13 @@ import kf_integration.harness.typed_crate_for
 import kf_integration.harness.typed_crate_for_overlay
 import core.assert.assert_eq
 
-import std.fs.scratch_path
 import kf_query.editor.render_hover_json
 import testing.test
 
 extern "C" fun system(cmd: str): int32
 
 fun hover_decl_fixture_path(): str {
-    return scratch_path("kf_query_hover_decl/src/main.kf")
+    return Dir.scratch_path("kf_query_hover_decl/src/main.kf")
 }
 
 fun hover_decl_fixture_source(): String {
@@ -34,9 +33,9 @@ pub fun probe(): int32 {
 }
 
 fun prepare_hover_decl_fixture(): void {
-    unsafe { system("rm -rf ${scratch_path("kf_query_hover_decl")} && mkdir -p ${scratch_path("kf_query_hover_decl/src")}") }
-    write_file(scratch_path("kf_query_hover_decl/kf.toml"), "[project]\nname = \"query_hover_decl\"\nkind = \"lib\"\n")
-    write_file(hover_decl_fixture_path(), hover_decl_fixture_source().as_str())
+    unsafe { system("rm -rf ${Dir.scratch_path("kf_query_hover_decl")} && mkdir -p ${Dir.scratch_path("kf_query_hover_decl/src")}") }
+    File.write(Dir.scratch_path("kf_query_hover_decl/kf.toml"), "[project]\nname = \"query_hover_decl\"\nkind = \"lib\"\n").unwrap()
+    File.write(hover_decl_fixture_path(), hover_decl_fixture_source().as_str()).unwrap()
 }
 
 /// Byte offset of the first occurrence of `needle`, plus `into`.

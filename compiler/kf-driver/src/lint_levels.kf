@@ -8,10 +8,6 @@
 //
 // `--deny-warnings` promotes everything that survives.
 
-import core.args.arg_count
-import core.args.arg_at
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.Module
 import kf_core.ast.declaration.TopDecl
@@ -163,20 +159,20 @@ fun TopDecl.allows_lint(name: str): bool {
 /// they apply. Each is reported as a row of the file it came from, and
 /// `--lint-toml-error` as what komp found wrong with lint.toml's shape.
 pub mutating fun LintConfig.apply_table_lint_flags(diags: &var List<Diagnostic>): void {
-    while i in 0..arg_count() {
-        val flag = arg_at(i)
-        if flag == "--lint-toml-error" && i + 1 < arg_count() {
-            val problem = arg_at(i + 1)
+    while i in 0..Args.count() {
+        val flag = Args.at(i)
+        if flag == "--lint-toml-error" && i + 1 < Args.count() {
+            val problem = Args.at(i + 1)
             diags.push(Diagnostic.error_at(Span.none(), String.from(problem)))
             continue
         }
-        if flag == "--lint-toml-option" && i + 1 < arg_count() {
-            self.apply_option_row(arg_at(i + 1), diags)
+        if flag == "--lint-toml-option" && i + 1 < Args.count() {
+            self.apply_option_row(Args.at(i + 1), diags)
             continue
         }
         val origin = if flag == "--lint" { "kf.toml [lint]" } else if flag == "--lint-toml" { "lint.toml" } else { "" }
-        if origin == "" || i + 1 >= arg_count() { continue }
-        val row = arg_at(i + 1)
+        if origin == "" || i + 1 >= Args.count() { continue }
+        val row = Args.at(i + 1)
         when (row.index_of("=")) {
             Some(eq) => {
                 val name = row.substring(0, eq)
@@ -242,10 +238,10 @@ fun whole_number(text: str): int64? {
 /// `-A/-W/-D <lint>` and `--deny-warnings`, over kf.toml. An unknown lint is
 /// reported.
 pub mutating fun LintConfig.apply_cli_lint_flags(diags: &var List<Diagnostic>): void {
-    val n = arg_count()
+    val n = Args.count()
     var i = 0
     while i < n {
-        val a = arg_at(i)
+        val a = Args.at(i)
         if a.equals("--deny-warnings") {
             self.deny_warnings = true
         }
@@ -261,7 +257,7 @@ pub mutating fun LintConfig.apply_cli_lint_flags(diags: &var List<Diagnostic>): 
             if i + 1 >= n {
                 diags.push(Diagnostic.error_at(Span.none(), "`${a}` expects a lint name"))
             } else {
-                val name = arg_at(i + 1)
+                val name = Args.at(i + 1)
                 if !LintInfo.exists(name) && !LintInfo.is_group(name) {
                     diags.push(Diagnostic.error_at(Span.none(), "`${a} ${name}`: no lint or lint group by that name"))
                 } else {

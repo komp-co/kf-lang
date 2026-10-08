@@ -1,8 +1,6 @@
 // A `when` over an owned local whose arm moves a payload out consumes the
 // local: the arms own the payloads, and the local is moved from there on.
 
-import alloc.list.*
-
 import kf_core.ast.expression.Expr
 import kf_core.ast.pattern.*
 import kf_lower.refcount.stmts_move_out

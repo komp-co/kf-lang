@@ -2,8 +2,6 @@
 // has one, `__when_subj` holds the subject's address instead of a copy, so the
 // write reaches the subject.
 
-import alloc.list.*
-
 import kf_core.ast.statement.SwitchArm
 import kf_core.intern.Sym
 

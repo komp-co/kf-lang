@@ -2,7 +2,6 @@
 // The binder `?:` unwraps is copied into the result; the copy holds nothing
 // of it, so the payload is still dropped.
 
-import alloc.list.*
 
 @derive(Clone)
 struct Sig {

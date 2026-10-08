@@ -2,8 +2,6 @@
 // pattern whose `_` stands for any one type and whose trailing `..` for any
 // further parameters. A pattern's resolved type carries poison for each `_`.
 
-import alloc.list.*
-
 import kf_core.span.Span
 
 import kf_core.ast.types.*

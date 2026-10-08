@@ -1,8 +1,6 @@
 // A struct's C body and its __new, drop, clone and retain functions: one walk
 // of the field list, which must agree on which fields own their contents.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind

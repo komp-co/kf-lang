@@ -4,7 +4,6 @@
 import core.assert.assert_eq
 import kf_integration.harness.check_project
 import kf_integration.harness.komp_build
-import std.fs.scratch_path
 import testing.test
 
 extern "C" fun system(cmd: str): int32
@@ -12,24 +11,24 @@ extern "C" fun system(cmd: str): int32
 /// `alias_dep` has `answer` (40) at its root and `two` in `alias_dep.text`;
 /// `alias_app.parts` has `seven`. The app's `main.kf` is `main`.
 fun prepare_alias_fixture(name: str, main: str): int32 {
-    val dep = scratch_path("${name}_dep")
-    val app = scratch_path("${name}_app")
+    val dep = Dir.scratch_path("${name}_dep")
+    val app = Dir.scratch_path("${name}_app")
     val prep = unsafe { system("rm -rf ${dep} ${app} && mkdir -p ${dep}/src/text ${app}/src/parts") }
     if prep != 0 { return prep }
-    write_file("${dep}/kf.toml", "[project]\nname = \"alias_dep\"\nversion = \"0.1.0\"\nkind = \"lib\"\n")
-    write_file("${dep}/src/lib.kf", "pub fun answer(): int32 { return 40 }\n")
-    write_file("${dep}/src/text/two.kf", "pub fun two(): int32 { return 2 }\n")
+    File.write("${dep}/kf.toml", "[project]\nname = \"alias_dep\"\nversion = \"0.1.0\"\nkind = \"lib\"\n").unwrap()
+    File.write("${dep}/src/lib.kf", "pub fun answer(): int32 { return 40 }\n").unwrap()
+    File.write("${dep}/src/text/two.kf", "pub fun two(): int32 { return 2 }\n").unwrap()
     val project = "[project]\nname = \"alias_app\"\nversion = \"0.1.0\"\nkind = \"bin\"\n"
     val toml = "${project}\n[dependencies]\nalias_dep = { path = \"../${name}_dep\" }\n"
-    write_file("${app}/kf.toml", toml)
+    File.write("${app}/kf.toml", toml).unwrap()
     val parts = "pub fun seven(): int32 { return 7 }\n\nfun private_seven(): int32 { return 7 }\n"
-    write_file("${app}/src/parts/seven.kf", parts)
-    write_file("${app}/src/main.kf", main)
+    File.write("${app}/src/parts/seven.kf", parts).unwrap()
+    File.write("${app}/src/main.kf", main).unwrap()
     return 0
 }
 
 fun run_alias_fixture(name: str): int32 {
-    val app = scratch_path("${name}_app")
+    val app = Dir.scratch_path("${name}_app")
     if komp_build(app, "") != 0 { return 100 }
     return unsafe { system("${app}/target/kflat/alias_app") }
 }
@@ -94,7 +93,7 @@ fun an_aliased_import_admits_no_bare_name(): void {
 
 fun main(): int32 { return seven() - 7 }
 """), 0, "fixture prepared")
-    assert_eq(check_project(scratch_path("kf_alias_bare_app")) != 0, true, "`seven` is reached only as `parts.seven`")
+    assert_eq(check_project(Dir.scratch_path("kf_alias_bare_app")) != 0, true, "`seven` is reached only as `parts.seven`")
 }
 
 @test
@@ -103,5 +102,5 @@ fun a_private_function_is_not_reached_through_an_alias(): void {
 
 fun main(): int32 { return parts.private_seven() - 7 }
 """), 0, "fixture prepared")
-    assert_eq(check_project(scratch_path("kf_alias_private_app")) != 0, true, "an alias does not widen visibility")
+    assert_eq(check_project(Dir.scratch_path("kf_alias_private_app")) != 0, true, "an alias does not widen visibility")
 }

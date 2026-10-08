@@ -1,9 +1,6 @@
 // `while i in a..b` through the full pipeline.
 
-import alloc.list.*
 import core.assert.assert_eq
-import std.fs.*
-import std.process.*
 
 import kf_integration.harness.compile_source
 import testing.disabled
@@ -19,9 +16,9 @@ pub fun run(cmd: str, args: List<str>): int32 {
 
 fun range_build_and_run(src: str, exe: str): int32 {
     val c = compile_source(src)
-    write_file(scratch_path("komp_for.c"), c)
+    File.write(Dir.scratch_path("komp_for.c"), c).unwrap()
     var gargs = List.new<str>()
-    gargs.push(scratch_path("komp_for.c"))
+    gargs.push(Dir.scratch_path("komp_for.c"))
     gargs.push("-o")
     gargs.push(exe)
     val grc = run("gcc", gargs)
@@ -35,7 +32,7 @@ fun range_build_and_run(src: str, exe: str): int32 {
 // 0+1+2 = 3 (exclusive upper bound).
 @test fun integration_range_sums_exclusive_range(): void {
     val src = "fun main(): int32 { var sum: int32 = 0\nwhile i in 0..3 { sum = sum + i }\nreturn sum }"
-    val code = range_build_and_run(src, scratch_path("komp_range_sum"))
+    val code = range_build_and_run(src, Dir.scratch_path("komp_range_sum"))
     assert_eq(code == 3, true, "while i in 0..3 sums to 3")
 }
 
@@ -45,7 +42,7 @@ fun range_build_and_run(src: str, exe: str): int32 {
 while i in 0..10 { if i == 3 { break }
 sum = sum + i }
 return sum }"""
-    val code = range_build_and_run(src, scratch_path("komp_range_break"))
+    val code = range_build_and_run(src, Dir.scratch_path("komp_range_break"))
     assert_eq(code == 3, true, "break stops the loop at i == 3")
 }
 
@@ -55,7 +52,7 @@ return sum }"""
 while i in 0..5 { if i == 2 { continue }
 sum = sum + i }
 return sum }"""
-    val code = range_build_and_run(src, scratch_path("komp_range_continue"))
+    val code = range_build_and_run(src, Dir.scratch_path("komp_range_continue"))
     assert_eq(code == 8, true, "continue skips i == 2")
 }
 
@@ -71,6 +68,6 @@ xs.push(12)
 var total: int32 = 0
 while i in 0..xs.size() { total = total + xs.get(i) }
 return total }"""
-    val code = range_build_and_run(src, scratch_path("komp_range_coll"))
+    val code = range_build_and_run(src, Dir.scratch_path("komp_range_coll"))
     assert_eq(code == 42, true, "indexed walk over a List sums to 42")
 }

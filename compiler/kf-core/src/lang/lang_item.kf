@@ -2,8 +2,6 @@
 // `@lang("key")`. The compiler asks for them by key and gets back the name
 // the library chose.
 
-import alloc.list.*
-
 import kf_core.ast.types.*
 import kf_core.ast.declaration.*
 import kf_core.ast.expression.*

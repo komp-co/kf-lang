@@ -4,8 +4,6 @@
 // top-level declaration that has it. A trait has no DeclId and is keyed
 // `trait Name`, as a member is keyed `Owner.name`.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.*
 import kf_core.ast.expression.Expr

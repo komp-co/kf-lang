@@ -1,8 +1,6 @@
 // A default naming a top-level `val` holds its literal instead, so the
 // interface carries a value any caller's crate can read.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.intern.Sym
 import kf_core.ast.expression.Expr

@@ -3,7 +3,6 @@
 // The accepted half of by_value_param_mutable_borrow_rejected: `&var` all the
 // way down, and the caller sees the push.
 
-import alloc.list.*
 
 fun inner(l: &var List<int32>): void {
     l.push(1)

@@ -1,8 +1,6 @@
 // What the declarations around a file contribute to its scope, the same
 // wherever the cursor sits.
 
-import alloc.list.*
-
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.Param
 import kf_core.ast.declaration.TopDecl

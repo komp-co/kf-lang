@@ -4,8 +4,6 @@
 // Decided after earlier uses, which were checked against the provisional type,
 // the body is checked again with the type in place, as if written.
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.span.*

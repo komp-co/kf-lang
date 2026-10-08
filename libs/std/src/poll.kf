@@ -1,7 +1,5 @@
 // Waiting on several streams at once, from one thread.
 
-import alloc.list.*
-
 extern "C" fun kf_stream_poll_clear(): void
 extern "C" fun kf_stream_poll_add(fd: int32): int32
 extern "C" fun kf_stream_poll(timeout_ms: int64): int32

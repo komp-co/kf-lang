@@ -1,5 +1,3 @@
-import alloc.list.*
-
 import kf_core.ast.Import
 import kf_core.ast.Module
 import kf_core.ast.types.TypeRef

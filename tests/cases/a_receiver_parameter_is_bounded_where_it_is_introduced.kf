@@ -3,7 +3,6 @@
 // A receiver introduces its type parameters, and a list before the receiver
 // bounds them: `fun <T: Add> Iterable<T>.sum()`.
 
-import alloc.list.*
 
 trait Loud { fun volume(): int32 }
 

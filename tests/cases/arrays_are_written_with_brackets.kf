@@ -3,7 +3,6 @@
 // `T[N]` is `Array<T, N>`, `T[]` takes its length from its initializer, and
 // a function generic over the length takes an array of any length.
 
-import alloc.list.*
 
 @derive(Copy)
 struct Pixel {

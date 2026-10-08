@@ -8,7 +8,6 @@ import kf_driver.fresh_source_map
 import kf_driver.collect_module_diags
 import kf_integration.harness.check_project
 import kf_integration.harness.assemble_project
-import std.fs.scratch_root
 import testing.test
 
 extern "C" fun system(cmd: str): int32
@@ -16,20 +15,20 @@ extern "C" fun system(cmd: str): int32
 /// A dependency crate exporting four functions and a type, and an app whose
 /// `main.kf` opens with `import_line` and returns `body`.
 fun prepare_wildcard_fixture(name: str, import_line: str, body: str): int32 {
-    var cmd = "rm -rf ${scratch_root()}/${name}_dep ${scratch_root()}/${name}_app"
-    cmd.append(" && mkdir -p ${scratch_root()}/${name}_dep/src ${scratch_root()}/${name}_app/src")
+    var cmd = "rm -rf ${Dir.scratch()}/${name}_dep ${Dir.scratch()}/${name}_app"
+    cmd.append(" && mkdir -p ${Dir.scratch()}/${name}_dep/src ${Dir.scratch()}/${name}_app/src")
     val prep = unsafe { system(cmd) }
     if prep != 0 { return prep }
 
-    val dep_toml = "${scratch_root()}/${name}_dep/kf.toml"
-    write_file(dep_toml, """[project]
+    val dep_toml = "${Dir.scratch()}/${name}_dep/kf.toml"
+    File.write(dep_toml, """[project]
 name = "wi_dep"
 version = "0.1.0"
 kind = "lib"
-""")
+""").unwrap()
 
-    val dep_src = "${scratch_root()}/${name}_dep/src/lib.kf"
-    write_file(dep_src, """pub struct Pair {
+    val dep_src = "${Dir.scratch()}/${name}_dep/src/lib.kf"
+    File.write(dep_src, """pub struct Pair {
     pub val left:  int32
     pub val right: int32
 }
@@ -38,35 +37,35 @@ pub fun one(): int32 { return 1 }
 pub fun two(): int32 { return 2 }
 pub fun three(): int32 { return 3 }
 pub fun four(): int32 { return 4 }
-""")
+""").unwrap()
 
-    val app_toml = "${scratch_root()}/${name}_app/kf.toml"
-    write_file(app_toml, """[project]
+    val app_toml = "${Dir.scratch()}/${name}_app/kf.toml"
+    File.write(app_toml, """[project]
 name = "wi_app"
 version = "0.1.0"
 kind = "bin"
 
 [dependencies]
 wi_dep = { path = "../${name}_dep" }
-""".as_str())
+""".as_str()).unwrap()
 
-    val main_path = "${scratch_root()}/${name}_app/src/main.kf"
+    val main_path = "${Dir.scratch()}/${name}_app/src/main.kf"
     var main_src = String.from(import_line)
     main_src.append("\nfun main(): int32 { return ")
     main_src.append(body)
     main_src.append(" }\n")
-    write_file(main_path, main_src)
+    File.write(main_path, main_src).unwrap()
     return 0
 }
 
 fun check_wildcard_fixture(name: str): int32 {
-    val dir = "${scratch_root()}/${name}_app"
+    val dir = "${Dir.scratch()}/${name}_app"
     return check_project(dir)
 }
 
 /// As the driver builds them: the lint needs `Module.crate`.
 fun wildcard_fixture_diags(name: str): List<Diagnostic> {
-    val dir = "${scratch_root()}/${name}_app"
+    val dir = "${Dir.scratch()}/${name}_app"
     val smap = fresh_source_map()
     var pdiags = Diagnostics.new()
     var merged = assemble_project(dir, smap, &var pdiags)

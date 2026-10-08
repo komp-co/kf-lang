@@ -2,8 +2,6 @@
 // The body, one expression or a block, is a statement list whose last
 // expression statement is the value.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr

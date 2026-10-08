@@ -30,10 +30,8 @@ impl From<str> for String {
         val cap: uint64 = len + 1
         if cap == 0 { panic_with(Fault.CapacityOverflow) }
         val data = unsafe { alloc_array<uint8>(cap) }
-        var i = 0
-        while i < len {
+        while i in 0..len {
             unsafe { *(data + i) = kf_str_byte_at(s, i) }
-            i = i + 1
         }
         unsafe { *(data + len) = 0 as uint8 }
         return String { data: data, len: len, cap: cap }
@@ -204,13 +202,11 @@ impl Compare for String {
         val bn = unsafe { kf_str_byte_len(b) }
         var n = an
         if bn < n { n = bn }
-        var i = 0
-        while i < n {
+        while i in 0..n {
             val x = unsafe { kf_str_byte_at(a, i) }
             val y = unsafe { kf_str_byte_at(b, i) }
             if x < y { return -1 }
             if x > y { return 1 }
-            i = i + 1
         }
         // A prefix sorts before the string that extends it.
         if an < bn { return -1 }
@@ -247,7 +243,7 @@ impl Write for String {
 // The same bytes as `str`, so a `String` key and its `str` spelling agree.
 impl Hash for String {
     @allow(needless_deref)
-    fun hash(): uint64 { return hash_bytes(self.as_str()) }
+    fun hash(): uint64 { return self.as_str().hash() }
 }
 
 // The core text surface on the owning type, delegating to core's known-length
@@ -277,9 +273,11 @@ pub fun String.index_of(needle: str): uint64? {
 pub fun String.index_of_from(needle: str, from: uint64): uint64? {
     return self.index_of_from_in(self.byte_len(), needle, from)
 }
+@prelude
 pub fun String.last_index_of(needle: str): uint64? {
     return self.last_index_of_in(self.byte_len(), needle)
 }
+@prelude
 pub fun String.count_of(needle: str): uint64 {
     return self.count_of_in(self.byte_len(), needle)
 }

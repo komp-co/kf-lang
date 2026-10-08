@@ -7,7 +7,6 @@
 // so the message is asserted by the kf-typecheck unit test
 // `a_written_param_the_bound_disagrees_with_is_reported`.
 
-import alloc.list.*
 
 fun main(): int32 {
     var xs = List.new<int32>()

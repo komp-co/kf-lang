@@ -8,17 +8,16 @@ import kf_codegen.*
 import kf_integration.harness.komp_build
 import kf_integration.harness.komp_check
 import kf_integration.harness.compile_project_separate
-import std.fs.scratch_path
 import testing.test
 import kf_core.diagnostic.Diagnostics
 
 extern "C" fun system(cmd: str): int32
 
 fun prepare_generic_fixture(): int32 {
-    val prep = unsafe { system("rm -rf ${scratch_path("kf_sc6_gen_dep")} ${scratch_path("kf_sc6_gen_app")} && mkdir -p ${scratch_path("kf_sc6_gen_dep/src")} ${scratch_path("kf_sc6_gen_app/src")}") }
+    val prep = unsafe { system("rm -rf ${Dir.scratch_path("kf_sc6_gen_dep")} ${Dir.scratch_path("kf_sc6_gen_app")} && mkdir -p ${Dir.scratch_path("kf_sc6_gen_dep/src")} ${Dir.scratch_path("kf_sc6_gen_app/src")}") }
     if prep != 0 { return prep }
-    write_file(scratch_path("kf_sc6_gen_dep/kf.toml"), "[project]\nname = \"gen_dep\"\nkind = \"lib\"\n")
-    write_file(scratch_path("kf_sc6_gen_dep/src/lib.kf"), """pub struct Pair<T> {
+    File.write(Dir.scratch_path("kf_sc6_gen_dep/kf.toml"), "[project]\nname = \"gen_dep\"\nkind = \"lib\"\n").unwrap()
+    File.write(Dir.scratch_path("kf_sc6_gen_dep/src/lib.kf"), """pub struct Pair<T> {
     pub val first: T
     pub val second: T
 }
@@ -30,15 +29,15 @@ pub fun pair_of<T>(a: T, b: T): Pair<T> {
 
 fun note_pair(): void {
 }
-""")
-    write_file(scratch_path("kf_sc6_gen_app/kf.toml"), """[project]
+""").unwrap()
+    File.write(Dir.scratch_path("kf_sc6_gen_app/kf.toml"), """[project]
 name = "gen_app"
 kind = "bin"
 
 [dependencies]
 gen_dep = { path = "../kf_sc6_gen_dep" }
-""")
-    write_file(scratch_path("kf_sc6_gen_app/src/main.kf"), """import gen_dep.*
+""").unwrap()
+    File.write(Dir.scratch_path("kf_sc6_gen_app/src/main.kf"), """import gen_dep.*
 
 struct Score {
     val points: int32
@@ -49,14 +48,14 @@ fun main(): int32 {
     if p.first.points + p.second.points == 42 { return 0 }
     return 1
 }
-""")
+""").unwrap()
     return 0
 }
 
 fun build_generic_fixture(): int32 {
     val prep = prepare_generic_fixture()
     if prep != 0 { return prep }
-    return komp_build(scratch_path("kf_sc6_gen_app"), "")
+    return komp_build(Dir.scratch_path("kf_sc6_gen_app"), "")
 }
 
 @test
@@ -67,9 +66,9 @@ fun generic_dependency_project_builds(): void {
 @test
 fun generic_consumer_checks_without_dependency_source(): void {
     val first = build_generic_fixture()
-    val hidden = unsafe { system("mv ${scratch_path("kf_sc6_gen_dep/src")} ${scratch_path("kf_sc6_gen_dep/src.hidden")}") }
-    val checked = komp_check(scratch_path("kf_sc6_gen_app"))
-    val restored = unsafe { system("mv ${scratch_path("kf_sc6_gen_dep/src.hidden")} ${scratch_path("kf_sc6_gen_dep/src")}") }
+    val hidden = unsafe { system("mv ${Dir.scratch_path("kf_sc6_gen_dep/src")} ${Dir.scratch_path("kf_sc6_gen_dep/src.hidden")}") }
+    val checked = komp_check(Dir.scratch_path("kf_sc6_gen_app"))
+    val restored = unsafe { system("mv ${Dir.scratch_path("kf_sc6_gen_dep/src.hidden")} ${Dir.scratch_path("kf_sc6_gen_dep/src")}") }
     assert_eq(first == 0 && hidden == 0 && checked == 0 && restored == 0, true, "consumer instantiates a dependency generic from gen_dep.kfi alone")
 }
 
@@ -77,13 +76,13 @@ fun generic_consumer_checks_without_dependency_source(): void {
 fun generic_consumer_builds_and_runs_without_dependency_source(): void {
     // All under ASan: instrumented artifacts must not be satisfied by plain.
     val prep = prepare_generic_fixture()
-    val first = komp_build(scratch_path("kf_sc6_gen_app"), "-fsanitize=address")
-    val hidden = unsafe { system("mv ${scratch_path("kf_sc6_gen_dep/src")} ${scratch_path("kf_sc6_gen_dep/src.hidden")}") }
+    val first = komp_build(Dir.scratch_path("kf_sc6_gen_app"), "-fsanitize=address")
+    val hidden = unsafe { system("mv ${Dir.scratch_path("kf_sc6_gen_dep/src")} ${Dir.scratch_path("kf_sc6_gen_dep/src.hidden")}") }
     // Recompile the consumer against artifacts alone.
-    val _fresh = unsafe { system("rm -f ${scratch_path("kf_sc6_gen_app/target/kflat/gen_app.artifact.toml")}") }
-    val rebuilt = komp_build(scratch_path("kf_sc6_gen_app"), "-fsanitize=address")
-    val ran = unsafe { system("ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ${scratch_path("kf_sc6_gen_app/target/kflat/gen_app")}") }
-    val restored = unsafe { system("mv ${scratch_path("kf_sc6_gen_dep/src.hidden")} ${scratch_path("kf_sc6_gen_dep/src")}") }
+    val _fresh = unsafe { system("rm -f ${Dir.scratch_path("kf_sc6_gen_app/target/kflat/gen_app.artifact.toml")}") }
+    val rebuilt = komp_build(Dir.scratch_path("kf_sc6_gen_app"), "-fsanitize=address")
+    val ran = unsafe { system("ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ${Dir.scratch_path("kf_sc6_gen_app/target/kflat/gen_app")}") }
+    val restored = unsafe { system("mv ${Dir.scratch_path("kf_sc6_gen_dep/src.hidden")} ${Dir.scratch_path("kf_sc6_gen_dep/src")}") }
     assert_eq(prep == 0 && first == 0 && hidden == 0 && rebuilt == 0 && ran == 0 && restored == 0, true, "consumer instantiates a dependency generic on its own type from artifacts alone")
 }
 
@@ -92,9 +91,9 @@ fun generic_source_and_interface_consumer_c_are_identical(): void {
     // Against gen_dep.kfi and from dependency source, the consumer's C must
     // be identical.
     val first = build_generic_fixture()
-    val interface_c = read_file(scratch_path("kf_sc6_gen_app/target/kflat/gen_app.c"))
+    val interface_c = File.read(Dir.scratch_path("kf_sc6_gen_app/target/kflat/gen_app.c")).unwrap_or("")
     var errors = Diagnostics.new()
-    val outputs = compile_project_separate(scratch_path("kf_sc6_gen_app"), errors)
+    val outputs = compile_project_separate(Dir.scratch_path("kf_sc6_gen_app"), errors)
     val clean = errors.error_count() == 0
     val source_c = outputs.at(outputs.size() - 1).source
     val setup_ok = first == 0 && clean && outputs.size() > 0
@@ -102,10 +101,10 @@ fun generic_source_and_interface_consumer_c_are_identical(): void {
 }
 
 fun prepare_diamond_fixture(): int32 {
-    val prep = unsafe { system("rm -rf ${scratch_path("kf_sc6_dia_dep")} ${scratch_path("kf_sc6_dia_left")} ${scratch_path("kf_sc6_dia_right")} ${scratch_path("kf_sc6_dia_app")} && mkdir -p ${scratch_path("kf_sc6_dia_dep/src")} ${scratch_path("kf_sc6_dia_left/src")} ${scratch_path("kf_sc6_dia_right/src")} ${scratch_path("kf_sc6_dia_app/src")}") }
+    val prep = unsafe { system("rm -rf ${Dir.scratch_path("kf_sc6_dia_dep")} ${Dir.scratch_path("kf_sc6_dia_left")} ${Dir.scratch_path("kf_sc6_dia_right")} ${Dir.scratch_path("kf_sc6_dia_app")} && mkdir -p ${Dir.scratch_path("kf_sc6_dia_dep/src")} ${Dir.scratch_path("kf_sc6_dia_left/src")} ${Dir.scratch_path("kf_sc6_dia_right/src")} ${Dir.scratch_path("kf_sc6_dia_app/src")}") }
     if prep != 0 { return prep }
-    write_file(scratch_path("kf_sc6_dia_dep/kf.toml"), "[project]\nname = \"dia_dep\"\nkind = \"lib\"\n")
-    write_file(scratch_path("kf_sc6_dia_dep/src/lib.kf"), """pub struct Pair<T> {
+    File.write(Dir.scratch_path("kf_sc6_dia_dep/kf.toml"), "[project]\nname = \"dia_dep\"\nkind = \"lib\"\n").unwrap()
+    File.write(Dir.scratch_path("kf_sc6_dia_dep/src/lib.kf"), """pub struct Pair<T> {
     pub val first: T
     pub val second: T
 }
@@ -113,58 +112,58 @@ fun prepare_diamond_fixture(): int32 {
 pub fun pair_of<T>(a: T, b: T): Pair<T> {
     return Pair<T> { first: a, second: b }
 }
-""")
-    write_file(scratch_path("kf_sc6_dia_left/kf.toml"), """[project]
+""").unwrap()
+    File.write(Dir.scratch_path("kf_sc6_dia_left/kf.toml"), """[project]
 name = "dia_left"
 kind = "lib"
 
 [dependencies]
 dia_dep = { path = "../kf_sc6_dia_dep" }
-""")
-    write_file(scratch_path("kf_sc6_dia_left/src/lib.kf"), """import dia_dep.*
+""").unwrap()
+    File.write(Dir.scratch_path("kf_sc6_dia_left/src/lib.kf"), """import dia_dep.*
 
 pub fun left_sum(): int32 {
     val p = pair_of<int32>(20, 1)
     return p.first + p.second
 }
-""")
-    write_file(scratch_path("kf_sc6_dia_right/kf.toml"), """[project]
+""").unwrap()
+    File.write(Dir.scratch_path("kf_sc6_dia_right/kf.toml"), """[project]
 name = "dia_right"
 kind = "lib"
 
 [dependencies]
 dia_dep = { path = "../kf_sc6_dia_dep" }
-""")
-    write_file(scratch_path("kf_sc6_dia_right/src/lib.kf"), """import dia_dep.*
+""").unwrap()
+    File.write(Dir.scratch_path("kf_sc6_dia_right/src/lib.kf"), """import dia_dep.*
 
 pub fun right_sum(): int32 {
     val p = pair_of<int32>(20, 1)
     return p.first + p.second
 }
-""")
-    write_file(scratch_path("kf_sc6_dia_app/kf.toml"), """[project]
+""").unwrap()
+    File.write(Dir.scratch_path("kf_sc6_dia_app/kf.toml"), """[project]
 name = "dia_app"
 kind = "bin"
 
 [dependencies]
 dia_left = { path = "../kf_sc6_dia_left" }
 dia_right = { path = "../kf_sc6_dia_right" }
-""")
-    write_file(scratch_path("kf_sc6_dia_app/src/main.kf"), """import dia_left.*
+""").unwrap()
+    File.write(Dir.scratch_path("kf_sc6_dia_app/src/main.kf"), """import dia_left.*
 import dia_right.*
 
 fun main(): int32 {
     if left_sum() + right_sum() == 42 { return 0 }
     return 1
 }
-""")
+""").unwrap()
     return 0
 }
 
 @test
 fun two_consumers_share_a_logical_instantiation(): void {
     val prep = prepare_diamond_fixture()
-    val built = komp_build(scratch_path("kf_sc6_dia_app"), "-fsanitize=address")
-    val ran = unsafe { system("ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ${scratch_path("kf_sc6_dia_app/target/kflat/dia_app")}") }
+    val built = komp_build(Dir.scratch_path("kf_sc6_dia_app"), "-fsanitize=address")
+    val ran = unsafe { system("ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ${Dir.scratch_path("kf_sc6_dia_app/target/kflat/dia_app")}") }
     assert_eq(prep == 0 && built == 0 && ran == 0, true, "two consumers each hold a static copy of pair_of<int32> and link cleanly")
 }

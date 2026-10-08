@@ -1,5 +1,4 @@
 import kf_core.intern.intern
-import alloc.list.*
 import core.assert.assert_eq
 
 import kf_core.ast.*

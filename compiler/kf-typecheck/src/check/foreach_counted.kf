@@ -6,8 +6,6 @@
 // (`0..=255` over `uint8`), and `.by()`, `.down()`, `.rev()` are method calls
 // that never match here.
 
-import alloc.list.*
-
 import kf_core.span.Span
 import kf_core.ast.expression.BinOp
 import kf_core.ast.expression.Expr

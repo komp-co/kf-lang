@@ -1,8 +1,6 @@
 // Types each ExprKind, writing `expr.ty` in place. Mismatches are reported
 // and the node typed poison, so callers continue without cascading.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.statement.list_yields_value
 import kf_core.ast.types.Type

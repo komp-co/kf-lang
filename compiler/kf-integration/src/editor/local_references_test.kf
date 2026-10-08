@@ -3,7 +3,6 @@
 
 import kf_integration.harness.typed_crate_for
 import core.assert.assert_eq
-import std.fs.scratch_path
 import kf_query.editor.render_references_json
 import testing.test
 
@@ -30,7 +29,7 @@ pub fun summed(xs: &List<int32>): int32 {
 }
 
 fun locals_path(): String {
-    return "${scratch_path("kf_query_local_refs")}/src/lib.kf"
+    return "${Dir.scratch_path("kf_query_local_refs")}/src/lib.kf"
 }
 
 /// The declaration written at `needle`.
@@ -39,10 +38,10 @@ fun declared_at(needle: str): String {
 }
 
 fun locals_at(offset: uint64): String {
-    val root = scratch_path("kf_query_local_refs")
+    val root = Dir.scratch_path("kf_query_local_refs")
     unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
-    write_file("${root}/kf.toml", "[project]\nname = \"query_local_refs\"\nkind = \"lib\"\n")
-    write_file("${root}/src/lib.kf", locals_source())
+    File.write("${root}/kf.toml", "[project]\nname = \"query_local_refs\"\nkind = \"lib\"\n").unwrap()
+    File.write("${root}/src/lib.kf", locals_source()).unwrap()
     val crate = typed_crate_for("${root}/src/lib.kf")
     return render_references_json("lib.kf", offset as uint32, &crate)
 }

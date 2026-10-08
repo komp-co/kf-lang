@@ -5,7 +5,6 @@
 // callee's own type parameter. The same holds in a trait impl calling the
 // type's own method.
 
-import alloc.list.*
 
 pub struct Holder<T> { pub var item: T }
 

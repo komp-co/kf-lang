@@ -1,5 +1,3 @@
-import alloc.list.*
-
 import kf_core.span.*
 
 // CONSTRAINT: Label shares this file so its typedef, and List<Label>'s, are

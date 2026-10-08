@@ -1,7 +1,5 @@
 // A function named where a value is wanted, and a call through such a value.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.types.FnParts
 import kf_core.ast.types.Provenance

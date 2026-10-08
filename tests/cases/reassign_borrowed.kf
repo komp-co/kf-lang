@@ -4,7 +4,6 @@
 // `t = String.from(..)` rebinds an owned value, so moving `t` into a sink is a
 // move, not a move-out-of-borrow to be cloned. Clean under ASan: "elem" drops
 // with `xs`, "own" inside `sink_val`.
-import alloc.list.*
 
 fun sink_val(s: String): bool {
     return s.equals("own")

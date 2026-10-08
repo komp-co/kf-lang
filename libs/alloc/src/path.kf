@@ -1,8 +1,6 @@
 // An owned filesystem path that keeps its input spelling until `normalized`
 // is asked for. Lexical only: nothing here reads the filesystem.
 
-import alloc.list.*
-
 pub struct Path {
     pub val raw: String
 }
@@ -41,10 +39,8 @@ impl Path {
         val text = self.raw.as_str()
         val n = unsafe { kf_str_byte_len(text) }
         var start = 0
-        var i = 0
-        while i < n {
+        while i in 0..n {
             if unsafe { kf_str_byte_at(text, i) } == 47 { start = i + 1 }
-            i = i + 1
         }
         return unsafe { kf_str_slice_to_string(text, start, n) }
     }

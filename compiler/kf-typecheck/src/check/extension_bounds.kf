@@ -1,8 +1,6 @@
 // What an extension's bounds say about a receiver: whether they rule it out,
 // how much they narrow, and how a blocked call is reported.
 
-import alloc.list.*
-
 import kf_core.span.Span
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr

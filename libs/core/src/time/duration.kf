@@ -3,12 +3,12 @@
 
 import core.math.abs
 
-pub fun nanos_per_micro(): int64 { return 1000 }
-pub fun nanos_per_milli(): int64 { return 1000000 }
-pub fun nanos_per_second(): int64 { return 1000000000 }
-pub fun seconds_per_minute(): int64 { return 60 }
-pub fun seconds_per_hour(): int64 { return 3600 }
-pub fun seconds_per_day(): int64 { return 86400 }
+val NANOS_PER_MICRO: int64 = 1000
+val NANOS_PER_MILLI: int64 = 1000000
+val NANOS_PER_SECOND: int64 = 1000000000
+val SECONDS_PER_MINUTE: int64 = 60
+val SECONDS_PER_HOUR: int64 = 3600
+val SECONDS_PER_DAY: int64 = 86400
 
 pub struct Duration {
     pub val nanos: int64
@@ -16,27 +16,27 @@ pub struct Duration {
 
 impl Duration {
     pub static fun from_nanos(n: int64): Duration { return Duration { nanos: n } }
-    pub static fun from_micros(n: int64): Duration { return Duration { nanos: n * nanos_per_micro() } }
-    pub static fun from_millis(n: int64): Duration { return Duration { nanos: n * nanos_per_milli() } }
-    pub static fun from_seconds(n: int64): Duration { return Duration { nanos: n * nanos_per_second() } }
-    pub static fun from_minutes(n: int64): Duration { return Duration { nanos: n * seconds_per_minute() * nanos_per_second() } }
-    pub static fun from_hours(n: int64): Duration { return Duration { nanos: n * seconds_per_hour() * nanos_per_second() } }
+    pub static fun from_micros(n: int64): Duration { return Duration { nanos: n * NANOS_PER_MICRO } }
+    pub static fun from_millis(n: int64): Duration { return Duration { nanos: n * NANOS_PER_MILLI } }
+    pub static fun from_seconds(n: int64): Duration { return Duration { nanos: n * NANOS_PER_SECOND } }
+    pub static fun from_minutes(n: int64): Duration { return Duration { nanos: n * SECONDS_PER_MINUTE * NANOS_PER_SECOND } }
+    pub static fun from_hours(n: int64): Duration { return Duration { nanos: n * SECONDS_PER_HOUR * NANOS_PER_SECOND } }
     pub static fun zero(): Duration { return Duration { nanos: 0 } }
 
     pub fun as_nanos(): int64 { return self.nanos }
 
     // Truncating toward zero: 1_999_999 ns is 1 ms.
-    pub fun as_micros(): int64 { return self.nanos / nanos_per_micro() }
-    pub fun as_millis(): int64 { return self.nanos / nanos_per_milli() }
-    pub fun as_seconds(): int64 { return self.nanos / nanos_per_second() }
+    pub fun as_micros(): int64 { return self.nanos / NANOS_PER_MICRO }
+    pub fun as_millis(): int64 { return self.nanos / NANOS_PER_MILLI }
+    pub fun as_seconds(): int64 { return self.nanos / NANOS_PER_SECOND }
 
     /// Seconds with the fraction kept, for arithmetic that wants it.
     pub fun as_seconds_f(): float64 {
-        return (self.nanos as float64) / (nanos_per_second() as float64)
+        return (self.nanos as float64) / (NANOS_PER_SECOND as float64)
     }
 
     /// The nanoseconds left over after the whole seconds.
-    pub fun subsec_nanos(): int64 { return self.nanos % nanos_per_second() }
+    pub fun subsec_nanos(): int64 { return self.nanos % NANOS_PER_SECOND }
 
     pub fun plus(other: Duration): Duration { return Duration { nanos: self.nanos + other.nanos } }
     pub fun minus(other: Duration): Duration { return Duration { nanos: self.nanos - other.nanos } }
@@ -69,18 +69,18 @@ impl Display for Duration {
             return
         }
         val n = self.nanos
-        if n % nanos_per_second() == 0 {
-            (n / nanos_per_second()).display(out)
+        if n % NANOS_PER_SECOND == 0 {
+            (n / NANOS_PER_SECOND).display(out)
             out.write_str("s")
             return
         }
-        if n % nanos_per_milli() == 0 {
-            (n / nanos_per_milli()).display(out)
+        if n % NANOS_PER_MILLI == 0 {
+            (n / NANOS_PER_MILLI).display(out)
             out.write_str("ms")
             return
         }
-        if n % nanos_per_micro() == 0 {
-            (n / nanos_per_micro()).display(out)
+        if n % NANOS_PER_MICRO == 0 {
+            (n / NANOS_PER_MICRO).display(out)
             out.write_str("us")
             return
         }

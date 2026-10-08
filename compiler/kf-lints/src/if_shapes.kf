@@ -2,8 +2,6 @@
 // holds only another `if`, and an `else` after a branch that cannot fall
 // through.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*

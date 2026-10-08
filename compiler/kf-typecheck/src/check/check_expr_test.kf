@@ -1,5 +1,4 @@
 import core.assert.*
-import alloc.list.*
 
 import kf_core.span.Span
 import kf_core.ast.types.*

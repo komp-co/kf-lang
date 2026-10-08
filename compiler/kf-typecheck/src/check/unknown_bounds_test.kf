@@ -1,7 +1,6 @@
 // A bound must name a declared trait, and naming one is a use of its module.
 
 import core.assert.assert_eq
-import alloc.list.*
 
 import kf_core.span.*
 import kf_core.diagnostic.*

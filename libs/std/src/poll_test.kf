@@ -3,7 +3,7 @@ import testing.test
 
 @test
 fun a_quiet_stream_times_out(): void {
-    val ends = pipe().unwrap()
+    val ends = Pipe.new().unwrap()
     var poll = Poll.new()
     poll.add(&ends.reader, 7)
     val ready = poll.wait(Option.Some(Duration.from_millis(10))).unwrap()
@@ -12,8 +12,8 @@ fun a_quiet_stream_times_out(): void {
 
 @test
 fun only_the_stream_with_input_is_ready(): void {
-    val first = pipe().unwrap()
-    val second = pipe().unwrap()
+    val first = Pipe.new().unwrap()
+    val second = Pipe.new().unwrap()
     var poll = Poll.new()
     poll.add(&first.reader, 1)
     poll.add(&second.reader, 2)
@@ -24,7 +24,7 @@ fun only_the_stream_with_input_is_ready(): void {
 
 @test
 fun a_closed_writer_makes_its_reader_ready(): void {
-    var ends = pipe().unwrap()
+    var ends = Pipe.new().unwrap()
     var poll = Poll.new()
     poll.add(&ends.reader, 3)
     ends.writer = Stream.closed()
@@ -33,7 +33,7 @@ fun a_closed_writer_makes_its_reader_ready(): void {
 
 @test
 fun a_removed_stream_is_not_waited_on(): void {
-    val ends = pipe().unwrap()
+    val ends = Pipe.new().unwrap()
     var poll = Poll.new()
     poll.add(&ends.reader, 4)
     poll.remove(4)

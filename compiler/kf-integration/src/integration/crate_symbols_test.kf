@@ -5,7 +5,6 @@ import core.assert.assert_eq
 
 import kf_codegen.runtime.emit_runtime_header
 import kf_integration.harness.compile_crate_separate
-import std.fs.scratch_path
 import testing.test
 
 extern "C" fun system(cmd: str): int32
@@ -22,23 +21,23 @@ fun write_fixture_crate(root: str, x: str, y: str): void {
     src.append(y)
     src.append(" }\n    return p.first()\n}\n")
     val path = String.from(root) + String.from("/src/lib.kf")
-    write_file(path, src)
+    File.write(path, src).unwrap()
 }
 
 @test
 fun same_names_in_two_crates_link_into_one_binary(): void {
-    write_fixture_crate(scratch_path("kf_sc1_a"), "40", "2")
-    write_fixture_crate(scratch_path("kf_sc1_b"), "3", "4")
-    val ca = compile_crate_separate(scratch_path("kf_sc1_a"), "sc1a", false)
-    val cb = compile_crate_separate(scratch_path("kf_sc1_b"), "sc1b", false)
+    write_fixture_crate(Dir.scratch_path("kf_sc1_a"), "40", "2")
+    write_fixture_crate(Dir.scratch_path("kf_sc1_b"), "3", "4")
+    val ca = compile_crate_separate(Dir.scratch_path("kf_sc1_a"), "sc1a", false)
+    val cb = compile_crate_separate(Dir.scratch_path("kf_sc1_b"), "sc1b", false)
     // Its own directory, since it is also the include root.
-    val _mk = unsafe { system("mkdir -p ${scratch_path("kf_sc1_out")}") }
+    val _mk = unsafe { system("mkdir -p ${Dir.scratch_path("kf_sc1_out")}") }
     // core's native tier includes the header declaring its entry points.
-    assert_eq(write_core_header_into(scratch_path("kf_sc1_out")), true, "core's header is what its native tier compiles against")
-    write_file(scratch_path("kf_sc1_out/a.c"), ca)
-    write_file(scratch_path("kf_sc1_out/b.c"), cb)
-    write_file(scratch_path("kf_sc1_out/kf_runtime.h"), emit_runtime_header().as_str())
-    write_file(scratch_path("kf_sc1_out/main.c"), """#include <stdint.h>
+    assert_eq(write_core_header_into(Dir.scratch_path("kf_sc1_out")), true, "core's header is what its native tier compiles against")
+    File.write(Dir.scratch_path("kf_sc1_out/a.c"), ca).unwrap()
+    File.write(Dir.scratch_path("kf_sc1_out/b.c"), cb).unwrap()
+    File.write(Dir.scratch_path("kf_sc1_out/kf_runtime.h"), emit_runtime_header().as_str()).unwrap()
+    File.write(Dir.scratch_path("kf_sc1_out/main.c"), """#include <stdint.h>
 int32_t sc1a__answer(void);
 int32_t sc1b__answer(void);
 int main(void) {
@@ -46,22 +45,22 @@ int main(void) {
     if (sc1b__answer() != 3) { return 2; }
     return 0;
 }
-""")
-    val rc = unsafe { system("cc -fsanitize=address -I${scratch_path("kf_sc1_out")} ${scratch_path("kf_sc1_out/a.c")} ${scratch_path("kf_sc1_out/b.c")} libs/core/native/core.c libs/core/native/core_hosted.c ${scratch_path("kf_sc1_out/main.c")} -o ${scratch_path("kf_sc1_out/bin")} && ${scratch_path("kf_sc1_out/bin")}") }
+""").unwrap()
+    val rc = unsafe { system("cc -fsanitize=address -I${Dir.scratch_path("kf_sc1_out")} ${Dir.scratch_path("kf_sc1_out/a.c")} ${Dir.scratch_path("kf_sc1_out/b.c")} libs/core/native/core.c libs/core/native/core_hosted.c ${Dir.scratch_path("kf_sc1_out/main.c")} -o ${Dir.scratch_path("kf_sc1_out/bin")} && ${Dir.scratch_path("kf_sc1_out/bin")}") }
     assert_eq(rc, 0, "same-named exports from two crates link and run")
 }
 
 @test
 fun generic_alloc_uses_the_qualified_crate_type(): void {
-    val _mkdir = unsafe { system("mkdir -p ${scratch_path("kf_sc8_alloc/src")}") }
-    write_file(scratch_path("kf_sc8_alloc/src/lib.kf"), """pub struct Point { pub val value: int32 }
+    val _mkdir = unsafe { system("mkdir -p ${Dir.scratch_path("kf_sc8_alloc/src")}") }
+    File.write(Dir.scratch_path("kf_sc8_alloc/src/lib.kf"), """pub struct Point { pub val value: int32 }
 pub fun allocate(): int32 { val p = unsafe { alloc<Point>() }
 return 0 }
-""")
-    val generated = compile_crate_separate(scratch_path("kf_sc8_alloc"), "sc8_alloc", false)
-    val _mkout = unsafe { system("mkdir -p ${scratch_path("kf_sc8_out")}") }
-    write_file(scratch_path("kf_sc8_out/alloc.c"), generated)
-    write_file(scratch_path("kf_sc8_out/kf_runtime.h"), emit_runtime_header().as_str())
-    val rc = unsafe { system("cc -c ${scratch_path("kf_sc8_out/alloc.c")} -I${scratch_path("kf_sc8_out")} -o ${scratch_path("kf_sc8_out/alloc.o")} 2>/dev/null") }
+""").unwrap()
+    val generated = compile_crate_separate(Dir.scratch_path("kf_sc8_alloc"), "sc8_alloc", false)
+    val _mkout = unsafe { system("mkdir -p ${Dir.scratch_path("kf_sc8_out")}") }
+    File.write(Dir.scratch_path("kf_sc8_out/alloc.c"), generated).unwrap()
+    File.write(Dir.scratch_path("kf_sc8_out/kf_runtime.h"), emit_runtime_header().as_str()).unwrap()
+    val rc = unsafe { system("cc -c ${Dir.scratch_path("kf_sc8_out/alloc.c")} -I${Dir.scratch_path("kf_sc8_out")} -o ${Dir.scratch_path("kf_sc8_out/alloc.o")} 2>/dev/null") }
     assert_eq(rc, 0, "generic alloc emits the qualified Point C type")
 }

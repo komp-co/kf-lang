@@ -294,8 +294,6 @@ Three sources are consulted, all flowing forwards:
 `Iterable<int32>`, so `T = int32`:
 
 ```kflat
-import alloc.list.*
-
 fun count_all<C: Iterable<T>, T>(c: &C): int32 {
     var n = 0
     while _x in c { n = n + 1 }

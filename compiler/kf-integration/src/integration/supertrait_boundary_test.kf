@@ -3,41 +3,40 @@
 
 import core.assert.assert_eq
 import kf_integration.harness.compile_project_separate
-import std.fs.scratch_path
 import testing.test
 import kf_core.diagnostic.Diagnostics
 
 extern "C" fun system(cmd: str): int32
 
 fun write_supertrait_fixtures(app_src: str): void {
-    val _mk = unsafe { system("rm -rf ${scratch_path("kf_st_core")} ${scratch_path("kf_st_lib")} ${scratch_path("kf_st_app")} && mkdir -p ${scratch_path("kf_st_core/src")} ${scratch_path("kf_st_lib/src")} ${scratch_path("kf_st_app/src")} && cp -R libs/core/src/. ${scratch_path("kf_st_core/src/")}") }
-    write_file(scratch_path("kf_st_core/kf.toml"), "[project]\nname = \"core\"\nkind = \"lib\"\n")
-    write_file(scratch_path("kf_st_lib/kf.toml"), """[project]
+    val _mk = unsafe { system("rm -rf ${Dir.scratch_path("kf_st_core")} ${Dir.scratch_path("kf_st_lib")} ${Dir.scratch_path("kf_st_app")} && mkdir -p ${Dir.scratch_path("kf_st_core/src")} ${Dir.scratch_path("kf_st_lib/src")} ${Dir.scratch_path("kf_st_app/src")} && cp -R libs/core/src/. ${Dir.scratch_path("kf_st_core/src/")}") }
+    File.write(Dir.scratch_path("kf_st_core/kf.toml"), "[project]\nname = \"core\"\nkind = \"lib\"\n").unwrap()
+    File.write(Dir.scratch_path("kf_st_lib/kf.toml"), """[project]
 name = "stlib"
 kind = "lib"
 
 [dependencies]
 core = { path = "../kf_st_core" }
-""")
+""").unwrap()
     var lib_src = String.from("pub trait Eq2 { fun eq2(other: Self): bool }\n")
     lib_src.append("pub trait Ord2: Eq2 { fun ord2(other: Self): int32 }\n")
-    write_file(scratch_path("kf_st_lib/src/lib.kf"), lib_src)
-    write_file(scratch_path("kf_st_app/kf.toml"), """[project]
+    File.write(Dir.scratch_path("kf_st_lib/src/lib.kf"), lib_src).unwrap()
+    File.write(Dir.scratch_path("kf_st_app/kf.toml"), """[project]
 name = "stapp"
 kind = "bin"
 
 [dependencies]
 core = { path = "../kf_st_core" }
 stlib = { path = "../kf_st_lib" }
-""")
-    write_file(scratch_path("kf_st_app/src/main.kf"), app_src)
+""").unwrap()
+    File.write(Dir.scratch_path("kf_st_app/src/main.kf"), app_src).unwrap()
 }
 
 /// The supertrait's name is asserted, not just an error count.
 fun compile_supertrait_app(app_src: str): int32 {
     write_supertrait_fixtures(app_src)
     var errors = Diagnostics.new()
-    val _outputs = compile_project_separate(scratch_path("kf_st_app"), errors)
+    val _outputs = compile_project_separate(Dir.scratch_path("kf_st_app"), errors)
     return errors.error_count()
 }
 

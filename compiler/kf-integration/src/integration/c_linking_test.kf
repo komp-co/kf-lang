@@ -1,7 +1,6 @@
 // `[native] c_sources`: tests/c_linking ships answer.c, and the built binary
 // calls into it. Paths are relative to the repo root.
 
-import alloc.list.*
 import core.assert.assert_eq
 import kf_integration.harness.komp_build
 import testing.test

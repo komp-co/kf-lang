@@ -18,6 +18,7 @@
 #include <unistd.h>
 
 int32_t kf_remove_dir_all(const char* path);
+int32_t kf_create_dir_all(const char* path);
 
 static int32_t kf_fs_last = 0;
 
@@ -73,6 +74,11 @@ int32_t kf_fs_write(const char* path, const char* content) {
     if (fclose(file) != 0 && !failed) { failed = 1; saved = errno; }
     errno = saved;
     return kf_fs_record(failed);
+}
+
+int32_t kf_fs_create_dir_all(const char* path) {
+    errno = 0;
+    return kf_fs_record(kf_create_dir_all(path) != 0);
 }
 
 int32_t kf_fs_remove_file(const char* path) { return kf_fs_record(unlink(path) != 0); }

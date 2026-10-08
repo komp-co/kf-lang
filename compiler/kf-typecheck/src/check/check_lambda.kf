@@ -8,8 +8,6 @@
 // A bare parameter's type comes from the `Call` bound on the receiving
 // parameter, stamped by `expect_lambda_args`; without a bound it is an error.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.types.*
 import kf_core.ast.expression.*

@@ -1,8 +1,6 @@
 // An extension function as an editor sees it: under its called name, as a
 // method of what it extends.
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind

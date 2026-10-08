@@ -7,8 +7,6 @@
 // CONSTRAINT: rewrites in place through pointers into the AST; lists are
 // taken by shared borrow so their backing is never dropped.
 
-import alloc.list.*
-
 import kf_core.ast.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind

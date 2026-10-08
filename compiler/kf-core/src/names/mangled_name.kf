@@ -1,8 +1,6 @@
 // A mangled name as a value, so that only a name spelled by the mangler can
 // be read as one.
 
-import alloc.list.*
-
 /// A type's name as it is emitted: `int32`, `List__int32`,
 /// `Option__kf__ref__Level`. Made by the mangler (`Type.mangle_frag`,
 /// `TypeRef.mangle_tyref`) or, where a pass holds one as text, by `from`.

@@ -66,8 +66,7 @@ fun decode_in(self: str, i: uint64, n: uint64): Utf8Scalar {
         lowest = 128
     }
     var consumed: uint64 = 1
-    var k: uint64 = 0
-    while k < extra {
+    while _k in 0..extra {
         if i + consumed >= n {
             // Truncated: the string ended mid-sequence.
             return Utf8Scalar { scalar: scalar as char, width: consumed, well_formed: false }
@@ -79,7 +78,6 @@ fun decode_in(self: str, i: uint64, n: uint64): Utf8Scalar {
         }
         scalar = scalar * 64 + ((cont - 128) as uint32)
         consumed = consumed + 1
-        k = k + 1
     }
     // Complete, but still invalid if overlong, a surrogate, or past the last
     // code point.

@@ -2,8 +2,6 @@
 // and the declaration the name there refers to. Computed independently: a
 // declaration's own name and a static receiver cover no expression.
 
-import alloc.list.*
-
 import json.writer.*
 
 /// `{"schema_version":2,"file":..,"offset":N,"type":..,"signature":..,

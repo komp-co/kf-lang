@@ -4,8 +4,6 @@
 // into an array literal the library's adapters take, and `all` and `any` join
 // their conditions with `&&` and `||`.
 
-import alloc.list.*
-
 import kf_core.intern.Sym
 import kf_core.ast.expression.BinOp
 import kf_core.ast.expression.Expr

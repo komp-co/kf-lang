@@ -2,8 +2,6 @@
 // target then only uses them. Both spellings reach the same generics: the
 // target's parameters, carrying the bounds the list gives them.
 
-import alloc.list.*
-
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TypeParam

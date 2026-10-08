@@ -1,8 +1,6 @@
 // Semantic tokens: the crate-wide name index, filtered to this file, with
 // each name's role.
 
-import alloc.list.*
-
 import kf_core.span.*
 
 import json.writer.*

@@ -2,7 +2,6 @@
 // shape is ever mistaken for a crate-qualified `alloc__<name>`.
 
 import core.assert.assert_eq
-import alloc.list.*
 import testing.test
 
 @test

@@ -1,6 +1,5 @@
 // Consumed-move marking for the refcount pass.
 
-import alloc.list.*
 import kf_core.ast.types.type_identity_display
 import kf_core.ast.expression.*
 import kf_lower.ownership.names_contains

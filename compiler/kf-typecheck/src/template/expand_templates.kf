@@ -3,8 +3,6 @@
 // template stays, for the interface to carry. Runs before anything
 // registers, so what it adds is checked like code written by hand.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.annotation.MarkKind
 import kf_core.ast.declaration.TopDecl

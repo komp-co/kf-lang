@@ -1,4 +1,3 @@
-import alloc.list.*
 import alloc.text_edit.*
 import core.text.*
 

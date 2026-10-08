@@ -2,7 +2,6 @@
 // A mutating method that rebuilds its enum around its own binders frees the
 // value it replaces: `name` is copied in, `items` is only read.
 
-import alloc.list.*
 
 enum Kind {
     Body(String, List<String>)

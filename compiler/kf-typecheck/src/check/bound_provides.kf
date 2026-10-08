@@ -1,8 +1,6 @@
 // What a bound answers for, read through its supertraits too: the impl check
 // already refused any implementor missing a required trait.
 
-import alloc.list.*
-
 import kf_core.span.Span
 import kf_core.ast.types.Type
 import kf_typecheck.traits.supertrait_closure_reqs

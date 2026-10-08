@@ -1,8 +1,6 @@
 // The lints that read the source as written: every declaration of the crate
 // being checked, and every file it comes from.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.Module
 import kf_core.ast.declaration.TopDecl

@@ -4,7 +4,6 @@
 // same bound, with T nested: `List<T>`, `&List<T>`, `Wrap<T>` and `T?`. An
 // unbounded caller parameter is rejected, which `check_bounds` covers.
 
-import alloc.list.*
 
 fun inner<T: Compare>(xs: &List<T>): uint64 {
     return xs.size()

@@ -1,7 +1,6 @@
 // Bitwise, shift and modulo operators through the full pipeline.
 // `build_and_run` is in the sibling integration tests.
 import core.assert.assert_eq
-import std.fs.scratch_path
 import testing.test
 
 // 768 >> 8 = 3; 3 & 255 = 3; 1 << 4 = 16; 12 % 5 = 2; 6 ^ 3 = 5; 8 | 1 = 9.
@@ -14,14 +13,14 @@ val d: int32 = 12 % 5
 val e: int32 = 6 ^ 3
 val f: int32 = 8 | 1
 return a + b * 10 + c + d + e + f }"""
-    val code = build_and_run(src, scratch_path("komp_ops"))
+    val code = build_and_run(src, Dir.scratch_path("komp_ops"))
     assert_eq(code == 65, true, "bitwise/shift/mod: 3 + 30 + 16 + 2 + 5 + 9 = 65")
 }
 
 // `>>` is left-associative: (4096 >> 4) >> 4 = 16.
 @test fun integration_shr_left_associative(): void {
     val src = "fun main(): int32 { return 4096 >> 4 >> 4 }"
-    val code = build_and_run(src, scratch_path("komp_shr"))
+    val code = build_and_run(src, Dir.scratch_path("komp_shr"))
     assert_eq(code == 16, true, "4096 >> 4 >> 4 = 16 (left-assoc)")
 }
 
@@ -30,7 +29,7 @@ return a + b * 10 + c + d + e + f }"""
     val src = """fun main(): int32 { val a: int32 = 1 + 1 << 2
 val ok = 8 >> 1 == 4
 if ok { return a } else { return 0 } }"""
-    val code = build_and_run(src, scratch_path("komp_prec"))
+    val code = build_and_run(src, Dir.scratch_path("komp_prec"))
     assert_eq(code == 8, true, "(1+1)<<2 = 8 and (8>>1)==4")
 }
 
@@ -40,6 +39,6 @@ if ok { return a } else { return 0 } }"""
 val q = eqs("ab", "xy")
 if p { if !q { return 1 } }
 return 0 }"""
-    val code = build_and_run(src, scratch_path("komp_streq"))
+    val code = build_and_run(src, Dir.scratch_path("komp_streq"))
     assert_eq(code == 1, true, "str == links and compares by content")
 }

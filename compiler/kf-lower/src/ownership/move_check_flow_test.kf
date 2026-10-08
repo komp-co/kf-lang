@@ -2,7 +2,6 @@
 // argument positions. Helpers come from move_check_test.kf.
 
 import core.assert.*
-import alloc.list.*
 
 import kf_core.span.Span
 import kf_core.ast.types.Provenance

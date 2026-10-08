@@ -3,12 +3,11 @@
 import kf_integration.harness.typed_crate_for
 import kf_integration.harness.typed_crate_for_overlay
 import core.assert.assert_eq
-import std.fs.scratch_path
 import kf_query.editor.render_references_json
 import testing.test
 
 fun references_fixture_path(): str {
-    return scratch_path("kf_query_refs/src/lib.kf")
+    return Dir.scratch_path("kf_query_refs/src/lib.kf")
 }
 
 /// ```
@@ -27,8 +26,8 @@ fun references_fixture_path(): str {
 /// }
 /// ```
 fun prepare_references_fixture(): void {
-    unsafe { system("rm -rf ${scratch_path("kf_query_refs")} && mkdir -p ${scratch_path("kf_query_refs/src")}") }
-    write_file(scratch_path("kf_query_refs/kf.toml"), "[project]\nname = \"query_refs\"\nkind = \"lib\"\n")
+    unsafe { system("rm -rf ${Dir.scratch_path("kf_query_refs")} && mkdir -p ${Dir.scratch_path("kf_query_refs/src")}") }
+    File.write(Dir.scratch_path("kf_query_refs/kf.toml"), "[project]\nname = \"query_refs\"\nkind = \"lib\"\n").unwrap()
     var lib = """fun helper(n: int32): int32 {
     return n + 1
 }
@@ -37,9 +36,9 @@ fun uses_it_twice(): int32 {
     return helper(1) + helper(2)
 }
 """
-    write_file(references_fixture_path(), lib.as_str())
+    File.write(references_fixture_path(), lib.as_str()).unwrap()
     val other = "fun elsewhere(): int32 {\n    return helper(9)\n}\n"
-    write_file(scratch_path("kf_query_refs/src/other.kf"), other.as_str())
+    File.write(Dir.scratch_path("kf_query_refs/src/other.kf"), other.as_str()).unwrap()
 }
 
 fun references_at(offset: uint32): String {
@@ -64,13 +63,13 @@ fun references_reach_into_another_file_of_the_crate(): void {
 fun references_name_the_declaration(): void {
     val json = references_at(90)
     // `helper` spans 4..10, not the `fun` before it.
-    assert_eq(json.contains("\"declaration\":{\"file\":\"${scratch_path("kf_query_refs/src/lib.kf")}\",\"byte_start\":4,\"byte_end\":10"), true, "the declaration is its name, not its keyword")
+    assert_eq(json.contains("\"declaration\":{\"file\":\"${Dir.scratch_path("kf_query_refs/src/lib.kf")}\",\"byte_start\":4,\"byte_end\":10"), true, "the declaration is its name, not its keyword")
 }
 
 @test
 fun references_answer_from_the_declaration_name(): void {
     val json = references_at(6)
-    assert_eq(json.contains("\"declaration\":{\"file\":\"${scratch_path("kf_query_refs/src/lib.kf")}\",\"byte_start\":4,\"byte_end\":10"), true, "the cursor on `helper` finds `helper`")
+    assert_eq(json.contains("\"declaration\":{\"file\":\"${Dir.scratch_path("kf_query_refs/src/lib.kf")}\",\"byte_start\":4,\"byte_end\":10"), true, "the cursor on `helper` finds `helper`")
     assert_eq(json.contains("\"byte_start\":90"), true, "and every call site")
     assert_eq(json.contains("other.kf\",\"byte_start\":36"), true, "including one in a sibling file")
 }
@@ -79,14 +78,14 @@ fun references_answer_from_the_declaration_name(): void {
 @test
 fun the_declaration_is_not_one_of_its_own_references(): void {
     val json = references_at(6)
-    assert_eq(json.contains("\"references\":[{\"file\":\"${scratch_path("kf_query_refs/src/lib.kf")}\",\"byte_start\":90"), true, "the first reference is the first call, not the declaration")
+    assert_eq(json.contains("\"references\":[{\"file\":\"${Dir.scratch_path("kf_query_refs/src/lib.kf")}\",\"byte_start\":90"), true, "the first reference is the first call, not the declaration")
 }
 
 @test
 fun a_parameters_use_names_the_parameter(): void {
     // Offset 41 is the `n` of `n + 1`; the parameter is written at 11.
     val json = references_at(41)
-    assert_eq(json.contains("\"declaration\":{\"file\":\"${scratch_path("kf_query_refs/src/lib.kf")}\",\"byte_start\":11"), true, "the parameter in the signature")
+    assert_eq(json.contains("\"declaration\":{\"file\":\"${Dir.scratch_path("kf_query_refs/src/lib.kf")}\",\"byte_start\":11"), true, "the parameter in the signature")
 }
 
 @test
@@ -119,11 +118,11 @@ pub fun probe(): int32 {
 }
 
 fun members_at(offset: uint32): String {
-    val root = scratch_path("kf_query_member_refs")
+    val root = Dir.scratch_path("kf_query_member_refs")
     unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
-    write_file("${root}/kf.toml", "[project]\nname = \"query_member_refs\"\nkind = \"lib\"\n")
-    write_file(scratch_path("kf_query_member_refs/src/lib.kf"), members_source())
-    val crate = typed_crate_for(scratch_path("kf_query_member_refs/src/lib.kf"))
+    File.write("${root}/kf.toml", "[project]\nname = \"query_member_refs\"\nkind = \"lib\"\n").unwrap()
+    File.write(Dir.scratch_path("kf_query_member_refs/src/lib.kf"), members_source()).unwrap()
+    val crate = typed_crate_for(Dir.scratch_path("kf_query_member_refs/src/lib.kf"))
     return render_references_json("lib.kf", offset, &crate)
 }
 

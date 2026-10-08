@@ -2,7 +2,6 @@
 // Each of these moves an owning element from one slot to another, or out of
 // the list; none may copy it, so a copy shows up as a leak.
 import alloc.string.*
-import alloc.list.*
 
 fun words(): List<String> {
     var xs = List.new<String>()

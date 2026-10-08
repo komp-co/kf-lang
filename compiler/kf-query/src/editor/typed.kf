@@ -2,8 +2,6 @@
 // the whole crate, so the crates the client names are assembled around the file and
 // the signature table kept.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.Module
 import kf_core.ast.types.Type
@@ -23,7 +21,6 @@ import kf_driver.build.assemble_crate_list
 import kf_core.diagnostic.Diagnostics
 import kf_core.ast.types.TypingNodes
 import kf_core.ast.types.restore_type_nodes
-import std.fs.absolute
 
 /// `ok` is false for a file with no crate above it.
 pub struct TypedCrate {
@@ -49,7 +46,7 @@ pub struct TypedCrate {
 pub fun typed_crate_staged(file_path: str, buffer: str, staged: bool, crates: &List<CrateSource>,
     every_body: bool): TypedCrate {
     // Keyed to the path the assembly will spell.
-    val abs_file = absolute(file_path).raw
+    val abs_file = Dir.current().join(file_path).raw
     val overlay = if staged { overlay_for(abs_file, buffer) } else { no_overlay() }
     return typed_crate_with(file_path, &overlay, crates, every_body)
 }
@@ -118,7 +115,7 @@ pub fun typed_crate_cached(file_path: str, overlay: &Overlay, crates: &List<Crat
     val own = assemble_crate_list(&with_bodies, smap, &var pdiags, true, overlay)
     var merged = merge_module_lists(&signatures.modules, signatures.module_count(bodies_from), &own)
     if focus_only {
-        val focused = file_id_for_path(smap, absolute(file_path).raw.as_str())
+        val focused = file_id_for_path(smap, Dir.current().join(file_path).raw.as_str())
         if focused != 0 { drop_bodies_outside(&var merged.decls, focused) }
     }
 
@@ -149,7 +146,7 @@ pub fun typed_crate_cached(file_path: str, overlay: &Overlay, crates: &List<Crat
 /// Points the answers at `file_path`, one of the typed crates' files: false,
 /// and `ok` false, when it is not one.
 pub mutating fun TypedCrate.focus(file_path: str): bool {
-    val abs_file = absolute(file_path).raw
+    val abs_file = Dir.current().join(file_path).raw
     val fid = file_id_for_path(self.smap, abs_file)
     var text = ""
     when (unsafe { self.smap.get_file(fid) }) {

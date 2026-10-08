@@ -5,7 +5,6 @@
 // value, E reads a field of the field. `file_id` is first in `Span` and is
 // what `is_none` tests.
 import core.assert.assert_eq
-import alloc.list.*
 import kf_core.span.Span
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind

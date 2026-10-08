@@ -5,7 +5,6 @@
 import core.assert.assert_eq
 import kf_integration.harness.check_project
 import kf_integration.harness.komp_build
-import std.fs.scratch_path
 import testing.test
 
 extern "C" fun system(cmd: str): int32
@@ -14,24 +13,24 @@ extern "C" fun system(cmd: str): int32
 /// `reex_lib.parse.read`, and `reex_lib.parse.raw` as `parse_raw`, but not
 /// `reex_lib.parse.other`.
 fun prepare_reexport_fixture(name: str, main: str): int32 {
-    val lib = scratch_path("${name}_lib")
-    val app = scratch_path("${name}_app")
+    val lib = Dir.scratch_path("${name}_lib")
+    val app = Dir.scratch_path("${name}_app")
     val prep = unsafe { system("rm -rf ${lib} ${app} && mkdir -p ${lib}/src/emit ${lib}/src/parse ${app}/src") }
     if prep != 0 { return prep }
-    write_file("${lib}/kf.toml", "[project]\nname = \"reex_lib\"\nversion = \"0.1.0\"\nkind = \"lib\"\n")
-    write_file("${lib}/src/lib.kf", "export * from reex_lib.emit\nexport read, raw as parse_raw from reex_lib.parse\n")
-    write_file("${lib}/src/emit/emit.kf", "pub fun write_it(): int32 { return 10 }\n")
+    File.write("${lib}/kf.toml", "[project]\nname = \"reex_lib\"\nversion = \"0.1.0\"\nkind = \"lib\"\n").unwrap()
+    File.write("${lib}/src/lib.kf", "export * from reex_lib.emit\nexport read, raw as parse_raw from reex_lib.parse\n").unwrap()
+    File.write("${lib}/src/emit/emit.kf", "pub fun write_it(): int32 { return 10 }\n").unwrap()
     val read = "pub fun read(): int32 { return 20 }\n"
     val parse = "${read}\npub fun other(): int32 { return 30 }\n\npub fun raw(): int32 { return 5 }\n"
-    write_file("${lib}/src/parse/parse.kf", parse)
+    File.write("${lib}/src/parse/parse.kf", parse).unwrap()
     val project = "[project]\nname = \"reex_app\"\nversion = \"0.1.0\"\nkind = \"bin\"\n"
-    write_file("${app}/kf.toml", "${project}\n[dependencies]\nreex_lib = { path = \"../${name}_lib\" }\n")
-    write_file("${app}/src/main.kf", main)
+    File.write("${app}/kf.toml", "${project}\n[dependencies]\nreex_lib = { path = \"../${name}_lib\" }\n").unwrap()
+    File.write("${app}/src/main.kf", main).unwrap()
     return 0
 }
 
 fun run_reexport_fixture(name: str): int32 {
-    val app = scratch_path("${name}_app")
+    val app = Dir.scratch_path("${name}_app")
     if komp_build(app, "") != 0 { return 100 }
     return unsafe { system("${app}/target/kflat/reex_app") }
 }
@@ -70,19 +69,19 @@ fun a_name_left_out_of_a_reexport_stays_out(): void {
 
 fun main(): int32 { return other() - 30 }
 """), 0, "fixture prepared")
-    val app = scratch_path("kf_reex_hidden_app")
+    val app = Dir.scratch_path("kf_reex_hidden_app")
     assert_eq(komp_build(app, "") != 0, true, "only `read` was re-exported from `reex_lib.parse`")
 }
 
 @test
 fun a_reexport_serves_the_crates_own_modules(): void {
-    val root = scratch_path("kf_reex_local")
+    val root = Dir.scratch_path("kf_reex_local")
     val prep = unsafe { system("rm -rf ${root} && mkdir -p ${root}/src/api ${root}/src/core_parts") }
     assert_eq(prep, 0, "scratch prepared")
-    write_file("${root}/kf.toml", "[project]\nname = \"reex_local\"\nversion = \"0.1.0\"\nkind = \"bin\"\n")
-    write_file("${root}/src/core_parts/parts.kf", "pub fun part(): int32 { return 4 }\n")
-    write_file("${root}/src/api/api.kf", "export part from reex_local.core_parts\n")
-    write_file("${root}/src/main.kf", "import reex_local.api.*\n\nfun main(): int32 { return part() - 4 }\n")
+    File.write("${root}/kf.toml", "[project]\nname = \"reex_local\"\nversion = \"0.1.0\"\nkind = \"bin\"\n").unwrap()
+    File.write("${root}/src/core_parts/parts.kf", "pub fun part(): int32 { return 4 }\n").unwrap()
+    File.write("${root}/src/api/api.kf", "export part from reex_local.core_parts\n").unwrap()
+    File.write("${root}/src/main.kf", "import reex_local.api.*\n\nfun main(): int32 { return part() - 4 }\n").unwrap()
     assert_eq(check_project(root), 0, "`reex_local.api` offers `part` to the rest of the crate")
 }
 
@@ -102,17 +101,17 @@ fun a_renamed_exports_old_name_is_not_offered(): void {
 
 fun main(): int32 { return raw() - 5 }
 """), 0, "fixture prepared")
-    val app = scratch_path("kf_reex_oldname_app")
+    val app = Dir.scratch_path("kf_reex_oldname_app")
     assert_eq(komp_build(app, "") != 0, true, "only `parse_raw` is `reex_lib`'s")
 }
 
 @test
 fun an_export_does_not_import_into_its_own_file(): void {
-    val root = scratch_path("kf_reex_own_file")
+    val root = Dir.scratch_path("kf_reex_own_file")
     val prep = unsafe { system("rm -rf ${root} && mkdir -p ${root}/src/parts") }
     assert_eq(prep, 0, "scratch prepared")
-    write_file("${root}/kf.toml", "[project]\nname = \"reex_own\"\nversion = \"0.1.0\"\nkind = \"bin\"\n")
-    write_file("${root}/src/parts/parts.kf", "pub fun part(): int32 { return 4 }\n")
-    write_file("${root}/src/main.kf", "export part from reex_own.parts\n\nfun main(): int32 { return part() - 4 }\n")
+    File.write("${root}/kf.toml", "[project]\nname = \"reex_own\"\nversion = \"0.1.0\"\nkind = \"bin\"\n").unwrap()
+    File.write("${root}/src/parts/parts.kf", "pub fun part(): int32 { return 4 }\n").unwrap()
+    File.write("${root}/src/main.kf", "export part from reex_own.parts\n\nfun main(): int32 { return part() - 4 }\n").unwrap()
     assert_eq(check_project(root) != 0, true, "the file writing the export imports `part` separately")
 }

@@ -2,8 +2,6 @@
 // entry takes a `&var LocalEnv`, since emitting a binding records its release
 // function and loops push `break` labels.
 
-import alloc.list.*
-
 import kf_core.ast.expression.view
 import kf_core.ast.types.view
 import kf_core.ast.types.Type

@@ -4,27 +4,29 @@ extern "C" fun kf_arg_count(): int32
 extern "C" fun kf_arg_get(i: int32): str
 extern "C" fun kf_program_name(): str
 
-/// Not counting the program name.
-@prelude
-pub fun arg_count(): uint64 {
-    val n = unsafe { kf_arg_count() }
-    if n < 0 { return 0 as uint64 }
-    return n as uint64
-}
+/// The arguments this process was run with.
+pub struct Args { }
 
-/// Counting from the first after the program name.
-///
-/// CONSTRAINT: borrows argv, valid for the whole program. Out of range gives
-/// `""`.
-@prelude
-pub fun arg_at(i: uint64): str {
-    if i >= arg_count() { return "" }
-    return unsafe { kf_arg_get(i as int32) }
-}
+impl Args {
+    /// Not counting the program name.
+    pub static fun count(): uint64 {
+        val n = kf_arg_count()
+        return if n < 0 { 0 } else { n as uint64 }
+    }
 
-/// The program's name as it was run: argv[0], "" when there is none. A
-/// program that answers to several names, through links, tells them apart
-/// by it.
-pub fun program_name(): str {
-    return unsafe { kf_program_name() }
+    /// Counting from the first after the program name.
+    ///
+    /// CONSTRAINT: borrows argv, valid for the whole program. Out of range
+    /// gives `""`.
+    pub static fun at(i: uint64): str {
+        if i >= Args.count() { return "" }
+        return kf_arg_get(i as int32)
+    }
+
+    /// The program's name as it was run: argv[0], "" when there is none. A
+    /// program that answers to several names, through links, tells them
+    /// apart by it.
+    pub static fun program_name(): str {
+        return kf_program_name()
+    }
 }

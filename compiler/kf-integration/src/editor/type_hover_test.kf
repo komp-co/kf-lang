@@ -2,7 +2,6 @@
 // over the fixture in implementations_test.kf.
 
 import core.assert.assert_eq
-import std.fs.scratch_path
 import kf_query.editor.render_hover_json
 import kf_query.editor.render_references_json
 import testing.test
@@ -25,7 +24,7 @@ fun an_annotated_types_doc_is_above_its_annotations(): void {
 fun an_annotations_use_names_its_declaration(): void {
     val crate = impls_crate()
     val json = render_references_json("lib.kf", offset_of("@shown", 1), &crate)
-    val file = "${scratch_path("kf_query_impls")}/src/lib.kf"
+    val file = "${Dir.scratch_path("kf_query_impls")}/src/lib.kf"
     val declared = "\"declaration\":{\"file\":\"${file}\",${impl_start("shown on", 0)}"
     assert_eq(json.contains(declared), true, "`annotation shown`")
 }

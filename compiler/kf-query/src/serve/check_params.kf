@@ -1,7 +1,6 @@
 // What a `check` request names: one crate, shaped as `komp metadata` lists
 // it, and the directory holding its dependencies' interfaces.
 
-import alloc.list.*
 import json.reader.*
 
 pub struct CheckParams {

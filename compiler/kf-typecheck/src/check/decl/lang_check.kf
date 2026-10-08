@@ -1,7 +1,5 @@
 // `@lang("key")`; see kf-core's lang_item.kf.
 
-import alloc.list.*
-
 import kf_core.ast.*
 import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*

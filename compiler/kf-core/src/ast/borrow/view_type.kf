@@ -1,7 +1,6 @@
 // View types: a `view struct` or `view enum` borrows from somewhere, as `str`
 // and `&T` do, so the borrow rules treat its values as borrows.
 
-import alloc.list.*
 import kf_core.ast.declaration.TopDecl
 
 impl TopDecl {

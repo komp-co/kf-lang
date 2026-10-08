@@ -4,8 +4,6 @@
 // mismatch waits for a slot, and is reported only if none settles the literal
 // by the end of the body.
 
-import alloc.list.*
-
 import kf_core.diagnostic.*
 import kf_core.span.*
 

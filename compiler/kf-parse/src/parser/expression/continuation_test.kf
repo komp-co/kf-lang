@@ -1,7 +1,6 @@
 // An expression may span lines; a statement may not.
 
 import core.assert.assert_eq
-import alloc.list.*
 
 import kf_parse.parser.parser_for
 import testing.test

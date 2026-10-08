@@ -3,21 +3,17 @@
 
 import core.assert.assert_eq
 import alloc.path.*
-import alloc.list.*
-import std.fs.*
-import std.process.*
-import std.env.*
 import kf_integration.harness.komp_build
 import testing.test
 
-fun stdin_dir(): str { return scratch_path("kf_stdin_io") }
+fun stdin_dir(): str { return Dir.scratch_path("kf_stdin_io") }
 
 /// Echoes each line in brackets, so a blank line is visible, then the count.
 fun prepare_reader(): void {
-    val _src = create_dir_all(Path.new(scratch_path("kf_stdin_io/reader/src")))
+    val _src = Dir.create_all(Dir.scratch_path("kf_stdin_io/reader/src"))
     // `std` is not ambient, and from /tmp only an absolute path reaches the
     // tree under test.
-    val root = current_dir()
+    val root = Dir.current()
     var manifest = String.from("[project]\nname = \"reader\"\nversion = \"0.1.0\"\n\n[dependencies]\n")
     manifest.append("core = { path = \"")
     manifest.append(root.as_str())
@@ -26,12 +22,12 @@ fun prepare_reader(): void {
     manifest.append("/libs/alloc\" }\nstd = { path = \"")
     manifest.append(root.as_str())
     manifest.append("/libs/std\" }\n")
-    write_file(scratch_path("kf_stdin_io/reader/kf.toml"), manifest)
+    File.write(Dir.scratch_path("kf_stdin_io/reader/kf.toml"), manifest).unwrap()
     var app = String.from("import core.display.*\nimport std.io.*\n\n")
     app.append("fun main(): int32 {\n")
     app.append("    var lines: int32 = 0\n")
     app.append("    while true {\n")
-    app.append("        when (read_line()) {\n")
+    app.append("        when (Stdin.read_line()) {\n")
     app.append("            Some(l) => { lines = lines + 1\n")
     app.append("print(\"[\")\nprint(l.as_str())\nprintln(\"]\") }\n")
     app.append("            None => { break }\n")
@@ -39,36 +35,36 @@ fun prepare_reader(): void {
     app.append("    }\n")
     app.append("    return lines\n")
     app.append("}\n")
-    write_file(scratch_path("kf_stdin_io/reader/src/main.kf"), app)
+    File.write(Dir.scratch_path("kf_stdin_io/reader/src/main.kf"), app).unwrap()
 }
 
 @test
 fun read_line_yields_every_line_and_stops_at_the_end(): void {
     prepare_reader()
-    val built = komp_build(scratch_path("kf_stdin_io/reader"), "")
+    val built = komp_build(Dir.scratch_path("kf_stdin_io/reader"), "")
     assert_eq(built, 0, "the reader builds")
     // A blank line in the middle: it is a line, not the end of input.
-    val _in = create_dir_all(Path.new(stdin_dir()))
-    write_file(scratch_path("kf_stdin_io/input.txt"), "alpha\n\nbeta\n")
+    val _in = Dir.create_all(stdin_dir())
+    File.write(Dir.scratch_path("kf_stdin_io/input.txt"), "alpha\n\nbeta\n").unwrap()
     // `Command` has no stdin redirect.
     var run = Command.new("/bin/sh")
     run.arg("-c")
-    run.arg("${scratch_path("kf_stdin_io/reader/target/kflat/reader")} < ${scratch_path("kf_stdin_io/input.txt")} > ${scratch_path("kf_stdin_io/out.txt")}")
+    run.arg("${Dir.scratch_path("kf_stdin_io/reader/target/kflat/reader")} < ${Dir.scratch_path("kf_stdin_io/input.txt")} > ${Dir.scratch_path("kf_stdin_io/out.txt")}")
     val code = run.status().exit_code()
     assert_eq(code, 3, "three lines were read, the blank one among them")
-    val seen = read_file(scratch_path("kf_stdin_io/out.txt"))
+    val seen = File.read(Dir.scratch_path("kf_stdin_io/out.txt")).unwrap_or("")
     assert_eq(seen.as_str(), "[alpha]\n[]\n[beta]\n", "each line came back, blank included")
 }
 
 @test
 fun read_line_on_empty_input_reads_nothing(): void {
     prepare_reader()
-    val built = komp_build(scratch_path("kf_stdin_io/reader"), "")
+    val built = komp_build(Dir.scratch_path("kf_stdin_io/reader"), "")
     assert_eq(built, 0, "the reader builds")
-    val _e = create_dir_all(Path.new(stdin_dir()))
-    write_file(scratch_path("kf_stdin_io/empty.txt"), "")
+    val _e = Dir.create_all(stdin_dir())
+    File.write(Dir.scratch_path("kf_stdin_io/empty.txt"), "").unwrap()
     var run = Command.new("/bin/sh")
     run.arg("-c")
-    run.arg("${scratch_path("kf_stdin_io/reader/target/kflat/reader")} < ${scratch_path("kf_stdin_io/empty.txt")}")
+    run.arg("${Dir.scratch_path("kf_stdin_io/reader/target/kflat/reader")} < ${Dir.scratch_path("kf_stdin_io/empty.txt")}")
     assert_eq(run.status().exit_code(), 0, "no input is zero lines, not one empty one")
 }

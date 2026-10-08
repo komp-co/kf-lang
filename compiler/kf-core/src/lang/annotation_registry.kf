@@ -1,7 +1,6 @@
 // The annotations the compiler accepts, as data. Validation and the "unknown
 // annotation" message both read this registry.
 
-import alloc.list.*
 import kf_core.ast.declaration.*
 import kf_core.diagnostic.alternatives
 

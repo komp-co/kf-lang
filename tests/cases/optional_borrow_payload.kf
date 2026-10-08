@@ -7,7 +7,6 @@
 // CONSTRAINT: nothing here writes `Option<&T>` concretely: a written type
 // materializes its own layout and would pass without the decode.
 import core.assert.*
-import alloc.list.*
 
 pub struct Holder {
     var n: int32

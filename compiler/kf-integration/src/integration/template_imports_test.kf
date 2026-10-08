@@ -5,26 +5,22 @@
 import core.assert.assert_eq
 import alloc.path.Path
 import kf_integration.harness.komp_build
-import std.fs.create_dir_all
-import std.fs.remove_dir_all
-import std.fs.scratch_path
-import std.fs.write_text
 import testing.test
 
 extern "C" fun system(cmd: str): int32
 
 fun crate_dir(name: str): str {
-    return scratch_path("kf_template_imports_${name}")
+    return Dir.scratch_path("kf_template_imports_${name}")
 }
 
 fun write_crate(name: str, kind: str, deps: str, source: str): void {
     val dir = crate_dir(name)
-    val _cleared = remove_dir_all(dir)
-    val _made = create_dir_all(Path.new("${dir}/src".as_str()))
+    val _cleared = Dir.remove_all(dir)
+    val _made = Dir.create_all("${dir}/src".as_str())
     val file = if kind == "lib" { "lib.kf" } else { "main.kf" }
-    val _manifest = write_text("${dir}/kf.toml".as_str(),
+    val _manifest = File.write("${dir}/kf.toml".as_str(),
         "[project]\nname = \"${name}\"\nkind = \"${kind}\"\n${deps}")
-    val _source = write_text("${dir}/src/${file}".as_str(), source)
+    val _source = File.write("${dir}/src/${file}".as_str(), source)
 }
 
 fun depends_on(name: str): String {

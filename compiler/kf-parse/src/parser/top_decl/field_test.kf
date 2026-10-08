@@ -1,7 +1,6 @@
 // A field must declare `val` or `var`.
 
 import core.assert.assert_eq
-import alloc.list.*
 
 import kf_parse.parser.parser_for
 import testing.test

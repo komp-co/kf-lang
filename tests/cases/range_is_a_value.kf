@@ -3,7 +3,6 @@
 // `..` is a binary operator producing a `core.Range` value: bind it, pass it,
 // return it. Writing `..` imports `core.range`.
 
-import alloc.list.*
 
 extern "C" fun runtime_println(s: str): void
 

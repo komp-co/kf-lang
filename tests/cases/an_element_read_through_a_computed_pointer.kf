@@ -5,7 +5,6 @@
 // their own buffer. A missed copy is a double free, which aborts.
 
 import alloc.string.*
-import alloc.list.*
 
 struct Bag {
     pub var data: Ptr<String>

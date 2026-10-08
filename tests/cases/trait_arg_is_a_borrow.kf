@@ -4,7 +4,6 @@
 // element without owning it. The key `kf__ref__T` survives the impl's
 // signature check, the bound check, and an unannotated lambda's parameter.
 
-import alloc.list.*
 
 fun any_ref<T, F: Call1<&T>>(xs: &List<T>, pred: F): bool {
     var i: uint64 = 0

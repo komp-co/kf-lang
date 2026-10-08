@@ -11,8 +11,6 @@
 //
 // CONSTRAINT: runs after alpha_rename, so a plain name comparison is exact.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.Module
 import kf_core.ast.expression.view

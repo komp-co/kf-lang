@@ -2,8 +2,6 @@
 // clone and drop per element for move-only elements; `next_ptr()` yields the
 // element's address, or null when exhausted, and the binder `*p` is a view.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr

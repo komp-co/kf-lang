@@ -2,8 +2,6 @@
 // `fun count<C: Iterable<T>, T>(c: &C)` with `xs: List<int32>` binds `C` to
 // `List<int32>`, whose `Iterable<T> for List<T>` impl makes `T` `int32`.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.types.*
 import kf_core.intern.intern

@@ -1,8 +1,6 @@
 // `when` becomes a Switch. Iteration is expanded during typecheck, since the
 // `iter()`/`next()` calls it synthesizes must be resolved and typed.
 
-import alloc.list.*
-
 import kf_core.ast.*
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.Variant

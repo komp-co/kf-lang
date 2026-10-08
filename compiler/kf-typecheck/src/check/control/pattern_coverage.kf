@@ -1,8 +1,6 @@
 // Whether an earlier arm's pattern matches every value a later one does, which
 // makes the later arm unreachable.
 
-import alloc.list.*
-
 import kf_core.ast.pattern.Pattern
 
 /// An alternation covers what any of its alternatives covers, and is covered

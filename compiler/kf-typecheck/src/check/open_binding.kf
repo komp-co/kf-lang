@@ -5,8 +5,6 @@
 // slot the same way. Otherwise the initializer stays open and is reported at
 // the end of the body.
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind

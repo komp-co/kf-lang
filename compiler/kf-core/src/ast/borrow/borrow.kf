@@ -2,7 +2,6 @@
 // CONSTRAINT: one rule for TypeCheck, which enforces it, and the interface
 // writer, which publishes it.
 
-import alloc.list.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.*
 

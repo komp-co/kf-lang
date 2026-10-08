@@ -1,5 +1,3 @@
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.borrow.type_ref_borrow_origin
 import kf_core.ast.types.TypeRef

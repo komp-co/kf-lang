@@ -3,7 +3,6 @@
 // The iteration protocol through the real libs: `Iterable` declares
 // `type Iter: Iterator<T>` and `List` binds it to `ListIter<T>`. The binding
 // specializes once per element type.
-import alloc.list.*
 
 fun sum_first<C: Iterable<int32>>(items: C): int32 {
     var iter = items.iter()

@@ -1,8 +1,6 @@
 // The `@name` and `@name(args)` run above a declaration. Unknown names are
 // left for typecheck.
 
-import alloc.list.*
-
 import kf_core.ast.annotation.Annotation
 import kf_core.ast.annotation.AnnotationArg
 import kf_core.ast.declaration.TopDecl

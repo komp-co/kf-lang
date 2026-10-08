@@ -1,17 +1,18 @@
-import alloc.list.*
-import alloc.path.*
-import std.env.current_dir
-import std.process.process_id
+// The filesystem: whole files by path, directories, and a scratch directory
+// private to this process. Every operation that can fail answers a `Result`.
 
-extern "C" fun kf_create_dir_all(path: str): int32
+import alloc.path.*
+
 extern "C" fun kf_temp_dir(prefix: str): String
 extern "C" fun kf_remove_dir_all(path: str): int32
 extern "C" fun kf_scratch_root(): str
 extern "C" fun kf_scratch_path(name: str): str
+extern "C" fun kf_current_dir(): String
 extern "C" fun kf_fs_last_error(): int32
 extern "C" fun kf_fs_error_text(code: int32): String
 extern "C" fun kf_fs_read(path: str): String
 extern "C" fun kf_fs_write(path: str, content: str): int32
+extern "C" fun kf_fs_create_dir_all(path: str): int32
 extern "C" fun kf_fs_remove_file(path: str): int32
 extern "C" fun kf_fs_remove_dir_all(path: str): int32
 extern "C" fun kf_fs_rename(from: str, to: str): int32
@@ -22,14 +23,149 @@ extern "C" fun kf_fs_dir_start(path: str): uint64
 extern "C" fun kf_fs_dir_entry(handle: uint64): String
 extern "C" fun kf_fs_dir_finish(handle: uint64): void
 
+/// Why a filesystem or stream operation failed: the operating system's
+/// error, and the path or stream it was about.
+@derive(Clone)
+pub struct IoError {
+    pub val path: String
+    /// The `errno` value.
+    pub val code: int32
+    pub val message: String
+}
+
+impl IoError {
+    /// The error the last checked filesystem call recorded, about `path`.
+    static fun last(path: str): IoError {
+        val code = kf_fs_last_error()
+        return IoError { path: String.from(path), code: code, message: kf_fs_error_text(code) }
+    }
+
+    /// `Ok` for a checked call's 0, else the error it recorded.
+    static fun check(status: int32, path: str): Result<void, IoError> {
+        if status == 0 { return Result.Ok() }
+        return Result.Err(IoError.last(path))
+    }
+}
+
+impl Display for IoError {
+    fun display(out: &var dyn Write): void {
+        out.write_str("${self.path}: ${self.message}".as_str())
+    }
+}
+
+/// Files, whole and by path.
+pub struct File { }
+
+impl File {
+    /// The whole file as text. A missing file is an error, not an empty
+    /// `String`.
+    pub static fun read(path: str): Result<String, IoError> {
+        val text = kf_fs_read(path)
+        if kf_fs_last_error() != 0 { return Result.Err(IoError.last(path)) }
+        return Result.Ok(text)
+    }
+
+    /// Creates the file, or truncates it, and writes `contents`.
+    pub static fun write(path: str, contents: str): Result<void, IoError> {
+        return IoError.check(kf_fs_write(path, contents), path)
+    }
+
+    /// As `write`, but a reader sees the old file or the new one, never part
+    /// of either: the text goes to a file beside it, renamed over it once
+    /// whole. Two processes writing the same path each stage their own.
+    pub static fun write_atomic(path: str, contents: str): Result<void, IoError> {
+        val staged = "${path}.tmp.${Process.id()}"
+        val written = File.write(staged, contents)
+        val moved = if written.is_ok() { File.rename(staged, path) } else { written }
+        if moved.is_err() { val _gone = kf_fs_remove_file(staged) }
+        return moved
+    }
+
+    pub static fun remove(path: str): Result<void, IoError> {
+        return IoError.check(kf_fs_remove_file(path), path)
+    }
+
+    /// Moves a file or a directory, replacing a file already at `to`.
+    pub static fun rename(from: str, to: str): Result<void, IoError> {
+        return IoError.check(kf_fs_rename(from, to), from)
+    }
+
+    /// Whether anything, a file or a directory, is at `path`.
+    pub static fun exists(path: str): bool {
+        return kf_fs_exists(path)
+    }
+
+    pub static fun is_file(path: str): bool {
+        return kf_fs_is_file(path)
+    }
+}
+
+/// Directories, and the ones this process works in.
+pub struct Dir { }
+
+impl Dir {
+    /// The directory and every missing parent; one that exists already is
+    /// not an error.
+    pub static fun create_all(path: str): Result<void, IoError> {
+        return IoError.check(kf_fs_create_dir_all(path), path)
+    }
+
+    /// A directory and everything under it; a file is removed as itself.
+    pub static fun remove_all(path: str): Result<void, IoError> {
+        return IoError.check(kf_fs_remove_dir_all(path), path)
+    }
+
+    /// The names of the entries in a directory, sorted, without `.` and `..`.
+    pub static fun entries(path: str): Result<List<String>, IoError> {
+        val handle = kf_fs_dir_start(path)
+        if handle == 0 { return Result.Err(IoError.last(path)) }
+        var names = List.new<String>()
+        while true {
+            val name = kf_fs_dir_entry(handle)
+            if name.is_empty() { break }
+            names.push(name)
+        }
+        kf_fs_dir_finish(handle)
+        names.sort()
+        return Result.Ok(names)
+    }
+
+    pub static fun is_dir(path: str): bool {
+        return kf_fs_is_dir(path)
+    }
+
+    /// The working directory.
+    pub static fun current(): Path {
+        return Path.new(kf_current_dir().as_str())
+    }
+
+    /// A directory the asking process owns, created on first use.
+    ///
+    /// CONSTRAINT: inherited by descendants only, through
+    /// `KOMP_SCRATCH_ROOT`; an unrelated process, or a harness forking per
+    /// test, gets its own.
+    pub static fun scratch(): str {
+        return kf_scratch_root()
+    }
+
+    /// `name` under `Dir.scratch()`, private to the caller rather than a
+    /// shared fixed `/tmp` name.
+    ///
+    /// CONSTRAINT: interned, so it is a `str`.
+    pub static fun scratch_path(name: str): str {
+        return kf_scratch_path(name)
+    }
+}
+
+/// A fresh directory under `/tmp`, removed with everything in it when
+/// dropped.
 pub struct TempDir {
     val root: Path
 }
 
 impl TempDir {
     pub static fun new(prefix: str): TempDir {
-        val raw = kf_temp_dir(prefix)
-        return TempDir { root: Path.new(raw.as_str()) }
+        return TempDir { root: Path.new(kf_temp_dir(prefix).as_str()) }
     }
 
     pub fun path(): Path {
@@ -41,121 +177,4 @@ impl Drop for TempDir {
     fun drop(): void {
         val _removed = kf_remove_dir_all(self.root.as_str())
     }
-}
-
-pub fun create_dir_all(path: Path): bool {
-    return kf_create_dir_all(path.as_str()) == 0
-}
-
-/// A directory the asking process owns, created on first use.
-///
-/// CONSTRAINT: inherited by descendants only, through `KOMP_SCRATCH_ROOT`; an
-/// unrelated process, or a harness forking per test, gets its own.
-pub fun scratch_root(): str {
-    return kf_scratch_root()
-}
-
-/// `name` under [scratch_root], private to the caller rather than a shared
-/// fixed `/tmp` name.
-///
-/// CONSTRAINT: interned, so it is a `str`.
-pub fun scratch_path(name: str): str {
-    return kf_scratch_path(name)
-}
-
-/// Why a filesystem operation failed: the operating system's error, and the
-/// path it was about.
-@derive(Clone)
-pub struct IoError {
-    pub val path: String
-    /// The `errno` value.
-    pub val code: int32
-    pub val message: String
-}
-
-impl Display for IoError {
-    fun display(out: &var dyn Write): void {
-        out.write_str("${self.path}: ${self.message}".as_str())
-    }
-}
-
-/// The error the last checked call recorded, about `path`.
-fun last_error(path: str): IoError {
-    val code = kf_fs_last_error()
-    return IoError { path: String.from(path), code: code, message: kf_fs_error_text(code) }
-}
-
-fun status_of(result: int32, path: str): Result<void, IoError> {
-    if result == 0 { return Result.Ok() }
-    return Result.Err(last_error(path))
-}
-
-/// The whole file. A missing file is an error, not an empty `String`.
-pub fun read_to_string(path: str): Result<String, IoError> {
-    val text = kf_fs_read(path)
-    if kf_fs_last_error() != 0 { return Result.Err(last_error(path)) }
-    return Result.Ok(text)
-}
-
-/// Creates the file, or truncates it, and writes `contents`.
-pub fun write_text(path: str, contents: str): Result<void, IoError> {
-    return status_of(kf_fs_write(path, contents), path)
-}
-
-/// As `write_text`, but a reader sees the old file or the new one, never part
-/// of either: the text goes to a file beside it, renamed over it once whole.
-/// Two processes writing the same path each stage their own.
-pub fun write_text_atomic(path: str, contents: str): Result<void, IoError> {
-    val staged = "${path}.tmp.${process_id()}"
-    val written = write_text(staged, contents)
-    val moved = if written.is_ok() { rename_path(staged, path) } else { written }
-    if moved.is_err() { val _gone = kf_fs_remove_file(staged) }
-    return moved
-}
-
-/// `path` joined to the working directory unless it is absolute already.
-/// Not normalized: `..` stays as written, and `normalized()` collapses it.
-pub fun absolute(path: str): Path {
-    return current_dir().join(path)
-}
-
-pub fun remove_file(path: str): Result<void, IoError> {
-    return status_of(kf_fs_remove_file(path), path)
-}
-
-/// A directory and everything under it; a file is removed as itself.
-pub fun remove_dir_all(path: str): Result<void, IoError> {
-    return status_of(kf_fs_remove_dir_all(path), path)
-}
-
-/// Replaces `to` if it exists.
-pub fun rename_path(from: str, to: str): Result<void, IoError> {
-    return status_of(kf_fs_rename(from, to), from)
-}
-
-pub fun exists(path: str): bool {
-    return kf_fs_exists(path)
-}
-
-pub fun is_directory(path: str): bool {
-    return kf_fs_is_dir(path)
-}
-
-pub fun is_file(path: str): bool {
-    return kf_fs_is_file(path)
-}
-
-/// The names of the entries in a directory, sorted, without `.` and `..`.
-pub fun read_dir(path: str): Result<List<String>, IoError> {
-    val handle = kf_fs_dir_start(path)
-    if handle == 0 { return Result.Err(last_error(path)) }
-    var names = List.new<String>()
-    while true {
-        val name = kf_fs_dir_entry(handle)
-        if name.is_empty() { break }
-        names.push(name)
-    }
-    kf_fs_dir_finish(handle)
-    names.sort()
-    return Result.Ok(names)
 }

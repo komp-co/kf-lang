@@ -3,8 +3,6 @@
 // substitution can rewrite it; the closing bracket is needed because
 // substitution can make the owner span several segments.
 
-import alloc.list.*
-
 impl Frag {
     /// `F`, `Out` -> `Proj__F__Out__EndProj`.
     pub static fun projection(owner: str, member: str): String {

@@ -4,8 +4,6 @@
 // CONSTRAINT: named after diagnostic.kf, so `Diagnostic`'s typedef is
 // emitted before this one's.
 
-import alloc.list.*
-
 /// What passes reported, in order, and errors counted without being kept.
 pub struct Diagnostics {
     pub var items: List<Diagnostic>

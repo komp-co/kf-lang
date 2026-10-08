@@ -4,34 +4,33 @@
 
 import core.assert.assert_eq
 import kf_integration.harness.komp_build
-import std.fs.scratch_path
 import testing.test
 
 extern "C" fun system(cmd: str): int32
 extern "C" fun access(path: str, mode: int32): int32
 
 fun prepare_user_iterable_fixture(): int32 {
-    val prep = unsafe { system("rm -rf ${scratch_path("kf_user_iter_core")} ${scratch_path("kf_user_iter_app")} && mkdir -p ${scratch_path("kf_user_iter_core/src")} ${scratch_path("kf_user_iter_core/native")} ${scratch_path("kf_user_iter_app/src")} && cp -R libs/core/src/. ${scratch_path("kf_user_iter_core/src/")}") }
+    val prep = unsafe { system("rm -rf ${Dir.scratch_path("kf_user_iter_core")} ${Dir.scratch_path("kf_user_iter_app")} && mkdir -p ${Dir.scratch_path("kf_user_iter_core/src")} ${Dir.scratch_path("kf_user_iter_core/native")} ${Dir.scratch_path("kf_user_iter_app/src")} && cp -R libs/core/src/. ${Dir.scratch_path("kf_user_iter_core/src/")}") }
     if prep != 0 { return prep }
-    write_file(scratch_path("kf_user_iter_core/kf.toml"), """[project]
+    File.write(Dir.scratch_path("kf_user_iter_core/kf.toml"), """[project]
 name = "core"
 kind = "lib"
 
 [native]
 c_sources = ["native/core.c"]
 hosted_c_sources = ["native/core_hosted.c"]
-""")
-    val core_native = read_file("libs/core/native/core.c")
-    write_file(scratch_path("kf_user_iter_core/native/core.c"), core_native)
-    val core_hosted = read_file("libs/core/native/core_hosted.c")
-    write_file(scratch_path("kf_user_iter_core/native/core_hosted.c"), core_hosted)
-    write_file(scratch_path("kf_user_iter_app/kf.toml"), """[project]
+""").unwrap()
+    val core_native = File.read("libs/core/native/core.c").unwrap_or("")
+    File.write(Dir.scratch_path("kf_user_iter_core/native/core.c"), core_native).unwrap()
+    val core_hosted = File.read("libs/core/native/core_hosted.c").unwrap_or("")
+    File.write(Dir.scratch_path("kf_user_iter_core/native/core_hosted.c"), core_hosted).unwrap()
+    File.write(Dir.scratch_path("kf_user_iter_app/kf.toml"), """[project]
 name = "user_iter_app"
 kind = "bin"
 
 [dependencies]
 core = { path = "../kf_user_iter_core" }
-""")
+""").unwrap()
 
     var app = String.from("import core.*\n\n")
     app.append("struct Span {\n    val start: int32\n    val end: int32\n}\n\n")
@@ -55,16 +54,16 @@ core = { path = "../kf_user_iter_core" }
     app.append("    while i in s {\n        sum = sum + i\n    }\n")
     app.append("    if sum == 10 { return 0 }\n")
     app.append("    return 1\n}\n")
-    write_file(scratch_path("kf_user_iter_app/src/main.kf"), app)
+    File.write(Dir.scratch_path("kf_user_iter_app/src/main.kf"), app).unwrap()
     return 0
 }
 
 @test
 fun a_user_defined_iterable_drives_a_for_loop(): void {
     val prepared = prepare_user_iterable_fixture()
-    val built = komp_build(scratch_path("kf_user_iter_app"), "")
-    val binary = unsafe { access(scratch_path("kf_user_iter_app/target/kflat/user_iter_app"), 0) }
-    val ran = unsafe { system(scratch_path("kf_user_iter_app/target/kflat/user_iter_app")) }
+    val built = komp_build(Dir.scratch_path("kf_user_iter_app"), "")
+    val binary = unsafe { access(Dir.scratch_path("kf_user_iter_app/target/kflat/user_iter_app"), 0) }
+    val ran = unsafe { system(Dir.scratch_path("kf_user_iter_app/target/kflat/user_iter_app")) }
     val ok = prepared == 0 && built == 0 && binary == 0 && ran == 0
     assert_eq(ok, true, "for over a user-defined iterable sums 0..5 to 10")
 }

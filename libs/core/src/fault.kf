@@ -161,10 +161,8 @@ fun new_fault_text(): FaultText {
 
 impl FaultText {
     mutating fun put(s: str): void {
-        var i: uint64 = 0
-        while i < s.byte_len() {
+        while i in 0..s.byte_len() {
             self.put_byte(s.byte_at(i))
-            i = i + 1
         }
     }
 

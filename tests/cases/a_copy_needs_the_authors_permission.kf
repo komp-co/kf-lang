@@ -5,7 +5,6 @@
 // refused, so a type can be unique.
 
 import alloc.string.*
-import alloc.list.*
 
 pub struct Unique { pub var name: String }
 

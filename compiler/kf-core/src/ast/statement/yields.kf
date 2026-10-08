@@ -1,7 +1,5 @@
 // What a statement yields when it ends a block used as a value.
 
-import alloc.list.*
-
 import kf_core.ast.expression.*
 import kf_core.ast.statement.*
 

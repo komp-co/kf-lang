@@ -1,7 +1,6 @@
 // Level precedence, whose failures are silent.
 
 import core.assert.assert_eq
-import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.Module

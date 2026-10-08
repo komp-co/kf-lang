@@ -5,7 +5,6 @@
 import core.assert.assert_eq
 
 import kf_integration.harness.check_project
-import std.fs.scratch_root
 import testing.test
 
 extern "C" fun system(cmd: str): int32
@@ -13,21 +12,21 @@ extern "C" fun system(cmd: str): int32
 /// Named `arm_scope`: `_test.kf` files share one namespace, and
 /// `editor/scope_test.kf` has `prepare_scope_fixture`.
 fun prepare_arm_scope_fixture(name: str, body: str): int32 {
-    val cmd = "rm -rf ${scratch_root()}/${name} && mkdir -p ${scratch_root()}/${name}/src"
+    val cmd = "rm -rf ${Dir.scratch()}/${name} && mkdir -p ${Dir.scratch()}/${name}/src"
     val prep = unsafe { system(cmd) }
     if prep != 0 { return prep }
 
-    val toml_path = "${scratch_root()}/${name}/kf.toml"
+    val toml_path = "${Dir.scratch()}/${name}/kf.toml"
     val toml = "[project]\nname = \"${name}\"\nversion = \"0.1.0\"\nkind = \"bin\"\n"
-    write_file(toml_path, toml)
+    File.write(toml_path, toml).unwrap()
 
-    val main_path = "${scratch_root()}/${name}/src/main.kf"
-    write_file(main_path, body)
+    val main_path = "${Dir.scratch()}/${name}/src/main.kf"
+    File.write(main_path, body).unwrap()
     return 0
 }
 
 fun check_arm_scope_fixture(name: str): int32 {
-    var dir = "${scratch_root()}/"
+    var dir = "${Dir.scratch()}/"
     dir.append(name)
     return check_project(dir)
 }

@@ -1,11 +1,6 @@
 // A run over a range of seeds: up to `jobs` kflatc processes at once, each
 // finding grouped by its signature.
 
-import alloc.list.*
-import std.fs.TempDir
-import std.process.Child
-import std.time.*
-
 pub struct Campaign {
     pub val mode: Mode
     pub val limits: Limits
@@ -107,7 +102,7 @@ pub fun Campaign.run(first: uint64, last: uint64, work: &TempDir): Tally {
             free.push(done.slot)
             finished = true
         }
-        if !finished { sleep(Duration.from_millis(2)) }
+        if !finished { Clock.sleep(Duration.from_millis(2)) }
     }
     return tally
 }

@@ -2,8 +2,6 @@
 // `T`, the use's arguments, and the field or variant a member loop is on,
 // and the payload a payload loop is on.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr

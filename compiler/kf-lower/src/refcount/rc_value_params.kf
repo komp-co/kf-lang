@@ -4,8 +4,6 @@
 // CONSTRAINT: the same predicate the caller side uses (`is_move_only`); a
 // disagreement leaks or double-frees.
 
-import alloc.list.*
-
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.Param
 import kf_core.ast.subst.mangle_tyref

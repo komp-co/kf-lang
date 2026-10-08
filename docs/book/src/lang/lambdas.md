@@ -257,8 +257,6 @@ Where a bound does apply, a written annotation must agree with it. `any` on a
 `&int32` is rejected at the parameter:
 
 ```kflat
-import alloc.list.*
-
 fun main(): int32 {
     var xs = List.new<int32>()
     xs.push(7)

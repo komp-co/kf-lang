@@ -1,7 +1,5 @@
 // The option values a project gave its lints, over the registry's defaults.
 
-import alloc.list.*
-
 /// `lint.key = value` rows, later rows winning.
 @derive(Clone)
 pub struct LintOptions {

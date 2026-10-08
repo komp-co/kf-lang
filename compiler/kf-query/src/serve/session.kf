@@ -1,6 +1,5 @@
 // The state `kflatc serve` keeps between requests, and the answer to each.
 
-import alloc.list.*
 import json.writer.*
 import kf_assemble.Overlay
 import kf_assemble.no_overlay
@@ -24,7 +23,6 @@ import kf_driver.build.InterfaceLookup
 import kf_driver.build.check_crate
 import kf_driver.build.interface_from_source
 import kf_driver.build.interfaces_in
-import std.fs.TempDir
 import kf_query.editor.focus
 import kf_query.editor.declaring_file
 import kf_driver.build.crate_source_dir
@@ -223,7 +221,7 @@ impl ServeSession {
             }
             val staged = unit.interface_from_source(&lookup, &self.buffers)
             if !staged.failure.is_empty() { continue }
-            write_file("${dir}/${source.name}.kfi".as_str(), staged.text)
+            val _written = File.write("${dir}/${source.name}.kfi".as_str(), staged.text)
             lookup = lookup.with_staged(dir, source.name)
         }
         return lookup

@@ -3,8 +3,6 @@
 // tags, static-inline glue for those types, generic layouts the surface
 // references, and prototypes for public functions and methods. Never bodies.
 
-import alloc.list.*
-
 import kf_core.ast.Import
 import kf_core.ast.Module
 import kf_core.ast.types.Type

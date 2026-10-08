@@ -4,14 +4,13 @@
 import kf_integration.harness.typed_crate_for
 import kf_integration.harness.typed_crate_for_overlay
 import core.assert.assert_eq
-import std.fs.scratch_path
 import kf_query.editor.render_completion_json
 import testing.test
 
 extern "C" fun system(cmd: str): int32
 
 fun scope_fixture_path(): str {
-    return scratch_path("kf_query_scope/src/main.kf")
+    return Dir.scratch_path("kf_query_scope/src/main.kf")
 }
 
 /// Raw, so it sits at column 0.
@@ -70,13 +69,13 @@ fun a_helper_a_test_calls(): int32 {
 }
 
 fun prepare_scope_fixture(): void {
-    unsafe { system("rm -rf ${scratch_path("kf_query_scope")} && mkdir -p ${scratch_path("kf_query_scope/src")}") }
-    write_file(scratch_path("kf_query_scope/kf.toml"), """[project]
+    unsafe { system("rm -rf ${Dir.scratch_path("kf_query_scope")} && mkdir -p ${Dir.scratch_path("kf_query_scope/src")}") }
+    File.write(Dir.scratch_path("kf_query_scope/kf.toml"), """[project]
 name = "query_scope"
 kind = "lib"
-""")
-    write_file(scope_fixture_path(), scope_fixture_source().as_str())
-    write_file(scratch_path("kf_query_scope/src/main_test.kf"), scope_test_file_source().as_str())
+""").unwrap()
+    File.write(scope_fixture_path(), scope_fixture_source().as_str()).unwrap()
+    File.write(Dir.scratch_path("kf_query_scope/src/main_test.kf"), scope_test_file_source().as_str()).unwrap()
 }
 
 fun scope_at(marker: str): String {
@@ -189,7 +188,7 @@ fun a_local_shadowing_a_declaration_is_offered_as_the_local(): void {
 
 // Types resolve globally; free functions are gated per file.
 
-fun app_path(): str { return scratch_path("kf_query_scope_app/src/main.kf") }
+fun app_path(): str { return Dir.scratch_path("kf_query_scope_app/src/main.kf") }
 
 fun app_source(with_import: bool): String {
     val body = String.from("""pub fun probe(): int32 {
@@ -205,28 +204,28 @@ fun app_source(with_import: bool): String {
 
 /// `helperlib` declares one function and one type.
 fun dep_answer(with_import: bool): String {
-    unsafe { system("rm -rf ${scratch_path("kf_query_scope_dep")} ${scratch_path("kf_query_scope_app")} && mkdir -p ${scratch_path("kf_query_scope_dep/src")} ${scratch_path("kf_query_scope_app/src")}") }
-    write_file(scratch_path("kf_query_scope_dep/kf.toml"), """[project]
+    unsafe { system("rm -rf ${Dir.scratch_path("kf_query_scope_dep")} ${Dir.scratch_path("kf_query_scope_app")} && mkdir -p ${Dir.scratch_path("kf_query_scope_dep/src")} ${Dir.scratch_path("kf_query_scope_app/src")}") }
+    File.write(Dir.scratch_path("kf_query_scope_dep/kf.toml"), """[project]
 name = "helperlib"
 kind = "lib"
-""")
-    write_file(scratch_path("kf_query_scope_dep/src/api.kf"), """pub struct LibType {
+""").unwrap()
+    File.write(Dir.scratch_path("kf_query_scope_dep/src/api.kf"), """pub struct LibType {
     pub val v: int32
 }
 
 pub fun lib_helper(a: int32): int32 {
     return a
 }
-""")
-    write_file(scratch_path("kf_query_scope_app/kf.toml"), """[project]
+""").unwrap()
+    File.write(Dir.scratch_path("kf_query_scope_app/kf.toml"), """[project]
 name = "app"
 kind = "lib"
 
 [dependencies]
 helperlib = { path = "../kf_query_scope_dep" }
-""")
+""").unwrap()
     val src = app_source(with_import)
-    write_file(app_path(), src)
+    File.write(app_path(), src).unwrap()
     val offset = index_of(src, "// MARK_DEP")
     val crate = typed_crate_for(app_path())
     return render_completion_json("main.kf", offset, &crate)

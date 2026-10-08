@@ -1,8 +1,6 @@
 // Deciding a condition or a `when` once facts are literals: an expression of
 // literals alone has one value, known before the program runs.
 
-import alloc.list.*
-
 import kf_core.ast.pattern.Arm
 import kf_core.ast.pattern.Pattern
 import kf_core.ast.expression.BinOp

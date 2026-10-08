@@ -1,6 +1,3 @@
-import core.args.arg_at
-import core.args.arg_count
-import core.args.program_name
 import kf_driver.cli.kflatc_cli
 import kf_editor.kf_editor_main
 import kf_lint.kf_lint_main
@@ -13,12 +10,12 @@ fun main(): int32 {
     if run_as("kf-lint") { return kf_lint_main() }
     if run_as("kf-editor") { return kf_editor_main() }
     // Until kf-lsp starts kf-editor, kflatc still answers `serve` itself.
-    if arg_count() > 0 && arg_at(0) == "serve" { return kflatc_serve() }
+    if Args.count() > 0 && Args.at(0) == "serve" { return kflatc_serve() }
     return kflatc_cli()
 }
 
 /// Run by the name `tool`, from wherever it lies.
 fun run_as(tool: str): bool {
-    val name = program_name()
+    val name = Args.program_name()
     return name == tool || name.ends_with("/${tool}")
 }

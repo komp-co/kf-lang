@@ -2,8 +2,6 @@
 // focused crate reads of it: its signatures. Its function bodies cannot
 // mention the focused crate, so no answer about it comes from them.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.statement.Stmt

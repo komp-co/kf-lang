@@ -1,8 +1,6 @@
 // A static call with nothing written in `<...>`: its arguments bind the
 // type's parameters, as a generic function's do.
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr

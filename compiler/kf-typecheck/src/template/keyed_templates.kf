@@ -4,8 +4,6 @@
 // any crate can add a derivable trait; a listed name with no template is an
 // error at the name.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.intern.Sym
 import kf_core.intern.intern

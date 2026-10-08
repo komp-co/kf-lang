@@ -1,7 +1,6 @@
 // A struct with no fields may leave out its braces.
 
 import core.assert.assert_eq
-import alloc.list.*
 
 import kf_parse.parser.parser_for
 import testing.test

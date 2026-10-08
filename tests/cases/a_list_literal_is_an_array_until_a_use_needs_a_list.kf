@@ -3,7 +3,6 @@
 // `[a, b]` is an array until a slot or a use of its binding needs a list:
 // `push` is List's, a `List` slot converts through `From<T[N]>`, and `[]`
 // is typed by its slot or its uses.
-import alloc.list.*
 
 fun total(xs: List<int32>): int32 {
     var sum = 0

@@ -1,8 +1,6 @@
 // Which values cannot hold a borrow. A temporary below one is consumed
 // within the statement, so it can be dropped at the statement's end.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef

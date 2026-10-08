@@ -1,5 +1,3 @@
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.intern.intern
 import core.text.byte_at_in

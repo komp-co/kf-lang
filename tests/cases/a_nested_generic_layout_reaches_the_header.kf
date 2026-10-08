@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // `List<List<uint32>>` in a public field: the inner layout, behind a pointer,
 // reaches the header too.
-import alloc.list.*
 
 pub struct Holder {
     var rows: List<List<uint32>>

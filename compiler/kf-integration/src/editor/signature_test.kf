@@ -4,12 +4,11 @@ import kf_integration.harness.typed_crate_for
 import kf_integration.harness.typed_crate_for_overlay
 import core.assert.assert_eq
 
-import std.fs.scratch_path
 import kf_query.editor.render_signature_json
 import testing.test
 
 fun signature_fixture_path(): str {
-    return scratch_path("kf_query_sig/src/main.kf")
+    return Dir.scratch_path("kf_query_sig/src/main.kf")
 }
 
 /// ```
@@ -23,8 +22,8 @@ fun signature_fixture_path(): str {
 /// ```
 /// The call sits at 87; its first argument at 91, its second at 94.
 fun prepare_signature_fixture(): void {
-    unsafe { system("rm -rf ${scratch_path("kf_query_sig")} && mkdir -p ${scratch_path("kf_query_sig/src")}") }
-    write_file(scratch_path("kf_query_sig/kf.toml"), "[project]\nname = \"query_sig\"\nkind = \"lib\"\n")
+    unsafe { system("rm -rf ${Dir.scratch_path("kf_query_sig")} && mkdir -p ${Dir.scratch_path("kf_query_sig/src")}") }
+    File.write(Dir.scratch_path("kf_query_sig/kf.toml"), "[project]\nname = \"query_sig\"\nkind = \"lib\"\n").unwrap()
     var src = """fun add(a: int32, b: int32): int32 {
     return a + b
 }
@@ -33,7 +32,7 @@ fun run(): int32 {
     return add(1, 2)
 }
 """
-    write_file(signature_fixture_path(), src.as_str())
+    File.write(signature_fixture_path(), src.as_str()).unwrap()
 }
 
 fun signature_at(offset: uint32): String {

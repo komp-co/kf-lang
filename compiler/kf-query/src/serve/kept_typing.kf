@@ -1,7 +1,5 @@
 // A typing `serve` keeps between requests, with which bodies it checked.
 
-import alloc.list.*
-
 import kf_query.editor.TypedCrate
 
 pub struct KeptTyping {

@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // `List.new()` takes its type argument from the slot it flows into.
 
-import alloc.list.*
 
 fun empty(): List<int32> {
     // A return type is a slot.

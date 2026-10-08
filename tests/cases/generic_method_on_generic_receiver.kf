@@ -4,7 +4,6 @@
 // method stays a template after its impl is pinned, and a call on `self`
 // dispatches against the instance.
 
-import alloc.list.*
 
 struct Pair<A, B> { pub var a: A  pub var b: B }
 

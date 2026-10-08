@@ -2,17 +2,11 @@
 // places where the call changes what the code means and stays.
 
 import core.assert.assert_eq
-import alloc.list.*
 import alloc.path.Path
-import std.fs.absolute
 
 import kf_core.diagnostic.*
 import kf_driver.*
 import kf_lints.lint_typed_module
-import std.fs.create_dir_all
-import std.fs.remove_dir_all
-import std.fs.scratch_path
-import std.fs.write_text
 import kf_integration.harness.assemble_project
 import kf_integration.harness.testing_dev_dependency
 import testing.test
@@ -48,17 +42,17 @@ fun deref_lints(name: str, body: str): String {
 
 /// `deref_lints`, with `decls` declared before `main`.
 fun deref_lints_beside(name: str, decls: str, body: str): String {
-    val dir = scratch_path(name)
-    val _cleared = remove_dir_all(dir)
-    val _made = create_dir_all(Path.new("${dir}/src".as_str()))
-    val libs = absolute("libs").normalized().raw
+    val dir = Dir.scratch_path(name)
+    val _cleared = Dir.remove_all(dir)
+    val _made = Dir.create_all("${dir}/src".as_str())
+    val libs = Dir.current().join("libs").normalized().raw
     val deps = "[dependencies]\ncore = { path = \"${libs}/core\" }\nalloc = { path = \"${libs}/alloc\" }\n"
     val project = "[project]\nname = \"deref\"\nversion = \"0.1.0\"\nkind = \"bin\"\n"
     val manifest = "${project}${deps}${testing_dev_dependency()}"
-    val _manifest = write_text("${dir}/kf.toml".as_str(), manifest)
-    val prelude = "import alloc.list.*\nimport alloc.string.*\nimport core.slice.Slice\n\n"
+    val _manifest = File.write("${dir}/kf.toml".as_str(), manifest)
+    val prelude = "import alloc.string.*\nimport core.slice.Slice\n\n"
     val src = "${prelude}${helpers()}${decls}fun main(): int32 {\n${body}\n}\n"
-    val _source = write_text("${dir}/src/main.kf".as_str(), src)
+    val _source = File.write("${dir}/src/main.kf".as_str(), src)
     val smap = fresh_source_map()
     var pdiags = Diagnostics.new()
     var merged = assemble_project(dir, smap, &var pdiags)

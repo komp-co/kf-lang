@@ -2,8 +2,6 @@
 // is never read; `shadowed_variable`, a local bound twice; and
 // `needless_var`, a `var` nothing changes.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.diagnostic.*
 import kf_core.intern.Sym

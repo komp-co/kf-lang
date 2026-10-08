@@ -2,9 +2,6 @@
 // as `__auto_type __b = __when_subj.u.V_X._0;` can be dropped. Built once per
 // module and carried on `LocalEnv`.
 
-import alloc.list.*
-import alloc.hash_map.*
-
 import kf_core.ast.Module
 import kf_codegen.emit.glue.is_box_tref
 import kf_codegen.emit.c_type

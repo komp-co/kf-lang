@@ -10,8 +10,6 @@ import kf_integration.harness.FixtureGraph
 import kf_integration.harness.komp_check
 import kf_integration.harness.compile_project_separate
 import kf_integration.harness.copy_tree_by_content
-import std.fs.read_to_string
-import std.fs.scratch_path
 import testing.test
 import kf_core.diagnostic.Diagnostics
 
@@ -26,11 +24,11 @@ fun locked_json_root(): String {
 }
 
 fun prepare_real_json_app(): int32 {
-    val prep = unsafe { system("rm -rf ${scratch_path("kf_sc4_json_dep")} ${scratch_path("kf_sc4_json_app")} ${scratch_path("kf_sc4_libs")} && mkdir -p ${scratch_path("kf_sc4_json_app/src")} ${scratch_path("kf_sc4_libs")} && cp -R libs/core ${scratch_path("kf_sc4_libs/core")} && cp -R libs/alloc ${scratch_path("kf_sc4_libs/alloc")}") }
+    val prep = unsafe { system("rm -rf ${Dir.scratch_path("kf_sc4_json_dep")} ${Dir.scratch_path("kf_sc4_json_app")} ${Dir.scratch_path("kf_sc4_libs")} && mkdir -p ${Dir.scratch_path("kf_sc4_json_app/src")} ${Dir.scratch_path("kf_sc4_libs")} && cp -R libs/core ${Dir.scratch_path("kf_sc4_libs/core")} && cp -R libs/alloc ${Dir.scratch_path("kf_sc4_libs/alloc")}") }
     if prep != 0 { return prep }
-    val copied = copy_tree_by_content(locked_json_root().as_str(), scratch_path("kf_sc4_json_dep"))
+    val copied = copy_tree_by_content(locked_json_root().as_str(), Dir.scratch_path("kf_sc4_json_dep"))
     if copied != 0 { return copied }
-    write_file(scratch_path("kf_sc4_json_dep/kf.toml"), """[project]
+    File.write(Dir.scratch_path("kf_sc4_json_dep/kf.toml"), """[project]
 name = "json"
 version = "0.2.0"
 kind = "lib"
@@ -41,15 +39,15 @@ alloc = { path = "../kf_sc4_libs/alloc" }
 
 [native]
 hosted_c_sources = ["native/json.c"]
-""")
-    write_file(scratch_path("kf_sc4_json_app/kf.toml"), """[project]
+""").unwrap()
+    File.write(Dir.scratch_path("kf_sc4_json_app/kf.toml"), """[project]
 name = "json_app"
 kind = "bin"
 
 [dependencies]
 json = { path = "../kf_sc4_json_dep" }
-""")
-    write_file(scratch_path("kf_sc4_json_app/src/main.kf"), """import json.writer.*
+""").unwrap()
+    write_file(Dir.scratch_path("kf_sc4_json_app/src/main.kf"), """import json.writer.*
 import json.quote.*
 
 fun main(): int32 {
@@ -67,7 +65,7 @@ fun main(): int32 {
 fun build_real_json_app(): int32 {
     val prep = prepare_real_json_app()
     if prep != 0 { return prep }
-    return komp_build(scratch_path("kf_sc4_json_app"), "-fsanitize=address")
+    return komp_build(Dir.scratch_path("kf_sc4_json_app"), "-fsanitize=address")
 }
 
 @test
@@ -78,34 +76,34 @@ fun real_json_project_builds_into_archive(): void {
 @test
 fun real_json_library_archive_exists(): void {
     val _rc = build_real_json_app()
-    assert_eq(unsafe { access(scratch_path("kf_sc4_json_app/target/kflat/libjson.a"), 0) }, 0, "real json produces libjson.a")
+    assert_eq(unsafe { access(Dir.scratch_path("kf_sc4_json_app/target/kflat/libjson.a"), 0) }, 0, "real json produces libjson.a")
 }
 
 @test
 fun real_json_interface_exists(): void {
     val _rc = build_real_json_app()
-    assert_eq(unsafe { access(scratch_path("kf_sc4_json_app/target/kflat/json.kfi"), 0) }, 0, "real json produces json.kfi")
+    assert_eq(unsafe { access(Dir.scratch_path("kf_sc4_json_app/target/kflat/json.kfi"), 0) }, 0, "real json produces json.kfi")
 }
 
 @test
 fun real_json_consumer_checks_without_dependency_source(): void {
     val first = build_real_json_app()
     // Safe only on the disposable copy, rebuilt by the next prepare.
-    val hidden = unsafe { system("mv ${scratch_path("kf_sc4_json_dep/src")} ${scratch_path("kf_sc4_json_dep/src.hidden")}") }
-    val checked = komp_check(scratch_path("kf_sc4_json_app"))
-    val restored = unsafe { system("mv ${scratch_path("kf_sc4_json_dep/src.hidden")} ${scratch_path("kf_sc4_json_dep/src")}") }
+    val hidden = unsafe { system("mv ${Dir.scratch_path("kf_sc4_json_dep/src")} ${Dir.scratch_path("kf_sc4_json_dep/src.hidden")}") }
+    val checked = komp_check(Dir.scratch_path("kf_sc4_json_app"))
+    val restored = unsafe { system("mv ${Dir.scratch_path("kf_sc4_json_dep/src.hidden")} ${Dir.scratch_path("kf_sc4_json_dep/src")}") }
     assert_eq(first == 0 && hidden == 0 && checked == 0 && restored == 0, true, "consumer checks from json.kfi with dependency source unavailable")
 }
 
 @test
 fun real_json_consumer_builds_without_dependency_source(): void {
     val first = build_real_json_app()
-    val hidden = unsafe { system("mv ${scratch_path("kf_sc4_json_dep/src")} ${scratch_path("kf_sc4_json_dep/src.hidden")}") }
+    val hidden = unsafe { system("mv ${Dir.scratch_path("kf_sc4_json_dep/src")} ${Dir.scratch_path("kf_sc4_json_dep/src.hidden")}") }
     // Recompile the consumer against artifacts alone.
-    val _fresh = unsafe { system("rm -f ${scratch_path("kf_sc4_json_app/target/kflat/json_app.artifact.toml")}") }
-    val rebuilt = komp_build(scratch_path("kf_sc4_json_app"), "-fsanitize=address")
-    val ran = unsafe { system(scratch_path("kf_sc4_json_app/target/kflat/json_app")) }
-    val restored = unsafe { system("mv ${scratch_path("kf_sc4_json_dep/src.hidden")} ${scratch_path("kf_sc4_json_dep/src")}") }
+    val _fresh = unsafe { system("rm -f ${Dir.scratch_path("kf_sc4_json_app/target/kflat/json_app.artifact.toml")}") }
+    val rebuilt = komp_build(Dir.scratch_path("kf_sc4_json_app"), "-fsanitize=address")
+    val ran = unsafe { system(Dir.scratch_path("kf_sc4_json_app/target/kflat/json_app")) }
+    val restored = unsafe { system("mv ${Dir.scratch_path("kf_sc4_json_dep/src.hidden")} ${Dir.scratch_path("kf_sc4_json_dep/src")}") }
     assert_eq(first == 0 && hidden == 0 && rebuilt == 0 && ran == 0 && restored == 0, true, "consumer rebuilds and runs from compiled json artifacts")
 }
 
@@ -113,9 +111,9 @@ fun real_json_consumer_builds_without_dependency_source(): void {
 fun source_and_interface_consumer_c_are_identical(): void {
     // Against json.kfi and from dependency source.
     val first = build_real_json_app()
-    val interface_c = read_file(scratch_path("kf_sc4_json_app/target/kflat/json_app.c"))
+    val interface_c = File.read(Dir.scratch_path("kf_sc4_json_app/target/kflat/json_app.c")).unwrap_or("")
     var errors = Diagnostics.new()
-    val outputs = compile_project_separate(scratch_path("kf_sc4_json_app"), errors)
+    val outputs = compile_project_separate(Dir.scratch_path("kf_sc4_json_app"), errors)
     val clean = errors.error_count() == 0
     val source_c = outputs.at(outputs.size() - 1).source
     val setup_ok = first == 0 && clean && outputs.size() > 0
@@ -125,22 +123,22 @@ fun source_and_interface_consumer_c_are_identical(): void {
 @test
 fun real_json_quoted_runs_from_archive(): void {
     val _rc = build_real_json_app()
-    assert_eq(unsafe { system(scratch_path("kf_sc4_json_app/target/kflat/json_app")) }, 0, "json_quoted runs from the real archive")
+    assert_eq(unsafe { system(Dir.scratch_path("kf_sc4_json_app/target/kflat/json_app")) }, 0, "json_quoted runs from the real archive")
 }
 
 @test
 fun real_json_consumer_has_no_json_quoted_body(): void {
     val _rc = build_real_json_app()
-    val app_c = read_file(scratch_path("kf_sc4_json_app/target/kflat/json_app.c"))
+    val app_c = File.read(Dir.scratch_path("kf_sc4_json_app/target/kflat/json_app.c")).unwrap_or("")
     assert_eq(app_c.contains("String json__json_quoted_ext_str(const char* __self) {"), false, "consumer contains no dependency body")
 }
 
 @test
 fun real_json_writer_glue_is_owned_by_the_json_archive(): void {
     val _rc = build_real_json_app()
-    val header = read_file(scratch_path("kf_sc4_json_app/target/kflat/json.h"))
-    val owner = read_file(scratch_path("kf_sc4_json_app/target/kflat/json.c"))
-    val consumer = read_file(scratch_path("kf_sc4_json_app/target/kflat/json_app.c"))
+    val header = File.read(Dir.scratch_path("kf_sc4_json_app/target/kflat/json.h")).unwrap_or("")
+    val owner = File.read(Dir.scratch_path("kf_sc4_json_app/target/kflat/json.c")).unwrap_or("")
+    val consumer = File.read(Dir.scratch_path("kf_sc4_json_app/target/kflat/json_app.c")).unwrap_or("")
     val prototype = header.contains("void json__JsonWriter__glue_drop(json__JsonWriter v);")
     val definition = owner.contains("void json__JsonWriter__glue_drop(json__JsonWriter v) {")
     val duplicate = consumer.contains("void json__JsonWriter__glue_drop(json__JsonWriter v) {")

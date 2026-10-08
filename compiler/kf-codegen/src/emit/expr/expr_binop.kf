@@ -1,8 +1,6 @@
 // A binary operator in C, tried in order: C's own primitive operators, the
 // `str` comparison, the operator traits, then the rest.
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.ast.types.type_identity_display
 import kf_core.ast.expression.*

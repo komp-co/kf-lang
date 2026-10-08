@@ -4,8 +4,6 @@
 // `__BOX__<inner>` sentinel. Mistakes here silently drop no memory rather
 // than failing to build.
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 
 import kf_codegen.concat

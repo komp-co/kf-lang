@@ -2,16 +2,11 @@
 // project is: what each reports, and what it leaves alone.
 
 import core.assert.assert_eq
-import alloc.list.*
 import alloc.path.Path
 
 import kf_core.diagnostic.*
 import kf_driver.*
 import kf_lints.lint_typed_module
-import std.fs.create_dir_all
-import std.fs.remove_dir_all
-import std.fs.scratch_path
-import std.fs.write_text
 import kf_integration.harness.assemble_project
 import kf_integration.harness.testing_dev_dependency
 import testing.test
@@ -19,12 +14,12 @@ import testing.test
 /// The codes the typed lints report over a bin project whose main.kf is
 /// `src`, space-separated; "errors" when it does not type-check.
 fun typed_codes(name: str, src: str): String {
-    val dir = scratch_path(name)
-    val _cleared = remove_dir_all(dir)
-    val _made = create_dir_all(Path.new("${dir}/src".as_str()))
+    val dir = Dir.scratch_path(name)
+    val _cleared = Dir.remove_all(dir)
+    val _made = Dir.create_all("${dir}/src".as_str())
     val manifest = "[project]\nname = \"typed\"\nversion = \"0.1.0\"\nkind = \"bin\"\n${testing_dev_dependency()}"
-    val _manifest = write_text("${dir}/kf.toml".as_str(), manifest)
-    val _source = write_text("${dir}/src/main.kf".as_str(), src)
+    val _manifest = File.write("${dir}/kf.toml".as_str(), manifest)
+    val _source = File.write("${dir}/src/main.kf".as_str(), src)
     val smap = fresh_source_map()
     var pdiags = Diagnostics.new()
     var merged = assemble_project(dir, smap, &var pdiags)

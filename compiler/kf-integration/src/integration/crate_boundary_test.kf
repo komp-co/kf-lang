@@ -2,40 +2,38 @@
 // across a C translation-unit boundary; the app's C holds only calls against
 // the library's header.
 
-import alloc.list.*
 import core.assert.assert_eq
 
 import kf_codegen.*
 import kf_codegen.runtime.emit_runtime_header
 import kf_integration.harness.compile_project_separate
-import std.fs.scratch_path
 import testing.test
 import kf_core.diagnostic.Diagnostics
 
 extern "C" fun system(cmd: str): int32
 
 fun write_sc2_fixtures(): void {
-    val _mk = unsafe { system("rm -rf ${scratch_path("kf_sc2_core")} ${scratch_path("kf_sc2_lib")} ${scratch_path("kf_sc2_app")} && mkdir -p ${scratch_path("kf_sc2_core/src")} ${scratch_path("kf_sc2_lib/src")} ${scratch_path("kf_sc2_app/src")} && cp -R libs/core/src/. ${scratch_path("kf_sc2_core/src/")}") }
-    write_file(scratch_path("kf_sc2_core/kf.toml"), "[project]\nname = \"core\"\nkind = \"lib\"\n")
-    write_file(scratch_path("kf_sc2_lib/kf.toml"), """[project]
+    val _mk = unsafe { system("rm -rf ${Dir.scratch_path("kf_sc2_core")} ${Dir.scratch_path("kf_sc2_lib")} ${Dir.scratch_path("kf_sc2_app")} && mkdir -p ${Dir.scratch_path("kf_sc2_core/src")} ${Dir.scratch_path("kf_sc2_lib/src")} ${Dir.scratch_path("kf_sc2_app/src")} && cp -R libs/core/src/. ${Dir.scratch_path("kf_sc2_core/src/")}") }
+    File.write(Dir.scratch_path("kf_sc2_core/kf.toml"), "[project]\nname = \"core\"\nkind = \"lib\"\n").unwrap()
+    File.write(Dir.scratch_path("kf_sc2_lib/kf.toml"), """[project]
 name = "sc2lib"
 kind = "lib"
 
 [dependencies]
 core = { path = "../kf_sc2_core" }
-""")
+""").unwrap()
     var lib_src = String.from("pub struct Point {\n    pub val x: int32\n    pub val y: int32\n}\n\n")
     lib_src.append("impl Point {\n    pub fun sum(): int32 { return self.x + self.y }\n}\n\n")
     lib_src.append("pub fun answer(): int32 {\n    val p = Point { x: 40, y: 2 }\n    return p.sum()\n}\n")
-    write_file(scratch_path("kf_sc2_lib/src/lib.kf"), lib_src)
-    write_file(scratch_path("kf_sc2_app/kf.toml"), """[project]
+    File.write(Dir.scratch_path("kf_sc2_lib/src/lib.kf"), lib_src).unwrap()
+    File.write(Dir.scratch_path("kf_sc2_app/kf.toml"), """[project]
 name = "sc2app"
 kind = "bin"
 
 [dependencies]
 core = { path = "../kf_sc2_core" }
 sc2lib = { path = "../kf_sc2_lib" }
-""")
+""").unwrap()
     var app_src = String.from("import sc2lib.*\n\n")
     app_src.append("""fun main(): int32 {
     val p = Point { x: 1, y: 2 }
@@ -43,13 +41,13 @@ sc2lib = { path = "../kf_sc2_lib" }
     return 1
 }
 """)
-    write_file(scratch_path("kf_sc2_app/src/main.kf"), app_src)
+    File.write(Dir.scratch_path("kf_sc2_app/src/main.kf"), app_src).unwrap()
 }
 
 fun build_sc2(): List<CrateCodegenOutput> {
     write_sc2_fixtures()
     var errors = Diagnostics.new()
-    return compile_project_separate(scratch_path("kf_sc2_app"), &var errors)
+    return compile_project_separate(Dir.scratch_path("kf_sc2_app"), &var errors)
 }
 
 // The library compiles first, the app last.
@@ -67,15 +65,15 @@ fun non_generic_call_crosses_a_tu_boundary(): void {
     val outs = build_sc2()
     // This writes a `core.h`, so it gets its own directory: a stray one in a
     // shared include root shadows the real one.
-    val _mk = unsafe { system("rm -rf ${scratch_path("kf_sc2_out")} && mkdir -p ${scratch_path("kf_sc2_out")}") }
+    val _mk = unsafe { system("rm -rf ${Dir.scratch_path("kf_sc2_out")} && mkdir -p ${Dir.scratch_path("kf_sc2_out")}") }
     while o in &outs {
-        val h_path = String.from(scratch_path("kf_sc2_out/")) + o.crate_name.clone() + String.from(".h")
-        val c_path = String.from(scratch_path("kf_sc2_out/")) + o.crate_name.clone() + String.from(".c")
-        write_file(h_path, o.header)
-        write_file(c_path, o.source)
+        val h_path = String.from(Dir.scratch_path("kf_sc2_out/")) + o.crate_name.clone() + String.from(".h")
+        val c_path = String.from(Dir.scratch_path("kf_sc2_out/")) + o.crate_name.clone() + String.from(".c")
+        File.write(h_path, o.header).unwrap()
+        File.write(c_path, o.source).unwrap()
     }
-    write_file(scratch_path("kf_sc2_out/kf_runtime.h"), emit_runtime_header().as_str())
-    val rc = unsafe { system("cc -fsanitize=address -I${scratch_path("kf_sc2_out")} ${scratch_path("kf_sc2_out/core.c")} ${scratch_path("kf_sc2_out/sc2lib.c")} ${scratch_path("kf_sc2_out/sc2app.c")} libs/core/native/core.c libs/core/native/core_hosted.c -lm -o ${scratch_path("kf_sc2_out/bin")} && ${scratch_path("kf_sc2_out/bin")}") }
+    File.write(Dir.scratch_path("kf_sc2_out/kf_runtime.h"), emit_runtime_header().as_str()).unwrap()
+    val rc = unsafe { system("cc -fsanitize=address -I${Dir.scratch_path("kf_sc2_out")} ${Dir.scratch_path("kf_sc2_out/core.c")} ${Dir.scratch_path("kf_sc2_out/sc2lib.c")} ${Dir.scratch_path("kf_sc2_out/sc2app.c")} libs/core/native/core.c libs/core/native/core_hosted.c -lm -o ${Dir.scratch_path("kf_sc2_out/bin")} && ${Dir.scratch_path("kf_sc2_out/bin")}") }
     assert_eq(rc, 0, "app TU calls the library TU through its header")
 }
 
@@ -106,23 +104,23 @@ fun project_emission_is_deterministic(): void {
 // ownership is asked of the merged module. `Res`'s drop exits 0 while `main`
 // returns 3.
 fun write_drop_member_fixtures(): void {
-    val core_dir = scratch_path("kf_sc2_core")
-    val lib_dir = scratch_path("kf_sc2_droplib")
-    val app_dir = scratch_path("kf_sc2_dropapp")
+    val core_dir = Dir.scratch_path("kf_sc2_core")
+    val lib_dir = Dir.scratch_path("kf_sc2_droplib")
+    val app_dir = Dir.scratch_path("kf_sc2_dropapp")
     var mk = String.from("rm -rf")
     mk.append(" ${core_dir} ${lib_dir} ${app_dir}")
     mk.append(" && mkdir -p ${core_dir}/src ${lib_dir}/src ${app_dir}/src")
     mk.append(" && cp -R libs/core/src/. ${core_dir}/src/")
     val _mk = unsafe { system(mk) }
-    write_file(scratch_path("kf_sc2_core/kf.toml"), "[project]\nname = \"core\"\nkind = \"lib\"\n")
-    write_file(scratch_path("kf_sc2_droplib/kf.toml"), """[project]
+    File.write(Dir.scratch_path("kf_sc2_core/kf.toml"), "[project]\nname = \"core\"\nkind = \"lib\"\n").unwrap()
+    File.write(Dir.scratch_path("kf_sc2_droplib/kf.toml"), """[project]
 name = "sc2droplib"
 kind = "lib"
 
 [dependencies]
 core = { path = "../kf_sc2_core" }
-""")
-    write_file(scratch_path("kf_sc2_droplib/src/lib.kf"), """extern "C" fun _exit(code: int32): void
+""").unwrap()
+    File.write(Dir.scratch_path("kf_sc2_droplib/src/lib.kf"), """extern "C" fun _exit(code: int32): void
 
 pub struct Res {
     pub var tag: int32
@@ -135,16 +133,16 @@ impl Drop for Res {
 pub fun make_res(tag: int32): Res {
     return Res { tag: tag }
 }
-""")
-    write_file(scratch_path("kf_sc2_dropapp/kf.toml"), """[project]
+""").unwrap()
+    File.write(Dir.scratch_path("kf_sc2_dropapp/kf.toml"), """[project]
 name = "sc2dropapp"
 kind = "bin"
 
 [dependencies]
 core = { path = "../kf_sc2_core" }
 sc2droplib = { path = "../kf_sc2_droplib" }
-""")
-    write_file(scratch_path("kf_sc2_dropapp/src/main.kf"), """import sc2droplib.*
+""").unwrap()
+    File.write(Dir.scratch_path("kf_sc2_dropapp/src/main.kf"), """import sc2droplib.*
 
 pub struct Holder {
     pub var r: Res
@@ -160,13 +158,13 @@ fun main(): int32 {
     if hidden.r.tag + holder.r.tag != 3 { return 1 }
     return 3
 }
-""")
+""").unwrap()
 }
 
 fun build_drop_member(): List<CrateCodegenOutput> {
     write_drop_member_fixtures()
     var errors = Diagnostics.new()
-    return compile_project_separate(scratch_path("kf_sc2_dropapp"), &var errors)
+    return compile_project_separate(Dir.scratch_path("kf_sc2_dropapp"), &var errors)
 }
 
 @test
@@ -181,15 +179,15 @@ fun consumer_glue_drops_a_dependency_member(): void {
 @test
 fun a_dependency_drop_runs_inside_a_consumer_struct(): void {
     val outs = build_drop_member()
-    val out = scratch_path("kf_sc2_dropout")
+    val out = Dir.scratch_path("kf_sc2_dropout")
     val _mk = unsafe { system("rm -rf ${out} && mkdir -p ${out}") }
     while o in &outs {
-        val h_path = String.from(scratch_path("kf_sc2_dropout/")) + o.crate_name.clone() + String.from(".h")
-        val c_path = String.from(scratch_path("kf_sc2_dropout/")) + o.crate_name.clone() + String.from(".c")
-        write_file(h_path, o.header)
-        write_file(c_path, o.source)
+        val h_path = String.from(Dir.scratch_path("kf_sc2_dropout/")) + o.crate_name.clone() + String.from(".h")
+        val c_path = String.from(Dir.scratch_path("kf_sc2_dropout/")) + o.crate_name.clone() + String.from(".c")
+        File.write(h_path, o.header).unwrap()
+        File.write(c_path, o.source).unwrap()
     }
-    write_file(scratch_path("kf_sc2_dropout/kf_runtime.h"), emit_runtime_header().as_str())
+    File.write(Dir.scratch_path("kf_sc2_dropout/kf_runtime.h"), emit_runtime_header().as_str()).unwrap()
     var link = String.from("cc -fsanitize=address")
     link.append(" -I${out} ${out}/core.c ${out}/sc2droplib.c ${out}/sc2dropapp.c")
     link.append(" libs/core/native/core.c libs/core/native/core_hosted.c -lm")

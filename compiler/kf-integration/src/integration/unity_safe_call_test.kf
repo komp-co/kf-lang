@@ -4,17 +4,16 @@
 import core.assert.assert_eq
 import kf_integration.harness.FixtureGraph
 import kf_integration.harness.komp_build_unity
-import std.fs.scratch_path
 import testing.test
 
 extern "C" fun system(cmd: str): int32
 
 fun write_safe_call_fixture(root: str): void {
-    write_file(
+    File.write(
         "${root}/kf.toml".as_str(),
         "[project]\nname = \"unity_safe_call\"\nversion = \"0.1.0\"\nkind = \"bin\"\n"
-    )
-    write_file("${root}/src/levels/levels.kf".as_str(), """pub enum Level {
+    ).unwrap()
+    File.write("${root}/src/levels/levels.kf".as_str(), """pub enum Level {
     Warn
     Deny
 }
@@ -32,8 +31,8 @@ pub fun find(id: int32): Rule? {
     if id == 1 { return Rule { owner: Owner { id: 7 }, level: Level.Deny } }
     return null
 }
-""")
-    write_file("${root}/src/main.kf".as_str(), """import unity_safe_call.levels.*
+""").unwrap()
+    File.write("${root}/src/main.kf".as_str(), """import unity_safe_call.levels.*
 
 fun main(): int32 {
     val level = find(1)?.level ?: Level.Warn
@@ -43,14 +42,14 @@ fun main(): int32 {
         Warn => 0
     }
 }
-""")
+""").unwrap()
 }
 
 // `?.` wraps the field in an `Option` instance named from the field's checked
 // type, whose name is an identity (`crate::module::Name`), not a C name.
 @test
 fun a_safe_call_reaching_a_user_type_compiles_in_the_unity_output(): void {
-    val root = scratch_path("kf_unity_safe_call")
+    val root = Dir.scratch_path("kf_unity_safe_call")
     val prepared = unsafe { system("rm -rf ${root} && mkdir -p ${root}/src/levels") }
     assert_eq(prepared, 0, "the fixture is prepared")
     write_safe_call_fixture(root.as_str())
@@ -64,11 +63,11 @@ fun a_safe_call_reaching_a_user_type_compiles_in_the_unity_output(): void {
 }
 
 fun write_array_literal_fixture(root: str): void {
-    write_file(
+    File.write(
         "${root}/kf.toml".as_str(),
         "[project]\nname = \"unity_array\"\nversion = \"0.1.0\"\nkind = \"bin\"\n"
-    )
-    write_file("${root}/src/ranks/ranks.kf".as_str(), """pub struct Rank {
+    ).unwrap()
+    File.write("${root}/src/ranks/ranks.kf".as_str(), """pub struct Rank {
     pub val value: int32
 }
 
@@ -77,8 +76,8 @@ impl Rank {
         return Rank { value: value }
     }
 }
-""")
-    write_file("${root}/src/main.kf".as_str(), """import unity_array.ranks.*
+""").unwrap()
+    File.write("${root}/src/main.kf".as_str(), """import unity_array.ranks.*
 
 fun main(): int32 {
     val ranks = [Rank.new(3), Rank.new(39)]
@@ -88,14 +87,14 @@ fun main(): int32 {
     }
     return total
 }
-""")
+""").unwrap()
 }
 
 // An array literal typed from its first element records that element's
 // checked type, whose name is an identity; a call's result is one.
 @test
 fun an_array_literal_of_calls_compiles_in_the_unity_output(): void {
-    val root = scratch_path("kf_unity_array_literal")
+    val root = Dir.scratch_path("kf_unity_array_literal")
     val prepared = unsafe { system("rm -rf ${root} && mkdir -p ${root}/src/ranks") }
     assert_eq(prepared, 0, "the fixture is prepared")
     write_array_literal_fixture(root.as_str())

@@ -1,8 +1,6 @@
 // Values a lambda reads from its enclosing scope: found, classified, and
 // rewritten through capture fields.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.expression.view
 import kf_core.ast.types.view

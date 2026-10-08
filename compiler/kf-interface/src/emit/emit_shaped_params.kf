@@ -4,8 +4,6 @@
 // `{"name":"rules","type":"fun","variadic":true}`, `type` the kind word or
 // the element type's source.
 
-import alloc.list.*
-
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.Param
 import kf_core.ast.annotation.*

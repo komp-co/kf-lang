@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // An extension on `Iterable<Point>` does not apply to a `List<int32>`.
 
-import alloc.list.*
 
 struct Point { val x: int32 }
 

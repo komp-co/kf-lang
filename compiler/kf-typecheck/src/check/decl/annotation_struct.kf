@@ -4,8 +4,6 @@
 // written, a `str`; a variadic one has no field yet, as nothing could keep
 // its list once the query returns (#187).
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.declaration.*
 import kf_core.ast.types.TypeRef

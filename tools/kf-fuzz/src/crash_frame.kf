@@ -8,9 +8,6 @@
 //     a hang           the innermost frame three backtraces, taken apart,
 //                      share, leaving out library helpers
 
-import alloc.list.*
-import std.process.Command
-
 /// Deeper than this, a crash is a stack overflow.
 fun overflow_depth(): uint64 { return 5000 }
 

@@ -1,7 +1,6 @@
 // `|a, b| expr` parses, and `|` keeps its infix meanings.
 
 import core.assert.*
-import alloc.list.*
 import testing.test
 
 fun lambda_diags(src: str): uint64 {

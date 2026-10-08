@@ -1,8 +1,6 @@
 // The edits the front-end fuzzer makes to a well-formed program. Each one is
 // small, so most results are still nearly KFlat and reach past the parser.
 
-import alloc.list.*
-
 /// Spliced in by `insert_keyword`: the syntax most likely to confuse a parser
 /// mid-declaration.
 fun keyword_at(i: uint64): str {

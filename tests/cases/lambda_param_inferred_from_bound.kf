@@ -4,7 +4,6 @@
 // passed to, before the lambda is checked. The bound names the type, is
 // pinned by another argument, or by a generic receiver (`List.map`).
 
-import alloc.list.*
 
 // The bound names the type literally.
 fun apply_int<F: Call1<int32>>(f: F, x: int32): int32 { return f.call(x) }

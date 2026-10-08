@@ -1,7 +1,6 @@
 // A newline is whitespace inside `<...>`.
 
 import core.assert.assert_eq
-import alloc.list.*
 import testing.test
 
 fun type_list_diags(src: str): uint64 {

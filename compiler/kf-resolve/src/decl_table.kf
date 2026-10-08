@@ -1,10 +1,11 @@
-import alloc.list.*
 import kf_core.intern.intern
-import alloc.hash_map.*
 
 import kf_core.ast.*
 import kf_core.ast.declaration.DeclId
 import kf_core.ast.declaration.TopDecl
+
+/// "No slot" in a table indexed from 0.
+pub fun none_index(): uint64 { return uint64.max_value() }
 
 /// Top-level names and the DeclIds they were registered under, with what
 /// each declaration shows the rest of the program (see scope.kf).

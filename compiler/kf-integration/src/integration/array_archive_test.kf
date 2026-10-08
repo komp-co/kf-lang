@@ -5,18 +5,17 @@
 import core.assert.assert_eq
 
 import kf_integration.harness.komp_build
-import std.fs.scratch_path
 import testing.test
 
 extern "C" fun system(cmd: str): int32
 
 fun prepare_array_fixture(app_main: str): int32 {
-    val dep = scratch_path("kf_array_dep")
-    val app = scratch_path("kf_array_app")
+    val dep = Dir.scratch_path("kf_array_dep")
+    val app = Dir.scratch_path("kf_array_app")
     val prep = unsafe { system("rm -rf ${dep} ${app} && mkdir -p ${dep}/src ${app}/src") }
     if prep != 0 { return prep }
-    write_file("${dep}/kf.toml".as_str(), "[project]\nname = \"array_dep\"\nkind = \"lib\"\n")
-    write_file("${dep}/src/lib.kf".as_str(), """pub struct Rgb {
+    File.write("${dep}/kf.toml".as_str(), "[project]\nname = \"array_dep\"\nkind = \"lib\"\n").unwrap()
+    File.write("${dep}/src/lib.kf".as_str(), """pub struct Rgb {
     pub val channels: uint8[3]
 }
 
@@ -37,15 +36,15 @@ pub fun total<N: uint64>(xs: &int32[N]): int32 {
 pub fun corners(): int32[4] {
     return [1, 2, 3, 4]
 }
-""")
-    write_file("${app}/kf.toml".as_str(), """[project]
+""").unwrap()
+    File.write("${app}/kf.toml".as_str(), """[project]
 name = "array_app"
 kind = "bin"
 
 [dependencies]
 array_dep = { path = "../kf_array_dep" }
-""")
-    write_file("${app}/src/main.kf".as_str(), app_main)
+""").unwrap()
+    File.write("${app}/src/main.kf".as_str(), app_main).unwrap()
     return 0
 }
 
@@ -61,8 +60,8 @@ fun main(): int32 {
 }
 """
     val prep = prepare_array_fixture(main)
-    val built = komp_build(scratch_path("kf_array_app"), "")
-    val ran = unsafe { system(scratch_path("kf_array_app/target/kflat/array_app").as_str()) }
+    val built = komp_build(Dir.scratch_path("kf_array_app"), "")
+    val ran = unsafe { system(Dir.scratch_path("kf_array_app/target/kflat/array_app").as_str()) }
     assert_eq(prep == 0 && built == 0 && ran == 0, true, "a field, a length-generic function and a returned array")
 }
 
@@ -76,6 +75,6 @@ fun main(): int32 {
 }
 """
     val prep = prepare_array_fixture(main)
-    val built = komp_build(scratch_path("kf_array_app"), "")
+    val built = komp_build(Dir.scratch_path("kf_array_app"), "")
     assert_eq(prep == 0 && built != 0, true, "two elements cannot fill the dependency's `uint8[3]`")
 }

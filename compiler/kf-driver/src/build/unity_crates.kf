@@ -1,8 +1,6 @@
 // kflatc's unity build: a list of crates compiled into one C translation
 // unit. The crates' own C sources are not included; the caller appends them.
 
-import alloc.list.*
-
 import kf_assemble.no_overlay
 import kf_assemble.stamp_module_owner
 

@@ -2,7 +2,6 @@
 // `take_last() ?:` hands the element to its binder, which moves it into
 // the other list; nothing is copied or left behind.
 
-import alloc.list.*
 
 fun main(): int32 {
     var from = List.new<String>()

@@ -4,14 +4,12 @@
 //   kf-editor          (as `kflatc serve`; `kf-editor serve` too)
 //   kf-editor version
 
-import core.args.arg_at
-
 import kf_driver.cli.print_version
 import kf_query.serve.kflatc_serve
 
 pub fun kf_editor_main(): int32 {
-    if is_serve_command(arg_at(0)) { return kflatc_serve() }
-    if arg_at(0) == "version" { return print_version("kf-editor") }
+    if is_serve_command(Args.at(0)) { return kflatc_serve() }
+    if Args.at(0) == "version" { return print_version("kf-editor") }
     println("usage: kf-editor [serve]")
     println("       kf-editor version")
     return 2

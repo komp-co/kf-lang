@@ -3,8 +3,6 @@
 // allowlist is needed. A registered lint, so the terminal, `@allow`, kf.toml
 // and the editor share one implementation.
 
-import alloc.list.*
-
 import kf_core.ast.*
 import kf_core.diagnostic.*
 import kf_core.intern.*

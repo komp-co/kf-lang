@@ -4,8 +4,6 @@
 // member's type names, so a phantom parameter or a skipped field asks for
 // nothing.
 
-import alloc.list.*
-
 import kf_core.span.Span
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind

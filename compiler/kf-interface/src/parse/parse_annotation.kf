@@ -1,7 +1,5 @@
 // An `annotation` record: its name, and what it may mark.
 
-import alloc.list.*
-
 import kf_core.span.Span
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.*

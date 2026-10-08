@@ -10,8 +10,6 @@
 // seen; joining early truncates a literal later widened. A missing `else`
 // yields nothing.
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.statement.Stmt

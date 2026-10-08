@@ -1,8 +1,6 @@
 // Inlay hints: the type of each binding without an annotation, placed at the
 // end of the binder's name as the parser recorded it.
 
-import alloc.list.*
-
 import kf_core.ast.pattern.Arm
 import kf_core.ast.expression.view
 import kf_core.ast.types.view

@@ -1,8 +1,6 @@
 // `Wrap { v: 5 }` for a generic `Wrap<T>`: each type parameter is read off the
 // initializer of a field that mentions it, as a call's are off its arguments.
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr

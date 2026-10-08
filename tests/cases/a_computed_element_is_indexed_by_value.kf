@@ -3,7 +3,6 @@
 // A type whose elements are computed implements `IndexValue`, and `a[i]` is
 // the element itself: a bit has no address to lend. It reads through a borrow
 // of the container too.
-import alloc.list.*
 
 struct Bits {
     var words: List<uint64>

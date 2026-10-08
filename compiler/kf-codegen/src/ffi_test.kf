@@ -1,5 +1,3 @@
-import std.fs.*
-import std.process.*
 import core.assert.assert_eq
 import testing.test
 
@@ -11,9 +9,9 @@ import testing.test
 }
 
 @test fun ffi_write_then_read_file_roundtrip(): void {
-    val path = scratch_path("kf_codegen_ffi_smoke.txt")
-    write_file(path, "hi from komp\n")
-    val contents = read_file(path)
+    val path = Dir.scratch_path("kf_codegen_ffi_smoke.txt")
+    File.write(path, "hi from komp\n").unwrap()
+    val contents = File.read(path).unwrap_or("")
     assert_eq(contents.as_str(), "hi from komp\n", "file contents roundtrip")
 }
 
@@ -25,6 +23,6 @@ import testing.test
     command.stdout_to(out_path)
     val rc = command.status().exit_code()
     assert_eq(rc == 0, true, "echo returned 0")
-    val contents = read_file(out_path.as_str())
+    val contents = File.read(out_path.as_str()).unwrap_or("")
     assert_eq(contents.as_str(), "asdf\n", "redirected output was written")
 }

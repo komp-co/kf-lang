@@ -1,5 +1,4 @@
 import core.assert.assert_eq
-import alloc.list.*
 
 import kf_core.ast.declaration.TopDecl
 import kf_parse.parser.parser_for

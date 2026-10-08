@@ -1,8 +1,6 @@
 // Emits C from the lowered module. Output is built as a list of fragments
 // joined by concat_all.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_codegen.emit.*
 import kf_codegen.runtime.emit_runtime_header

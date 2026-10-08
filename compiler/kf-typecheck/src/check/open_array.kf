@@ -3,8 +3,6 @@
 // an array, or a store of such a value. A slice use decides nothing, since a
 // list lends one too; an array slot rules out the rest.
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind

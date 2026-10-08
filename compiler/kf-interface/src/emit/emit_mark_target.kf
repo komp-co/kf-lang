@@ -7,8 +7,6 @@
 // and its type parameters, the implicit ones included, each with its bounds:
 // "params":[{"name":"T","bounds":["Display"]}].
 
-import alloc.list.*
-
 import kf_core.ast.types.TypeRef
 import kf_core.ast.annotation.MarkTarget
 import kf_core.ast.declaration.TypeParam

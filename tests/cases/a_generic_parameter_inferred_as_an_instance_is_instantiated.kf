@@ -4,7 +4,6 @@
 // `C = List<int32>`, `C = Option<int32>`) is written back onto the call, so
 // mono mints the instance.
 
-import alloc.list.*
 
 struct Wrap<T> { val v: T }
 struct Point { val x: int32 }

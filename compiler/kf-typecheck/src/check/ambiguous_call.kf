@@ -1,7 +1,6 @@
 // What a method call that no single trait impl answers is told: which traits
 // tie for it, or that none fits.
 
-import alloc.list.*
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_typecheck.types.display_type

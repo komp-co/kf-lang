@@ -4,8 +4,6 @@
 // annotation's name. The verdict is kept in the declaration's generics, which
 // its interface record carries, so an importing crate reads it back.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.Module
 import kf_core.ast.types.TypeRef

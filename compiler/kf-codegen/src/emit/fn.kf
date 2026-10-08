@@ -1,7 +1,5 @@
 // Function emission: prototype, forward declaration, body.
 
-import alloc.list.*
-
 import kf_core.ast.types.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind

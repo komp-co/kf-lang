@@ -4,7 +4,6 @@
 
 import core.assert.assert_eq
 import kf_integration.harness.komp_build
-import std.fs.scratch_root
 import testing.test
 
 extern "C" fun system(cmd: str): int32
@@ -16,11 +15,11 @@ fun prepare_capturing_library(root: str): int32 {
     val libs = """core = { path = "../libs/core" }
 alloc = { path = "../libs/alloc" }
 """
-    write_file(
+    File.write(
         "${root}/reglib/kf.toml".as_str(),
         "[project]\nname = \"reglib\"\nkind = \"lib\"\n\n[dependencies]\n${libs}".as_str()
-    )
-    write_file("${root}/reglib/src/lib.kf".as_str(), """import alloc.list.*
+    ).unwrap()
+    File.write("${root}/reglib/src/lib.kf".as_str(), """import alloc.list.*
 
 pub struct Info {
     pub val name: String
@@ -38,24 +37,24 @@ pub fun named(name: str): Info? {
 pub fun ranked_above(floor: int32): uint64 {
     return all().count(|info: Info| info.rank > floor)
 }
-""")
+""").unwrap()
     val reglib = "reglib = { path = \"../reglib\" }\n"
     val app_toml = "[project]\nname = \"app\"\nkind = \"bin\"\n\n[dependencies]\n${libs}${reglib}"
-    write_file("${root}/app/kf.toml".as_str(), app_toml)
-    write_file("${root}/app/src/main.kf".as_str(), """import reglib.named
+    File.write("${root}/app/kf.toml".as_str(), app_toml).unwrap()
+    File.write("${root}/app/src/main.kf".as_str(), """import reglib.named
 import reglib.ranked_above
 
 fun main(): int32 {
     val found = named("b") ?: return 1
     return found.rank + ranked_above(0) as int32 + ranked_above(10) as int32
 }
-""")
+""").unwrap()
     return 0
 }
 
 @test
 fun a_dependent_builds_against_a_library_whose_lambdas_capture(): void {
-    val root = "${scratch_root()}/kf_lambda_capture_library"
+    val root = "${Dir.scratch()}/kf_lambda_capture_library"
     assert_eq(prepare_capturing_library(root), 0, "the fixture is prepared")
     val built = komp_build("${root}/app".as_str(), "")
     assert_eq(built, 0, "the library's lambda structs are not judged a second time")

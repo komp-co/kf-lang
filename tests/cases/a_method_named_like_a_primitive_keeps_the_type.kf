@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // A method named `uint64` or `bool` renames only the method: the fields,
 // parameters and locals of those types keep them.
-import alloc.list.*
 
 struct Counter {
     var count: uint64

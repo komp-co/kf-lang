@@ -3,7 +3,6 @@
 // `xs[i]` is `*(xs.index(i))`, borrowing the element in place rather than
 // bit-copying it out as `get(i)` does.
 
-import alloc.list.*
 
 fun borrowed_len(s: &String): uint64 {
     return s.len()

@@ -1,4 +1,3 @@
-import alloc.list.*
 import alloc.arena.*
 
 extern "C" fun kf_type_nodes_swap(next: uint64): uint64

@@ -4,7 +4,6 @@
 import core.assert.assert_eq
 
 import kf_integration.harness.komp_build
-import std.fs.scratch_path
 import testing.test
 
 extern "C" fun system(cmd: str): int32
@@ -70,31 +69,31 @@ fun bump(c: &var Counter): void { c.bump() }
 
 /// Builds `main`, then runs it: its exit code, or -1 when it does not build.
 fun run_through_deref(main: str): int32 {
-    val core = scratch_path("kf_deref_core")
-    val app = scratch_path("kf_deref_app")
+    val core = Dir.scratch_path("kf_deref_core")
+    val app = Dir.scratch_path("kf_deref_app")
     val natives = "libs/core/native/core.c libs/core/native/core_hosted.c"
     val sources = "cp -R libs/core/src/. ${core}/src/ && cp ${natives} ${core}/native/"
     val dirs = "${core}/src ${core}/native ${app}/src"
     val prep = unsafe { system("rm -rf ${core} ${app} && mkdir -p ${dirs} && ${sources}") }
     if prep != 0 { return 0 - 1 }
-    write_file("${core}/kf.toml".as_str(), """[project]
+    File.write("${core}/kf.toml".as_str(), """[project]
 name = "core"
 kind = "lib"
 
 [native]
 c_sources = ["native/core.c"]
 hosted_c_sources = ["native/core_hosted.c"]
-""")
-    write_file("${app}/kf.toml".as_str(), """[project]
+""").unwrap()
+    File.write("${app}/kf.toml".as_str(), """[project]
 name = "deref_app"
 kind = "bin"
 
 [dependencies]
 core = { path = "../kf_deref_core" }
-""")
-    write_file("${app}/src/main.kf".as_str(), "${DEREF_TYPES}fun main(): int32 {\n${main}\n}\n".as_str())
+""").unwrap()
+    File.write("${app}/src/main.kf".as_str(), "${DEREF_TYPES}fun main(): int32 {\n${main}\n}\n".as_str()).unwrap()
     if komp_build(app, "") != 0 { return 0 - 1 }
-    return unsafe { system(scratch_path("kf_deref_app/target/kflat/deref_app")) } / 256
+    return unsafe { system(Dir.scratch_path("kf_deref_app/target/kflat/deref_app")) } / 256
 }
 
 @test

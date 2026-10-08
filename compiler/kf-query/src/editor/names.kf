@@ -4,8 +4,6 @@
 // A member (method or field) is keyed `Owner.name` instead, the owner read
 // from the receiver's checked type.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.*
 import kf_core.ast.expression.Expr

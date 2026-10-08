@@ -2,8 +2,6 @@
 // of the one it means where it is written (see scope.kf). Parameters and
 // locals keep the None they were parsed with; typecheck resolves those.
 
-import alloc.list.*
-
 import kf_core.ast.pattern.Arm
 import kf_core.ast.expression.view
 import kf_core.ast.expression.Expr

@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // `N: uint8` holds at most 255.
 
-import alloc.list.*
 
 struct Residue<I: Integer, M: I> {
     val value: I

@@ -1,5 +1,3 @@
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TopDeclKind

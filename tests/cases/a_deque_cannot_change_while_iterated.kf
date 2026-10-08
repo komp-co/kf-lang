@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // A deque's cursor is a view of its buffer: pushing while it is still used
 // could move the buffer out from under it, so the push is rejected.
-import alloc.deque.*
 
 fun main(): int32 {
     var dq = Deque.new<int32>()

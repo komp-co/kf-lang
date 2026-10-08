@@ -1,8 +1,6 @@
 // The declaration tree behind the `symbols` answer. Kinds are KFlat words;
 // the client maps them to protocol numbers.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.*

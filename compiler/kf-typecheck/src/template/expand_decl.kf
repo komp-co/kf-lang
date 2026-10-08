@@ -2,8 +2,6 @@
 // header, each body expanded, and a clash with a declaration written by hand
 // reported with both.
 
-import alloc.list.*
-
 import kf_core.span.Span
 import kf_core.span.Location
 import kf_core.span.SourceMap

@@ -5,16 +5,15 @@
 
 import core.assert.assert_eq
 import kf_integration.harness.komp_build
-import std.fs.scratch_path
 import testing.test
 
 extern "C" fun system(cmd: str): int32
 
 fun prepare_box_when_fixture(): int32 {
-    val prep = unsafe { system("rm -rf ${scratch_path("kf_mm3_boxwhen")} && mkdir -p ${scratch_path("kf_mm3_boxwhen/src")}") }
+    val prep = unsafe { system("rm -rf ${Dir.scratch_path("kf_mm3_boxwhen")} && mkdir -p ${Dir.scratch_path("kf_mm3_boxwhen/src")}") }
     if prep != 0 { return prep }
-    write_file(scratch_path("kf_mm3_boxwhen/kf.toml"), "[project]\nname = \"boxwhen\"\nkind = \"bin\"\n")
-    write_file(scratch_path("kf_mm3_boxwhen/src/main.kf"), """enum Tree {
+    File.write(Dir.scratch_path("kf_mm3_boxwhen/kf.toml"), "[project]\nname = \"boxwhen\"\nkind = \"bin\"\n").unwrap()
+    File.write(Dir.scratch_path("kf_mm3_boxwhen/src/main.kf"), """enum Tree {
     Leaf(int32),
     Node(Box<Tree>, int32),
     Tag(Box<String>)
@@ -57,7 +56,7 @@ fun main(): int32 {
     if acc != 10 { return 2 }
     return verdict(&t, &g)
 }
-""")
+""").unwrap()
     return 0
 }
 
@@ -84,9 +83,9 @@ fun box_glue_contains(source: str, needle: str): bool {
 @test
 fun box_payload_enum_when_is_asan_leak_clean(): void {
     assert_eq(prepare_box_when_fixture(), 0, "fixture prepared")
-    val built = komp_build(scratch_path("kf_mm3_boxwhen"), "-fsanitize=address")
+    val built = komp_build(Dir.scratch_path("kf_mm3_boxwhen"), "-fsanitize=address")
     assert_eq(built, 0, "box-payload enum project builds")
-    val ran = unsafe { system("ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ${scratch_path("kf_mm3_boxwhen/target/kflat/boxwhen")}") }
+    val ran = unsafe { system("ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ${Dir.scratch_path("kf_mm3_boxwhen/target/kflat/boxwhen")}") }
     assert_eq(ran, 0, "when over a Box-payload enum drops each box exactly once")
 }
 
@@ -95,17 +94,17 @@ fun box_payload_enum_when_is_asan_leak_clean(): void {
 fun prepare_list_glue_fixture(): int32 {
     // Explicit core/alloc deps on a copied libs tree: the test binary's
     // sysroot cannot resolve the implicit-dep path. Runs from the repo root.
-    val prep = unsafe { system("rm -rf ${scratch_path("kf_mm3_listglue")} ${scratch_path("kf_mm3_listglue_libs")} && mkdir -p ${scratch_path("kf_mm3_listglue/src")} && cp -r libs ${scratch_path("kf_mm3_listglue_libs")}") }
+    val prep = unsafe { system("rm -rf ${Dir.scratch_path("kf_mm3_listglue")} ${Dir.scratch_path("kf_mm3_listglue_libs")} && mkdir -p ${Dir.scratch_path("kf_mm3_listglue/src")} && cp -r libs ${Dir.scratch_path("kf_mm3_listglue_libs")}") }
     if prep != 0 { return prep }
-    write_file(scratch_path("kf_mm3_listglue/kf.toml"), """[project]
+    File.write(Dir.scratch_path("kf_mm3_listglue/kf.toml"), """[project]
 name = "listglue"
 kind = "bin"
 
 [dependencies]
 core = { path = "../kf_mm3_listglue_libs/core" }
 alloc = { path = "../kf_mm3_listglue_libs/alloc" }
-""")
-    write_file(scratch_path("kf_mm3_listglue/src/main.kf"), """enum W {
+""").unwrap()
+    File.write(Dir.scratch_path("kf_mm3_listglue/src/main.kf"), """enum W {
     Leaf(int32),
     Named(String),
     Group(List<W>)
@@ -164,24 +163,24 @@ fun main(): int32 {
     if total(&ui) == 42 { return 0 }
     return 1
 }
-""")
+""").unwrap()
     return 0
 }
 
 @test
 fun list_members_in_aggregates_are_asan_leak_clean(): void {
     assert_eq(prepare_list_glue_fixture(), 0, "fixture prepared")
-    val built = komp_build(scratch_path("kf_mm3_listglue"), "-fsanitize=address")
+    val built = komp_build(Dir.scratch_path("kf_mm3_listglue"), "-fsanitize=address")
     assert_eq(built, 0, "List-member project builds")
-    val ran = unsafe { system("ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ${scratch_path("kf_mm3_listglue/target/kflat/listglue")}") }
+    val ran = unsafe { system("ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ${Dir.scratch_path("kf_mm3_listglue/target/kflat/listglue")}") }
     assert_eq(ran, 0, "aggregate drops free List payloads and fields exactly once")
 }
 
 @test
 fun aggregate_glue_drops_list_members(): void {
     val _p = prepare_list_glue_fixture()
-    val _b = komp_build(scratch_path("kf_mm3_listglue"), "")
-    val source = read_file(scratch_path("kf_mm3_listglue/target/kflat/listglue.c"))
+    val _b = komp_build(Dir.scratch_path("kf_mm3_listglue"), "")
+    val source = File.read(Dir.scratch_path("kf_mm3_listglue/target/kflat/listglue.c")).unwrap_or("")
     assert_eq(box_glue_contains(source, "List__listglue__W__glue_drop(v.u.V_Group._0);"), true, "enum drop glue drops the List payload")
     assert_eq(box_glue_contains(source, "List__String__glue_drop(v.kids);"), true, "struct drop glue drops the List field")
 }
@@ -189,17 +188,17 @@ fun aggregate_glue_drops_list_members(): void {
 // A lib crate's `pub enum` with a `List<T>` payload: public glue must see the
 // materialized `List__T` instance impl, or the consumer leaks the container.
 fun prepare_pub_list_enum_fixture(): int32 {
-    val prep = unsafe { system("rm -rf ${scratch_path("kf_mm3_publist")} ${scratch_path("kf_mm3_publist_app")} ${scratch_path("kf_mm3_publist_libs")} && mkdir -p ${scratch_path("kf_mm3_publist/src")} ${scratch_path("kf_mm3_publist_app/src")} && cp -r libs ${scratch_path("kf_mm3_publist_libs")}") }
+    val prep = unsafe { system("rm -rf ${Dir.scratch_path("kf_mm3_publist")} ${Dir.scratch_path("kf_mm3_publist_app")} ${Dir.scratch_path("kf_mm3_publist_libs")} && mkdir -p ${Dir.scratch_path("kf_mm3_publist/src")} ${Dir.scratch_path("kf_mm3_publist_app/src")} && cp -r libs ${Dir.scratch_path("kf_mm3_publist_libs")}") }
     if prep != 0 { return prep }
-    write_file(scratch_path("kf_mm3_publist/kf.toml"), """[project]
+    File.write(Dir.scratch_path("kf_mm3_publist/kf.toml"), """[project]
 name = "tree"
 kind = "lib"
 
 [dependencies]
 core = { path = "../kf_mm3_publist_libs/core" }
 alloc = { path = "../kf_mm3_publist_libs/alloc" }
-""")
-    write_file(scratch_path("kf_mm3_publist/src/lib.kf"), """pub enum Node {
+""").unwrap()
+    File.write(Dir.scratch_path("kf_mm3_publist/src/lib.kf"), """pub enum Node {
     Item(String),
     Group(List<Node>)
 }
@@ -228,8 +227,8 @@ pub fun weight(n: &Node): int32 {
     }
     return 0
 }
-""")
-    write_file(scratch_path("kf_mm3_publist_app/kf.toml"), """[project]
+""").unwrap()
+    File.write(Dir.scratch_path("kf_mm3_publist_app/kf.toml"), """[project]
 name = "publist_app"
 kind = "bin"
 
@@ -237,8 +236,8 @@ kind = "bin"
 core = { path = "../kf_mm3_publist_libs/core" }
 alloc = { path = "../kf_mm3_publist_libs/alloc" }
 tree = { path = "../kf_mm3_publist" }
-""")
-    write_file(scratch_path("kf_mm3_publist_app/src/main.kf"), """import tree.*
+""").unwrap()
+    File.write(Dir.scratch_path("kf_mm3_publist_app/src/main.kf"), """import tree.*
 
 fun main(): int32 {
     var kids = List.new<Node>()
@@ -249,32 +248,32 @@ fun main(): int32 {
     if weight(&g) == 2 { return 0 }
     return 1
 }
-""")
+""").unwrap()
     return 0
 }
 
 @test
 fun pub_lib_enum_with_list_payload_is_asan_leak_clean(): void {
     assert_eq(prepare_pub_list_enum_fixture(), 0, "fixture prepared")
-    val built = komp_build(scratch_path("kf_mm3_publist_app"), "-fsanitize=address")
+    val built = komp_build(Dir.scratch_path("kf_mm3_publist_app"), "-fsanitize=address")
     assert_eq(built, 0, "consumer of a pub lib List-payload enum builds")
-    val ran = unsafe { system("ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ${scratch_path("kf_mm3_publist_app/target/kflat/publist_app")}") }
+    val ran = unsafe { system("ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ${Dir.scratch_path("kf_mm3_publist_app/target/kflat/publist_app")}") }
     assert_eq(ran, 0, "a pub lib enum's List payload drops across the crate boundary")
 }
 
 @test
 fun pub_lib_enum_glue_drops_its_list_payload(): void {
     val _p = prepare_pub_list_enum_fixture()
-    val _b = komp_build(scratch_path("kf_mm3_publist_app"), "")
-    val source = read_file(scratch_path("kf_mm3_publist_app/target/kflat/tree.c"))
+    val _b = komp_build(Dir.scratch_path("kf_mm3_publist_app"), "")
+    val source = File.read(Dir.scratch_path("kf_mm3_publist_app/target/kflat/tree.c")).unwrap_or("")
     assert_eq(box_glue_contains(source, "List__tree__Node__glue_drop(v.u.V_Group._0);"), true, "the pub enum's drop glue frees its List payload")
 }
 
 @test
 fun enum_drop_glue_frees_box_payloads(): void {
     val _p = prepare_box_when_fixture()
-    val _b = komp_build(scratch_path("kf_mm3_boxwhen"), "")
-    val source = read_file(scratch_path("kf_mm3_boxwhen/target/kflat/boxwhen.c"))
+    val _b = komp_build(Dir.scratch_path("kf_mm3_boxwhen"), "")
+    val source = File.read(Dir.scratch_path("kf_mm3_boxwhen/target/kflat/boxwhen.c")).unwrap_or("")
     assert_eq(box_glue_contains(source, "kf_free(v.u.V_Node._0); }"), true, "enum drop glue frees the recursive Box payload")
     assert_eq(box_glue_contains(source, "kf_free(v.u.V_Tag._0); }"), true, "enum drop glue frees the Box<String> payload")
 }

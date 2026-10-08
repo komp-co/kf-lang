@@ -3,7 +3,6 @@
 // A type parameter mentioned only inside another generic still binds from the
 // argument, so the call is monomorphized without spelling its type arguments.
 
-import alloc.list.*
 
 fun filter<T, F: Call1<T>>(xs: List<T>, keep: F): List<T> {
     var out = List.new<T>()

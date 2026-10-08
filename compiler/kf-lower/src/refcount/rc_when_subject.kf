@@ -1,8 +1,6 @@
 // A `when` subject that owns a fresh value is hoisted into a local, so the
 // `when` can consume it and its arms own the payloads.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.expression.*
 import kf_core.ast.statement.Stmt

@@ -1,8 +1,6 @@
 // A literal where a type converting from it is expected: `[a, b]` becomes the
 // type's `from(E[N])` of an array built in place, and `"text"` its `from(str)`.
 
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr

@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // `String[]` is not a type: an index goes between the brackets.
 
-import alloc.list.*
 
 fun main(): int32 {
     var names = String[]

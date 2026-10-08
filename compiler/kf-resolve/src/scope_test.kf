@@ -3,7 +3,6 @@
 
 import kf_core.intern.intern
 import core.assert.assert_eq
-import alloc.list.*
 
 import kf_core.ast.alias_admission
 import kf_core.ast.renamed_admission

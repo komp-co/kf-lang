@@ -1,7 +1,6 @@
 // A node's span covers the text it owns.
 
 import core.assert.assert_eq
-import alloc.list.*
 
 import kf_core.span.*
 import kf_parse.parser.parser_for

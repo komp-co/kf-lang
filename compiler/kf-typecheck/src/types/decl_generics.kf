@@ -1,5 +1,3 @@
-import alloc.list.*
-
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.TypeParam
 import kf_core.names.*

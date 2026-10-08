@@ -8,7 +8,6 @@
 //     with the argument already typed; `Index<Range<uint64>>` must apply.
 //   * `Measure.of(0..5)`: static trait dispatch, a separate path.
 import core.range.*
-import alloc.list.*
 
 struct Bag { pub var xs: List<int32> }
 

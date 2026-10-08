@@ -1,8 +1,6 @@
 // A bound naming a nonexistent trait is reported where it is written, not as
 // a failure of every caller's argument.
 
-import alloc.list.*
-
 import kf_core.diagnostic.*
 import kf_typecheck.note_import_use
 

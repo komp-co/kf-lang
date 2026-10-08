@@ -3,7 +3,6 @@
 // `swap` exchanges two slots in place, which get/set cannot do for an element
 // that owns memory: `get` exists only for a Copy element.
 
-import alloc.list.*
 
 fun main(): int32 {
     var xs = List.new<String>()

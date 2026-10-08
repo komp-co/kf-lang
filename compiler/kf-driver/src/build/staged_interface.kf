@@ -1,8 +1,6 @@
 // A crate's interface written from its sources, staged text included, so a
 // crate checked against it sees an edit that is not saved yet.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_assemble.*
 import kf_interface.export_closure_diagnostics

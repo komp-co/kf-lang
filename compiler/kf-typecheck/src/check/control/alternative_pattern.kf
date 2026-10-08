@@ -2,8 +2,6 @@
 // none may bind, since a name bound by one would be unset when another
 // matched.
 
-import alloc.list.*
-
 import kf_core.ast.pattern.Pattern
 import kf_core.ast.types.Type
 import kf_core.diagnostic.Label

@@ -3,8 +3,6 @@
 // enum with its impl blocks, the trait impls for it and the extensions on it;
 // a trait's method with each impl's version of it.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.Module
 import kf_core.ast.declaration.TopDecl

@@ -1,8 +1,6 @@
 // Selection ranges: the spans covering the offset, innermost outward, ending
 // at the declaration. Parse-only, since it is asked on every keystroke.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.Module
 import json.writer.*

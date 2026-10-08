@@ -5,19 +5,18 @@ import kf_integration.harness.typed_crate_for
 import core.assert.assert_eq
 
 import kf_query.editor.render_inlays_json
-import std.fs.scratch_path
 import testing.test
 
 extern "C" fun system(cmd: str): int32
 
 fun decided_fixture_path(): str {
-    return scratch_path("kf_query_decided/src/main.kf")
+    return Dir.scratch_path("kf_query_decided/src/main.kf")
 }
 
 /// `n + n` decides nothing, so `wide(n)` decides `n`, and `doubled` with it.
 fun prepare_decided_fixture(): void {
-    unsafe { system("rm -rf ${scratch_path("kf_query_decided")} && mkdir -p ${scratch_path("kf_query_decided/src")}") }
-    write_file(scratch_path("kf_query_decided/kf.toml"), "[project]\nname = \"query_decided\"\nkind = \"lib\"\n")
+    unsafe { system("rm -rf ${Dir.scratch_path("kf_query_decided")} && mkdir -p ${Dir.scratch_path("kf_query_decided/src")}") }
+    File.write(Dir.scratch_path("kf_query_decided/kf.toml"), "[project]\nname = \"query_decided\"\nkind = \"lib\"\n").unwrap()
     val src = """fun wide(x: uint64): uint64 {
     return x
 }
@@ -28,7 +27,7 @@ fun run(): uint64 {
     return wide(n) + doubled
 }
 """
-    write_file(decided_fixture_path(), src.as_str())
+    File.write(decided_fixture_path(), src.as_str()).unwrap()
 }
 
 @test

@@ -8,8 +8,6 @@
 // and any other target `AnnotatedItem<bench> { name, module, kind, args }`,
 // `kind` an `AnnotatedKind` variant. Pins keep only the uses binding them.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef

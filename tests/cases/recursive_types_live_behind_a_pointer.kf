@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // Recursion behind a Box, a List or an optional Box is not held by value.
 
-import alloc.list.*
 
 enum Expr {
     Num(int32)

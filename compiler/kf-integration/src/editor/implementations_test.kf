@@ -3,7 +3,6 @@
 
 import kf_integration.harness.typed_crate_for
 import core.assert.assert_eq
-import std.fs.scratch_path
 import kf_query.editor.render_implementations_json
 import testing.test
 
@@ -42,10 +41,10 @@ pub fun probe(p: Point): int32 {
 }
 
 fun impls_crate(): TypedCrate {
-    val root = scratch_path("kf_query_impls")
+    val root = Dir.scratch_path("kf_query_impls")
     unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
-    write_file("${root}/kf.toml", "[project]\nname = \"query_impls\"\nkind = \"lib\"\n")
-    write_file("${root}/src/lib.kf", impls_source())
+    File.write("${root}/kf.toml", "[project]\nname = \"query_impls\"\nkind = \"lib\"\n").unwrap()
+    File.write("${root}/src/lib.kf", impls_source()).unwrap()
     return typed_crate_for("${root}/src/lib.kf")
 }
 

@@ -4,7 +4,6 @@
 // inserted copy is deep, and the container keeps an intact element.
 
 import alloc.string.*
-import alloc.list.*
 
 @derive(Clone)
 pub struct Shared { pub var name: String }

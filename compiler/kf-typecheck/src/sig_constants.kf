@@ -1,8 +1,6 @@
 // Top-level `val`s. Each also registers a signature with no parameters, so
 // imports and visibility find it the way they find a function.
 
-import alloc.list.*
-
 import kf_core.ast.expression.Expr
 import kf_core.ast.types.Type
 import kf_core.ast.declaration.TopDecl

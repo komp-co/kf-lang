@@ -1,7 +1,5 @@
 // Filtering a declaration list in place.
 
-import alloc.list.*
-
 /// Keeps the declarations whose flag in `keep` is set, in order, by moving
 /// them forward; the rest are dropped. Nothing is copied. True when any was
 /// dropped.

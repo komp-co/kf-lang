@@ -11,8 +11,6 @@
 //   operators   codegen turns `+` into `int32_add__Add`
 //   glue        codegen synthesizes `<T>_drop_user` / `<T>_clone_user`
 
-import alloc.list.*
-
 import kf_core.ast.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.binop_method

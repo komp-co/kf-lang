@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // `M` holds a value, and `int32` is a type.
 
-import alloc.list.*
 
 struct Residue<I: Integer, M: I> {
     val value: I

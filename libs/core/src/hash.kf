@@ -10,9 +10,6 @@ pub trait Hash {
     fun hash(): uint64
 }
 
-extern "C" fun kf_str_byte_len(s: str): uint64
-extern "C" fun kf_str_byte_at(s: str, i: uint64): uint8
-
 /// Murmur3's 64-bit finalizer over a golden-ratio-shifted input, so
 /// sequential keys land far apart under `hash % n`.
 @prelude
@@ -25,19 +22,4 @@ pub fun mix_uint64(value: uint64): uint64 {
     x = x * 0xc4ceb9fe1a85ec53
     x = x ^ (x >> 33)
     return x
-}
-
-/// FNV-1a over the bytes of `s`: no allocation, no libc, and `str` and
-/// `String` agree.
-@prelude
-pub fun hash_bytes(s: str): uint64 {
-    var h: uint64 = 0xcbf29ce484222325
-    val n = unsafe { kf_str_byte_len(s) }
-    var i = 0
-    while i < n {
-        h = h ^ (unsafe { kf_str_byte_at(s, i) } as uint64)
-        h = h * 0x100000001b3
-        i = i + 1
-    }
-    return h
 }

@@ -142,7 +142,7 @@ on a struct holding one ([#299]). Compare or print the elements instead.
 threads ([#58]). It does have standard input and error, pipes to a child
 process with a single-threaded `Poll` over them, and `std.time`: a clock, a
 sleep, and a monotonic `Instant`. The process's arguments are in core
-(`arg_count()`, `arg_at(i)`).
+(`Args.count()`, `Args.at(i)`).
 
 ## Trait objects are borrowed, and cannot be collected
 

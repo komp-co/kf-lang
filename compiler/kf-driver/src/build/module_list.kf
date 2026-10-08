@@ -1,8 +1,6 @@
 // Modules gathered from several crates into one, with the parse and
 // configuration diagnostics met along the way.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.Import
 import kf_core.ast.Module

@@ -6,7 +6,6 @@
 
 
 import core.display.*
-import alloc.list.*
 
 struct Node { pub val v: int32 }
 fun unwrap_v(nd: Node): int32 { return nd.v }

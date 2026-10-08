@@ -3,8 +3,6 @@
 // so anything not provably safe is refused with a reason. The checks for
 // members and locals are rename_scope.kf.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.Module
 import kf_core.ast.declaration.DeclId
@@ -12,7 +10,6 @@ import kf_core.ast.declaration.TopDecl
 import kf_parse.lexer.*
 import json.writer.*
 import alloc.path.Path
-import std.fs.absolute
 
 /// `{"schema_version":1,"file":..,"offset":N,"new_name":"..","ok":bool,
 ///   "error":null|"..","range":null|{..},"edits":[{..}]}`
@@ -170,5 +167,5 @@ fun owned_by_this_crate(home: Span, crate: &TypedCrate): bool {
     val here = path_for_file_id(crate.smap, crate.file_id)
     if decl_file.as_str() == "" || here.as_str() == "" { return false }
     if crate.root.as_str() == "" { return false }
-    return Path.new(decl_file.as_str()).starts_with(&absolute(crate.root))
+    return Path.new(decl_file.as_str()).starts_with(&Dir.current().join(crate.root))
 }

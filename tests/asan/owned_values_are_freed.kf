@@ -2,7 +2,6 @@
 // The positive control: correct ownership comes back clean, or the gate is not
 // looking.
 import alloc.string.*
-import alloc.list.*
 
 struct Holder { pub var items: List<String> }
 

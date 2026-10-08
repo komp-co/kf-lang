@@ -3,7 +3,6 @@
 // `while x in xs` over a `&List<T>` looks through the borrow for `Iterable`,
 // as method calls do.
 
-import alloc.list.*
 
 fun total(xs: &List<int32>): int32 {
     var sum: int32 = 0

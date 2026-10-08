@@ -4,8 +4,6 @@ import core.assert.assert_eq
 import core.assert.assert
 import core.hash.assert_eq
 import core.hash.assert
-import alloc.list.*
-import alloc.hash_map.*
 import testing.test
 
 @test

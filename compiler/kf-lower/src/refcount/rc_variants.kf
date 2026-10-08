@@ -3,8 +3,6 @@
 // exist. One row per payload, in flat parallel lists, indexed by
 // `owner/variant` and by owner.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.NameIndex
 import kf_core.ast.types.TypeRef

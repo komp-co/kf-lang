@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // The accepted half of val_field_mutable_borrow_rejected.
 
-import alloc.list.*
 
 struct S {
     pub var xs: List<int32>

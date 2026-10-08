@@ -4,7 +4,6 @@
 // a clone both slots name one buffer and the list's drop frees it twice.
 
 import core.display.*
-import alloc.list.*
 
 fun main(): int32 {
     var names = List.new<String>()

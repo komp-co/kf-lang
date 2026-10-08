@@ -1,8 +1,6 @@
 // Compiling or checking one crate against its dependencies' interfaces;
 // dependency source is never opened.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.diagnostic.*
 import kf_core.intern.CrateId

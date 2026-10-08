@@ -4,34 +4,33 @@
 
 import core.assert.assert_eq
 import kf_integration.harness.komp_build
-import std.fs.scratch_path
 import testing.test
 
 extern "C" fun system(cmd: str): int32
 extern "C" fun access(path: str, mode: int32): int32
 
 fun prepare_dyn_strip_fixture(): int32 {
-    val prep = unsafe { system("rm -rf ${scratch_path("kf_dyn_strip_core")} ${scratch_path("kf_dyn_strip_app")} && mkdir -p ${scratch_path("kf_dyn_strip_core/src")} ${scratch_path("kf_dyn_strip_core/native")} ${scratch_path("kf_dyn_strip_app/src")} && cp -R libs/core/src/. ${scratch_path("kf_dyn_strip_core/src/")}") }
+    val prep = unsafe { system("rm -rf ${Dir.scratch_path("kf_dyn_strip_core")} ${Dir.scratch_path("kf_dyn_strip_app")} && mkdir -p ${Dir.scratch_path("kf_dyn_strip_core/src")} ${Dir.scratch_path("kf_dyn_strip_core/native")} ${Dir.scratch_path("kf_dyn_strip_app/src")} && cp -R libs/core/src/. ${Dir.scratch_path("kf_dyn_strip_core/src/")}") }
     if prep != 0 { return prep }
-    write_file(scratch_path("kf_dyn_strip_core/kf.toml"), """[project]
+    File.write(Dir.scratch_path("kf_dyn_strip_core/kf.toml"), """[project]
 name = "core"
 kind = "lib"
 
 [native]
 c_sources = ["native/core.c"]
 hosted_c_sources = ["native/core_hosted.c"]
-""")
-    val core_native = read_file("libs/core/native/core.c")
-    write_file(scratch_path("kf_dyn_strip_core/native/core.c"), core_native)
-    val core_hosted = read_file("libs/core/native/core_hosted.c")
-    write_file(scratch_path("kf_dyn_strip_core/native/core_hosted.c"), core_hosted)
-    write_file(scratch_path("kf_dyn_strip_app/kf.toml"), """[project]
+""").unwrap()
+    val core_native = File.read("libs/core/native/core.c").unwrap_or("")
+    File.write(Dir.scratch_path("kf_dyn_strip_core/native/core.c"), core_native).unwrap()
+    val core_hosted = File.read("libs/core/native/core_hosted.c").unwrap_or("")
+    File.write(Dir.scratch_path("kf_dyn_strip_core/native/core_hosted.c"), core_hosted).unwrap()
+    File.write(Dir.scratch_path("kf_dyn_strip_app/kf.toml"), """[project]
 name = "dyn_strip_app"
 kind = "bin"
 
 [dependencies]
 core = { path = "../kf_dyn_strip_core" }
-""")
+""").unwrap()
 
     // `score` is reached only through the trait object.
     var app = String.from("trait Score {\n    fun score(): int32\n}\n\n")
@@ -44,17 +43,17 @@ core = { path = "../kf_dyn_strip_core" }
     return 1
 }
 """)
-    write_file(scratch_path("kf_dyn_strip_app/src/main.kf"), app)
+    File.write(Dir.scratch_path("kf_dyn_strip_app/src/main.kf"), app).unwrap()
     return 0
 }
 
 @test
 fun a_vtable_only_method_survives_dead_stripping(): void {
     val prepared = prepare_dyn_strip_fixture()
-    val built = komp_build(scratch_path("kf_dyn_strip_app"), "")
-    val binary = unsafe { access(scratch_path("kf_dyn_strip_app/target/kflat/dyn_strip_app"), 0) }
+    val built = komp_build(Dir.scratch_path("kf_dyn_strip_app"), "")
+    val binary = unsafe { access(Dir.scratch_path("kf_dyn_strip_app/target/kflat/dyn_strip_app"), 0) }
     // Exit 0 means `score` ran through the vtable slot.
-    val ran = unsafe { system(scratch_path("kf_dyn_strip_app/target/kflat/dyn_strip_app")) }
+    val ran = unsafe { system(Dir.scratch_path("kf_dyn_strip_app/target/kflat/dyn_strip_app")) }
     val ok = prepared == 0 && built == 0 && binary == 0 && ran == 0
     assert_eq(ok, true, "a method reached only through a vtable survives --gc-sections")
 }

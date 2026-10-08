@@ -20,9 +20,6 @@
 // Exit 0 on success, 1 when the crate has errors, 2 on a malformed line.
 
 import kf_core.diagnostic.Diagnostics
-import alloc.list.*
-import core.args.arg_at
-import core.args.arg_count
 
 import kf_driver.note_crate_being_built
 import kf_driver.print_lint_table
@@ -35,8 +32,8 @@ import kf_interface.interface_target
 extern "C" fun kf_mute_warnings(on: int32): void
 
 pub fun kflatc_cli(): int32 {
-    if arg_count() == 0 { return kflatc_usage() }
-    val command = arg_at(0)
+    if Args.count() == 0 { return kflatc_usage() }
+    val command = Args.at(0)
     if command == "version" { return print_version("kflatc") }
     if command == "lints" { return print_lint_table() }
     if command != "compile" && command != "check" && command != "unity" { return kflatc_usage() }
@@ -55,8 +52,8 @@ pub fun kflatc_cli(): int32 {
     var crates = List.new<CrateSource>()
     var crate_srcs = List.new<String>()
     var i = 1
-    while i < arg_count() {
-        val flag = arg_at(i)
+    while i < Args.count() {
+        val flag = Args.at(i)
         if flag == "--bin" || flag == "--format=json" || flag == "--tests" || flag == "--summary" {
             if flag == "--bin" {
                 is_bin = true
@@ -80,8 +77,8 @@ pub fun kflatc_cli(): int32 {
             i = i + 2
             continue
         }
-        if i + 1 >= arg_count() { return kflatc_usage() }
-        val value = arg_at(i + 1)
+        if i + 1 >= Args.count() { return kflatc_usage() }
+        val value = Args.at(i + 1)
         when flag {
             "--name" => name = value
             "--root" => root = value

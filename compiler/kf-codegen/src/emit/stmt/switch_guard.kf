@@ -2,8 +2,6 @@
 // the next candidate, and two guarded arms over one variant would repeat a
 // label. It becomes an if/else-if chain, one branch per arm in source order.
 
-import alloc.list.*
-
 import kf_core.ast.expression.Expr
 import kf_core.ast.statement.SwitchArm
 import kf_core.ast.statement.SwitchTag

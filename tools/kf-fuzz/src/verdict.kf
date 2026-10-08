@@ -10,8 +10,6 @@
 //     exit 1, any other last line                  panic, that line
 //     any other exit                               that exit and last line
 
-import alloc.list.*
-
 pub struct Verdict {
     pub val fine: bool
     /// Empty when fine.

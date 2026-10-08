@@ -2,8 +2,6 @@
 // CONSTRAINT: must agree with rc_value_params.kf, which asks the same of the
 // same list for the refcount pass; a disagreement is a leak or a double free.
 
-import alloc.list.*
-
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.Param
 import kf_core.ast.subst.mangle_tyref

@@ -1,6 +1,4 @@
 import core.assert.assert_eq
-import alloc.list.*
-import alloc.hash_map.*
 
 import kf_core.ast.types.Provenance
 import kf_core.ast.types.Type

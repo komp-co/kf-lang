@@ -3,7 +3,6 @@
 // A loop over a value nothing else owns drops it once the loop ends. Each
 // scenario counts drops and demands exactly one per element.
 import core.assert.*
-import alloc.list.*
 
 pub struct Tracked {
     var counter: Ptr<int32>

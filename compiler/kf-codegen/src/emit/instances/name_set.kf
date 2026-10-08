@@ -1,8 +1,5 @@
 // A set of names that keeps the order they were first added in.
 
-import alloc.list.*
-import alloc.hash_map.HashMap
-
 pub struct NameSet {
     /// In first-added order, without repeats.
     pub var names: List<String>

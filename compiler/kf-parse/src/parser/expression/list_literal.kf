@@ -1,8 +1,6 @@
 // `[a, b, c]` in value position; kf_core's list_literal.kf has the shape it
 // becomes.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.expression.Expr
 import kf_parse.parser.*

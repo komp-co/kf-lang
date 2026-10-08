@@ -3,7 +3,6 @@
 // temp for `.as_str()`: the hoist runs the second consume first. Both copy,
 // and the original is dropped once in `outer`.
 import alloc.string.*
-import alloc.list.*
 
 struct Holder { pub var items: List<String> }
 

@@ -1,9 +1,6 @@
 // Function signatures and struct layouts, registered before any body so
 // forward calls work.
 
-import alloc.list.*
-import alloc.hash_map.*
-
 import kf_core.ast.*
 import kf_core.span.SourceMap
 import kf_core.ast.types.Type
@@ -14,6 +11,7 @@ import kf_core.ast.declaration.*
 import kf_resolve.DeclTable
 import kf_core.intern.*
 import kf_core.ast.annotation.*
+import kf_resolve.none_index
 
 @derive(Clone)
 pub struct FnSignature {

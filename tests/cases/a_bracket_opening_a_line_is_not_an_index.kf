@@ -4,7 +4,6 @@
 // skips newlines only to reach a `.`. The `[0]` below is a list literal of
 // its own; joined to the line above it would read `ys[0]`, an `int32`.
 
-import alloc.list.*
 
 fun main(): int32 {
     var ys = List.new<int32>()

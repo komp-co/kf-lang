@@ -1,8 +1,6 @@
 // Re-binds a zero-argument static call on a generic type to its slot's
 // instance.
 
-import alloc.list.*
-
 import kf_core.ast.expression.Expr
 import kf_core.intern.intern
 import kf_typecheck.types.*

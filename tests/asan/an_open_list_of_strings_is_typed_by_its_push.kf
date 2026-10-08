@@ -1,5 +1,4 @@
 //! asan: clean
-import alloc.list.*
 
 fun main(): int32 {
     var names = List.new()

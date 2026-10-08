@@ -3,7 +3,6 @@
 // The eager adapters on List. `Call1<T>` takes its argument by value, so each
 // element handed to a callable is a copy and the source survives intact.
 
-import alloc.list.*
 
 fun ints(n: uint64): List<int32> {
     var out = List.new<int32>()

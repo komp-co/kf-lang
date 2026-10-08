@@ -1,7 +1,6 @@
 // Parser helper ownership across temporary token destruction.
 
 import core.assert.assert_eq
-import alloc.list.*
 import testing.test
 
 @test

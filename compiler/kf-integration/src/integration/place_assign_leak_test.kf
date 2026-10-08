@@ -5,16 +5,15 @@
 
 import core.assert.assert_eq
 import kf_integration.harness.komp_build
-import std.fs.scratch_path
 import testing.test
 
 extern "C" fun system(cmd: str): int32
 
 fun prepare_place_assign_fixture(): int32 {
-    val prep = unsafe { system("rm -rf ${scratch_path("kf_place_assign")} && mkdir -p ${scratch_path("kf_place_assign/src")}") }
+    val prep = unsafe { system("rm -rf ${Dir.scratch_path("kf_place_assign")} && mkdir -p ${Dir.scratch_path("kf_place_assign/src")}") }
     if prep != 0 { return prep }
-    write_file(scratch_path("kf_place_assign/kf.toml"), "[project]\nname = \"placeassign\"\nkind = \"bin\"\n")
-    write_file(scratch_path("kf_place_assign/src/main.kf"), """struct Holder { pub var s: String }
+    File.write(Dir.scratch_path("kf_place_assign/kf.toml"), "[project]\nname = \"placeassign\"\nkind = \"bin\"\n").unwrap()
+    File.write(Dir.scratch_path("kf_place_assign/src/main.kf"), """struct Holder { pub var s: String }
 
 fun main(): int32 {
     var h = Holder { s: String.from("alpha") }
@@ -31,15 +30,15 @@ fun main(): int32 {
     if !h.s.as_str().equals("gamma") { return 2 }
     return 0
 }
-""")
+""").unwrap()
     return 0
 }
 
 @test
 fun field_assignment_drops_what_it_overwrites(): void {
     assert_eq(prepare_place_assign_fixture(), 0, "fixture prepared")
-    val built = komp_build(scratch_path("kf_place_assign"), "-fsanitize=address")
+    val built = komp_build(Dir.scratch_path("kf_place_assign"), "-fsanitize=address")
     assert_eq(built, 0, "place-assignment project builds")
-    val ran = unsafe { system("ASAN_OPTIONS=detect_leaks=1 ${scratch_path("kf_place_assign/target/kflat/placeassign")}") }
+    val ran = unsafe { system("ASAN_OPTIONS=detect_leaks=1 ${Dir.scratch_path("kf_place_assign/target/kflat/placeassign")}") }
     assert_eq(ran, 0, "assigning to a field drops the value it overwrites")
 }

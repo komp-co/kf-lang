@@ -1,7 +1,6 @@
 // Drives a small Module through resolve, typecheck, mono and lower.
 
 import core.assert.assert_eq
-import alloc.list.*
 
 import kf_core.span.*
 import kf_core.ast.*

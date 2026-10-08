@@ -1,5 +1,3 @@
-import alloc.list.*
-
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_typecheck.types.nominal_name

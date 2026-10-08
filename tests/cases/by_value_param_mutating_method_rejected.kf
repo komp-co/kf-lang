@@ -6,7 +6,6 @@
 // `push` would write through. Mutation is spelled `&var` in the type. The
 // diagnostic names that repair, since a parameter has no `var` form.
 
-import alloc.list.*
 
 fun add(xs: List<int32>): void {
     xs.push(1)

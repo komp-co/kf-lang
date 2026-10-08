@@ -3,7 +3,6 @@
 // `List.contains` lives in `impl List<T: Equal>`, and `Option<Plain>` is
 // Equal only if `Plain` is.
 
-import alloc.list.*
 
 struct Plain { pub val n: int32 }
 

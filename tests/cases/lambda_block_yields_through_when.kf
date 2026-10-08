@@ -3,7 +3,6 @@
 // A lambda block yields the value of its trailing `when` or `if`, through
 // every arm; a `when` whose arms are statements leaves it `void`.
 
-import alloc.list.*
 
 fun apply<F: Call1<int32>>(f: F, x: int32): int32 { return f.call(x) }
 

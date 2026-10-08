@@ -6,9 +6,6 @@
 // admit; its own crate shadows other crates, and `@prelude` declarations
 // need no import.
 
-import alloc.list.*
-import alloc.hash_map.*
-
 import kf_core.ast.*
 import kf_core.ast.declaration.DeclId
 import kf_core.runtime.runtime_name_is_reserved

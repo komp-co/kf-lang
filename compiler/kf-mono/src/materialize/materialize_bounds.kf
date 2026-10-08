@@ -3,8 +3,6 @@
 // whose `equals` would call a function nothing defines. Struct and enum
 // layouts are not gated; typecheck already rejected unsatisfying instances.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.TopDecl

@@ -5,44 +5,43 @@
 
 import core.assert.assert_eq
 import kf_integration.harness.komp_build
-import std.fs.scratch_path
 import testing.test
 
 extern "C" fun system(cmd: str): int32
 extern "C" fun access(path: str, mode: int32): int32
 
 fun prepare_qualification_fixture(): int32 {
-    val prep = unsafe { system("rm -rf ${scratch_path("kf_qual_core")} ${scratch_path("kf_qual_alloc")} ${scratch_path("kf_qual_app")} && mkdir -p ${scratch_path("kf_qual_core/src")} ${scratch_path("kf_qual_core/native")} ${scratch_path("kf_qual_alloc/src")} ${scratch_path("kf_qual_app/src")} && cp -R libs/core/src/. ${scratch_path("kf_qual_core/src/")} && cp -R libs/alloc/src/. ${scratch_path("kf_qual_alloc/src/")}") }
+    val prep = unsafe { system("rm -rf ${Dir.scratch_path("kf_qual_core")} ${Dir.scratch_path("kf_qual_alloc")} ${Dir.scratch_path("kf_qual_app")} && mkdir -p ${Dir.scratch_path("kf_qual_core/src")} ${Dir.scratch_path("kf_qual_core/native")} ${Dir.scratch_path("kf_qual_alloc/src")} ${Dir.scratch_path("kf_qual_app/src")} && cp -R libs/core/src/. ${Dir.scratch_path("kf_qual_core/src/")} && cp -R libs/alloc/src/. ${Dir.scratch_path("kf_qual_alloc/src/")}") }
     if prep != 0 { return prep }
-    write_file(scratch_path("kf_qual_core/kf.toml"), """[project]
+    File.write(Dir.scratch_path("kf_qual_core/kf.toml"), """[project]
 name = "core"
 kind = "lib"
 
 [native]
 c_sources = ["native/core.c"]
 hosted_c_sources = ["native/core_hosted.c"]
-""")
-    val core_native = read_file("libs/core/native/core.c")
-    write_file(scratch_path("kf_qual_core/native/core.c"), core_native)
-    val core_hosted = read_file("libs/core/native/core_hosted.c")
-    write_file(scratch_path("kf_qual_core/native/core_hosted.c"), core_hosted)
-    write_file(scratch_path("kf_qual_alloc/kf.toml"), """[project]
+""").unwrap()
+    val core_native = File.read("libs/core/native/core.c").unwrap_or("")
+    File.write(Dir.scratch_path("kf_qual_core/native/core.c"), core_native).unwrap()
+    val core_hosted = File.read("libs/core/native/core_hosted.c").unwrap_or("")
+    File.write(Dir.scratch_path("kf_qual_core/native/core_hosted.c"), core_hosted).unwrap()
+    File.write(Dir.scratch_path("kf_qual_alloc/kf.toml"), """[project]
 name = "alloc"
 kind = "lib"
 
 [dependencies]
 core = { path = "../kf_qual_core" }
-""")
-    write_file(scratch_path("kf_qual_app/kf.toml"), """[project]
+""").unwrap()
+    File.write(Dir.scratch_path("kf_qual_app/kf.toml"), """[project]
 name = "qual_app"
 kind = "bin"
 
 [dependencies]
 core = { path = "../kf_qual_core" }
 alloc = { path = "../kf_qual_alloc" }
-""")
+""").unwrap()
 
-    var app = String.from("import core.*\nimport alloc.list.*\n\n")
+    var app = String.from("import core.*\n\n")
     app.append("struct Decl { pub val n: int32 }\n\n")
     app.append("enum Color { Red\n             Blue }\n\n")
     app.append("impl Equal for Color {\n")
@@ -95,16 +94,16 @@ alloc = { path = "../kf_qual_alloc" }
     app.append("    val made = Step_2.from(3)\n")
     app.append("    if made.unused != 3 { return 7 }\n")
     app.append("    return 0\n}\n")
-    write_file(scratch_path("kf_qual_app/src/main.kf"), app)
+    File.write(Dir.scratch_path("kf_qual_app/src/main.kf"), app).unwrap()
     return 0
 }
 
 @test
 fun every_part_of_an_assembled_callee_is_crate_qualified(): void {
     val prepared = prepare_qualification_fixture()
-    val built = komp_build(scratch_path("kf_qual_app"), "")
-    val binary = unsafe { access(scratch_path("kf_qual_app/target/kflat/qual_app"), 0) }
-    val ran = unsafe { system(scratch_path("kf_qual_app/target/kflat/qual_app")) }
+    val built = komp_build(Dir.scratch_path("kf_qual_app"), "")
+    val binary = unsafe { access(Dir.scratch_path("kf_qual_app/target/kflat/qual_app"), 0) }
+    val ran = unsafe { system(Dir.scratch_path("kf_qual_app/target/kflat/qual_app")) }
     val ok = prepared == 0 && built == 0 && binary == 0 && ran == 0
     assert_eq(ok, true, "a callee assembled from owner, method and tail links and runs")
 }

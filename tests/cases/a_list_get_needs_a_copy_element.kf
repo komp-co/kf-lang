@@ -4,7 +4,6 @@
 // String it would hand back a view of the list's own buffer, and the swap
 // below would free what `tmp` still points at.
 
-import alloc.list.*
 
 fun main(): int32 {
     var xs = List.new<String>()

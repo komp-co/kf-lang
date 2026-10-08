@@ -7,8 +7,6 @@
 // alias a statement buffer `check_stmt` handed out, so `set` through it
 // corrupts the node.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.types.*
 import kf_core.ast.expression.Expr

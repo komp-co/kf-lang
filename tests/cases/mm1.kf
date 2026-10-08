@@ -7,7 +7,6 @@
 // The clone must be deep, and only the author can write it: a derived one
 // would copy the `data` pointer. Reading `xs.at(0)` after the sink ran shows
 // it is deep. Fields are read rather than methods on `at()` receivers.
-import alloc.list.*
 
 extern "C" fun free(p: Ptr<uint8>): void
 extern "C" fun runtime_println(s: str): void

@@ -1,8 +1,6 @@
 // A view literal borrows from one place, so freezing that place is enough to
 // keep the view valid. Fields lent from two different bindings are rejected.
 
-import alloc.list.*
-
 import kf_core.ast.expression.Expr
 import kf_core.diagnostic.Label
 import kf_core.diagnostic.Diagnostic

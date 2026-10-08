@@ -7,8 +7,6 @@
 //
 // (1) and (3) are exclusive, decided by whether the rhs consumed the binding.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.expression.*
 import kf_core.ast.statement.Stmt

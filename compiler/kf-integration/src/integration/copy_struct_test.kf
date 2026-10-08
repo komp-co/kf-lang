@@ -5,18 +5,17 @@
 import core.assert.assert_eq
 
 import kf_integration.harness.komp_build
-import std.fs.scratch_path
 import testing.test
 
 extern "C" fun system(cmd: str): int32
 
 fun build_with_move_lints_denied(main: str): int32 {
-    val dir = scratch_path("kf_copy_struct")
+    val dir = Dir.scratch_path("kf_copy_struct")
     val prep = unsafe { system("rm -rf ${dir} && mkdir -p ${dir}/src") }
     if prep != 0 { return prep }
-    write_file("${dir}/kf.toml".as_str(), "[project]\nname = \"copy_struct\"\nkind = \"bin\"\n")
-    write_file("${dir}/lint.toml".as_str(), "[lints]\ncopy_after_move = \"deny\"\nimplicit_copy = \"deny\"\n")
-    write_file("${dir}/src/main.kf".as_str(), main)
+    File.write("${dir}/kf.toml".as_str(), "[project]\nname = \"copy_struct\"\nkind = \"bin\"\n").unwrap()
+    File.write("${dir}/lint.toml".as_str(), "[lints]\ncopy_after_move = \"deny\"\nimplicit_copy = \"deny\"\n").unwrap()
+    File.write("${dir}/src/main.kf".as_str(), main).unwrap()
     return komp_build(dir, "")
 }
 

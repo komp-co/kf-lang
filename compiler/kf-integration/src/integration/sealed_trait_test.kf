@@ -5,18 +5,17 @@
 import core.assert.assert_eq
 
 import kf_integration.harness.komp_build
-import std.fs.scratch_path
 import testing.test
 
 extern "C" fun system(cmd: str): int32
 
 fun prepare_sealed_fixture(app_main: str): int32 {
-    val dep = scratch_path("kf_sealed_dep")
-    val app = scratch_path("kf_sealed_app")
+    val dep = Dir.scratch_path("kf_sealed_dep")
+    val app = Dir.scratch_path("kf_sealed_app")
     val prep = unsafe { system("rm -rf ${dep} ${app} && mkdir -p ${dep}/src ${app}/src") }
     if prep != 0 { return prep }
-    write_file("${dep}/kf.toml".as_str(), "[project]\nname = \"sealed_dep\"\nkind = \"lib\"\n")
-    write_file("${dep}/src/lib.kf".as_str(), """pub sealed trait Endian {
+    File.write("${dep}/kf.toml".as_str(), "[project]\nname = \"sealed_dep\"\nkind = \"lib\"\n").unwrap()
+    File.write("${dep}/src/lib.kf".as_str(), """pub sealed trait Endian {
     fun swaps(): bool
 }
 
@@ -25,15 +24,15 @@ pub struct Big {}
 
 impl Endian for Little { fun swaps(): bool { return false } }
 impl Endian for Big { fun swaps(): bool { return true } }
-""")
-    write_file("${app}/kf.toml".as_str(), """[project]
+""").unwrap()
+    File.write("${app}/kf.toml".as_str(), """[project]
 name = "sealed_app"
 kind = "bin"
 
 [dependencies]
 sealed_dep = { path = "../kf_sealed_dep" }
-""")
-    write_file("${app}/src/main.kf".as_str(), app_main)
+""").unwrap()
+    File.write("${app}/src/main.kf".as_str(), app_main).unwrap()
     return 0
 }
 
@@ -55,8 +54,8 @@ fun main(): int32 {
 @test
 fun a_sealed_trait_bounds_another_crate(): void {
     val prep = prepare_sealed_fixture(bound_only_main())
-    val built = komp_build(scratch_path("kf_sealed_app"), "")
-    val ran = unsafe { system(scratch_path("kf_sealed_app/target/kflat/sealed_app").as_str()) }
+    val built = komp_build(Dir.scratch_path("kf_sealed_app"), "")
+    val ran = unsafe { system(Dir.scratch_path("kf_sealed_app/target/kflat/sealed_app").as_str()) }
     assert_eq(prep == 0 && built == 0 && ran == 0, true, "a bound and its methods cross; only impls are closed")
 }
 
@@ -71,7 +70,7 @@ impl Endian for Middle { fun swaps(): bool { return true } }
 fun main(): int32 { return 0 }
 """
     val prep = prepare_sealed_fixture(main)
-    val built = komp_build(scratch_path("kf_sealed_app"), "")
+    val built = komp_build(Dir.scratch_path("kf_sealed_app"), "")
     assert_eq(prep == 0 && built != 0, true, "the impl is rejected in the consumer")
 }
 
@@ -86,11 +85,11 @@ impl Endian for Middle { fun swaps(): bool { return true } }
 fun main(): int32 { return 0 }
 """
     val prep = prepare_sealed_fixture(bound_only_main())
-    val first = komp_build(scratch_path("kf_sealed_app"), "")
-    write_file(scratch_path("kf_sealed_app/src/main.kf"), main)
-    val source = scratch_path("kf_sealed_dep/src")
+    val first = komp_build(Dir.scratch_path("kf_sealed_app"), "")
+    File.write(Dir.scratch_path("kf_sealed_app/src/main.kf"), main).unwrap()
+    val source = Dir.scratch_path("kf_sealed_dep/src")
     val hidden = unsafe { system("mv ${source} ${source}.hidden") }
-    val rebuilt = komp_build(scratch_path("kf_sealed_app"), "")
+    val rebuilt = komp_build(Dir.scratch_path("kf_sealed_app"), "")
     val restored = unsafe { system("mv ${source}.hidden ${source}") }
     assert_eq(prep == 0 && first == 0 && hidden == 0 && rebuilt != 0 && restored == 0, true,
         "sealed_dep.kfi says the trait is sealed")

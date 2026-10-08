@@ -1,8 +1,6 @@
 // Signature help: the callee's declaration from the assembled crate, and the
 // active parameter counted from commas in the text.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.Module
 import kf_core.ast.types.Type

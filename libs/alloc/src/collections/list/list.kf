@@ -61,10 +61,8 @@ impl List<T> {
     /// Independently owned buffer and elements.
     pub fun clone(): List<T> {
         var out = List<T> { data: unsafe { 0 as Ptr<T> }, len: 0, cap: 0 }
-        var i = 0
-        while i < self.len {
+        while i in 0..self.len {
             out.push(unsafe { clone_place<T>(self.data + i) })
-            i = i + 1
         }
         return out
     }
@@ -180,10 +178,8 @@ impl Iterable<T> for ListIter<T> {
 
 impl Drop for List<T> {
     fun drop(): void {
-        var i = 0
-        while i < self.len {
+        while i in 0..self.len {
             unsafe { drop_in_place<T>(self.data + i) }
-            i = i + 1
         }
         if self.cap > 0 { unsafe { kf_free(self.data as Ptr<void>) } }
     }

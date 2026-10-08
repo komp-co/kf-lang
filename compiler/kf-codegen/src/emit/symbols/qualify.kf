@@ -9,8 +9,6 @@
 // C's own names would collide with. Folded intrinsic callees (`alloc__T`) keep
 // unqualified fragments, and generic templates are not qualified.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.*

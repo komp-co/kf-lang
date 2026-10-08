@@ -1,7 +1,5 @@
 // Staging a project tree for a test fixture.
 
-import std.process.Command
-
 /// Copy the tree at `src` to `dst`, by content; the exit code of `cp`.
 ///
 /// CONSTRAINT: `-L` copies through a symlinked source instead of linking it.

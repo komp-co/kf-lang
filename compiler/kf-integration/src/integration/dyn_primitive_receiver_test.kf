@@ -4,31 +4,30 @@
 
 import core.assert.assert_eq
 import kf_integration.harness.komp_build
-import std.fs.scratch_path
 import testing.test
 
 extern "C" fun system(cmd: str): int32
 
 fun prepare_dyn_primitive_fixture(): int32 {
-    val prep = unsafe { system("rm -rf ${scratch_path("kf_dyn_prim_core")} ${scratch_path("kf_dyn_prim_app")} && mkdir -p ${scratch_path("kf_dyn_prim_core/src")} ${scratch_path("kf_dyn_prim_core/native")} ${scratch_path("kf_dyn_prim_app/src")} && cp -R libs/core/src/. ${scratch_path("kf_dyn_prim_core/src/")}") }
+    val prep = unsafe { system("rm -rf ${Dir.scratch_path("kf_dyn_prim_core")} ${Dir.scratch_path("kf_dyn_prim_app")} && mkdir -p ${Dir.scratch_path("kf_dyn_prim_core/src")} ${Dir.scratch_path("kf_dyn_prim_core/native")} ${Dir.scratch_path("kf_dyn_prim_app/src")} && cp -R libs/core/src/. ${Dir.scratch_path("kf_dyn_prim_core/src/")}") }
     if prep != 0 { return prep }
-    write_file(scratch_path("kf_dyn_prim_core/kf.toml"), """[project]
+    File.write(Dir.scratch_path("kf_dyn_prim_core/kf.toml"), """[project]
 name = "core"
 kind = "lib"
 
 [native]
 c_sources = ["native/core.c"]
 hosted_c_sources = ["native/core_hosted.c"]
-""")
-    write_file(scratch_path("kf_dyn_prim_core/native/core.c"), read_file("libs/core/native/core.c").as_str())
-    write_file(scratch_path("kf_dyn_prim_core/native/core_hosted.c"), read_file("libs/core/native/core_hosted.c").as_str())
-    write_file(scratch_path("kf_dyn_prim_app/kf.toml"), """[project]
+""").unwrap()
+    File.write(Dir.scratch_path("kf_dyn_prim_core/native/core.c"), File.read("libs/core/native/core.c").unwrap_or("").as_str()).unwrap()
+    File.write(Dir.scratch_path("kf_dyn_prim_core/native/core_hosted.c"), File.read("libs/core/native/core_hosted.c").unwrap_or("").as_str()).unwrap()
+    File.write(Dir.scratch_path("kf_dyn_prim_app/kf.toml"), """[project]
 name = "dyn_prim_app"
 kind = "bin"
 
 [dependencies]
 core = { path = "../kf_dyn_prim_core" }
-""")
+""").unwrap()
 
     // The vtable is defined in the dependency, the coercion here.
     var app = String.from("import core.display.*\n\n")
@@ -56,15 +55,15 @@ core = { path = "../kf_dyn_prim_core" }
     app.append("    val w = Wrapper { n: 5 }\n")
     app.append("    if through_dyn(&w) != 1 { return 4 }\n")
     app.append("    return 0\n}\n")
-    write_file(scratch_path("kf_dyn_prim_app/src/main.kf"), app)
+    File.write(Dir.scratch_path("kf_dyn_prim_app/src/main.kf"), app).unwrap()
     return 0
 }
 
 @test
 fun a_primitive_coerces_to_a_dependencys_trait_object(): void {
     val prepared = prepare_dyn_primitive_fixture()
-    val built = komp_build(scratch_path("kf_dyn_prim_app"), "")
-    val ran = unsafe { system(scratch_path("kf_dyn_prim_app/target/kflat/dyn_prim_app")) }
+    val built = komp_build(Dir.scratch_path("kf_dyn_prim_app"), "")
+    val ran = unsafe { system(Dir.scratch_path("kf_dyn_prim_app/target/kflat/dyn_prim_app")) }
     val ok = prepared == 0 && built == 0 && ran == 0
     assert_eq(ok, true, "a coercion names the same vtable the definition does")
 }

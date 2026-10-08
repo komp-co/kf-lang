@@ -7,8 +7,6 @@
 // first, so `a?.b?.c` works. A binding initializer or return operand keeps
 // `expand_let`'s path.
 
-import alloc.list.*
-
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind

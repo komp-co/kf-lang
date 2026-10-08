@@ -1,7 +1,5 @@
 // `@no_mangle`: a type whose C name has no crate prefix, for hand-written C.
 
-import alloc.list.*
-
 import kf_core.ast.Module
 import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*

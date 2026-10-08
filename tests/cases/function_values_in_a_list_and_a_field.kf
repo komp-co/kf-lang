@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // Function values stored in a list, an optional and a struct field; a field
 // holding one is called like a method.
-import alloc.list.*
 
 fun double(x: int32): int32 { return x * 2 }
 fun inc(x: int32): int32 { return x + 1 }

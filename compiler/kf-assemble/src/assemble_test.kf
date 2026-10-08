@@ -1,10 +1,8 @@
 import core.assert.assert_eq
-import alloc.list.*
 
 import kf_core.ast.Crate
 import kf_core.span.*
 import kf_core.diagnostic.*
-import std.fs.scratch_path
 import testing.test
 
 @test fun module_path_root_file(): void {
@@ -33,10 +31,10 @@ import testing.test
 extern "C" fun kf_create_dir_all(p: str): int32
 
 @test fun assembling_a_crate_registers_each_file_once(): void {
-    val root = String.from(scratch_path("kf_assemble_once"))
-    val _mk = unsafe { kf_create_dir_all(scratch_path("kf_assemble_once/src")) }
-    write_file(scratch_path("kf_assemble_once/src/lib.kf"), "pub fun answer(): int32 { return 42 }\n")
-    write_file(scratch_path("kf_assemble_once/src/lib_test.kf"), "@test fun t(): void {}\n")
+    val root = String.from(Dir.scratch_path("kf_assemble_once"))
+    val _mk = unsafe { kf_create_dir_all(Dir.scratch_path("kf_assemble_once/src")) }
+    File.write(Dir.scratch_path("kf_assemble_once/src/lib.kf"), "pub fun answer(): int32 { return 42 }\n").unwrap()
+    File.write(Dir.scratch_path("kf_assemble_once/src/lib_test.kf"), "@test fun t(): void {}\n").unwrap()
 
     val smap: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
     unsafe { *smap = SourceMap.new() }
@@ -58,13 +56,13 @@ fun Crate.crate_declares(name: str): bool {
 }
 
 fun prepare_overlay_crate(): void {
-    val _mk = unsafe { kf_create_dir_all(scratch_path("kf_assemble_overlay/src")) }
-    write_file(scratch_path("kf_assemble_overlay/src/lib.kf"), "pub fun on_disk(): int32 { return 42 }\n")
-    write_file(scratch_path("kf_assemble_overlay/src/other.kf"), "pub fun untouched(): int32 { return 7 }\n")
+    val _mk = unsafe { kf_create_dir_all(Dir.scratch_path("kf_assemble_overlay/src")) }
+    File.write(Dir.scratch_path("kf_assemble_overlay/src/lib.kf"), "pub fun on_disk(): int32 { return 42 }\n").unwrap()
+    File.write(Dir.scratch_path("kf_assemble_overlay/src/other.kf"), "pub fun untouched(): int32 { return 7 }\n").unwrap()
 }
 
 fun staged_lib(): Overlay {
-    return overlay_for(scratch_path("kf_assemble_overlay/src/lib.kf"), "pub fun in_buffer(): int32 { return 42 }\n")
+    return overlay_for(Dir.scratch_path("kf_assemble_overlay/src/lib.kf"), "pub fun in_buffer(): int32 { return 42 }\n")
 }
 
 fun Overlay.assemble_overlay_crate(): Crate {
@@ -72,7 +70,7 @@ fun Overlay.assemble_overlay_crate(): Crate {
     val smap: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
     unsafe { *smap = SourceMap.new() }
     var pdiags = Diagnostics.new()
-    return assemble_crate_inc(scratch_path("kf_assemble_overlay"), String.from("staged"), smap, &var pdiags, true, self)
+    return assemble_crate_inc(Dir.scratch_path("kf_assemble_overlay"), String.from("staged"), smap, &var pdiags, true, self)
 }
 
 @test fun an_overlay_is_parsed_in_place_of_the_file_it_names(): void {
@@ -94,14 +92,14 @@ fun Overlay.assemble_overlay_crate(): Crate {
 }
 
 @test fun a_crate_without_a_src_directory_is_reported(): void {
-    val _mk = unsafe { kf_create_dir_all(scratch_path("kf_no_src")) }
-    write_file(scratch_path("kf_no_src/main.kf"), "fun main(): int32 { return 0 }\n")
+    val _mk = unsafe { kf_create_dir_all(Dir.scratch_path("kf_no_src")) }
+    File.write(Dir.scratch_path("kf_no_src/main.kf"), "fun main(): int32 { return 0 }\n").unwrap()
 
     val smap: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
     unsafe { *smap = SourceMap.new() }
     var pdiags = Diagnostics.new()
 
-    val c = assemble_crate(scratch_path("kf_no_src"), String.from("nosrc"), smap, &var pdiags)
+    val c = assemble_crate(Dir.scratch_path("kf_no_src"), String.from("nosrc"), smap, &var pdiags)
     assert_eq(c.modules.size(), 0, "no src/ means no modules")
     assert_eq(pdiags.size() > 0, true, "and the emptiness is reported, not silent")
 }

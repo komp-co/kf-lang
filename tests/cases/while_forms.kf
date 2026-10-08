@@ -3,7 +3,6 @@
 // `while` takes a condition or an iteration header, told apart by a name
 // followed by `in`: `in` is reserved, so no condition begins that way.
 
-import alloc.list.*
 
 extern "C" fun runtime_println(s: str): void
 

@@ -1,8 +1,6 @@
 // A lambda assigning a captured name, `calls = calls + 1`: the name is a
 // capture, borrowed mutably, and the assignment stores through its field.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind

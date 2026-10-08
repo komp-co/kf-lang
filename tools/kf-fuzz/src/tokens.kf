@@ -2,8 +2,6 @@
 // lexer: a mutated program must still be cut, so nothing here can fail, and
 // concatenating the pieces gives the text back byte for byte.
 
-import alloc.list.*
-
 pub enum PieceKind {
     /// Letters, digits and `_`: a name, a keyword or a number.
     Word

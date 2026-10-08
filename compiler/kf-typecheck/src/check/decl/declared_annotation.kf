@@ -2,8 +2,6 @@
 // declaration, then resolves and checks each use in this crate for
 // `annotated`.
 
-import alloc.list.*
-
 import kf_core.span.Span
 import kf_core.ast.Module
 import kf_core.ast.types.Type

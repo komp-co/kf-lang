@@ -2,10 +2,6 @@
 // `_test.kf` ones count. The book states the rule; komp keeps its own copy to
 // fingerprint exactly these.
 
-import alloc.list.*
-import std.fs.is_directory
-import std.fs.read_dir
-
 /// Absolute paths of the non-test `.kf` files under `dir`, sorted.
 pub fun walk_kf_files(dir: str, out: &var List<String>): void {
     walk_kf_files_inc(dir, out, false)
@@ -21,12 +17,12 @@ pub fun walk_kf_files_inc(dir: str, out: &var List<String>, include_tests: bool)
 }
 
 fun walk_kf_files_raw(dir: str, out: &var List<String>, include_tests: bool): void {
-    val listed = read_dir(dir)
+    val listed = Dir.entries(dir)
     if listed.is_err() { return }
     val names = listed.unwrap()
     while name in &names {
         val full = "${dir}/${name}"
-        if is_directory(full) {
+        if Dir.is_dir(full) {
             walk_kf_files_raw(full, out, include_tests)
         } else if is_kf_file_any(name) && (include_tests || is_kf_source_file(name)) {
             out.push(full)

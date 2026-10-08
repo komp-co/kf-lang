@@ -4,8 +4,6 @@
 // `if` or `when` whose condition is facts alone keeps only the branch taken,
 // so the other need not check for that field.
 
-import alloc.list.*
-
 import kf_core.intern.Sym
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr

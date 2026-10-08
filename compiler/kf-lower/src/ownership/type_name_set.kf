@@ -1,7 +1,5 @@
 // A set of type names whose membership test does not walk them.
 
-import alloc.hash_map.*
-
 pub struct TypeNameSet {
     var index: HashMap<String, bool>
 }

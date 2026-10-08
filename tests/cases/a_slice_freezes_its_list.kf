@@ -2,7 +2,6 @@
 //! deps: core, alloc
 // While a slice of a list is still used, the list may not grow: growing
 // may move the elements the slice points at.
-import alloc.list.*
 
 fun main(): int32 {
     var list = List.new<int32>()

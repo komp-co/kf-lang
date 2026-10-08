@@ -4,8 +4,6 @@
 // templates carry their source text; hidden support declarations are marked
 // hidden.
 
-import alloc.list.*
-
 import kf_core.span.*
 import kf_core.ast.*
 import kf_core.ast.declaration.TopDecl

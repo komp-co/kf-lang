@@ -3,7 +3,6 @@
 
 import kf_integration.harness.typed_crate_for
 import core.assert.assert_eq
-import std.fs.scratch_path
 import kf_core.ast.Module
 import kf_query.editor.innermost_expr_at
 import kf_query.editor.written_type
@@ -12,7 +11,7 @@ import testing.test
 extern "C" fun system(cmd: str): int32
 
 fun bodies_app_path(): str {
-    return scratch_path("kf_query_bodies_app/src/main.kf")
+    return Dir.scratch_path("kf_query_bodies_app/src/main.kf")
 }
 
 fun bodies_app_source(): String {
@@ -27,26 +26,26 @@ fun run(): int32 {
 
 /// `bodylib` declares `twice`, whose body has two statements; `app` calls it.
 fun prepare_bodies_fixture(): void {
-    val lib = scratch_path("kf_query_bodies_lib")
-    val app = scratch_path("kf_query_bodies_app")
+    val lib = Dir.scratch_path("kf_query_bodies_lib")
+    val app = Dir.scratch_path("kf_query_bodies_app")
     unsafe { system("rm -rf ${lib} ${app} && mkdir -p ${lib}/src ${app}/src") }
-    write_file(scratch_path("kf_query_bodies_lib/kf.toml"), """[project]
+    File.write(Dir.scratch_path("kf_query_bodies_lib/kf.toml"), """[project]
 name = "bodylib"
 kind = "lib"
-""")
-    write_file(scratch_path("kf_query_bodies_lib/src/api.kf"), """pub fun twice(n: int32): int32 {
+""").unwrap()
+    File.write(Dir.scratch_path("kf_query_bodies_lib/src/api.kf"), """pub fun twice(n: int32): int32 {
     val doubled = n * 2
     return doubled
 }
-""")
-    write_file(scratch_path("kf_query_bodies_app/kf.toml"), """[project]
+""").unwrap()
+    File.write(Dir.scratch_path("kf_query_bodies_app/kf.toml"), """[project]
 name = "app"
 kind = "lib"
 
 [dependencies]
 bodylib = { path = "../kf_query_bodies_lib" }
-""")
-    write_file(bodies_app_path(), bodies_app_source().as_str())
+""").unwrap()
+    File.write(bodies_app_path(), bodies_app_source().as_str()).unwrap()
 }
 
 /// How many statements the function named `name` holds; -1 when none is.

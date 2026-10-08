@@ -22,7 +22,7 @@ fun the_prelude_declares_no_string_by_value(): void {
 
 @test
 fun runtime_interner_reserves_zero_for_poison(): void {
-    val source = read_file("compiler/kf-core/native/compiler.c")
+    val source = File.read("compiler/kf-core/native/compiler.c").unwrap_or("")
     assert_eq(source.contains("static uint32_t kf_sym_count = 1;"), true, "runtime interner starts after poison")
 }
 

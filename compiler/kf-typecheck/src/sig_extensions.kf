@@ -1,8 +1,5 @@
 // Which registered names are extensions, and what each is called.
 
-import alloc.list.*
-import alloc.hash_map.*
-
 import kf_core.intern.Sym
 
 impl SigTable {
