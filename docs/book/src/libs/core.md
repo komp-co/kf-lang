@@ -968,7 +968,7 @@ pub view struct AnnotatedItem<A> {
     pub val module: str
     pub val file: str
     pub val line: uint32
-    pub val kind: AnnotatedKind // Function, Struct, Enum or Trait
+    pub val kind: AnnotatedKind // Function, Struct, Enum, Trait or Annotation
     pub val args: A
 }
 ```

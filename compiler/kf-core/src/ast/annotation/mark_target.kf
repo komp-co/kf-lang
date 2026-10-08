@@ -18,6 +18,7 @@ pub enum MarkKind {
     Trait
     Field
     Variant
+    Annotation
 }
 
 /// One kind in `on struct: Plugin, enum`, and the traits a marked type of
@@ -58,6 +59,7 @@ impl MarkKind {
             Trait => "trait"
             Field => "field"
             Variant => "variant"
+            Annotation => "annotation"
         }
     }
 
@@ -80,6 +82,7 @@ pub fun mark_kind_of(word: str): MarkKind? {
         "trait" => MarkKind.Trait
         "field" => MarkKind.Field
         "variant" => MarkKind.Variant
+        "annotation" => MarkKind.Annotation
         _ => null
     }
 }
@@ -92,6 +95,7 @@ impl MarkTarget {
         kinds.push(KindTarget { kind: MarkKind.Struct, bounds: [] })
         kinds.push(KindTarget { kind: MarkKind.Enum, bounds: [] })
         kinds.push(KindTarget { kind: MarkKind.Trait, bounds: [] })
+        kinds.push(KindTarget { kind: MarkKind.Annotation, bounds: [] })
         return MarkTarget.Kinds(kinds)
     }
 

@@ -156,6 +156,8 @@ fun emit_decl(td: &TopDecl, hidden: bool, unmangled: bool, m: &Module): String {
             if params.has_shaped() { o.field_raw("shaped", emit_shaped_params(&params).as_str()) }
             if (&td).has_annotation("prelude") { o.field_bool("prelude", true) }
             if td.is_unique { o.field_bool("unique", true) }
+            val marks = td.marks_without_prelude()
+            if marks.size() > 0 { o.field_raw("marks", annotations_json(&marks).as_str()) }
             return o.finish()
         }
         _ => return String.from("{}")
@@ -314,6 +316,16 @@ fun borrow_origin_of(params: &List<Param>, ret: &TypeRef, has_self: bool, views:
 }
 
 /// A member's annotation uses, each as written without the `@`.
+/// The annotations marking an annotation declaration, `@prelude` aside,
+/// which crosses as its own key.
+fun TopDecl.marks_without_prelude(): List<Annotation> {
+    var out = List.new<Annotation>()
+    while use in &self.annotations {
+        if use.name.as_str() != "prelude" { out.push(use.clone()) }
+    }
+    return out
+}
+
 fun annotations_json(annotations: &List<Annotation>): String {
     var out = JsonWriter.array()
     while annotation in &annotations {

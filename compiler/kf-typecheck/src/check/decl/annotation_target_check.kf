@@ -83,6 +83,7 @@ fun MarkKind.phrase(): str {
         Trait => "a trait"
         Field => "a field"
         Variant => "a variant"
+        Annotation => "an annotation"
     }
 }
 
@@ -91,13 +92,15 @@ fun TopDecl.is_kind(wanted: MarkKind): bool {
     return own == wanted
 }
 
-/// The kind of a top-level function, struct, enum or trait; null otherwise.
+/// The kind of a top-level function, struct, enum, trait or annotation; null
+/// otherwise.
 fun TopDecl.mark_kind(): MarkKind? {
     return when (self.kind) {
         Function(_p, _r, _b, _pub, _u, _mut, _st) => MarkKind.Function
         Struct(_f, _pub) => MarkKind.Struct
         EnumDecl(_v, _pub) => MarkKind.Enum
         TraitDecl(_m, _pub, _supers) => MarkKind.Trait
+        AnnotationDecl(_params, _target, _pub) => MarkKind.Annotation
         _ => null
     }
 }

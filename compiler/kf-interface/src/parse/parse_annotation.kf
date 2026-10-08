@@ -47,6 +47,11 @@ mutating fun JsonReader.load_annotation(crate: CrateId, path: str, hidden: bool)
         is_unique = self.read_bool()
         key = if self.object_has_next() { self.read_key() } else { String.from("") }
     }
+    var marks = List.new<Annotation>()
+    if key.as_str() == "marks" {
+        marks = self.load_annotation_uses()
+        key = if self.object_has_next() { self.read_key() } else { String.from("") }
+    }
     if key.byte_len() > 0 { return poison_decl() }
     val target = if function.byte_len() > 0 {
         parse_signature_source(function)
@@ -58,6 +63,7 @@ mutating fun JsonReader.load_annotation(crate: CrateId, path: str, hidden: bool)
     var decl = TopDecl.new(Span.none(), name, TopDeclKind.AnnotationDecl(defaults, target, is_pub))
     decl.generics = type_params
     decl.is_unique = is_unique
+    decl.annotations = marks
     if is_prelude { decl.annotations.push(Annotation.new(Span.none(), "prelude", List.new<String>())) }
     return stamp_imported(decl, crate, path, "", hidden)
 }
