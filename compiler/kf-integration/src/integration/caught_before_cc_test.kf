@@ -66,8 +66,12 @@ fun main(): int32 {
 
 @test
 fun a_temporary_string_returned_as_a_str_is_an_error(): void {
-    val errors = errors_of("caught_returned_temporary", """fun greeting(name: str): str {
-    return "hello ${name}"
+    // `String.from`, not an interpolation, which this test's own string would
+    // take: both make a temporary `String`.
+    val errors = errors_of("caught_returned_temporary", """import alloc.string.*
+
+fun greeting(name: str): str {
+    return String.from(name)
 }
 
 fun main(): int32 {
