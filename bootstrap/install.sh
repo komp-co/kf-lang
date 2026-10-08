@@ -1,9 +1,11 @@
 #!/usr/bin/env sh
 # Installs the kflat release this script ships in: builds kflatc with cc and
 # puts it, with the libraries it compiles against, in
-# $KFLAT_HOME/toolchains/<version> ($KFLAT_HOME is ~/.kflat unless set).
-# kflatc is linked into $KFLAT_HOME/bin, beside komp, which runs the kflatc
-# next to it when a project pins no other toolchain.
+# $KFLAT_HOME/toolchains/<version> ($KFLAT_HOME is ~/.kflat unless set),
+# beside kf-lint and kf-editor, links to it that it answers as the linter and
+# the editor's endpoint. All three are linked into $KFLAT_HOME/bin, beside
+# komp, which runs the kflatc next to it when a project pins no other
+# toolchain.
 #
 #   sh install.sh            # CC and CFLAGS pick the C compiler and flags
 #
@@ -29,12 +31,17 @@ rm -rf "$staging"
 mkdir -p "$staging/bin"
 echo "building kflatc $version with $CC" >&2
 "$CC" $CFLAGS -o "$staging/bin/kflatc" "$here/kflatc.c" || fail "$CC could not build kflatc"
+# kf-lint and kf-editor are kflatc run by another name.
+ln -s kflatc "$staging/bin/kf-lint"
+ln -s kflatc "$staging/bin/kf-editor"
 cp -R "$here/libs" "$staging/libs" || fail "could not copy the libraries into $staging"
 
 rm -rf "$toolchain"
 mv "$staging" "$toolchain"
 mkdir -p "$home/bin"
-ln -sf "$toolchain/bin/kflatc" "$home/bin/kflatc"
+for tool in kflatc kf-lint kf-editor; do
+    ln -sf "$toolchain/bin/$tool" "$home/bin/$tool"
+done
 
 echo "installed kflat $version in $toolchain"
 case ":${PATH:-}:" in

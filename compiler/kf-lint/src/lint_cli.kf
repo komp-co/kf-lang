@@ -1,0 +1,28 @@
+// `kf-lint`: the linter, run in place of `kflatc check` by `komp lint` and
+// `komp check`. It answers the same command line as kflatc's `check` and
+// `lints`, so komp needs only its path.
+//
+//   kf-lint check   (as `kflatc check`)
+//   kf-lint lints   (as `kflatc lints`)
+//   kf-lint version
+//
+// For now it runs what `kflatc check` runs, style lints included; once komp
+// runs it, `kflatc check` keeps only the compiler's own diagnostics (#184).
+
+import core.args.arg_at
+import core.args.arg_count
+
+import kf_driver.cli.kflatc_cli
+import kf_driver.cli.print_version
+
+pub fun kf_lint_main(): int32 {
+    val command = arg_at(0)
+    if command == "version" { return print_version("kf-lint") }
+    if arg_count() == 0 || (command != "check" && command != "lints") {
+        println("usage: kf-lint check   (as kflatc check: --name N --root DIR --out DIR ...)")
+        println("       kf-lint lints   [--format=json]")
+        println("       kf-lint version")
+        return 2
+    }
+    return kflatc_cli()
+}

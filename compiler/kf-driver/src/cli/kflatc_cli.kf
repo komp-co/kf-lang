@@ -37,7 +37,7 @@ extern "C" fun kf_mute_warnings(on: int32): void
 pub fun kflatc_cli(): int32 {
     if arg_count() == 0 { return kflatc_usage() }
     val command = arg_at(0)
-    if command == "version" { return kflatc_version() }
+    if command == "version" { return print_version("kflatc") }
     if command == "lints" { return print_lint_table() }
     if command != "compile" && command != "check" && command != "unity" { return kflatc_usage() }
     var name: str = ""
@@ -153,9 +153,10 @@ fun with_source_dirs(crates: &List<CrateSource>, rows: &List<String>): List<Crat
     return out
 }
 
-/// One `key value` line each, which komp reads to know what it is running.
-fun kflatc_version(): int32 {
-    println("kflatc ${kflat_version()}")
+/// One `key value` line each, which komp reads to know what it is running;
+/// `tool` names the program, as the first line's key.
+pub fun print_version(tool: str): int32 {
+    println("${tool} ${kflat_version()}")
     println("abi ${interface_compiler_abi()}")
     println("runtime ${interface_runtime_abi()}")
     println("target ${interface_target()}")

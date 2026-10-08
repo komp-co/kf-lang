@@ -38,7 +38,9 @@ shared AST and diagnostics, `kf-interface` the compiled crate metadata
 `kf-integration` holds the whole-project tests: it reads a fixture's crates
 through `komp metadata` and builds it by running komp (`KOMP`, which `komp
 test` sets). `kflatc`, the one binary, links kf-driver and kf-query and turns
-one crate into C. komp, which drives it, is
+one crate into C. Run by the names `kf-lint` and `kf-editor`, links to it the
+toolchain installs, it is the linter (`kf-lint`'s crate) and the editor's
+endpoint (`kf-editor`'s). komp, which drives it, is
 komp-co/komp's: this repository uses the released komp `bootstrap/stage0.toml`
 pins and never its source. What the two agree on (the files kflatc writes,
 which files make a crate, the `serve` protocol) is kflatc's documented command

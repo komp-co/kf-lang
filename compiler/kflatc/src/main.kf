@@ -1,10 +1,24 @@
 import core.args.arg_at
 import core.args.arg_count
+import core.args.program_name
 import kf_driver.cli.kflatc_cli
+import kf_editor.kf_editor_main
+import kf_lint.kf_lint_main
 import kf_query.serve.kflatc_serve
 
+// One binary, three programs: `kf-lint` and `kf-editor` are links to it, and
+// the name it was run by picks which (#184). Each links nearly the whole
+// compiler, so one binary keeps the toolchain's size and install time.
 fun main(): int32 {
-    // The editor's endpoint lives in kf-query, which builds on kf-driver.
+    if run_as("kf-lint") { return kf_lint_main() }
+    if run_as("kf-editor") { return kf_editor_main() }
+    // Until kf-lsp starts kf-editor, kflatc still answers `serve` itself.
     if arg_count() > 0 && arg_at(0) == "serve" { return kflatc_serve() }
     return kflatc_cli()
+}
+
+/// Run by the name `tool`, from wherever it lies.
+fun run_as(tool: str): bool {
+    val name = program_name()
+    return name == tool || name.ends_with("/${tool}")
 }
