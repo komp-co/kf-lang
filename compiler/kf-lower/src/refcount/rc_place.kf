@@ -4,14 +4,14 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.Sym
-import kf_core.ast.intern
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
-import kf_core.ast.expression.coerce_clone
+import kf_core.ast.expression.Coercion
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import kf_core.intern.Sym
+import kf_core.intern.intern
 
 /// A reference or `Box` points at a live value; a raw `Ptr<T>` may point at
 /// fresh `alloc<T>()` memory, where running a destructor crashes.
@@ -140,7 +140,7 @@ fun Expr.is_rebuilt_from_its_own_parts(ctx: &var RcCtx): bool {
 
 fun Expr.is_its_own_part(ctx: &var RcCtx): bool {
     if !is_heap_ty_rc(self.ty.clone()) { return true }
-    if self.coerce == coerce_clone() { return true }
+    if self.coerce == Coercion.Clone { return true }
     return when (self.kind) {
         Variable(name) => ctx.rc_owning_frame(name.as_str()) >= 0 && !ctx.is_view_local(name.as_str())
         _ => self.is_rebuilt_from_its_own_parts(ctx)

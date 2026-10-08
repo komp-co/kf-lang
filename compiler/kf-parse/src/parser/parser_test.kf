@@ -1,6 +1,6 @@
 import core.assert.assert_eq
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_parse.lexer.*
 import testing.test
 
@@ -10,15 +10,15 @@ pub fun parser_for(src: str): Parser {
 }
 
 fun kw_token(kw: Keyword): Token {
-    return new_token(TokenKind.KeywordTok(kw), no_span())
+    return new_token(TokenKind.KeywordTok(kw), Span.none())
 }
 
 fun op_token(op: Operator): Token {
-    return new_token(TokenKind.Op(op), no_span())
+    return new_token(TokenKind.Op(op), Span.none())
 }
 
 fun nl_token(): Token {
-    return new_token(TokenKind.Newline, no_span())
+    return new_token(TokenKind.Newline, Span.none())
 }
 
 @test fun is_keyword_matches_same(): void {

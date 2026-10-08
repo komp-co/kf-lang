@@ -1,7 +1,7 @@
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
 import kf_typecheck.check.control.yields_only_numeric_literals
 import kf_typecheck.types.type_eq
 
@@ -73,7 +73,7 @@ fun negative_integer_literal_fits(magnitude: int64, expected: Type): bool {
 mutating fun Expr.reject_integer_literal(expected: Type, ctx: &var TypeCtx): void {
     val target = expected.ty_base_name()
     val message = "integer literal is out of range for `${target}`"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
     self.ty = Type.new_poison()
 }
 

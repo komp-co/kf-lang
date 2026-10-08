@@ -7,14 +7,14 @@
 import alloc.list.*
 
 import kf_core.ast.Module
-import kf_core.ast.intern
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.TopDecl
-import kf_core.ast.declaration.new_type_param
-import kf_core.ast.annotation.new_annotation
+import kf_core.ast.declaration.TypeParam
+import kf_core.ast.annotation.Annotation
 import kf_core.span.*
 import kf_core.diagnostic.*
+import kf_core.intern.intern
 import kf_typecheck.check.edit_distance
 
 /// Also records an extension's called name.
@@ -89,7 +89,7 @@ mutating fun TopDecl.add_receiver_params(types: &List<String>, diags: &var Diagn
     if recorded.size() == 0 {
         receiver.collect_receiver_params(self, types, &var found)
         if found.names.size() > 0 {
-            self.annotations.push(new_annotation(receiver.span, "receiver_params", found.names.clone()))
+            self.annotations.push(Annotation.new(receiver.span, "receiver_params", found.names.clone()))
         }
     } else {
         while name in &recorded {
@@ -104,7 +104,7 @@ mutating fun TopDecl.add_receiver_params(types: &List<String>, diags: &var Diagn
     var i: uint64 = 0
     while i < found.names.size() {
         if !self.declares_generic(found.names.at(i).as_str()) {
-            self.generics.push(new_type_param(found.spans.get(i), *found.names.at(i)))
+            self.generics.push(TypeParam.new(found.spans.get(i), *found.names.at(i)))
         }
         i = i + 1
     }
@@ -123,10 +123,10 @@ mutating fun TopDecl.add_trait_receiver(types: &List<String>, traits: &List<Stri
         }
         if !names_contain(traits, head) || self.declares_generic(head) { return }
         param = self.fresh_receiver_name(types)
-        self.annotations.push(new_annotation(receiver.span, "receiver_trait", [param.clone()]))
+        self.annotations.push(Annotation.new(receiver.span, "receiver_trait", [param.clone()]))
     }
     if self.declares_generic(param) { return }
-    var tp = new_type_param(receiver.span, param.clone())
+    var tp = TypeParam.new(receiver.span, param.clone())
     tp.bounds.push(receiver.clone())
     self.generics.push(tp)
     self.point_self_at(TypeRef.new(receiver.span, TypeRefKind.Named(intern(param), List.new<TypeRef>())))
@@ -223,7 +223,7 @@ fun ReceiverParams.warn_near_type_names(types: &List<String>, diags: &var Diagno
         if near.byte_len() > 0 {
             val why = "`${name.as_str()}` is not a type in scope, so it makes this extension generic over a parameter"
             val message = "${why} named `${name.as_str()}`; did you mean `${near.as_str()}`?"
-            diags.emit(new_diagnostic(Severity.Warning, new_label(self.spans.get(i), message)))
+            diags.emit(Diagnostic.new(Severity.Warning, Label.new(self.spans.get(i), message)))
         }
         i = i + 1
     }
@@ -259,7 +259,7 @@ fun reject_extension_methods(methods: &List<TopDecl>, diags: &var Diagnostics): 
     while method in &methods {
         if !method.ext_name.as_str().equals("") {
             val message = "an extension function is declared at the top level, not inside `impl` or `trait`"
-            diags.emit(new_diagnostic(Severity.Error, new_label((&method).decl_name_span(), message)))
+            diags.emit(Diagnostic.new(Severity.Error, Label.new((&method).decl_name_span(), message)))
         }
     }
 }

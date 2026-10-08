@@ -6,14 +6,15 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.*
 import kf_core.ast.declaration.DeclId
 import kf_core.ast.statement.Stmt
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
+import kf_core.intern.*
+import kf_core.ast.pattern.*
 import kf_typecheck.types.*
 import kf_typecheck.traits.try_dyn_coerce
 import kf_typecheck.check.control.yield_ref_binder_value
@@ -56,7 +57,7 @@ pub mutating fun Expr.apply_expected(expected: Type, ctx: &var TypeCtx): bool {
     when (self.kind) {
         Block(stmts) => {
             if stmts.size() == 0 { return false }
-            val vp = stmt_value_expr(*stmts.at(stmts.size() - 1)) ?: return false
+            val vp = (*stmts.at(stmts.size() - 1)).value_expr() ?: return false
             if !apply_expected(unsafe { &var *vp }, expected.clone(), ctx) { return false }
             self.ty = unsafe { vp.ty }
             return true
@@ -170,13 +171,13 @@ pub mutating fun Expr.apply_expected(expected: Type, ctx: &var TypeCtx): bool {
         self.rewrite_str_to_string(ctx)
         if (&expected).is_lang_struct(ctx.string_name()) { return self.ty.type_eq(expected) }
         if !self.ty.type_eq(deref_target(expected.clone())) { return false }
-        self.coerce = coerce_addr_of()
+        self.coerce = Coercion.AddrOf
         return true
     }
 
     // The flat table: String-to-str views and address-of only.
     val code = coerce_code_for(cur.ty, expr_is_lit_str(cur), expected.clone(), ctx.string_name())
-    if code == coerce_none() { return false }
+    if code == Coercion.Identity { return false }
     self.coerce = code
     return true
 }
@@ -216,7 +217,7 @@ fun Type.type_is_option(ctx: &var TypeCtx): bool {
 /// node.
 pub fun wrap_safe_call_value(subject_ty: Type, arms: &var List<Arm>, span: Span, ctx: &var TypeCtx): void {
     if arms.size() == 0 { return }
-    val vp = arm_value_expr(arms.at(0)) ?: return
+    val vp = arms.at(0).value_expr() ?: return
     if !unsafe { vp.is_safe_call_value } { return }
 
     // The receiver must be optional, or the desugar's own `null` is what
@@ -226,10 +227,10 @@ pub fun wrap_safe_call_value(subject_ty: Type, arms: &var List<Arm>, span: Span,
             var msg = String.from("the receiver of `?.` must be optional, but this is `")
             msg.append(mangle_type(subject_ty.clone()).as_str())
             msg.append("` — a value that is always present is reached with `.`")
-            ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+            ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
             // One error per mistake: the absent arm's `null` is not reported.
             while i in 1..arms.size() {
-                val np = arm_value_expr(arms.at(i)) ?: continue
+                val np = arms.at(i).value_expr() ?: continue
                 note_null_typed(unsafe { np.span }, ctx)
             }
             return
@@ -362,6 +363,6 @@ mutating fun Expr.reset_call_annotations(): void {
     // Spelled out: a field assignment carries no expected type to a `null`.
     self.decl = Option.None<DeclId>()
     self.mangled_callee = intern("")
-    self.coerce = coerce_none()
+    self.coerce = Coercion.Identity
     self.is_static_call = false
 }

@@ -5,9 +5,8 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.intern
-import kf_core.ast.lang_copy_key
 import kf_core.ast.types.*
+import kf_core.intern.intern
 import kf_typecheck.types.type_eq
 import kf_typecheck.types.nominal_name
 import kf_typecheck.types.resolve_type_ref
@@ -146,7 +145,7 @@ fun name_index(names: &List<String>, name: str): uint64 {
 /// An argument naming a still-unbound parameter in `free` accepts anything.
 pub fun bound_type_implements_here(bound_ty: &Type, trait_name: str, args: String, free: &List<String>, span: Span,
     ctx: &var TypeCtx): bool {
-    if trait_name.equals(ctx.lang_trait_name(lang_copy_key()).as_str()) { return bound_ty.type_is_copy(ctx) }
+    if trait_name.equals(ctx.lang_trait_name(LangItem.Copy).as_str()) { return bound_ty.type_is_copy(ctx) }
     if !bound_ty.bound_type_implements(trait_name, ctx.sigs) { return false }
     if !impl_args_agree(bound_ty, trait_name, args, free, span, ctx) { return false }
     return bound_ty.instance_args_meet(trait_name, span, ctx)

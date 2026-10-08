@@ -1,0 +1,31 @@
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.declaration.*
+import kf_core.ast.expression.Expr
+import kf_core.ast.types.*
+import kf_core.intern.*
+
+@derive(Clone)
+pub struct Param {
+    pub val span: Span
+    pub val name: Sym
+    pub val ty: Box<TypeRef>
+    /// `= value` after the type: a constant a call may leave the argument to.
+    pub var default: Box<Expr>?
+}
+
+impl Param {
+    pub static fun new(span: Span, name: String, ty: Ptr<TypeRef>): Param {
+        return Param { span: span, name: intern(name), ty: ty, default: null }
+    }
+
+    /// The same parameter, default included, at another type.
+    pub fun retyped(ty: Ptr<TypeRef>): Param {
+        return Param { span: self.span, name: self.name, ty: ty, default: self.default.clone() }
+    }
+
+    /// False for a lambda's parameter written without a type, whose `ty` is
+    /// null until its `Call` bound gives it one.
+    pub fun is_typed(): bool { return unsafe { (self.ty as uint64) != 0 } }
+}

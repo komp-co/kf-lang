@@ -5,11 +5,11 @@
 import alloc.list.*
 
 import kf_core.span.Span
-import kf_core.ast.declaration.Annotation
-import kf_core.ast.declaration.MarkKind
+import kf_core.ast.annotation.Annotation
+import kf_core.ast.annotation.MarkKind
 import kf_core.ast.declaration.TopDecl
-import kf_core.ast.annotation.annotation_is_known
 import kf_core.diagnostic.*
+import kf_core.lang.AnnotationInfo
 import kf_typecheck.*
 
 /// Each annotation on this type's fields or variants: a built-in reported,
@@ -35,8 +35,8 @@ fun TopDecl.check_uses_on(annotations: &List<Annotation>, member: MarkKind, at: 
     while annotation in &annotations {
         val kind = annotation.name.as_str()
         if kind.equals("") { continue }
-        if annotation_is_known(kind) {
-            diags.push(error_at(at, "`@${kind}` cannot annotate ${member.phrase()}"))
+        if AnnotationInfo.is_known(kind) {
+            diags.push(Diagnostic.error_at(at, "`@${kind}` cannot annotate ${member.phrase()}"))
             continue
         }
         self.check_member_use(annotation, member, at, sigs, table, diags)
@@ -62,5 +62,5 @@ fun TopDecl.check_member_use(annotation: &Annotation, member: MarkKind, at: Span
         if listed.kind == member { return }
     }
     val allowed = if kinds.size() == 0 { String.from("a function") } else { kinds.phrase() }
-    diags.push(error_at(at, "`@${kind}` can only annotate ${allowed.as_str()}"))
+    diags.push(Diagnostic.error_at(at, "`@${kind}` can only annotate ${allowed.as_str()}"))
 }

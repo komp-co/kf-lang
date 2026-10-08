@@ -5,13 +5,12 @@
 import alloc.list.*
 import alloc.hash_map.*
 
-import kf_core.ast.CrateId
 import kf_core.ast.Module
-import kf_core.ast.new_crate_id
 import kf_core.ast.types.Type
 import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 import kf_core.ast.subst.mangle_tyref
+import kf_core.intern.CrateId
 
 /// A layout's key: its crate and name, since two crates may each declare
 /// an `A`.
@@ -31,7 +30,7 @@ fun inline_key(t: &Type): String {
     if name.is_empty() { return name }
     val crate_end = name.index_of("::") ?: return "*|${name}"
     val leaf_start = name.last_index_of("::") ?: return "*|${name}"
-    val owner = new_crate_id(name.substring(0, crate_end).as_str())
+    val owner = CrateId.new(name.substring(0, crate_end).as_str())
     return layout_key(owner, name.slice_from(leaf_start + 2).as_str())
 }
 
@@ -120,6 +119,6 @@ pub fun Module.check_infinite_types(sigs: &SigTable, diags: &var Diagnostics): v
         val name = td.name.as_str()
         val repair = "put ${pointer} behind a pointer, such as `Box<${name}>`"
         val message = "`${name}` holds itself by value, so it has no size; ${repair}"
-        diags.emit(new_diagnostic(Severity.Error, new_label(td.decl_name_span(), message)))
+        diags.emit(Diagnostic.new(Severity.Error, Label.new(td.decl_name_span(), message)))
     }
 }

@@ -1,12 +1,11 @@
 import alloc.list.*
 
 import kf_core.ast.Module
-import kf_core.ast.type_ref_borrow_origin
+import kf_core.ast.borrow.type_ref_borrow_origin
 import kf_core.ast.types.TypeRef
-import kf_core.ast.declaration.Annotation
+import kf_core.ast.annotation.Annotation
 import kf_core.ast.declaration.Param
 import kf_core.ast.declaration.TopDecl
-import kf_core.ast.annotation.argument_source
 import json.writer.*
 import kf_core.ast.subst.mangle_tyref
 

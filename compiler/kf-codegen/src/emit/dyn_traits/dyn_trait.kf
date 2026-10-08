@@ -1,11 +1,11 @@
 import alloc.list.*
 
 import kf_core.ast.Module
-import kf_core.ast.Sym
 import kf_core.ast.types.Type
 import kf_core.ast.types.type_identity_display
 import kf_core.ast.expression.Expr
 import kf_core.ast.dyn_meta.*
+import kf_core.intern.Sym
 import kf_codegen.concat_all
 import kf_codegen.emit.c_type_of_type
 import kf_codegen.emit.expr.emit_expr
@@ -230,7 +230,7 @@ fun Type.dyn_coerce_layout_identity(): String {
         RefTo(_, object) => {
             val dynamic = unsafe { *object }
             when (dynamic.kind) {
-                DynTraitTy(_) => return dyn_trait_identity(&dynamic).dyn_codegen_identity()
+                DynTraitTy(_) => return dynamic.dyn_trait_identity().dyn_codegen_identity()
                 _ => return ""
             }
         }
@@ -245,7 +245,7 @@ fun Type.dyn_coerce_receiver_identity(): String {
         RefTo(_, inner) => dyn_coerce_receiver_identity(unsafe { &*inner })
         Struct(identity) => identity.dyn_codegen_identity()
         EnumTy(identity) => identity.dyn_codegen_identity()
-        _ => self.clone().mangle_frag()
+        _ => self.clone().mangle_frag().display()
     }
 }
 

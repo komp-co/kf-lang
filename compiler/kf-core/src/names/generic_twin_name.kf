@@ -1,0 +1,40 @@
+// The name a generic call carries when another crate declares a generic of
+// the same name: `kf__c<crate>__<name>`, so each crate's instances get their
+// own C symbols.
+
+import kf_core.intern.*
+
+/// What a crate-qualified generic's name starts with.
+val TWIN_PREFIX: str = "kf__c"
+
+/// Writing a crate-qualified generic's name, and reading one back.
+pub struct GenericTwin {}
+
+impl GenericTwin {
+    pub static fun qualify(crate: CrateId, name: str): String {
+        return "${TWIN_PREFIX}${crate.raw as int64}__${name}"
+    }
+
+    /// The crate a qualified name was minted for, or None for an ordinary name.
+    pub static fun crate_of(base: str): int64? {
+        if !base.starts_with(TWIN_PREFIX) { return null }
+        val digits_at = TWIN_PREFIX.byte_len()
+        var at = digits_at
+        var raw: int64 = 0
+        while at < base.byte_len() {
+            val digit = (base.byte_at(at) as char).digit_value() ?: break
+            raw = raw * 10 + digit as int64
+            at = at + 1
+        }
+        if at == digits_at || base.substring(at, at + 2).as_str() != "__" { return null }
+        return raw
+    }
+
+    /// The declared name inside a qualified one; the name itself otherwise.
+    pub static fun name_of(base: str): String {
+        if GenericTwin.crate_of(base).is_none() { return String.from(base) }
+        val tail = base.substring(TWIN_PREFIX.byte_len(), base.byte_len())
+        val cut = tail.index_of("__") ?: return String.from(base)
+        return tail.substring(cut + 2, tail.byte_len())
+    }
+}

@@ -32,9 +32,9 @@ fun emit_primitive_binop(l: &Expr, op: BinOp, r: &Expr): String {
 // Only a trait call takes its operand by address; a C comparison takes it by
 // value.
 fun emit_operand_value(e: &Expr): String {
-    if e.coerce != coerce_addr_of() { return e.emit_expr() }
+    if e.coerce != Coercion.AddrOf { return e.emit_expr() }
     var value = e.clone()
-    value.coerce = coerce_none()
+    value.coerce = Coercion.Identity
     return value.emit_expr()
 }
 

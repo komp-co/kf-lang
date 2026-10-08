@@ -1,7 +1,7 @@
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
 
 fun Type.type_is_stored_lambda(ctx: &var TypeCtx): bool {
     when (self.kind) {
@@ -19,7 +19,7 @@ fun Type.type_is_stored_lambda(ctx: &var TypeCtx): bool {
 
 fun Expr.reject_stored_lambda_transfer(position: str, ctx: &var TypeCtx): bool {
     if !self.ty.type_is_stored_lambda(ctx) { return false }
-    val lab = new_label(self.span, "a stored lambda cannot be moved into ${position} yet; invoke the local directly")
-    ctx.emit(new_diagnostic(Severity.Error, lab))
+    val lab = Label.new(self.span, "a stored lambda cannot be moved into ${position} yet; invoke the local directly")
+    ctx.emit(Diagnostic.new(Severity.Error, lab))
     return true
 }

@@ -4,18 +4,18 @@
 
 import alloc.list.*
 
-import kf_core.ast.Pattern
+import kf_core.ast.pattern.Pattern
 import kf_core.ast.types.Type
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
 
 pub fun check_alternatives(alternatives: &List<Pattern>, subject_ty: Type, ctx: &var TypeCtx): void {
     while alternative in &alternatives {
         if alternative.binds_a_name() {
-            ctx.emit(new_diagnostic(Severity.Error, new_label(alternative.span, binding_alternative_message())))
+            ctx.emit(Diagnostic.new(Severity.Error, Label.new(alternative.span, binding_alternative_message())))
         } else if alternative.is_string_literal() {
             val message = "a string alternative can only sit beside other strings"
-            ctx.emit(new_diagnostic(Severity.Error, new_label(alternative.span, message)))
+            ctx.emit(Diagnostic.new(Severity.Error, Label.new(alternative.span, message)))
         } else {
             alternative.check_pattern(subject_ty, ctx)
         }

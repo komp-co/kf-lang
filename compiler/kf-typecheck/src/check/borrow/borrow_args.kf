@@ -2,9 +2,9 @@ import alloc.list.*
 
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
-import kf_core.ast.expression.coerce_addr_of
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.ast.expression.Coercion
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
 import kf_typecheck.types.type_eq
 import kf_typecheck.check.place_is_mutable
 import kf_typecheck.check.immutable_val_field
@@ -56,8 +56,8 @@ pub fun Expr.borrow_place_is_stable(): bool {
 }
 
 pub fun Expr.emit_mutable_borrow_place_error(ctx: &var TypeCtx): void {
-    val label = new_label(self.span, String.from("automatic mutable borrowing requires a place expression"))
-    ctx.emit(new_diagnostic(Severity.Error, label))
+    val label = Label.new(self.span, String.from("automatic mutable borrowing requires a place expression"))
+    ctx.emit(Diagnostic.new(Severity.Error, label))
 }
 
 pub fun Expr.emit_immutable_borrow_error(ctx: &var TypeCtx): void {
@@ -65,20 +65,20 @@ pub fun Expr.emit_immutable_borrow_error(ctx: &var TypeCtx): void {
     // would fix nothing.
     val field = self.immutable_val_field(ctx)
     if !field.as_str().equals("") {
-        val label = new_label(self.span, "cannot mutably borrow field `${field}"
+        val label = Label.new(self.span, "cannot mutably borrow field `${field}"
             + String.from("`: it is declared `val`; declare it `var`"))
-        ctx.emit(new_diagnostic(Severity.Error, label))
+        ctx.emit(Diagnostic.new(Severity.Error, label))
         return
     }
-    val label = new_label(self.span, String.from("cannot mutably borrow an immutable place; declare its root with `var` or use `&T`"))
-    ctx.emit(new_diagnostic(Severity.Error, label))
+    val label = Label.new(self.span, String.from("cannot mutably borrow an immutable place; declare its root with `var` or use `&T`"))
+    ctx.emit(Diagnostic.new(Severity.Error, label))
 }
 
 fun Expr.emit_pointer_is_not_a_reference(mutable: bool, ctx: &var TypeCtx): void {
     val want = if mutable { "&var " } else { "&" }
     val how = "write `${want}*p` inside `unsafe` to vouch that it points at a live value"
     val message = "a raw pointer is not a reference: ${how}"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
 }
 
 pub fun coerce_call_arg(args: &var List<Expr>, idx: uint64, to: Type, ctx: &var TypeCtx): ArgCoerceResult {
@@ -125,7 +125,7 @@ pub fun coerce_call_arg(args: &var List<Expr>, idx: uint64, to: Type, ctx: &var 
                     arg.emit_immutable_borrow_error(ctx)
                     return ArgCoerceResult { coerced: false, valid: false }
                 }
-                args.at_mut(idx).coerce = coerce_addr_of()
+                args.at_mut(idx).coerce = Coercion.AddrOf
                 return ArgCoerceResult { coerced: true, valid: true }
             }
         }

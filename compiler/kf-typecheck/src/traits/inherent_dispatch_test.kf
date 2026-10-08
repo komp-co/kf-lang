@@ -2,12 +2,12 @@ import core.assert.assert_eq
 
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.crate_id_poison
-import kf_core.ast.intern
+import kf_core.span.Span
 import kf_core.ast.types.Provenance
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
+import kf_core.intern.CrateId
+import kf_core.intern.intern
 import kf_typecheck.new_sig_table
 import testing.test
 
@@ -15,7 +15,7 @@ import testing.test
 // inherently and through `impl Text`.
 
 fun holder_ty(): Type {
-    return Type { kind: TypeKind.Struct(intern("Holder")), provenance: Provenance.Inferred(no_span()) }
+    return Type { kind: TypeKind.Struct(intern("Holder")), provenance: Provenance.Inferred(Span.none()) }
 }
 
 fun insert_size_method(sp: Ptr<SigTable>, name: str, is_static: bool, params: uint64): void {
@@ -25,10 +25,10 @@ fun insert_size_method(sp: Ptr<SigTable>, name: str, is_static: bool, params: ui
         ps.push(holder_ty())
         i = i + 1
     }
-    val ret = Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(no_span()) }
+    val ret = Type { kind: TypeKind.UInt64, provenance: Provenance.Inferred(Span.none()) }
     unsafe { sp.insert(FnSignature { name: String.from(name), params: ps, ret: ret,
         generics: List.new<String>(), is_static: is_static, is_mutating: false,
-        owner_module: intern(""), owner_crate: crate_id_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false,
+        owner_module: intern(""), owner_crate: CrateId.new_poison(), is_pub: true, borrows: 0 - 1, is_prelude: false,
         is_extern: false }) }
 }
 
@@ -37,7 +37,7 @@ fun holder_table(inherent: bool): Ptr<SigTable> {
     val sp: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *sp = new_sig_table() }
     unsafe { sp.insert_struct(StructLayout { name: String.from("Holder"), fields: List.new<StructFieldInfo>(),
-        is_refcounted: false, owner_crate: crate_id_poison() }) }
+        is_refcounted: false, owner_crate: CrateId.new_poison() }) }
     unsafe { sp.insert_trait_impl(TraitImplInfo { type_name: String.from("Holder"), receiver_identity: intern("Holder"),
         trait_name: String.from("Text"), trait_args: "", generics: "", arg_count: 0 }) }
     insert_size_method(sp, "Holder_size__Text", false, 1)
@@ -81,7 +81,7 @@ fun a_borrowed_receiver_finds_its_own_method(): void {
     val sp = holder_table(true)
     val inner: Ptr<Type> = unsafe { alloc<Type>() }
     unsafe { *inner = holder_ty() }
-    val borrowed = Type { kind: TypeKind.RefTo(false, inner), provenance: Provenance.Inferred(no_span()) }
+    val borrowed = Type { kind: TypeKind.RefTo(false, inner), provenance: Provenance.Inferred(Span.none()) }
     val symbol = inherent_method_symbol(borrowed, String.from("size"), 0, sp)
     assert_eq(symbol.as_str(), "Holder_size", "a borrow dispatches to the same method a value does")
 }

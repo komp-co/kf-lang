@@ -1,10 +1,10 @@
 import alloc.list.*
 
-import kf_core.ast.CrateId
 import kf_core.ast.Module
-import kf_core.ast.type_retain_fn
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.*
+import kf_core.intern.CrateId
+import kf_core.names.CName
 
 pub struct OwnershipGlue {
     pub val type_name: String
@@ -119,7 +119,7 @@ fun append_glue(name: String, crate: CrateId, out: &var List<OwnershipGlue>, see
     seen.push(name.clone())
     var c_name = crate.symbol_prefix()
     c_name.append(name)
-    val retain = type_retain_fn(c_name)
+    val retain = CName.retain_fn(c_name.as_str())
     var drop = c_name.clone()
     drop.append("_drop")
     var clone = c_name.clone()

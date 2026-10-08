@@ -5,12 +5,12 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.intern
-import kf_core.ast.new_crate_id
+import kf_core.span.Span
 import kf_core.ast.types.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
+import kf_core.intern.intern
+import kf_core.intern.CrateId
 import kf_typecheck.new_sig_table
 import kf_typecheck.new_type_ctx
 import kf_typecheck.types.mangle_type
@@ -20,20 +20,20 @@ import testing.test
 /// `fun range<T>(start: T, end: T, step: T): Range<T>`.
 fun range_signature(): FnSignature {
     var params = List.new<Type>()
-    params.push(Type.new_generic(String.from("T"), no_span()))
-    params.push(Type.new_generic(String.from("T"), no_span()))
-    params.push(Type.new_generic(String.from("T"), no_span()))
+    params.push(Type.new_generic(String.from("T"), Span.none()))
+    params.push(Type.new_generic(String.from("T"), Span.none()))
+    params.push(Type.new_generic(String.from("T"), Span.none()))
     var generics = List.new<String>()
     generics.push(String.from("T"))
     return FnSignature {
         name: String.from("range"),
         params: params,
-        ret: Type { kind: TypeKind.Struct(intern("Range__T")), provenance: Provenance.Declared(no_span()) },
+        ret: Type { kind: TypeKind.Struct(intern("Range__T")), provenance: Provenance.Declared(Span.none()) },
         generics: generics,
         is_static: false,
         is_mutating: false,
         owner_module: intern("core.range"),
-        owner_crate: new_crate_id("core"),
+        owner_crate: CrateId.new("core"),
         is_pub: true,
         borrows: 0 - 1,
         is_prelude: false,
@@ -43,20 +43,20 @@ fun range_signature(): FnSignature {
 
 fun range_literal_call(): Expr {
     var args = List.new<Expr>()
-    args.push(Expr.new(no_span(), ExprKind.LitInt(0)))
-    args.push(Expr.new(no_span(), ExprKind.LitInt(2)))
-    args.push(Expr.new(no_span(), ExprKind.LitInt(1)))
-    var call = Expr.new(no_span(), ExprKind.Call(intern("range"), args))
+    args.push(Expr.new(Span.none(), ExprKind.LitInt(0)))
+    args.push(Expr.new(Span.none(), ExprKind.LitInt(2)))
+    args.push(Expr.new(Span.none(), ExprKind.LitInt(1)))
+    var call = Expr.new(Span.none(), ExprKind.Call(intern("range"), args))
     // What bottom-up inference settled on and stamped.
-    call.ty = Type { kind: TypeKind.Struct(intern("Range__int32")), provenance: Provenance.Inferred(no_span()) }
+    call.ty = Type { kind: TypeKind.Struct(intern("Range__int32")), provenance: Provenance.Inferred(Span.none()) }
     var written = List.new<TypeRef>()
-    written.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    written.push(TypeRef.new(Span.none(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
     call.type_args = written
     return call
 }
 
 fun named_ty(n: str): Type {
-    return Type { kind: TypeKind.Struct(intern(n)), provenance: Provenance.Declared(no_span()) }
+    return Type { kind: TypeKind.Struct(intern(n)), provenance: Provenance.Declared(Span.none()) }
 }
 
 /// As mangled names; empty means the call cannot be that type.
@@ -65,8 +65,8 @@ fun bindings_for(want: Type, mark_written: bool): List<String> {
     unsafe { *signatures = new_sig_table() }
     unsafe { signatures.insert(range_signature()) }
 
-    var ctx = new_type_ctx(Type.new_void(no_span()), unsafe { &var *leaked_diagnostics() }, Option.None, signatures)
-    ctx.owner_crate = new_crate_id("core")
+    var ctx = new_type_ctx(Type.new_void(Span.none()), unsafe { &var *leaked_diagnostics() }, Option.None, signatures)
+    ctx.owner_crate = CrateId.new("core")
     ctx.owner_module = intern("core.range")
 
     var call = range_literal_call()
@@ -91,7 +91,7 @@ fun a_slot_reads_its_own_type_argument_out_of_a_range_literal(): void {
 @test
 fun an_unrelated_slot_reads_nothing_out_of_a_range_literal(): void {
     assert_eq(bindings_for(named_ty("List__uint64"), false).size(), 0, "a different template binds nothing")
-    assert_eq(bindings_for(Type.new_int32(no_span()), false).size(), 0, "and neither does a type that is not an instance at all")
+    assert_eq(bindings_for(Type.new_int32(Span.none()), false).size(), 0, "and neither does a type that is not an instance at all")
 }
 
 // A slot matching the call already has nothing to say.

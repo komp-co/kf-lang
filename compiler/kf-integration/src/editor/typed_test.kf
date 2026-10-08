@@ -197,7 +197,7 @@ fun a_near_miss_method_carries_a_fix_over_the_name_only(): void {
     val diags = fix_fixture_diags()
     var checked = false
     while d in &diags {
-        if fix_has_repair(&d.fix) {
+        if d.fix.has_repair() {
             checked = true
             assert_eq(d.fix.replacement.as_str(), "sum", "the repair writes the real method name")
             // `sunm` is 4 bytes; the call's own span opens at the receiver.
@@ -258,7 +258,7 @@ fun a_near_miss_on_a_generic_instance_carries_a_fix(): void {
     val diags = generic_fix_fixture_diags()
     var checked = false
     while d in &diags {
-        if fix_has_repair(&d.fix) {
+        if d.fix.has_repair() {
             checked = true
             assert_eq(d.fix.replacement.as_str(), "unwrap", "the repair writes the base impl's method name")
             assert_eq(d.fix.span.end - d.fix.span.start, 5 as uint32, "over `unwrp`, not the whole call")
@@ -294,7 +294,7 @@ fun a_far_off_name_on_a_generic_instance_stays_silent(): void {
     var suggested = false
     while diag in &diags {
         if diag.primary.message.contains("did you mean") { suggested = true }
-        if fix_has_repair(diag.fix) { suggested = true }
+        if diag.fix.has_repair() { suggested = true }
     }
     assert_eq(suggested, false, "`frobnicate` is nothing like `unwrap`, so nothing is offered")
 }
@@ -325,7 +325,7 @@ pub fun probe(): int32 {
 fun unused_fixture_diags(): List<Diagnostic> {
     prepare_unused_fixture()
     val smap = fresh_source_map()
-    var pdiags = new_diagnostics()
+    var pdiags = Diagnostics.new()
     var merged = assemble_project(scratch_path("kf_unused_import"), smap, &var pdiags)
     return merged.collect_module_diags(smap)
 }
@@ -362,7 +362,7 @@ fun an_unused_import_is_a_warning_carrying_a_cautious_fix(): void {
         if d.primary.message.contains("unused import") {
             checked = true
             assert_eq(d.diag_is_warning(), true, "reported as a warning, not an error")
-            assert_eq(fix_is_machine_applicable(&d.fix), false, "so `komp check --fix` leaves it alone")
+            assert_eq(d.fix.is_machine_applicable(), false, "so `komp check --fix` leaves it alone")
             assert_eq(d.fix.replacement.as_str(), "", "the repair deletes rather than rewrites")
         }
     }

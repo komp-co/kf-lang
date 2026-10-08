@@ -1,7 +1,7 @@
 // Calls through a module alias.
 
-import kf_core.ast.*
 import kf_core.ast.declaration.DeclId
+import kf_core.intern.*
 
 impl SigTable {
     /// The callee of a plain call, or of a call through a module alias when

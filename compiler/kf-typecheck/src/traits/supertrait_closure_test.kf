@@ -1,8 +1,8 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.intern
+import kf_core.span.Span
+import kf_core.intern.intern
 import kf_typecheck.new_sig_table
 import testing.test
 
@@ -10,7 +10,7 @@ fun closure_trait(name: str, supers: List<SuperTraitReq>): TraitInfo {
     return TraitInfo {
         name: String.from(name),
         identity: intern(name), module: intern(""),
-        span: no_span(),
+        span: Span.none(),
         type_params: List.new<String>(),
         methods: List.new<TraitMethodReq>(),
         assoc_types: List.new<TraitAssocReq>(),
@@ -19,7 +19,7 @@ fun closure_trait(name: str, supers: List<SuperTraitReq>): TraitInfo {
 }
 
 fun closure_super(name: str): SuperTraitReq {
-    return SuperTraitReq { name: String.from(name), args: "", span: no_span() }
+    return SuperTraitReq { name: String.from(name), args: "", span: Span.none() }
 }
 
 fun closure_supers_of(names: List<String>): List<SuperTraitReq> {

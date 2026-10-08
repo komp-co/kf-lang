@@ -1,15 +1,16 @@
 import alloc.list.*
 
-import kf_core.ast.*
 import kf_core.ast.types.*
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TypeParam
 import kf_core.diagnostic.*
 import kf_typecheck.types.*
 import kf_typecheck.*
-import kf_core.span.no_span
-import kf_core.ast.subst.clone_type_ref
+import kf_core.span.Span
 import kf_core.ast.dyn_meta.*
+import kf_core.intern.*
+import kf_core.lang.is_container_type_name
+import kf_core.names.*
 import kf_typecheck.check.decl.no_mangle_type_recorded
 import kf_typecheck.check.decl.trait_arg_params
 
@@ -31,12 +32,12 @@ mutating fun TopDecl.register_trait_impl(trait_ref: &TypeRef, sigs: Ptr<SigTable
             val unmangled = no_mangle_type_recorded(sigs, self.name.as_str())
             val is_container = is_container_type_name(self.name.as_str(),
                 unsafe { (*sigs).lang_list }, unsafe { (*sigs).lang_option })
-            if is_runtime_type_name(self.name.as_str()) || is_container || unmangled { coherence_key = intern("") }
+            if CName.is_runtime_type(self.name.as_str()) || is_container || unmangled { coherence_key = intern("") }
             when (unsafe { sigs.find_trait_impl(coherence_key, type_name, trait_name, args_key) }) {
                 Some(first) => {
                     val where_first = first.where_the_first_impl_is(self)
                     val message = "duplicate impl ${trait_name.as_str()} for ${type_name.as_str()}${where_first.as_str()}"
-                    diags.emit(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
+                    diags.emit(Diagnostic.new(Severity.Error, Label.new(self.decl_name_span(), message)))
                 }
                 None => {
                     unsafe { sigs.note_impl_param_bounds(type_name.clone(), trait_name.clone(), &self.generics) }
@@ -97,7 +98,7 @@ mutating fun TopDecl.register_concrete_dyn_vtable(trait_ref: TypeRef, members: &
                 None => return
                 Some(info) => {
                     if !info.trait_info_is_object_safe() { return }
-                    var ctx = new_type_ctx(Type.new_void(no_span()), diags, Option.None, sigs)
+                    var ctx = new_type_ctx(Type.new_void(Span.none()), diags, Option.None, sigs)
                     ctx.owner_crate = self.crate
                     ctx.owner_module = self.module_path
                     ctx.owner_file = self.span.file_id
@@ -110,7 +111,7 @@ mutating fun TopDecl.register_concrete_dyn_vtable(trait_ref: TypeRef, members: &
                     while argument in &type_refs {
                         args.push(argument.resolve_type_ref(&var ctx))
                     }
-                    val dynamic_type = dyn_trait_type(info.identity, args, trait_ref.span)
+                    val dynamic_type = Type.new_dyn_trait(info.identity, args, trait_ref.span)
                     when (dynamic_type.validate_dyn_trait(trait_ref.span, &var ctx)) {
                         None => return
                         Some(layout) => insert_dyn_vtable(self, trait_ref, members, &layout, sigs)
@@ -167,11 +168,8 @@ fun TopDecl.dyn_adapter_symbol(members: &List<TopDecl>, receiver: &Type, method:
             if member.name.id == method.id && member.link_name.as_str() != "" { return member.link_name }
         }
     }
-    var adapter = (*receiver).mangle_frag()
-    adapter.append("_")
     val tail = emitted_method_tail(method.as_str(), suffix)
-    adapter.append(tail)
-    return intern(adapter)
+    return intern("${(*receiver).mangle_frag()}_${tail}")
 }
 
 /// `type Out = int32` in `impl Producer for Widget` makes `Widget.Out` int32.
@@ -193,7 +191,7 @@ fun TopDecl.register_assoc_bindings(trait_ref: &TypeRef, members: &List<TopDecl>
     while member in &members {
         when (member.kind) {
             AssocTypeBinding(chosen_ptr) => {
-                var ctx0 = new_type_ctx(Type.new_void(no_span()), diags, Option.None, sigs)
+                var ctx0 = new_type_ctx(Type.new_void(Span.none()), diags, Option.None, sigs)
                 ctx0.owner_crate = self.crate
                 ctx0.owner_module = self.module_path
                 ctx0.owner_file = self.span.file_id
@@ -206,7 +204,7 @@ fun TopDecl.register_assoc_bindings(trait_ref: &TypeRef, members: &List<TopDecl>
                     trait_args: trait_args.clone(),
                     assoc_name: member.name.as_string(),
                     chosen: chosen,
-                    chosen_tref: clone_type_ref(&chosen_tr)
+                    chosen_tref: chosen_tr.clone()
                 }) }
             }
             _ => { }

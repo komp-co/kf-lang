@@ -1,7 +1,7 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.ast.declaration.Annotation
+import kf_core.ast.annotation.Annotation
 import kf_parse.parser.parser_for
 import testing.test
 

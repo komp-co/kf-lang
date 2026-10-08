@@ -8,13 +8,13 @@
 
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.Sym
-import kf_core.ast.intern
+import kf_core.span.Span
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import kf_core.intern.Sym
+import kf_core.intern.intern
 
 /// Rewrites the guard to read the value its prelude computes, and returns
 /// that prelude; empty, and the guard untouched, when it owns no temporary.
@@ -78,6 +78,6 @@ mutating fun List<Stmt>.release_temporaries_at_end(): void {
     var i = temporaries.size()
     while i > 0 {
         i = i - 1
-        self.push(Stmt.new(no_span(), StmtKind.Release(*temporaries.at(i))))
+        self.push(Stmt.new(Span.none(), StmtKind.Release(*temporaries.at(i))))
     }
 }

@@ -1,8 +1,5 @@
 import alloc.list.*
 
-import kf_core.ast.CrateId
-import kf_core.ast.Sym
-import kf_core.ast.intern
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
@@ -17,6 +14,9 @@ import kf_typecheck.types.*
 import kf_typecheck.*
 import kf_core.span.*
 import kf_core.ast.subst.subst_stmt_list
+import kf_core.intern.CrateId
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_typecheck.check.check_stmt
 import kf_typecheck.check.control.when_is_exhaustive
 import kf_typecheck.check.value_params_of
@@ -27,13 +27,12 @@ fun check_fn_body(metadata_owner: Ptr<TopDecl>, owner: String, owner_crate: Crat
     owner_file: uint32, self_name: String, impl_target: String, impl_trait: String, impl_trait_args: String,
     impl_method: String, self_mutable: bool, generics: List<String>, params: &List<Param>, ret_ptr: Ptr<TypeRef>,
     body: &var List<Stmt>, diags: &var Diagnostics, sigs: Ptr<SigTable>): void {
-    var no_names = List.new<String>()
-    var no_types = List.new<TypeRef>()
-    val pristine = subst_stmt_list(body, &var no_names, &var no_types)
+    var subst = Substitution.new()
+    val pristine = subst_stmt_list(body, &subst)
     var presets = List.new<OpenDecision>()
     while attempt in 0..4 {
         val reported = (*diags).size()
-        var ctx = new_type_ctx(Type.new_void(no_span()), diags, Option.None, sigs)
+        var ctx = new_type_ctx(Type.new_void(Span.none()), diags, Option.None, sigs)
         ctx.presets = presets.clone()
         ctx.fn_owner = owner.clone()
         ctx.impl_trait = impl_trait.clone()
@@ -46,7 +45,7 @@ fun check_fn_body(metadata_owner: Ptr<TopDecl>, owner: String, owner_crate: Crat
         ctx.metadata_owner = metadata_owner
         ctx.declare_value_params()
         if !impl_target.as_str().equals("") {
-            ctx.self_ty = impl_target_ty(impl_target, no_span(), ctx.string_name())
+            ctx.self_ty = impl_target_ty(impl_target, Span.none(), ctx.string_name())
         }
         val ret_tr: TypeRef = unsafe { *ret_ptr }
         ctx.return_ty = ret_tr.resolve_type_ref(&var ctx)
@@ -58,7 +57,7 @@ fun check_fn_body(metadata_owner: Ptr<TopDecl>, owner: String, owner_crate: Crat
             var self_ty = Type.new_poison()
             if ctx.self_ty.is_poison() {
                 val self_kind = TypeRefKind.Named(intern(self_name), List.new<TypeRef>())
-                val self_tr = TypeRef.new(no_span(), self_kind)
+                val self_tr = TypeRef.new(Span.none(), self_kind)
                 self_ty = self_tr.resolve_type_ref(&var ctx)
             } else {
                 self_ty = ctx.self_ty.clone()
@@ -86,7 +85,7 @@ fun check_fn_body(metadata_owner: Ptr<TopDecl>, owner: String, owner_crate: Crat
         if decisions.size() == 0 || attempt == 3 { return }
         while (*diags).size() > reported { (*diags).pop() }
         while decision in &decisions { presets.push(decision.clone()) }
-        *body = subst_stmt_list(&pristine, &var no_names, &var no_types)
+        *body = subst_stmt_list(&pristine, &subst)
     }
 }
 
@@ -193,8 +192,8 @@ fun is_literal_true(e: Expr): bool {
 }
 
 fun emit_missing_return_err(diags: &var Diagnostics, span: Span, fn_name: String): void {
-    val lab = new_label(span, "function `${fn_name}` does not return on all paths (a non-void function must return a value on every path)")
-    diags.emit(new_diagnostic(Severity.Error, lab))
+    val lab = Label.new(span, "function `${fn_name}` does not return on all paths (a non-void function must return a value on every path)")
+    diags.emit(Diagnostic.new(Severity.Error, lab))
 }
 
 fun check_method_body(struct_name: String, generics: List<String>, impl_trait: String, impl_trait_args: String, td: &var TopDecl, diags: &var Diagnostics, sigs: Ptr<SigTable>): void {
@@ -246,26 +245,26 @@ fun ret_tref_is_self(ret: TypeRef, struct_name: String): bool {
 
 fun emit_clone_ret_err(diags: &var Diagnostics, span: Span, struct_name: String): void {
     val msg = "`clone` must return Self (`${struct_name}`): the name is reserved for the deep-clone that returns the receiver's type"
-    val lab = new_label(span, msg)
-    diags.emit(new_diagnostic(Severity.Error, lab))
+    val lab = Label.new(span, msg)
+    diags.emit(Diagnostic.new(Severity.Error, lab))
 }
 
 fun emit_drop_shape_err(diags: &var Diagnostics, span: Span, struct_name: String): void {
     val msg = "`drop` on `${struct_name}` must be `fun drop(): void` with no parameters: the name is reserved for the destructor komp calls at scope exit (rename it, or give it the destructor's signature)"
-    val lab = new_label(span, msg)
-    diags.emit(new_diagnostic(Severity.Error, lab))
+    val lab = Label.new(span, msg)
+    diags.emit(Diagnostic.new(Severity.Error, lab))
 }
 
 fun emit_take_reserved_err(diags: &var Diagnostics, span: Span): void {
     // CONSTRAINT: the message is built inline; a `val msg` would be dropped
     // after the Label took it.
-    val lab = new_label(span, String.from("`take` is a reserved intrinsic name; a free function cannot be named `take` (rename it, or make it a method on a type)"))
-    diags.emit(new_diagnostic(Severity.Error, lab))
+    val lab = Label.new(span, String.from("`take` is a reserved intrinsic name; a free function cannot be named `take` (rename it, or make it a method on a type)"))
+    diags.emit(Diagnostic.new(Severity.Error, lab))
 }
 
 fun emit_builtin_type_name_reserved_err(diags: &var Diagnostics, span: Span, name: String): void {
     val message = "`${name}` is reserved for a builtin type; a free function cannot be named `" + name + "` (rename it)"
-    diags.emit(new_diagnostic(Severity.Error, new_label(span, message)))
+    diags.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
 }
 
 /// Each of the owner's value parameters is a constant of its type.

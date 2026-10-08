@@ -1,10 +1,9 @@
 // `..a` among a variant's payloads, in a template: every payload of the
 // variant a member loop is on, each bound to a name `payload.of(a)` reads.
 
-import kf_core.ast.Pattern
-import kf_core.ast.PatternKind
-import kf_core.ast.intern
-import kf_core.ast.new_pattern
+import kf_core.ast.pattern.Pattern
+import kf_core.ast.pattern.PatternKind
+import kf_core.intern.intern
 import kf_parse.parser.*
 
 impl Parser {
@@ -18,6 +17,6 @@ impl Parser {
         if self.template_param.as_str().byte_len() == 0 {
             self.parse_err(at, String.from("`..name` binds a variant's payloads only in a template's arm"))
         }
-        return new_pattern(at, PatternKind.Identifier(intern("..${name.as_str()}")))
+        return Pattern.new(at, PatternKind.Identifier(intern("..${name.as_str()}")))
     }
 }

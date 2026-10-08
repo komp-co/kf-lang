@@ -8,7 +8,9 @@ import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
-import kf_core.ast.annotation.new_annotation
+import kf_core.ast.annotation.Annotation
+import kf_core.intern.*
+import kf_core.lang.lang_annotation
 import json.reader.*
 import kf_interface.*
 
@@ -30,7 +32,7 @@ fun load_error(msg: str): InterfaceLoad {
 /// `parse_interface_mapped` so they stay renderable.
 pub fun parse_interface(src: str): InterfaceLoad {
     val smap: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
-    unsafe { *smap = new_source_map() }
+    unsafe { *smap = SourceMap.new() }
     return parse_interface_mapped(src, smap)
 }
 
@@ -64,13 +66,13 @@ pub fun parse_interface_mapped(src: str, smap: Ptr<SourceMap>): InterfaceLoad {
     val glue_result = reader.load_ownership_glue()
     if !glue_result.ok { return load_error("malformed ownership glue") }
     if !reader.expect_key("dyn_traits") { return load_error("malformed dynamic trait metadata") }
-    val trait_result = reader.load_dyn_traits(new_crate_id(crate_name))
+    val trait_result = reader.load_dyn_traits(CrateId.new(crate_name.as_str()))
     if !trait_result.ok { return load_error("malformed dynamic trait metadata") }
     if !reader.expect_key("dyn_vtables") { return load_error("malformed dynamic vtable metadata") }
-    val vtable_result = reader.load_dyn_vtables(new_crate_id(crate_name), &trait_result.items)
+    val vtable_result = reader.load_dyn_vtables(CrateId.new(crate_name.as_str()), &trait_result.items)
     if !vtable_result.ok { return load_error("malformed dynamic vtable metadata") }
     if !reader.expect_key("modules") { return load_error("missing interface modules") }
-    val crate = new_crate_id(crate_name)
+    val crate = CrateId.new(crate_name.as_str())
     var modules = reader.load_modules(crate, crate_name, smap)
     if reader.has_error() { return load_error("malformed interface declaration") }
     if reader.object_has_next() { return load_error("malformed interface JSON") }
@@ -229,9 +231,9 @@ mutating fun JsonReader.load_fun(crate: CrateId, path: str, hidden: bool): TopDe
     var ext_name = ""
     if !self.read_ext_name(&var ext_name) { return poison_decl() }
     val kind = TopDeclKind.Function(params, ret, List.new<Stmt>(), is_pub, false, false, false)
-    var decl = new_top_decl(no_span(), name, kind)
+    var decl = TopDecl.new(Span.none(), name, kind)
     decl.ext_name = intern(ext_name)
-    if is_prelude { decl.annotations.push(new_annotation(no_span(), "prelude", List.new<String>())) }
+    if is_prelude { decl.annotations.push(Annotation.new(Span.none(), "prelude", List.new<String>())) }
     return stamp_imported(decl, crate, path, link_name, hidden)
 }
 
@@ -244,7 +246,7 @@ mutating fun JsonReader.load_struct(crate: CrateId, path: str, hidden: bool): To
     if !self.expect_key("fields") { return poison_decl() }
     val fields = self.load_fields()
     if self.object_has_next() { return poison_decl() }
-    val decl = new_top_decl(no_span(), name, TopDeclKind.Struct(fields, is_pub))
+    val decl = TopDecl.new(Span.none(), name, TopDeclKind.Struct(fields, is_pub))
     return mark_c_naming(stamp_imported(decl, crate, path, "", hidden), naming)
 }
 
@@ -262,7 +264,7 @@ mutating fun JsonReader.load_fields(): List<Field> {
         if !self.expect_key("pub") { return fields }
         val is_pub = self.read_bool()
         if !self.expect_key("annotations") { return fields }
-        var field = new_field(no_span(), name, ty, is_var, is_pub)
+        var field = Field.new(Span.none(), name, ty, is_var, is_pub)
         field.annotations = self.load_annotation_uses()
         if self.object_has_next() { return fields }
         fields.push(field)
@@ -279,7 +281,7 @@ mutating fun JsonReader.load_enum(crate: CrateId, path: str, hidden: bool): TopD
     if !self.expect_key("variants") { return poison_decl() }
     val variants = self.load_variants()
     if self.object_has_next() { return poison_decl() }
-    val decl = new_top_decl(no_span(), name, TopDeclKind.EnumDecl(variants, is_pub))
+    val decl = TopDecl.new(Span.none(), name, TopDeclKind.EnumDecl(variants, is_pub))
     return mark_c_naming(stamp_imported(decl, crate, path, "", hidden), naming)
 }
 
@@ -297,7 +299,7 @@ mutating fun JsonReader.load_variants(): List<Variant> {
             payloads.push(parse_type_value(self.read_string().as_str()))
         }
         if !self.expect_key("annotations") { return variants }
-        var variant = new_variant(no_span(), name, payloads)
+        var variant = Variant.new(Span.none(), name, payloads)
         variant.annotations = self.load_annotation_uses()
         if self.object_has_next() { return variants }
         variants.push(variant)
@@ -311,7 +313,7 @@ mutating fun JsonReader.load_impl(crate: CrateId, path: str, hidden: bool): TopD
     if !self.expect_key("methods") { return poison_decl() }
     val methods = self.load_method_list(crate, path, true, hidden)
     if self.object_has_next() { return poison_decl() }
-    return stamp_imported(new_top_decl(no_span(), target, TopDeclKind.ImplBlock(methods)), crate, path, "", hidden)
+    return stamp_imported(TopDecl.new(Span.none(), target, TopDeclKind.ImplBlock(methods)), crate, path, "", hidden)
 }
 
 mutating fun JsonReader.load_trait(crate: CrateId, path: str, hidden: bool): TopDecl {
@@ -335,7 +337,7 @@ mutating fun JsonReader.load_trait(crate: CrateId, path: str, hidden: bool): Top
     if !self.expect_key("methods") { return poison_decl() }
     val methods = self.load_method_list(crate, path, false, hidden)
     if self.object_has_next() { return poison_decl() }
-    var decl = new_top_decl(no_span(), name, TopDeclKind.TraitDecl(methods, is_pub, supers))
+    var decl = TopDecl.new(Span.none(), name, TopDeclKind.TraitDecl(methods, is_pub, supers))
     decl.is_sealed = is_sealed
     if !lang.as_str().equals("") { decl.annotations.push(lang_annotation(lang)) }
     return stamp_imported(decl, crate, path, "", hidden)
@@ -351,7 +353,7 @@ mutating fun JsonReader.load_trait_impl(crate: CrateId, path: str, hidden: bool)
     if !self.expect_key("deref_via") { return poison_decl() }
     val deref_via = self.read_string()
     if self.object_has_next() { return poison_decl() }
-    var loaded = new_top_decl(no_span(), target, TopDeclKind.TraitImpl(trait_ref, methods))
+    var loaded = TopDecl.new(Span.none(), target, TopDeclKind.TraitImpl(trait_ref, methods))
     loaded.deref_via = intern(deref_via)
     return stamp_imported(loaded, crate, path, "", hidden)
 }
@@ -391,5 +393,5 @@ mutating fun JsonReader.load_method(crate: CrateId, path: str, requires_link_nam
     val _borrows = self.read_int64()
     if self.object_has_next() { return poison_decl() }
     val kind = TopDeclKind.Function(params, ret, List.new<Stmt>(), is_pub, false, is_mutating, is_static)
-    return stamp_imported(new_top_decl(no_span(), name, kind), crate, path, link_name, hidden)
+    return stamp_imported(TopDecl.new(Span.none(), name, kind), crate, path, link_name, hidden)
 }

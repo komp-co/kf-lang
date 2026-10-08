@@ -1,7 +1,7 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
@@ -10,12 +10,13 @@ import kf_core.ast.expression.ExprKind
 import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import kf_core.intern.*
 import kf_mono.collect.ret_op
 import testing.test
 
 fun defaults_test_type(name: str): Ptr<TypeRef> {
     val out: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *out = TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
+    unsafe { *out = TypeRef.new(Span.none(), TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
     return out
 }
 
@@ -23,26 +24,28 @@ fun defaults_test_method(name: str, with_body: bool): TopDecl {
     var body = List.new<Stmt>()
     if with_body {
         val value: Ptr<Expr> = unsafe { alloc<Expr>() }
-        unsafe { *value = Expr.new(no_span(), ExprKind.LitInt(42)) }
-        body.push(Stmt.new(no_span(), StmtKind.Return(ret_op(value))))
+        unsafe { *value = Expr.new(Span.none(), ExprKind.LitInt(42)) }
+        body.push(Stmt.new(Span.none(), StmtKind.Return(ret_op(value))))
     }
-    return new_top_decl(no_span(), String.from(name), TopDeclKind.Function(List.new<Param>(), defaults_test_type("int32"), body, true, false, false, false))
+    return TopDecl.new(Span.none(), String.from(name), TopDeclKind.Function(List.new<Param>(), defaults_test_type("int32"), body, true, false, false, false))
 }
 
 fun defaults_test_module(explicit_default: bool): Module {
     var trait_methods = List.new<TopDecl>()
     trait_methods.push(defaults_test_method("answer", true))
-    val trait_decl = new_top_decl(no_span(), String.from("Answer"), TopDeclKind.TraitDecl(trait_methods, true, List.new<TypeRef>()))
+    val trait_decl = TopDecl.new(
+        Span.none(), String.from("Answer"), TopDeclKind.TraitDecl(trait_methods, true, List.new<TypeRef>())
+    )
 
     var impl_methods = List.new<TopDecl>()
     if explicit_default { impl_methods.push(defaults_test_method("answer", true)) }
     val trait_ref: Ptr<TypeRef> = defaults_test_type("Answer")
-    val trait_impl = new_top_decl(no_span(), String.from("Value"), TopDeclKind.TraitImpl(trait_ref, impl_methods))
+    val trait_impl = TopDecl.new(Span.none(), String.from("Value"), TopDeclKind.TraitImpl(trait_ref, impl_methods))
 
     var declarations = List.new<TopDecl>()
     declarations.push(trait_decl)
     declarations.push(trait_impl)
-    return Module { crate: crate_id_poison(), path: List.new<String>(), decls: declarations, imports: List.new<Import>() }
+    return Module { crate: CrateId.new_poison(), path: List.new<String>(), decls: declarations, imports: List.new<Import>() }
 }
 
 fun Module.defaults_test_method_count(): uint64 {
@@ -69,16 +72,16 @@ fun Module.defaults_test_method_count(): uint64 {
 
 fun self_call_stmt(target: str): Stmt {
     val recv_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *recv_ptr = Expr.new(no_span(), ExprKind.Variable(intern("self"))) }
+    unsafe { *recv_ptr = Expr.new(Span.none(), ExprKind.Variable(intern("self"))) }
     val call_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *call_ptr = Expr.new(no_span(), ExprKind.MethodCall(recv_ptr, intern(target), List.new<Expr>())) }
-    return Stmt.new(no_span(), StmtKind.Return(ret_op(call_ptr)))
+    unsafe { *call_ptr = Expr.new(Span.none(), ExprKind.MethodCall(recv_ptr, intern(target), List.new<Expr>())) }
+    return Stmt.new(Span.none(), StmtKind.Return(ret_op(call_ptr)))
 }
 
 fun defaults_test_method_calling(name: str, target: str): TopDecl {
     var body = List.new<Stmt>()
     body.push(self_call_stmt(target))
-    return new_top_decl(no_span(), String.from(name), TopDeclKind.Function(List.new<Param>(), defaults_test_type("int32"), body, true, false, false, false))
+    return TopDecl.new(Span.none(), String.from(name), TopDeclKind.Function(List.new<Param>(), defaults_test_type("int32"), body, true, false, false, false))
 }
 
 /// The `mangled_callee` on a named impl method's first `return self.x()`, or "".
@@ -117,17 +120,19 @@ fun Module.sibling_call_mangled_callee(impl_method_name: str): String {
     var trait_methods = List.new<TopDecl>()
     trait_methods.push(defaults_test_method("name", false))
     trait_methods.push(defaults_test_method_calling("greeting", "name"))
-    val trait_decl = new_top_decl(no_span(), String.from("Answer"), TopDeclKind.TraitDecl(trait_methods, true, List.new<TypeRef>()))
+    val trait_decl = TopDecl.new(
+        Span.none(), String.from("Answer"), TopDeclKind.TraitDecl(trait_methods, true, List.new<TypeRef>())
+    )
 
     var impl_methods = List.new<TopDecl>()
     impl_methods.push(defaults_test_method("name", true))
     val trait_ref: Ptr<TypeRef> = defaults_test_type("Answer")
-    val trait_impl = new_top_decl(no_span(), String.from("Value"), TopDeclKind.TraitImpl(trait_ref, impl_methods))
+    val trait_impl = TopDecl.new(Span.none(), String.from("Value"), TopDeclKind.TraitImpl(trait_ref, impl_methods))
 
     var declarations = List.new<TopDecl>()
     declarations.push(trait_decl)
     declarations.push(trait_impl)
-    var module = Module { crate: crate_id_poison(), path: List.new<String>(), decls: declarations, imports: List.new<Import>() }
+    var module = Module { crate: CrateId.new_poison(), path: List.new<String>(), decls: declarations, imports: List.new<Import>() }
 
     module.normalize_trait_impls()
 

@@ -4,16 +4,14 @@
 import alloc.list.*
 
 import kf_core.span.Span
-import kf_core.ast.Sym
-import kf_core.ast.array_literal_callee
-import kf_core.ast.intern
+import kf_core.ast.expression.array_literal_callee
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
 import kf_typecheck.check.borrow.coerce_call_arg
 import kf_typecheck.types.display_type
 import kf_typecheck.types.type_eq
@@ -21,6 +19,8 @@ import kf_typecheck.types.resolve_type_ref
 import kf_typecheck.types.type_to_type_ref
 import kf_typecheck.types.clone_type_args
 import kf_core.ast.subst.subst_expr
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_typecheck.types.note_open_call_typed
 
 /// What an `Array<T, N>` instance holds.
@@ -65,7 +65,7 @@ mutating fun Expr.retarget_array_literal(expected: Type, ctx: &var TypeCtx): boo
     if elements.size() != shape.length {
         val shown = expected.display_type(ctx)
         val message = "this literal has ${elements.size()} elements, but `${shown}` holds ${shape.length}"
-        ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+        ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
         self.ty = Type.new_poison()
         return true
     }
@@ -110,7 +110,7 @@ fun check_array_element(elements: &var List<Expr>, i: uint64, expected: Type, ct
     // Checked first as a list's, whose elements must agree too.
     if ctx.reported_at(elements.at(i).span) { return false }
     val message = "this element is `${actual.display_type(ctx)}`, but the array holds `${expected.display_type(ctx)}`"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(elements.at(i).span, message)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(elements.at(i).span, message)))
     return false
 }
 
@@ -158,10 +158,9 @@ mutating fun Expr.type_array_literal(ctx: &var TypeCtx): void {
 /// as they were: a slot may still ask another type of them all, so the
 /// mismatch waits for one.
 fun agreeing_elements(elements: &List<Expr>, first: Type, literal: Span, ctx: &var TypeCtx): List<Expr> {
-    var no_names = List.new<String>()
-    var no_types = List.new<TypeRef>()
+    var subst = Substitution.new()
     var trial = List.new<Expr>()
-    while element in elements { trial.push(element.subst_expr(&var no_names, &var no_types)) }
+    while element in elements { trial.push(element.subst_expr(&subst)) }
     // A nested literal reports its own mismatch and still claims the slot.
     val mark = ctx.reported()
     var fits = true

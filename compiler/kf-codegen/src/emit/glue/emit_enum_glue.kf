@@ -4,6 +4,7 @@ import alloc.list.*
 
 import kf_core.ast.*
 import kf_core.ast.declaration.Variant
+import kf_core.names.CName
 
 import kf_codegen.concat_all
 import kf_codegen.concat
@@ -29,27 +30,27 @@ fun emit_enum_tag(name: String, variants: &List<Variant>): String {
     // An enum with no variants is uninhabited; C has no empty enum, so the tag
     // gets some nameable type. The field stays for `<E>_drop` to switch on.
     if variants.size() == 0 {
-        return "typedef int ${enum_tag_type(name.as_str())};\n\n"
+        return "typedef int ${CName.enum_tag_type(name.as_str())};\n\n"
     }
     parts.push(String.from("typedef enum "))
-    parts.push(enum_tag_type(name))
+    parts.push(CName.enum_tag_type(name.as_str()))
     parts.push(String.from(" {\n"))
     while i in 0..variants.size() {
         val v = *variants.at(i)
         parts.push(String.from("    "))
-        parts.push(enum_tag_const(name, v.name.as_str()))
+        parts.push(CName.enum_tag_const(name.as_str(), v.name.as_str()))
         if i + 1 < variants.size() { parts.push(String.from(",")) }
         parts.push(String.from("\n"))
     }
     parts.push(String.from("} "))
-    parts.push(enum_tag_type(name))
+    parts.push(CName.enum_tag_type(name.as_str()))
     parts.push(String.from(";\n\n"))
     return concat_all(parts)
 }
 
 fun emit_enum_body(name: String, variants: &List<Variant>): String {
     var parts = List.new<String>()
-    val tag_type = enum_tag_type(name)
+    val tag_type = CName.enum_tag_type(name.as_str())
     // Nor an empty union; a switch with no cases is valid.
     if variants.size() == 0 {
         return "typedef struct ${name} {\n    ${tag_type} tag;\n} ${name};\n\n"
@@ -94,7 +95,7 @@ fun emit_enum_drop(name: String, variants: &List<Variant>, facts: &TypeFacts): S
     }
     parts.push(String.from("    switch (v.tag) {\n"))
     while v in &variants {
-        parts.push("        case ${enum_tag_const(name.as_str(), v.name.as_str())}:\n")
+        parts.push("        case ${CName.enum_tag_const(name.as_str(), v.name.as_str())}:\n")
         var j = 0
         while j < v.payloads.size() {
             val pt = *v.payloads.at(j)
@@ -147,13 +148,13 @@ fun emit_enum_retain(name: String, variants: &List<Variant>, facts: &TypeFacts):
     parts.push(String.from("static inline "))
     parts.push(name.clone())
     parts.push(String.from(" "))
-    parts.push(type_retain_fn(name))
+    parts.push(CName.retain_fn(name.as_str()))
     parts.push(String.from("("))
     parts.push(name.clone())
     parts.push(String.from(" v) {\n    switch (v.tag) {\n"))
     while v in &variants {
         parts.push(String.from("        case "))
-        parts.push(enum_tag_const(name, v.name.as_str()))
+        parts.push(CName.enum_tag_const(name.as_str(), v.name.as_str()))
         parts.push(String.from(":\n"))
         var j = 0
         while j < v.payloads.size() {
@@ -167,7 +168,7 @@ fun emit_enum_retain(name: String, variants: &List<Variant>, facts: &TypeFacts):
                 parts.push(String.from("._"))
                 parts.push(jstr.clone())
                 parts.push(String.from(" = "))
-                parts.push(type_retain_fn(ct))
+                parts.push(CName.retain_fn(ct.as_str()))
                 parts.push(String.from("(v.u.V_"))
                 parts.push(v.name.as_string())
                 parts.push(String.from("._"))
@@ -209,7 +210,7 @@ fun emit_enum_clone(name: String, variants: &List<Variant>, facts: &TypeFacts): 
     parts.push(String.from(" v) {\n    switch (v.tag) {\n"))
     while v in &variants {
         parts.push(String.from("        case "))
-        parts.push(enum_tag_const(name, v.name.as_str()))
+        parts.push(CName.enum_tag_const(name.as_str(), v.name.as_str()))
         parts.push(String.from(":\n"))
         var j = 0
         while j < v.payloads.size() {

@@ -3,8 +3,8 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
 import kf_core.ast.expression.Expr
+import kf_core.ast.pattern.*
 import kf_lower.refcount.stmts_move_out
 
 /// True when this subject is a local owned outright and some arm moves one

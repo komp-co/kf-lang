@@ -1,4 +1,5 @@
 import alloc.list.*
+import kf_core.intern.intern
 import alloc.hash_map.*
 
 import kf_core.ast.*
@@ -68,9 +69,9 @@ pub fun new_decl_table(): DeclTable {
         index: HashMap.new<String, DeclId>(),
         next_id: 1,
         entries: List.new<ScopeEntry>(),
-        callables: new_name_index(),
-        types: new_name_index(),
-        file_imports: new_name_index(),
+        callables: NameIndex.new(),
+        types: NameIndex.new(),
+        file_imports: NameIndex.new(),
         import_targets: List.new<Sym>(),
         import_names: List.new<Sym>(),
         gated: false,

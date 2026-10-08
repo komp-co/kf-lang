@@ -4,12 +4,12 @@ import core.assert.fail
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.intern
+import kf_core.intern.intern
 import testing.test
 
 @test fun new_type_ref_round_trips_span(): void {
     val sp = Span { file_id: 1, start: 5, end: 9 }
-    val type_args = List.new<TypeRef>()
+    val type_args = []
     val tr = TypeRef.new(sp, TypeRefKind.Named(intern("int32"), type_args))
     assert_eq(tr.span.start, 5, "span start")
     assert_eq(tr.span.end, 9, "span end")
@@ -31,21 +31,16 @@ import testing.test
     }
 }
 
-@test fun type_ref_vec_starts_empty(): void {
-    val v = List.new<TypeRef>()
-    assert_eq(v.size(), 0, "fresh vec empty")
-}
-
 @test fun type_ref_vec_push_increments(): void {
-    var v = List.new<TypeRef>()
-    v.push(TypeRef.new_poison(no_span()))
+    var v = []
+    v.push(TypeRef.new_poison(Span.none()))
     assert_eq(v.size(), 1, "after one push")
-    v.push(TypeRef.new_poison(no_span()))
+    v.push(TypeRef.new_poison(Span.none()))
     assert_eq(v.size(), 2, "after two pushes")
 }
 
 @test fun dyn_type_ref_preserves_its_principal(): void {
-    val tr = TypeRef.new(no_span(), TypeRefKind.DynTrait(intern("Display"), List.new<TypeRef>()))
+    val tr = TypeRef.new(Span.none(), TypeRefKind.DynTrait(intern("Display"), []))
     when (tr.kind) {
         DynTrait(name, _) => assert_eq(name.as_str(), "Display", "dynamic type keeps its principal trait")
         _ => fail("expected a dynamic trait type")

@@ -5,13 +5,13 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.Sym
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.expression.FieldInit
-import kf_core.ast.declaration.Annotation
+import kf_core.ast.annotation.Annotation
 import kf_core.diagnostic.*
+import kf_core.intern.Sym
 
 /// A field or a variant, as a template reads it. A variant has no `ty`,
 /// and a field no `payloads`.
@@ -126,7 +126,7 @@ impl Expansion {
     mutating fun unbind(): void { val _left = self.bound.pop() }
 
     mutating fun report(at: Span, message: String): void {
-        self.diags.push(error_at(at, message))
+        self.diags.push(Diagnostic.error_at(at, message))
     }
 
     /// `field.get<A>()`: `A`'s arguments on the field as a literal of its

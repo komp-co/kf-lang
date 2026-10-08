@@ -1,0 +1,30 @@
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.annotation.*
+import kf_core.ast.declaration.*
+import kf_core.ast.types.*
+import kf_core.intern.*
+
+pub struct Field {
+    pub val span: Span
+    pub val name: Sym
+    pub val ty: Box<TypeRef>
+    pub val is_var: bool
+    pub val is_pub: bool
+    /// Written `internal`: visible in the crate, not exported.
+    pub var is_internal: bool
+    /// The `@...` run above the field.
+    pub var annotations: List<Annotation>
+    /// The member loop the field is written in, in a template.
+    pub var member_loop: MemberLoop?
+}
+
+impl Field {
+    pub static fun new(span: Span, name: String, ty: Ptr<TypeRef>, is_var: bool, is_pub: bool): Field {
+        return Field {
+            span: span, name: intern(name), ty: ty, is_var: is_var, is_pub: is_pub, is_internal: false,
+            annotations: [], member_loop: null
+        }
+    }
+}

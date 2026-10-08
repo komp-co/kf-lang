@@ -35,23 +35,23 @@ pub fun path_file_stem(path: str): String {
     }
     var end: uint64 = path.byte_len()
     if path.ends_with(".kf") { end = end - 3 }
-    if end <= start { return String.from("") }
+    if end <= start { return "" }
     return path.substring(start, end)
 }
 
-pub fun new_source_map(): SourceMap {
-    return SourceMap {
-        files: List.new<SourceFile>(),
-        interface_files: List.new<String>(),
-        line_starts: List.new<uint32>(),
-        file_lines: List.new<FileLines>()
-    }
-}
-
 impl SourceMap {
+    pub static fun new(): SourceMap {
+        return SourceMap {
+            files: [],
+            interface_files: [],
+            line_starts: List.new<uint32>(),
+            file_lines: []
+        }
+    }
+
     /// The first `count` files under the same ids, which further files follow.
     pub fun copy_files(count: uint64): SourceMap {
-        var out = new_source_map()
+        var out = SourceMap.new()
         out.interface_files = self.interface_files.clone()
         while i in 0..count {
             out.files.push(self.files.at(i).clone())
@@ -70,7 +70,7 @@ impl SourceMap {
         val n: uint64 = src.byte_len()
         var i = 0
         while i < n {
-            if src.byte_at_in(n, i) == 10 {
+            if src.byte_at_in(n, i) == '\n' as uint8 {
                 self.line_starts.push((i + 1) as uint32)
             }
             i = i + 1
@@ -104,17 +104,17 @@ impl SourceMap {
     /// "" for no such file. Reads `files` by reference: `get_file` copies
     /// the whole content, and this runs once per declaration.
     pub fun file_stem_of(file_id: uint32): String {
-        if file_id == 0 { return String.from("") }
+        if file_id == 0 { return "" }
         val idx: uint64 = (file_id - 1) as uint64
-        if idx >= self.files.size() { return String.from("") }
+        if idx >= self.files.size() { return "" }
         return path_file_stem(self.files.at(idx).path.as_str())
     }
 
     /// "" for no such file. By reference, as in `file_stem_of`.
     pub fun file_path_of(file_id: uint32): String {
-        if file_id == 0 { return String.from("") }
+        if file_id == 0 { return "" }
         val idx: uint64 = (file_id - 1) as uint64
-        if idx >= self.files.size() { return String.from("") }
+        if idx >= self.files.size() { return "" }
         return self.files.at(idx).path.clone()
     }
 
@@ -151,7 +151,7 @@ impl SourceMap {
     }
 
     /// The line containing `s.start`, without its newline; "" if invalid.
-    pub fun span_line(s: Span): String {
+    internal fun span_line(s: Span): String {
         val idx = self.slot_for(s.file_id)
         if idx >= self.files.size() { return "" }
         val f = self.files.at(idx)
@@ -162,7 +162,7 @@ impl SourceMap {
         val line_start: uint64 = self.line_start_at(idx, self.line_index_for(idx, s.start))
         var line_end: uint64 = target
         while line_end < n {
-            if src.byte_at(line_end) == 10 { break }
+            if src.byte_at(line_end) == '\n' as uint8 { break }
             line_end = line_end + 1
         }
         return src.substring(line_start, line_end)

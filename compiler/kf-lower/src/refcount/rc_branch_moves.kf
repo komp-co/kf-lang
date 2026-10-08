@@ -6,11 +6,11 @@
 
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.intern
+import kf_core.span.Span
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import kf_core.ast.statement.SwitchArm
+import kf_core.intern.intern
 import kf_lower.ownership.names_contains
 
 /// An `if`'s two branches, each walked from the owners before it.
@@ -61,7 +61,7 @@ fun release_kept(body: &var List<Stmt>, moved_here: &List<String>, moved_anywher
     var releases = List.new<Stmt>()
     while name in &moved_anywhere {
         if !names_contains(moved_here, name) {
-            releases.push(Stmt.new(no_span(), StmtKind.Release(intern(name))))
+            releases.push(Stmt.new(Span.none(), StmtKind.Release(intern(name))))
         }
     }
     append_releases(body, releases)

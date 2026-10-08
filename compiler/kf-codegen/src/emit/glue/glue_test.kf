@@ -1,12 +1,14 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
+import kf_core.intern.CrateId
+import kf_core.intern.intern
 
 import kf_codegen.emit_module_body
 import kf_codegen.emit.unit.*
@@ -52,17 +54,17 @@ fun public_clone_is_defined_in_the_owner_source(): void {
 fun nested_public_drop_calls_the_qualified_owner_symbol(): void {
     var point_fields = List.new<Field>()
     val label_type: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *label_type = TypeRef.new(no_span(), TypeRefKind.Named(intern("String"), List.new<TypeRef>())) }
-    point_fields.push(new_field(no_span(), String.from("label"), label_type, false, true))
+    unsafe { *label_type = TypeRef.new(Span.none(), TypeRefKind.Named(intern("String"), List.new<TypeRef>())) }
+    point_fields.push(Field.new(Span.none(), String.from("label"), label_type, false, true))
     var fields = List.new<Field>()
     val point_type: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *point_type = TypeRef.new(no_span(), TypeRefKind.Named(intern("sample__Point"), List.new<TypeRef>())) }
-    fields.push(new_field(no_span(), String.from("point"), point_type, false, true))
+    unsafe { *point_type = TypeRef.new(Span.none(), TypeRefKind.Named(intern("sample__Point"), List.new<TypeRef>())) }
+    fields.push(Field.new(Span.none(), String.from("point"), point_type, false, true))
     var decls = List.new<TopDecl>()
-    decls.push(new_top_decl(no_span(), String.from("sample__Point"), TopDeclKind.Struct(point_fields, true)))
+    decls.push(TopDecl.new(Span.none(), String.from("sample__Point"), TopDeclKind.Struct(point_fields, true)))
     decls.push(glue_string_drop_impl())
-    decls.push(new_top_decl(no_span(), String.from("sample__Envelope"), TopDeclKind.Struct(fields, true)))
-    val view = Module { crate: new_crate_id("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
+    decls.push(TopDecl.new(Span.none(), String.from("sample__Envelope"), TopDeclKind.Struct(fields, true)))
+    val view = Module { crate: CrateId.new("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
     val source = view.emit_crate_source(String.from("sample"), false)
     assert_eq(hdr_contains(source, "sample__Point__glue_drop(v.point);"), true, "nested glue calls the qualified owner symbol")
 }
@@ -70,12 +72,12 @@ fun nested_public_drop_calls_the_qualified_owner_symbol(): void {
 fun string_owner_source(): String {
     var fields = List.new<Field>()
     val label_type: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *label_type = TypeRef.new(no_span(), TypeRefKind.Named(intern("String"), List.new<TypeRef>())) }
-    fields.push(new_field(no_span(), String.from("label"), label_type, false, true))
+    unsafe { *label_type = TypeRef.new(Span.none(), TypeRefKind.Named(intern("String"), List.new<TypeRef>())) }
+    fields.push(Field.new(Span.none(), String.from("label"), label_type, false, true))
     var decls = List.new<TopDecl>()
-    decls.push(new_top_decl(no_span(), String.from("Parcel"), TopDeclKind.Struct(fields, true)))
+    decls.push(TopDecl.new(Span.none(), String.from("Parcel"), TopDeclKind.Struct(fields, true)))
     decls.push(glue_string_drop_impl())
-    val view = Module { crate: new_crate_id("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
+    val view = Module { crate: CrateId.new("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
     return view.emit_crate_source(String.from("sample"), false)
 }
 
@@ -94,14 +96,14 @@ fun string_field_retain_deep_clones_the_value(): void {
 @test
 fun string_retain_glue_calls_its_declared_clone(): void {
     val ret: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ret = TypeRef.new(no_span(), TypeRefKind.Named(intern("String"), List.new<TypeRef>())) }
+    unsafe { *ret = TypeRef.new(Span.none(), TypeRefKind.Named(intern("String"), List.new<TypeRef>())) }
     var methods = List.new<TopDecl>()
     val clone_kind = TopDeclKind.Function(List.new<Param>(), ret, List.new<Stmt>(), true, false, false, false)
-    methods.push(new_top_decl(no_span(), String.from("clone"), clone_kind))
+    methods.push(TopDecl.new(Span.none(), String.from("clone"), clone_kind))
     var decls = List.new<TopDecl>()
-    decls.push(new_top_decl(no_span(), String.from("String"), TopDeclKind.Struct(List.new<Field>(), true)))
-    decls.push(new_top_decl(no_span(), String.from("String"), TopDeclKind.ImplBlock(methods)))
-    val view = Module { crate: new_crate_id("core"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
+    decls.push(TopDecl.new(Span.none(), String.from("String"), TopDeclKind.Struct(List.new<Field>(), true)))
+    decls.push(TopDecl.new(Span.none(), String.from("String"), TopDeclKind.ImplBlock(methods)))
+    val view = Module { crate: CrateId.new("core"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
     val source = view.emit_crate_source(String.from("core"), false)
     assert_eq(hdr_contains(source, "return String__glue_clone(v);"), true, "public String retain glue creates an independent owner")
 }
@@ -111,11 +113,11 @@ fun string_retain_glue_calls_its_declared_clone(): void {
 fun string_module(): Module {
     var fields = List.new<Field>()
     val u8p: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *u8p = TypeRef.new(no_span(), TypeRefKind.Named(intern("uint8"), List.new<TypeRef>())) }
-    fields.push(new_field(no_span(), String.from("len"), u8p, false, true))
+    unsafe { *u8p = TypeRef.new(Span.none(), TypeRefKind.Named(intern("uint8"), List.new<TypeRef>())) }
+    fields.push(Field.new(Span.none(), String.from("len"), u8p, false, true))
     var decls = List.new<TopDecl>()
-    decls.push(new_top_decl(no_span(), String.from("String"), TopDeclKind.Struct(fields, true)))
-    return Module { crate: crate_id_poison(), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
+    decls.push(TopDecl.new(Span.none(), String.from("String"), TopDeclKind.Struct(fields, true)))
+    return Module { crate: CrateId.new_poison(), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 }
 
 @test
@@ -145,9 +147,9 @@ fun the_string_forward_declaration_precedes_its_layout(): void {
 /// alloc's `impl Drop for String` after mono folds it into an impl block.
 fun glue_string_drop_impl(): TopDecl {
     val ret: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ret = TypeRef.new(no_span(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
+    unsafe { *ret = TypeRef.new(Span.none(), TypeRefKind.Named(intern("void"), List.new<TypeRef>())) }
     var methods = List.new<TopDecl>()
     val drop_kind = TopDeclKind.Function(List.new<Param>(), ret, List.new<Stmt>(), true, false, false, false)
-    methods.push(new_top_decl(no_span(), String.from("drop"), drop_kind))
-    return new_top_decl(no_span(), String.from("String"), TopDeclKind.ImplBlock(methods))
+    methods.push(TopDecl.new(Span.none(), String.from("drop"), drop_kind))
+    return TopDecl.new(Span.none(), String.from("String"), TopDeclKind.ImplBlock(methods))
 }

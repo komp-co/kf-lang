@@ -1,8 +1,9 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.intern
 import kf_core.ast.declaration.*
+import kf_core.intern.intern
+import kf_core.ast.annotation.*
 import kf_parse.parser.*
 
 impl Parser {
@@ -44,7 +45,7 @@ impl Parser {
         val body = self.parse_template_body()
         self.template_param = intern("")
         val template = TopDeclKind.Template(kind ?: MarkKind.Struct, intern(marked), body)
-        var td = new_top_decl(span, name, template)
+        var td = TopDecl.new(span, name, template)
         td.name_span = name_at
         td.template_key = key
         return td

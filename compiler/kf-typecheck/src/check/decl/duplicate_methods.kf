@@ -1,6 +1,6 @@
 import alloc.list.*
 
-import kf_core.ast.Linkage
+import kf_core.ast.declaration.Linkage
 import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
 
@@ -27,8 +27,8 @@ fun reject_duplicate_methods(methods: &List<TopDecl>, type_name: str, linkage: L
                     if !reported {
                         if earlier.name.as_str().equals(later.name.as_str()) {
                             val message = "`${later.name.as_str()}` is already defined for `${type_name}`"
-                            val lab = new_label((&later).decl_name_span(), message)
-                            diags.emit(new_diagnostic(Severity.Error, lab))
+                            val lab = Label.new((&later).decl_name_span(), message)
+                            diags.emit(Diagnostic.new(Severity.Error, lab))
                             reported = true
                         }
                     }

@@ -1,24 +1,24 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.intern
+import kf_core.span.Span
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import testing.test
+import kf_core.intern.intern
 
 fun ctor_filling(variant: str, slot: TypeRef): Expr {
-    val recv = Box.new(Expr.new(no_span(), ExprKind.Variable(intern("Option"))))
-    var e = Expr.new(no_span(), ExprKind.MethodCall(recv, intern(variant), List.new<Expr>()))
+    val recv = Box.new(Expr.new(Span.none(), ExprKind.Variable(intern("Option"))))
+    var e = Expr.new(Span.none(), ExprKind.MethodCall(recv, intern(variant), List.new<Expr>()))
     e.type_args.push(slot)
     e.is_variant_ctor = true
     return e
 }
 
 fun named_slot(name: str): TypeRef {
-    return TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
+    return TypeRef.new(Span.none(), TypeRefKind.Named(intern(name), List.new<TypeRef>()))
 }
 
 @test fun some_into_a_pointer_slot_borrows(): void {

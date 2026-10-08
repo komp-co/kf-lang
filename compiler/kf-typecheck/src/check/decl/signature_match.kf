@@ -4,13 +4,13 @@
 
 import alloc.list.*
 
-import kf_core.span.no_span
+import kf_core.span.Span
 
-import kf_core.ast.Sym
 import kf_core.ast.types.*
-import kf_core.ast.declaration.MarkTarget
+import kf_core.ast.annotation.MarkTarget
 import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
+import kf_core.intern.Sym
 import kf_typecheck.*
 import kf_typecheck.types.type_eq
 import kf_typecheck.types.display_type_ref
@@ -25,7 +25,7 @@ import kf_typecheck.traits.trait_impl_owner_name
 /// annotations, which pass it.
 pub fun MarkTarget.function_type(owner: &TopDecl, decls: Ptr<DeclTable>?, sigs: Ptr<SigTable>,
     diags: &var Diagnostics): Type {
-    var ctx = new_type_ctx(Type.new_void(no_span()), diags, Option.None, sigs)
+    var ctx = new_type_ctx(Type.new_void(Span.none()), diags, Option.None, sigs)
     ctx.place_at(owner)
     ctx.table = decls
     ctx.quiet = decls == null
@@ -63,12 +63,12 @@ fun TopDecl.fits_signature(kind: str, declared: &DeclaredAnnotation, owner: &Met
     diags: &var List<Diagnostic>): bool {
     val at = self.decl_name_span()
     if !self.is_plain_function() {
-        diags.push(error_at(at, "`@${kind}` can only annotate a function"))
+        diags.push(Diagnostic.error_at(at, "`@${kind}` can only annotate a function"))
         return false
     }
     if owner.is_generic {
         val why = "a function value has one type"
-        diags.push(error_at(at, "`@${kind}` cannot annotate a method of a generic type: ${why}"))
+        diags.push(Diagnostic.error_at(at, "`@${kind}` cannot annotate a method of a generic type: ${why}"))
         return false
     }
     val own = self.own_function_type(owner, sigs, pass_diags)
@@ -78,7 +78,7 @@ fun TopDecl.fits_signature(kind: str, declared: &DeclaredAnnotation, owner: &Met
         val wanted = declared.target.signature_display()
         val is_pattern = has_rest || declared.type_params.size() > 0 || declared.function_type.has_wildcard()
         val verb = if is_pattern { "match" } else { "have type" }
-        diags.push(error_at(at, "a function marked `@${kind}` must ${verb} `${wanted.as_str()}`"))
+        diags.push(Diagnostic.error_at(at, "a function marked `@${kind}` must ${verb} `${wanted.as_str()}`"))
         return false
     }
     var fits = true
@@ -89,7 +89,9 @@ fun TopDecl.fits_signature(kind: str, declared: &DeclaredAnnotation, owner: &Met
             val type_name = ty.kind.trait_impl_owner_name()
             if !table.type_implements(type_name, trait_name, "") {
                 val stands = "to stand for `${param.name.as_str()}` in `@${kind}`"
-                diags.push(error_at(at, "`${type_name.as_str()}` must implement `${trait_name.as_str()}` ${stands}"))
+                diags.push(
+                    Diagnostic.error_at(at, "`${type_name.as_str()}` must implement `${trait_name.as_str()}` ${stands}")
+                )
                 fits = false
             }
         }
@@ -227,7 +229,7 @@ fun TopDecl.is_plain_function(): bool {
 /// method's receiver first. Quiet: the signature's own errors were reported
 /// when it was registered.
 fun TopDecl.own_function_type(owner: &MethodOwner, sigs: Ptr<SigTable>, diags: &var Diagnostics): Type {
-    var ctx = new_type_ctx(Type.new_void(no_span()), diags, Option.None, sigs)
+    var ctx = new_type_ctx(Type.new_void(Span.none()), diags, Option.None, sigs)
     ctx.place_at(self)
     ctx.quiet = true
     return when (self.kind) {

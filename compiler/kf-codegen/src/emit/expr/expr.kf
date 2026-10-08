@@ -1,11 +1,10 @@
 import alloc.list.*
 
-import kf_core.ast.Intrinsic
-import kf_core.ast.array_literal_callee
-import kf_core.ast.c_local_name
+import kf_core.ast.expression.array_literal_callee
 import kf_core.ast.types.Type
 import kf_core.ast.types.type_identity_display
 import kf_core.ast.expression.*
+import kf_core.names.CName
 
 import kf_codegen.concat_all
 import kf_codegen.emit.c_type_of_type
@@ -20,7 +19,7 @@ import kf_codegen.emit.dyn_traits.emit_dyn_coerce
 pub fun Expr.emit_expr(): String {
     // To a `const char*` for a `str` slot. emit_cstr calls emit_expr_base, so
     // the coercion is not applied twice.
-    if self.coerce == coerce_to_cstr() {
+    if self.coerce == Coercion.ToCStr {
         return self.emit_cstr()
     }
     val base = self.emit_expr_base()
@@ -28,7 +27,7 @@ pub fun Expr.emit_expr(): String {
     // non-lvalue is materialized as `(T[1]){ ... }`, which decays to `T*` and
     // lives to the end of the enclosing block (C99 6.5.2.5), past the call. No
     // drop is emitted for it, so a fresh owned rvalue borrowed this way leaks.
-    if self.coerce == coerce_addr_of() {
+    if self.coerce == Coercion.AddrOf {
         var parts = List.new<String>()
         if self.addr_operand_is_lvalue() {
             parts.push(String.from("(&"))
@@ -45,7 +44,7 @@ pub fun Expr.emit_expr(): String {
     }
     // An auto-clone the move checker marked: a deep copy, or the bare value
     // for a primitive or pointer.
-    if self.coerce == coerce_clone() {
+    if self.coerce == Coercion.Clone {
         when (self.ty.kind) {
             BoxOf(_) => return emit_box_copy(base, self.ty.c_type_of_type())
             _ => { }
@@ -211,7 +210,7 @@ fun c_octal_escape(b: uint8): String {
 }
 
 fun prefix_local(name: String): String {
-    return c_local_name(name)
+    return CName.local(name.as_str())
 }
 
 pub fun struct_ty_name(t: Type): String {
@@ -230,7 +229,7 @@ fun Expr.emit_cstr(): String {
         LitStr(s) => return emit_lit_str(s.clone())
         _ => {}
     }
-    if self.coerce == coerce_to_cstr() {
+    if self.coerce == Coercion.ToCStr {
         var parts = List.new<String>()
         parts.push(String.from("("))
         parts.push(self.emit_expr_base())

@@ -3,8 +3,7 @@
 
 import core.assert.assert_eq
 import alloc.list.*
-import kf_core.span.no_span
-import kf_core.ast.intern
+import kf_core.span.Span
 import kf_core.ast.types.Provenance
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
@@ -14,6 +13,7 @@ import kf_core.ast.expression.ExprKind
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import testing.test
+import kf_core.intern.intern
 
 @test fun classify_binding_modes(): void {
     var ctx = rc_ctx_for_test("m")
@@ -21,19 +21,19 @@ import testing.test
     assert_eq(binding_mode_tag(classify_binding(bvar, &var ctx)) == 2, true, "bare var -> Moved")
     var args = List.new<Expr>()
     args.push(mk_string_var_expr(String.from("s")))
-    val string_recv = Box.new(Expr.new(no_span(), ExprKind.Variable(intern("String"))))
-    var fromcall = Expr.new(no_span(), ExprKind.MethodCall(string_recv, intern("from"), args))
-    fromcall.ty = intern("String").lang_struct_ty(no_span())
+    val string_recv = Box.new(Expr.new(Span.none(), ExprKind.Variable(intern("String"))))
+    var fromcall = Expr.new(Span.none(), ExprKind.MethodCall(string_recv, intern("from"), args))
+    fromcall.ty = intern("String").lang_struct_ty(Span.none())
     assert_eq(binding_mode_tag(classify_binding(fromcall, &var ctx)) == 0, true, "String.from -> OwnedFresh")
     val pv: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *pv = Expr.new(no_span(), ExprKind.Variable(intern("p"))) }
-    var der = Expr.new(no_span(), ExprKind.Deref(pv))
-    der.ty = intern("String").lang_struct_ty(no_span())
+    unsafe { *pv = Expr.new(Span.none(), ExprKind.Variable(intern("p"))) }
+    var der = Expr.new(Span.none(), ExprKind.Deref(pv))
+    der.ty = intern("String").lang_struct_ty(Span.none())
     assert_eq(binding_mode_tag(classify_binding(der, &var ctx)) == 3, true, "deref -> Borrowed")
     val ov: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *ov = Expr.new(no_span(), ExprKind.Variable(intern("o"))) }
-    var fa = Expr.new(no_span(), ExprKind.FieldAccess(ov, intern("s")))
-    fa.ty = intern("String").lang_struct_ty(no_span())
+    unsafe { *ov = Expr.new(Span.none(), ExprKind.Variable(intern("o"))) }
+    var fa = Expr.new(Span.none(), ExprKind.FieldAccess(ov, intern("s")))
+    fa.ty = intern("String").lang_struct_ty(Span.none())
     assert_eq(binding_mode_tag(classify_binding(fa, &var ctx)) == 3, true, "String field read -> Borrowed")
 }
 
@@ -46,30 +46,30 @@ import testing.test
     ctx.move_only_names.add(String.from("FieldList"))
 
     // 1) move-only container receiver: still the result that decides
-    var mo_recv = Expr.new(no_span(), ExprKind.Variable(intern("fields")))
+    var mo_recv = Expr.new(Span.none(), ExprKind.Variable(intern("fields")))
     mo_recv.ty = struct_ty_named("FieldList")
     val mo_recvp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *mo_recvp = mo_recv }
-    var g1 = Expr.new(no_span(), ExprKind.MethodCall(mo_recvp, intern("get"), List.new<Expr>()))
+    var g1 = Expr.new(Span.none(), ExprKind.MethodCall(mo_recvp, intern("get"), List.new<Expr>()))
     g1.ty = struct_ty_named("FieldInit")
     assert_eq(binding_mode_tag(classify_binding(g1, &var ctx)) == 0, true, "get on move-only container -> OwnedFresh")
 
     // 2) non-move-only container, move-only result → OwnedFresh
-    var pl_recv = Expr.new(no_span(), ExprKind.Variable(intern("plain")))
+    var pl_recv = Expr.new(Span.none(), ExprKind.Variable(intern("plain")))
     pl_recv.ty = struct_ty_named("PlainVec")
     val pl_recvp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *pl_recvp = pl_recv }
-    var g2 = Expr.new(no_span(), ExprKind.MethodCall(pl_recvp, intern("get"), List.new<Expr>()))
+    var g2 = Expr.new(Span.none(), ExprKind.MethodCall(pl_recvp, intern("get"), List.new<Expr>()))
     g2.ty = struct_ty_named("FieldInit")
     assert_eq(binding_mode_tag(classify_binding(g2, &var ctx)) == 0, true, "get returning move-only from plain container -> OwnedFresh")
 
     // CONSTRAINT: its own receiver cell. Two Exprs sharing one cell free it
     // twice.
-    var pl_recv3 = Expr.new(no_span(), ExprKind.Variable(intern("plain")))
+    var pl_recv3 = Expr.new(Span.none(), ExprKind.Variable(intern("plain")))
     pl_recv3.ty = struct_ty_named("PlainVec")
     val pl_recvp3: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *pl_recvp3 = pl_recv3 }
-    var g3 = Expr.new(no_span(), ExprKind.MethodCall(pl_recvp3, intern("get"), List.new<Expr>()))
+    var g3 = Expr.new(Span.none(), ExprKind.MethodCall(pl_recvp3, intern("get"), List.new<Expr>()))
     g3.ty = struct_ty_named("Other")
     assert_eq(binding_mode_tag(classify_binding(g3, &var ctx)) == 1, true, "get returning non-move-only -> OwnedRetain")
 }
@@ -84,8 +84,8 @@ import testing.test
     unsafe { *ap = a }
     val bp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *bp = b }
-    var bin = Expr.new(no_span(), ExprKind.Binary(ap, BinOp.Add, bp))
-    bin.ty = intern("String").lang_struct_ty(no_span())
+    var bin = Expr.new(Span.none(), ExprKind.Binary(ap, BinOp.Add, bp))
+    bin.ty = intern("String").lang_struct_ty(Span.none())
     val mode = classify_binding(bin, &var ctx)
     assert_eq(binding_mode_tag(mode) == 0, true, "String concat binding is OwnedFresh")
 }
@@ -93,16 +93,16 @@ import testing.test
 @test fun classify_int_binary_untouched(): void {
     var ctx = rc_ctx_for_test("main")
     val _i = ctx.push_frame(false)
-    var xe = Expr.new(no_span(), ExprKind.Variable(intern("x")))
-    xe.ty = Type.new_int32(no_span())
-    var ye = Expr.new(no_span(), ExprKind.Variable(intern("y")))
-    ye.ty = Type.new_int32(no_span())
+    var xe = Expr.new(Span.none(), ExprKind.Variable(intern("x")))
+    xe.ty = Type.new_int32(Span.none())
+    var ye = Expr.new(Span.none(), ExprKind.Variable(intern("y")))
+    ye.ty = Type.new_int32(Span.none())
     val xp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *xp = xe }
     val yp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *yp = ye }
-    var bin = Expr.new(no_span(), ExprKind.Binary(xp, BinOp.Add, yp))
-    bin.ty = Type.new_int32(no_span())
+    var bin = Expr.new(Span.none(), ExprKind.Binary(xp, BinOp.Add, yp))
+    bin.ty = Type.new_int32(Span.none())
     val mode = classify_binding(bin, &var ctx)
     assert_eq(binding_mode_tag(mode) == 0, false, "int Binary is not OwnedFresh")
 }
@@ -116,12 +116,12 @@ import testing.test
     ctx.add_heap_local(String.from("hoisted"))
     var args = List.new<Expr>()
     args.push(mk_string_var_expr(String.from("view")))
-    var call = Expr.new(no_span(), ExprKind.Call(intern("describe"), args))
-    call.ty = Type { kind: TypeKind.Struct(intern("Report")), provenance: Provenance.Inferred(no_span()) }
+    var call = Expr.new(Span.none(), ExprKind.Call(intern("describe"), args))
+    call.ty = Type { kind: TypeKind.Struct(intern("Report")), provenance: Provenance.Inferred(Span.none()) }
     val rp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *rp = call }
     var body = List.new<Stmt>()
-    body.push(Stmt.new(no_span(), StmtKind.Return(ret_op(rp))))
+    body.push(Stmt.new(Span.none(), StmtKind.Return(ret_op(rp))))
     var out = body
     rc_insert_stmts(&var out, &var ctx)
     assert_eq(out.size(), 3, "the value, then the drop, then the return")
@@ -139,7 +139,7 @@ import testing.test
     var body = List.new<Stmt>()
     val vp: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *vp = mk_string_var_expr(String.from("kept")) }
-    body.push(Stmt.new(no_span(), StmtKind.Return(ret_op(vp))))
+    body.push(Stmt.new(Span.none(), StmtKind.Return(ret_op(vp))))
     var out = body
     rc_insert_stmts(&var out, &var ctx)
     assert_eq(out.size(), 2, "moving `kept` out evaluates nothing, so `other` is released first")
@@ -147,9 +147,9 @@ import testing.test
 
 fun field_read_of(owner: str, field: str, ty: Type): Ptr<Expr> {
     val ov: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *ov = Expr.new(no_span(), ExprKind.Variable(intern(owner))) }
+    unsafe { *ov = Expr.new(Span.none(), ExprKind.Variable(intern(owner))) }
     val read: Ptr<Expr> = unsafe { alloc<Expr>() }
-    var fa = Expr.new(no_span(), ExprKind.FieldAccess(ov, intern(field)))
+    var fa = Expr.new(Span.none(), ExprKind.FieldAccess(ov, intern(field)))
     fa.ty = ty
     unsafe { *read = fa }
     return read
@@ -159,10 +159,10 @@ fun field_read_of(owner: str, field: str, ty: Type): Ptr<Expr> {
     var ctx = rc_ctx_for_test("m")
     ctx.move_only_names.add(String.from("Rows"))
     val cond: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *cond = Expr.new(no_span(), ExprKind.Variable(intern("c"))) }
+    unsafe { *cond = Expr.new(Span.none(), ExprKind.Variable(intern("c"))) }
     val then_read = field_read_of("p", "a", struct_ty_named("Rows"))
     val else_read = field_read_of("p", "b", struct_ty_named("Rows"))
-    var pick = Expr.new(no_span(), ExprKind.IfExpr(cond, then_read, else_read))
+    var pick = Expr.new(Span.none(), ExprKind.IfExpr(cond, then_read, else_read))
     pick.ty = struct_ty_named("Rows")
     assert_eq(binding_mode_tag(classify_binding(pick, &var ctx)) == 3, true, "if over two field reads -> Borrowed")
 }

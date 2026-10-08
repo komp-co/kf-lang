@@ -5,18 +5,16 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.Sym
-import kf_core.ast.intern
-import kf_core.ast.lang_iterable_key
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
-import kf_core.ast.expression.coerce_none
-import kf_core.ast.expression.coerce_written_amp
+import kf_core.ast.expression.Coercion
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_typecheck.types.kind_tag
 import kf_typecheck.types.TAG_GENERIC
 
@@ -52,10 +50,10 @@ fun expand_foreach_ref(
     var iterated = subj_ptr
     if temporary {
         val srcname = intern("__forsrc_${tag}")
-        unsafe { (*subj_ptr).coerce = coerce_none() }
+        unsafe { (*subj_ptr).coerce = Coercion.Identity }
         outer.push(Stmt.new(span, StmtKind.LetVal(srcname, null, subj_ptr)))
         var src = Expr.new(span, ExprKind.Variable(srcname))
-        src.coerce = coerce_written_amp()
+        src.coerce = Coercion.WrittenAmp
         iterated = unsafe { alloc<Expr>() }
         unsafe { *iterated = src }
     }
@@ -150,7 +148,7 @@ pub fun Type.report_no_borrowing_iterator(binder: Sym, span: Span, ctx: &var Typ
     if subject.kind.kind_tag() == TAG_GENERIC() {
         val why = "`while ${binder.as_str()} in &...` needs a borrowing iterator, which a trait bound"
         val message = "${why} cannot promise; drop the `&` to iterate by value"
-        ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
+        ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
         return
     }
     val iter_name = self.subject_iterator_name(ctx)
@@ -159,14 +157,14 @@ pub fun Type.report_no_borrowing_iterator(binder: Sym, span: Span, ctx: &var Typ
     msg.append(" in &...` needs a borrowing iterator, and `")
     msg.append(iter_name)
     msg.append("` has no `next_ptr()`. Give it `mutating fun next_ptr(): Ptr<T>` answering the element's address and null when exhausted, or drop the `&` to iterate by value")
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
 }
 
 /// Iterated through the bound.
 pub fun Type.bounded_by_iterable(ctx: &var TypeCtx): bool {
     return when (self.kind) {
         Generic(name) => {
-            val iterable = ctx.lang_trait_name(lang_iterable_key()).as_string()
+            val iterable = ctx.lang_trait_name(LangItem.Iterable).as_string()
             owner_has_bound(ctx.fn_owner.clone(), name.as_string(), iterable, ctx)
         }
         _ => false

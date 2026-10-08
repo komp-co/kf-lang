@@ -5,16 +5,16 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.CrateId
-import kf_core.ast.Sym
-import kf_core.ast.intern
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.expression.*
 import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
-import kf_core.ast.annotation.new_annotation
+import kf_core.ast.annotation.Annotation
+import kf_core.intern.CrateId
+import kf_core.intern.Sym
+import kf_core.intern.intern
 
 fun synth_default_impl(name: String, fields: &List<Field>, span: Span, owner: CrateId, module_path: Sym,
     trait_sym: Sym): TopDecl {
@@ -34,7 +34,7 @@ fun synth_default_impl(name: String, fields: &List<Field>, span: Span, owner: Cr
     // static fun default(): Name { body }
     val ret_ref: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *ret_ref = TypeRef.new(span, TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
-    var default_fn = new_top_decl(span, String.from("default"),
+    var default_fn = TopDecl.new(span, String.from("default"),
         TopDeclKind.Function(List.new<Param>(), ret_ref, body, true, false, false, true))
     default_fn.crate = owner
     default_fn.module_path = module_path
@@ -44,7 +44,7 @@ fun synth_default_impl(name: String, fields: &List<Field>, span: Span, owner: Cr
     // impl Default for Name
     val trait_ref: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *trait_ref = TypeRef.new(span, TypeRefKind.Named(trait_sym, List.new<TypeRef>())) }
-    var implementation = new_top_decl(span, name, TopDeclKind.TraitImpl(trait_ref, methods))
+    var implementation = TopDecl.new(span, name, TopDeclKind.TraitImpl(trait_ref, methods))
     implementation.crate = owner
     // Both crate and module path, or the impl's identity misses the struct's.
     implementation.module_path = module_path
@@ -58,7 +58,7 @@ fun synth_equal_impl(name: String, fields: &List<Field>, span: Span, owner: Crat
     unsafe { *other_named = TypeRef.new(span, TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
     val other_type: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *other_type = TypeRef.new(span, TypeRefKind.Reference(false, other_named)) }
-    params.push(new_param(span, String.from("other"), other_type))
+    params.push(Param.new(span, String.from("other"), other_type))
 
     var comparison: Ptr<Expr> = unsafe { alloc<Expr>() }
     unsafe { *comparison = Expr.new(span, ExprKind.LitBool(true)) }
@@ -118,7 +118,7 @@ fun synth_hash_impl(name: String, fields: &List<Field>, span: Span, owner: Crate
 
     val uint64_type: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *uint64_type = TypeRef.new(span, TypeRefKind.Named(intern("uint64"), List.new<TypeRef>())) }
-    var hash_fn = new_top_decl(span, String.from("hash"),
+    var hash_fn = TopDecl.new(span, String.from("hash"),
         TopDeclKind.Function(List.new<Param>(), uint64_type, body, true, false, false, false))
     hash_fn.crate = owner
     hash_fn.module_path = module_path
@@ -127,7 +127,7 @@ fun synth_hash_impl(name: String, fields: &List<Field>, span: Span, owner: Crate
 
     val trait_ref: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *trait_ref = TypeRef.new(span, TypeRefKind.Named(trait_sym, List.new<TypeRef>())) }
-    var implementation = new_top_decl(span, name, TopDeclKind.TraitImpl(trait_ref, methods))
+    var implementation = TopDecl.new(span, name, TopDeclKind.TraitImpl(trait_ref, methods))
     implementation.crate = owner
     implementation.module_path = module_path
     return implementation
@@ -137,7 +137,7 @@ fun synth_equal_trait_impl(name: String, params: List<Param>, body: List<Stmt>,
     span: Span, owner: CrateId, module_path: Sym, trait_sym: Sym): TopDecl {
     val bool_type: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *bool_type = TypeRef.new(span, TypeRefKind.Named(intern("bool"), List.new<TypeRef>())) }
-    var equals_fn = new_top_decl(span, String.from("equals"),
+    var equals_fn = TopDecl.new(span, String.from("equals"),
         TopDeclKind.Function(params, bool_type, body, true, false, false, false))
     equals_fn.crate = owner
     equals_fn.module_path = module_path
@@ -146,7 +146,7 @@ fun synth_equal_trait_impl(name: String, params: List<Param>, body: List<Stmt>,
 
     val trait_ref: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *trait_ref = TypeRef.new(span, TypeRefKind.Named(trait_sym, List.new<TypeRef>())) }
-    var implementation = new_top_decl(span, name, TopDeclKind.TraitImpl(trait_ref, methods))
+    var implementation = TopDecl.new(span, name, TopDeclKind.TraitImpl(trait_ref, methods))
     implementation.crate = owner
     implementation.module_path = module_path
     return implementation
@@ -161,9 +161,9 @@ fun synth_clone_impl(name: String, span: Span, owner: CrateId, module_path: Sym,
     val operand: Box<Expr>? = self_value
     var body = List.new<Stmt>()
     body.push(Stmt.new(span, StmtKind.Return(operand)))
-    var clone_fn = new_top_decl(span, String.from("clone"),
+    var clone_fn = TopDecl.new(span, String.from("clone"),
         TopDeclKind.Function(List.new<Param>(), result_type, body, true, false, false, false))
-    clone_fn.annotations.push(new_annotation(span, "derive", [String.from("Clone")]))
+    clone_fn.annotations.push(Annotation.new(span, "derive", [String.from("Clone")]))
     clone_fn.crate = owner
     clone_fn.module_path = module_path
     var methods = List.new<TopDecl>()
@@ -171,7 +171,7 @@ fun synth_clone_impl(name: String, span: Span, owner: CrateId, module_path: Sym,
 
     val trait_ref: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *trait_ref = TypeRef.new(span, TypeRefKind.Named(trait_sym, List.new<TypeRef>())) }
-    var implementation = new_top_decl(span, name, TopDeclKind.TraitImpl(trait_ref, methods))
+    var implementation = TopDecl.new(span, name, TopDeclKind.TraitImpl(trait_ref, methods))
     implementation.crate = owner
     implementation.module_path = module_path
     return implementation
@@ -182,7 +182,7 @@ fun synth_copy_impl(name: String, span: Span, name_span: Span, owner: CrateId, m
     trait_sym: Sym): TopDecl {
     val trait_ref: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *trait_ref = TypeRef.new(span, TypeRefKind.Named(trait_sym, List.new<TypeRef>())) }
-    var implementation = new_top_decl(span, name, TopDeclKind.TraitImpl(trait_ref, List.new<TopDecl>()))
+    var implementation = TopDecl.new(span, name, TopDeclKind.TraitImpl(trait_ref, List.new<TopDecl>()))
     implementation.name_span = name_span
     implementation.crate = owner
     implementation.module_path = module_path

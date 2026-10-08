@@ -1,0 +1,80 @@
+import core.assert.assert_eq
+import alloc.list.*
+import kf_core.span.Span
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import testing.test
+import kf_core.intern.intern
+
+fun plain(name: str): TypeRef {
+    return TypeRef.new(Span.none(), TypeRefKind.Named(intern(name), []))
+}
+
+fun borrowed(inner: TypeRef): TypeRef {
+    val boxed: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
+    unsafe { *boxed = inner }
+    return TypeRef.new(Span.none(), TypeRefKind.Reference(false, boxed))
+}
+
+fun params_of(a: TypeRef, b: TypeRef): List<TypeRef> {
+    var out = []
+    out.push(a)
+    out.push(b)
+    return out
+}
+
+fun origin_of(params: &List<TypeRef>, ret: TypeRef, has_self: bool): int32 {
+    return type_ref_borrow_origin(params, &ret, has_self, &[])
+}
+
+@test
+fun a_returned_literal_has_no_origin(): void {
+    val none = []
+    assert_eq(origin_of(&none, plain("str"), false), 0 - 1, "a version string borrows from nothing the caller owns")
+}
+
+@test
+fun an_owned_return_has_no_origin(): void {
+    val one = params_of(borrowed(plain("int32")), plain("int32"))
+    assert_eq(origin_of(&one, plain("String"), false), 0 - 1, "nothing is borrowed out, whatever came in")
+}
+
+@test
+fun the_single_borrow_parameter_is_the_origin(): void {
+    val ps = params_of(plain("int32"), borrowed(plain("Value")))
+    assert_eq(origin_of(&ps, borrowed(plain("Value")), false), 1, "the one candidate, at its own index")
+}
+
+@test
+fun str_counts_as_a_candidate(): void {
+    val ps = params_of(plain("int32"), plain("str"))
+    assert_eq(origin_of(&ps, plain("str"), false), 1, "`str` points at bytes something else owns")
+}
+
+// An instance method borrows from its receiver, index 0.
+@test
+fun a_method_borrows_from_self(): void {
+    val ps = params_of(borrowed(plain("Value")), borrowed(plain("Value")))
+    assert_eq(origin_of(&ps, plain("str"), true), 0, "self is the origin, and there is no ambiguity to resolve")
+}
+
+// Two candidates cannot be told apart; the diagnostic is raised where the
+// signature is checked.
+@test
+fun two_candidates_yield_no_origin(): void {
+    val ps = params_of(borrowed(plain("Value")), borrowed(plain("Value")))
+    assert_eq(origin_of(&ps, borrowed(plain("Value")), false), 0 - 1, "neither parameter can be named as the origin")
+}
+
+@test
+fun a_borrow_is_recognised_in_both_spellings(): void {
+    assert_eq(plain("str").is_borrow(), true, "`str`")
+    assert_eq((borrowed(plain("int32"))).is_borrow(), true, "`&int32`")
+    assert_eq(plain("String").is_borrow(), false, "`String` owns its buffer")
+}
+
+@test fun a_returned_view_borrows_from_its_one_borrow_parameter(): void {
+    val views: List<String> = ["Window"]
+    val ps = [plain("int32"), plain("str")]
+    assert_eq(type_ref_borrow_origin(&ps, &plain("Window"), false, &views), 1, "a view borrows as `str` does")
+}

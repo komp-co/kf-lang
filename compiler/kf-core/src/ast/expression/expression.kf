@@ -1,19 +1,21 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.DeclId
 import kf_core.ast.declaration.Param
 import kf_core.ast.statement.Stmt
+import kf_core.intern.*
+import kf_core.lang.*
+import kf_core.ast.pattern.*
 
 /// Pass annotations on the outer struct are filled in as passes run.
 @derive(Clone)
 pub struct Expr {
     pub val span: Span
     /// Where the expression's name is written: `helper` in `helper(1)`,
-    /// `push` in `xs.push(1)`. `no_span()` if it names nothing or was
+    /// `push` in `xs.push(1)`. `Span.none()` if it names nothing or was
     /// synthesized. `span` covers the whole call.
     pub var name_span: Span
     pub var kind: ExprKind
@@ -21,9 +23,7 @@ pub struct Expr {
     pub var ty: Type
     // Set by Mono on calls; empty otherwise.
     pub var mangled_callee: Sym
-    // Implicit conversion TypeCheck records and Codegen applies; see the
-    // coerce_* constants below.
-    pub var coerce: uint8
+    pub var coerce: Coercion
     // Use-site type arguments: `id<int32>(x)`, `Pair<int32,int32>{...}`.
     // Empty when none were written or inferred.
     pub var type_args: List<TypeRef>
@@ -68,11 +68,26 @@ pub struct Expr {
 impl Expr {
     pub static fun new(span: Span, kind: ExprKind): Self {
         return Self {
-            span: span, name_span: no_span(), kind: kind, decl: null, ty: Type.new_poison(),
-            mangled_callee: intern(""), coerce: 0, type_args: List.new<TypeRef>(), type_args_written: false,
-            is_static_call: false, is_dynamic_call: false, dynamic_slot: 0, dynamic_layout: intern(""),
-            is_safe_call_value: false, is_variant_ctor: false, derefs_at_call: false,
-            constant: intern(""), arg_name: intern(""), needless_view: false, scope_module: intern(""),
+            span: span,
+            name_span: Span.none(),
+            kind: kind,
+            decl: null,
+            ty: Type.new_poison(),
+            mangled_callee: intern(""),
+            coerce: Coercion.Identity,
+            type_args: [],
+            type_args_written: false,
+            is_static_call: false,
+            is_dynamic_call: false,
+            dynamic_slot: 0,
+            dynamic_layout: intern(""),
+            is_safe_call_value: false,
+            is_variant_ctor: false,
+            derefs_at_call: false,
+            constant: intern(""),
+            arg_name: intern(""),
+            needless_view: false,
+            scope_module: intern(""),
             scope_file: 0
         }
     }
@@ -90,19 +105,29 @@ impl Expr {
     /// `Type.new()`, with no type arguments of its own.
     pub static fun new_collection_new_call(span: Span, type_name: Sym): Expr {
         val receiver = Box.new(Expr.new(span, ExprKind.Variable(type_name)))
-        return Expr.new(span, ExprKind.MethodCall(receiver, intern("new"), List.new<Expr>()))
+        return Expr.new(span, ExprKind.MethodCall(receiver, intern("new"), []))
     }
 }
 
-pub fun coerce_none(): uint8 { return 0 }
-pub fun coerce_to_cstr(): uint8 { return 2 }
-pub fun coerce_addr_of(): uint8 { return 3 }
-// The source wrote `&`/`&var` here. TypeCheck-internal: an un-annotated
-// `val b = &xs` gets a `&T` type instead of moving. check_expr clears it.
-pub fun coerce_written_amp(): uint8 { return 4 }
-pub fun coerce_written_amp_var(): uint8 { return 5 }
-// Marked by the move checker for a deep copy; codegen emits `<T>_clone(...)`.
-pub fun coerce_clone(): uint8 { return 6 }
+/// The implicit conversion TypeCheck records on an expression and Codegen
+/// applies.
+@derive(Copy, Equal)
+pub enum Coercion {
+    /// The value as it is.
+    Identity
+    /// A `str` passed where C wants a `char*`.
+    ToCStr
+    /// A value lent where a borrow is expected: codegen takes its address.
+    AddrOf
+    /// The source wrote `&` here. TypeCheck-internal: an un-annotated
+    /// `val b = &xs` gets a `&T` type instead of moving. check_expr clears it.
+    WrittenAmp
+    /// The source wrote `&var` here; cleared like `WrittenAmp`.
+    WrittenAmpVar
+    /// Marked by the move checker for a deep copy; codegen emits
+    /// `<T>_clone(...)`.
+    Clone
+}
 
 @derive(Clone)
 pub enum ExprKind {

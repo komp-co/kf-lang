@@ -22,17 +22,17 @@ fun mangle_type_ref(tr: &TypeRef, ctx: &var TypeCtx): String {
         Reference(_mutable, inner_ref) => {
             val inner_syntax = unsafe { *inner_ref }
             when (inner_syntax.kind) {
-                DynTrait(_principal, _args) => return mangle_tyref(&tr)
+                DynTrait(_principal, _args) => return mangle_tyref(&tr).display()
                 _ => { }
             }
         }
         _ => { }
     }
-    return tr.resolve_type_ref(ctx).mangle_frag()
+    return tr.resolve_type_ref(ctx).mangle_frag().display()
 }
 
 /// Also backs the checker's type identity, so it distinguishes everything the
 /// type system does; kf-core owns the spelling.
 pub fun mangle_type(t: Type): String {
-    return t.mangle_frag()
+    return t.mangle_frag().display()
 }

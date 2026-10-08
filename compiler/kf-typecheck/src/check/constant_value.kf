@@ -1,15 +1,15 @@
 // A top-level `val`: its literal, typed once, stands in for each use.
 
-import kf_core.ast.Sym
-import kf_core.ast.intern
-import kf_core.ast.array_literal_callee
+import kf_core.ast.expression.array_literal_callee
 import kf_core.ast.types.Type
 import kf_core.span.Span
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_typecheck.types.display_type
 import kf_typecheck.types.resolve_type_ref
 import kf_typecheck.traits.validate_dyn_placement
@@ -53,7 +53,7 @@ fun List<Expr>.all_constant_literals(): bool {
 pub mutating fun Expr.type_as_constant(written: &var TypeRef, ctx: &var TypeCtx): Type {
     if !self.is_constant_literal() {
         val message = "a top-level `val` holds a literal; compute anything else in a function"
-        ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+        ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
         return Type.new_poison()
     }
     check_expr(self, ctx)
@@ -64,7 +64,7 @@ pub mutating fun Expr.type_as_constant(written: &var TypeRef, ctx: &var TypeCtx)
     val found = self.ty.clone()
     if !expect_or_reject(self, declared.clone(), ctx) {
         val types = "`${found.display_type(ctx)}`, but its declared type is `${declared.display_type(ctx)}`"
-        ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, "this value is ${types}")))
+        ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, "this value is ${types}")))
         return Type.new_poison()
     }
     if self.is_signed_number() { self.cast_to(written) }
@@ -110,7 +110,7 @@ mutating fun Expr.name_constant(name: Sym, ctx: &var TypeCtx): bool {
 pub fun FnSignature.rejects_call_of_constant(span: Span, ctx: &var TypeCtx): bool {
     if ctx.sig_table().constant_value(self).is_none() { return false }
     val message = "`${self.name}` is a top-level `val`, not a function: drop the `()`"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
     return true
 }
 

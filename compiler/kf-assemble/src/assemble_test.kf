@@ -39,8 +39,8 @@ extern "C" fun kf_create_dir_all(p: str): int32
     write_file(scratch_path("kf_assemble_once/src/lib_test.kf"), "@test fun t(): void {}\n")
 
     val smap: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
-    unsafe { *smap = new_source_map() }
-    var pdiags = new_diagnostics()
+    unsafe { *smap = SourceMap.new() }
+    var pdiags = Diagnostics.new()
 
     val none = no_overlay()
     val c = assemble_crate_inc(root, String.from("once"), smap, &var pdiags, true, &none)
@@ -70,8 +70,8 @@ fun staged_lib(): Overlay {
 fun Overlay.assemble_overlay_crate(): Crate {
     prepare_overlay_crate()
     val smap: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
-    unsafe { *smap = new_source_map() }
-    var pdiags = new_diagnostics()
+    unsafe { *smap = SourceMap.new() }
+    var pdiags = Diagnostics.new()
     return assemble_crate_inc(scratch_path("kf_assemble_overlay"), String.from("staged"), smap, &var pdiags, true, self)
 }
 
@@ -98,8 +98,8 @@ fun Overlay.assemble_overlay_crate(): Crate {
     write_file(scratch_path("kf_no_src/main.kf"), "fun main(): int32 { return 0 }\n")
 
     val smap: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
-    unsafe { *smap = new_source_map() }
-    var pdiags = new_diagnostics()
+    unsafe { *smap = SourceMap.new() }
+    var pdiags = Diagnostics.new()
 
     val c = assemble_crate(scratch_path("kf_no_src"), String.from("nosrc"), smap, &var pdiags)
     assert_eq(c.modules.size(), 0, "no src/ means no modules")

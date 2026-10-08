@@ -1,17 +1,19 @@
 // Coercion codes, mangled-name helpers and call-argument preparation.
 
 import kf_core.span.*
-import kf_core.ast.*
 import kf_core.ast.types.Provenance
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
 import kf_core.ast.types.type_identity_display
 import kf_core.ast.expression.*
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
 import kf_typecheck.types.*
 import kf_typecheck.traits.str_list_has
 import kf_core.runtime.runtime_function_returns
+import kf_core.intern.*
+import kf_core.lang.*
+import kf_core.names.*
 
 /// The name a receiver written as a bare name writes, or the empty name.
 /// The receiver helpers below take it rather than the receiver, which would
@@ -38,7 +40,7 @@ fun static_recv_type_name(written: Sym, ctx: &var TypeCtx): String {
     val eptr = unsafe { sp.find_enum(n.as_str(), ctx.owner_crate) }
     if eptr.is_some() { return n.as_string() }
     // A primitive (`int32.max_value()`) is in neither registry.
-    if is_runtime_type_name(n.as_str()) { return n.as_string() }
+    if CName.is_runtime_type(n.as_str()) { return n.as_string() }
     if is_container_type_name(n.as_str(), ctx.list_name(), ctx.option_name()) { return n.as_string() }
     return ""
 }
@@ -106,9 +108,9 @@ pub fun mangle_suffix(name: String, cut: uint64): String {
 /// struct whose C name is the fragment.
 pub fun ty_from_frag_in_scope(frag: String, span: Span, ctx: &var TypeCtx): Type {
     if str_list_has(&ctx.generics, frag) { return Type.new_generic(frag, span) }
-    val borrowed = borrow_frag_inner(frag)
+    val borrowed = Frag.borrow_inner(frag.as_str())
     if borrowed.byte_len() > 0 {
-        return borrow_of(ty_from_frag_in_scope(borrowed, span, ctx), borrow_frag_is_mut(frag), span)
+        return borrow_of(ty_from_frag_in_scope(borrowed, span, ctx), Frag.borrow_is_mut(frag.as_str()), span)
     }
     val function = ctx.fn_type_for(frag)
     if function != null { return function!! }
@@ -117,9 +119,9 @@ pub fun ty_from_frag_in_scope(frag: String, span: Span, ctx: &var TypeCtx): Type
 
 pub fun ty_from_mangle_frag(frag: String, span: Span, string_name: Sym): Type {
     val s = frag.as_str()
-    val borrowed = borrow_frag_inner(s)
+    val borrowed = Frag.borrow_inner(s)
     if borrowed.byte_len() > 0 {
-        return borrow_of(ty_from_mangle_frag(borrowed, span, string_name), borrow_frag_is_mut(s), span)
+        return borrow_of(ty_from_mangle_frag(borrowed, span, string_name), Frag.borrow_is_mut(s), span)
     }
     // `Box<T>` and `Ptr<T>` spell as `Box__T` and `Ptr__T`: never a struct.
     if s.starts_with("Box__") {
@@ -128,7 +130,7 @@ pub fun ty_from_mangle_frag(frag: String, span: Span, string_name: Sym): Type {
     if s.starts_with("Ptr__") {
         return Type.new_ptr(ty_from_mangle_frag(s.substring(5, s.byte_len()), span, string_name), span)
     }
-    val value = value_from_frag(s)
+    val value = Frag.value_of(s)
     if value != null { return Type { kind: TypeKind.Value(value ?: 0), provenance: Provenance.Inferred(span) } }
     when s {
         "int8" => return Type { kind: TypeKind.Int8, provenance: Provenance.Inferred(span) }
@@ -170,29 +172,29 @@ mutating fun Expr.reject_str_value_to_string(ctx: &var TypeCtx): void {
     val message = String.from("a `str` value does not become a `String` on its own") +
         String.from(" — the conversion copies the text onto the heap, so write") +
         String.from(" `String.from(...)`")
-    ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
     self.ty = Type.new_poison()
 }
 
 // The coercion a value of `from` needs in a slot of `to`. A `String` or
 // literal in a `str` slot renders as a `const char*`.
-fun coerce_code_for(from: Type, is_lit: bool, to: Type, string_name: Sym): uint8 {
+fun coerce_code_for(from: Type, is_lit: bool, to: Type, string_name: Sym): Coercion {
     val to_tag = to.kind.kind_tag()
     // A poison `from` is never coerced: type_eq would match it to anything.
-    if from.is_poison() { return coerce_none() }
+    if from.is_poison() { return Coercion.Identity }
     if to_tag == TAG_STR() {
-        if (&from).is_lang_struct(string_name) { return coerce_to_cstr() }
-        if is_lit { return coerce_to_cstr() }
-        return coerce_none()
+        if (&from).is_lang_struct(string_name) { return Coercion.ToCStr }
+        if is_lit { return Coercion.ToCStr }
+        return Coercion.Identity
     }
     if to_tag == TAG_PTR() || to_tag == TAG_REF() {
         // Borrow by default: a value in a pointer or reference slot takes its
         // address. `&T`, `&var T` and `Ptr<T>` all resolve to PtrTo.
         val pointee = deref_target(to)
-        if from.type_eq(pointee) { return coerce_addr_of() }
-        return coerce_none()
+        if from.type_eq(pointee) { return Coercion.AddrOf }
+        return Coercion.Identity
     }
-    return coerce_none()
+    return Coercion.Identity
 }
 
 // `null` parses as a Variable and means None in an Option slot.
@@ -227,7 +229,8 @@ pub fun deref_target(t: Type): Type {
 // assertions are declared extern and resolve through the sig table, which
 // coerces literals to `str`.
 fun runtime_intrinsic_ret(name: String, span: Span, string_name: Sym): Type {
-    return when runtime_function_returns(name).as_str() {
+    val returns = runtime_function_returns(name) ?: return Type.new_poison()
+    return when returns.as_str() {
         "String" => string_name.lang_struct_ty(span)
         "str" => Type.new_str(span)
         "bool" => Type.new_bool(span)

@@ -1,0 +1,38 @@
+// A call's returned borrow roots at the one argument it was lent.
+
+import core.assert.assert_eq
+import alloc.list.*
+import kf_core.span.Span
+import kf_core.ast.expression.*
+import kf_core.intern.intern
+import testing.test
+
+fun local(name: str, coerce: Coercion): Expr {
+    var e = Expr.new(Span.none(), ExprKind.Variable(intern(name)))
+    e.coerce = coerce
+    return e
+}
+
+fun call_of(args: List<Expr>): Expr {
+    return Expr.new(Span.none(), ExprKind.Call(intern("peek"), args))
+}
+
+@test fun a_call_borrows_from_the_argument_it_was_lent(): void {
+    var args = []
+    args.push(local("owned", Coercion.AddrOf))
+    args.push(local("count", Coercion.Identity))
+    assert_eq(call_of(args).borrow_root().as_str(), "owned", "the receiver an extension borrows")
+}
+
+@test fun a_call_lent_nothing_has_no_root(): void {
+    var args = []
+    args.push(local("count", Coercion.Identity))
+    assert_eq(call_of(args).borrow_root().as_str(), "", "a borrow from nothing the caller owns")
+}
+
+@test fun a_call_lent_two_borrows_has_no_root(): void {
+    var args = []
+    args.push(local("left", Coercion.WrittenAmp))
+    args.push(local("right", Coercion.WrittenAmp))
+    assert_eq(call_of(args).borrow_root().as_str(), "", "no origin can be named, and the signature says so")
+}

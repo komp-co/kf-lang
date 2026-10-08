@@ -10,9 +10,10 @@
 
 import alloc.list.*
 
-import kf_core.ast.Arm
-import kf_core.ast.Pattern
-import kf_core.ast.view
+import kf_core.ast.pattern.Arm
+import kf_core.ast.pattern.Pattern
+import kf_core.ast.expression.view
+import kf_core.ast.types.view
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.Param

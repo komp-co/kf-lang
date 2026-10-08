@@ -2,15 +2,15 @@
 // nearest-name suggestion.
 
 import kf_core.span.*
-import kf_core.ast.intern
 import kf_core.ast.types.Provenance
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
 import kf_core.ast.expression.Expr
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
 import kf_core.diagnostic.with_fix_applic
 import kf_core.ast.types.type_node
+import kf_core.intern.intern
 import kf_typecheck.types.*
 import kf_typecheck.traits.*
 import kf_typecheck.check.record_untyped_receiver
@@ -47,7 +47,7 @@ fun emit_no_such_method(type_name: String, method_name: String, span: Span, name
     msg.append(unimported_extension_note(method_name, ctx).as_str())
     val near = nearest_method(type_name, method_name, ctx)
     if near.name.as_str() != "" { msg.append(" (did you mean `${near.name.as_str()}`?)") }
-    val diag = new_diagnostic(Severity.Error, new_label(span, msg))
+    val diag = Diagnostic.new(Severity.Error, Label.new(span, msg))
     // The fix spans `name_span`, since the call's span opens at the receiver.
     if near.name.as_str() != "" && !name_span.is_none() {
         val title = "change to `${near.name.as_str()}`"
@@ -145,7 +145,7 @@ pub fun edit_distance(a: str, b: str, cap: uint64): uint64 {
 
 fun emit_method_arity(method_name: String, expected: uint64, found: uint64, span: Span, ctx: &var TypeCtx): void {
     val msg = "wrong number of arguments to method `${method_name}`: expected ${expected}, found ${found}"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
 }
 
 fun check_method_arg(args: &var List<Expr>, arg_tys: &List<Type>, index: uint64, expected: Type, method_name: String, span: Span, ctx: &var TypeCtx): bool {
@@ -157,7 +157,7 @@ fun check_method_arg(args: &var List<Expr>, arg_tys: &List<Type>, index: uint64,
     if outcome.coerced || actual.type_eq(expected) || ctx.fits(actual, expected) { return true }
     if actual.display_type(ctx).as_str().equals(expected.display_type(ctx).as_str()) { return false }
     val msg = "wrong type for argument ${index + 1} of method `${method_name}`: expected `${expected.display_type(ctx)}`, found `${actual.display_type(ctx)}`"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
     return false
 }
 
@@ -188,8 +188,8 @@ fun trait_method_ret(recv_ty: Type, method_name: String, args: &var List<Expr>, 
     }
     val ret = subst_recv(pre.clone(), &binding)
     // The receiver's arguments pin a return type naming another generic.
-    pre.register_substituted_return_row(&ret, &binding, no_span(), ctx)
-    ret.register_returned_instance(no_span(), ctx)
+    pre.register_substituted_return_row(&ret, &binding, Span.none(), ctx)
+    ret.register_returned_instance(Span.none(), ctx)
     return ret
 }
 
@@ -220,7 +220,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
     val recv_ty = autoderef_ty(receiver_ty)
     if ty_is_void(recv_ty) {
         val msg = "cannot call method `${method_name}` on `void`"
-        ctx.emit(new_diagnostic(Severity.Error, new_label(_span, msg)))
+        ctx.emit(Diagnostic.new(Severity.Error, Label.new(_span, msg)))
         return Type.new_poison()
     }
     if recv_ty.kind.kind_tag() == TAG_GENERIC() {
@@ -278,7 +278,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
         }
         // An unbounded associated type promises nothing.
         val plab_msg = "no method `${method_name}` on associated type `${member.as_string()}` (give it a bound whose trait provides it: `type ${member.as_string()}: SomeTrait`)"
-        ctx.emit(new_diagnostic(Severity.Error, new_label(_span, plab_msg)))
+        ctx.emit(Diagnostic.new(Severity.Error, Label.new(_span, plab_msg)))
         return Type.new_poison()
     }
     // String takes the ordinary struct path.
@@ -312,7 +312,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
         // A trait declares it but no impl accepts these arguments.
         if receiver_declares_trait_method(recv_ty, method_name.clone(), ctx) {
             val amsg = call.no_fitting_impl_message(recv_ty, method_name.clone(), args, ctx)
-            ctx.emit(new_diagnostic(Severity.Error, new_label(_span, amsg)))
+            ctx.emit(Diagnostic.new(Severity.Error, Label.new(_span, amsg)))
             return Type.new_poison()
         }
     }
@@ -470,7 +470,7 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
         // at fault, not the impl.
         if receiver_declares_trait_method(recv_ty, method_name.clone(), ctx) {
             val amsg = call.no_fitting_impl_message(recv_ty, method_name.clone(), args, ctx)
-            ctx.emit(new_diagnostic(Severity.Error, new_label(_span, amsg)))
+            ctx.emit(Diagnostic.new(Severity.Error, Label.new(_span, amsg)))
             return Type.new_poison()
         }
         emit_no_such_method(sname.clone(), method_name.clone(), _span, call.name_span, ctx)
@@ -479,8 +479,8 @@ pub fun check_method_call(receiver_ty: Type, method_name: String, args: &var Lis
     val sig = found_sig ?: return Type.new_poison()
     note_import_use(ctx.sigs, ctx.owner_file, sig.owner_module)
     if sig.is_static {
-        val lab = new_label(_span, String.from("static function called on a value; call it as Type.method(...)"))
-        ctx.emit(new_diagnostic(Severity.Error, lab))
+        val lab = Label.new(_span, String.from("static function called on a value; call it as Type.method(...)"))
+        ctx.emit(Diagnostic.new(Severity.Error, lab))
         return Type.new_poison()
     }
     if !sig.arrange_call_arguments(args, &var arg_tys, method_name.clone(), 1, _span, ctx) { return Type.new_poison() }

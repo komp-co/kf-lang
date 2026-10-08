@@ -1,0 +1,12 @@
+import kf_core.span.*
+import kf_core.intern.*
+
+/// `while field in T.fields { ... }` written where declarations or fields
+/// go in a template: what it holds is written out once per field. The items
+/// one loop holds share its `group`, so two loops side by side stay apart.
+@derive(Clone)
+pub struct MemberLoop {
+    pub val span: Span
+    pub val binder: Sym
+    pub val group: uint32
+}

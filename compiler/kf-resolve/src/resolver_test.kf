@@ -1,7 +1,7 @@
 import core.assert.*
 import alloc.list.*
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
@@ -10,40 +10,42 @@ import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import testing.test
+import kf_core.intern.CrateId
+import kf_core.intern.intern
 
 // Fixtures are built by hand: kf-resolve cannot depend on kf-parse.
 
 fun make_fun_decl(name: str): TopDecl {
     val ret_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ret_ptr = TypeRef.new_poison(no_span()) }
+    unsafe { *ret_ptr = TypeRef.new_poison(Span.none()) }
     val kind = TopDeclKind.Function(List.new<Param>(), ret_ptr, List.new<Stmt>(), false, false, false, false)
-    return new_top_decl(no_span(), String.from(name), kind)
+    return TopDecl.new(Span.none(), String.from(name), kind)
 }
 
 fun make_struct_decl(name: str): TopDecl {
     val kind = TopDeclKind.Struct(List.new<Field>(), false)
-    return new_top_decl(no_span(), String.from(name), kind)
+    return TopDecl.new(Span.none(), String.from(name), kind)
 }
 
 fun make_enum_decl(name: str): TopDecl {
     val kind = TopDeclKind.EnumDecl(List.new<Variant>(), false)
-    return new_top_decl(no_span(), String.from(name), kind)
+    return TopDecl.new(Span.none(), String.from(name), kind)
 }
 
 fun make_extern_decl(name: str): TopDecl {
     val ret_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ret_ptr = TypeRef.new_poison(no_span()) }
+    unsafe { *ret_ptr = TypeRef.new_poison(Span.none()) }
     val kind = TopDeclKind.Extern(List.new<Param>(), ret_ptr, false, false)
-    return new_top_decl(no_span(), String.from(name), kind)
+    return TopDecl.new(Span.none(), String.from(name), kind)
 }
 
 fun make_impl_block(target: str): TopDecl {
     val kind = TopDeclKind.ImplBlock(List.new<TopDecl>())
-    return new_top_decl(no_span(), String.from(target), kind)
+    return TopDecl.new(Span.none(), String.from(target), kind)
 }
 
 fun module_with_decls(decls: List<TopDecl>): Module {
-    return Module { crate: crate_id_poison(), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
+    return Module { crate: CrateId.new_poison(), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 }
 
 @test fun resolve_module_assigns_ids_to_fun_decls(): void {
@@ -143,13 +145,13 @@ fun module_with_decls(decls: List<TopDecl>): Module {
 /// A function whose body is one statement: a call to `callee`.
 fun make_caller(name: str, callee: str): TopDecl {
     val ret_ptr: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *ret_ptr = TypeRef.new_poison(no_span()) }
+    unsafe { *ret_ptr = TypeRef.new_poison(Span.none()) }
     val call_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *call_ptr = Expr.new(no_span(), ExprKind.Call(intern(callee), List.new<Expr>())) }
+    unsafe { *call_ptr = Expr.new(Span.none(), ExprKind.Call(intern(callee), List.new<Expr>())) }
     var body = List.new<Stmt>()
-    body.push(Stmt.new(no_span(), StmtKind.Expression(call_ptr)))
+    body.push(Stmt.new(Span.none(), StmtKind.Expression(call_ptr)))
     val kind = TopDeclKind.Function(List.new<Param>(), ret_ptr, body, false, false, false, false)
-    return new_top_decl(no_span(), String.from(name), kind)
+    return TopDecl.new(Span.none(), String.from(name), kind)
 }
 
 /// The DeclId stamped on the call in `decls[idx]`'s body, or 0.

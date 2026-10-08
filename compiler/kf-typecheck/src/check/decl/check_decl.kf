@@ -11,8 +11,9 @@ import kf_typecheck.check.record_params
 import kf_typecheck.types.*
 import kf_typecheck.traits.*
 import kf_typecheck.*
-import kf_core.span.no_span
 import kf_core.span.SourceMap
+import kf_core.span.Span
+import kf_core.intern.*
 import kf_typecheck.check.borrow.infer_borrow_origin
 import kf_typecheck.check.borrow.reject_unsayable_origin
 
@@ -201,7 +202,7 @@ pub fun Module.assoc_projection_registry(): Ptr<SigTable> {
     val sigs = new_sig_table()
     val sig_ptr: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *sig_ptr = sigs }
-    var sink = new_diagnostics()
+    var sink = Diagnostics.new()
 
     while decl in &self.decls {
         decl.register_type_identity(sig_ptr)
@@ -245,8 +246,8 @@ pub fun TopDecl.reject_reserved_type_name(diags: &var Diagnostics): bool {
     }
     if is_builtin_type_name(self.name.as_str()) {
         val message = "`${self.name.as_str()}` is reserved for a builtin type; a type cannot be declared with that name (rename it)"
-        val lab = new_label(self.decl_name_span(), message)
-        diags.emit(new_diagnostic(Severity.Error, lab))
+        val lab = Label.new(self.decl_name_span(), message)
+        diags.emit(Diagnostic.new(Severity.Error, lab))
         return true
     }
     return false
@@ -300,7 +301,7 @@ pub fun register_sigs(td: &var TopDecl, sig_ptr: Ptr<SigTable>, diags: &var Diag
 /// no method. Types come from the trait with `Self` as this impl's target.
 fun register_omitted_defaults(struct_name: String, methods: &List<TopDecl>, suffix: String, trait_name: String, td: &TopDecl, sig_ptr: Ptr<SigTable>): void {
     if trait_name.as_str().equals("") { return }
-    val self_ty = Type { kind: TypeKind.Struct(intern(struct_name)), provenance: Provenance.Inferred(no_span()) }
+    val self_ty = Type { kind: TypeKind.Struct(intern(struct_name)), provenance: Provenance.Inferred(Span.none()) }
     val info = unsafe { (*sig_ptr).find_trait(trait_name) } ?: return
     while req in &info.methods {
         if req.has_default && !impl_writes_method(methods, req.name) {
@@ -335,7 +336,7 @@ fun impl_writes_method(methods: &List<TopDecl>, name: str): bool {
 fun register_fn_sig(metadata_owner: Ptr<TopDecl>, fn_name: String, params: &List<Param>, ret_ptr: Ptr<TypeRef>, generics: List<String>, owner_crate: CrateId, owner_module: Sym, owner_file: uint32, is_pub: bool, sig_ptr: Ptr<SigTable>, diags: &var Diagnostics, table: Ptr<DeclTable>?): void {
     var eff_table: Ptr<DeclTable>? = table
     if unsafe { (*metadata_owner).linkage.is_imported() } { eff_table = Option.None }
-    var ctx0 = new_type_ctx(Type.new_void(no_span()), diags, eff_table, sig_ptr)
+    var ctx0 = new_type_ctx(Type.new_void(Span.none()), diags, eff_table, sig_ptr)
     ctx0.owner_crate = owner_crate
     ctx0.owner_module = owner_module
     ctx0.owner_file = owner_file
@@ -383,7 +384,7 @@ fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &va
             // how the receiver is passed; a `static fun` has none.
             var eff_table: Ptr<DeclTable>? = table
             if td.linkage.is_imported() { eff_table = Option.None }
-            var ctx0 = new_type_ctx(Type.new_void(no_span()), diags, eff_table, sig_ptr)
+            var ctx0 = new_type_ctx(Type.new_void(Span.none()), diags, eff_table, sig_ptr)
             ctx0.owner_crate = td.crate
             ctx0.owner_module = td.scope_module()
             ctx0.owner_file = td.span.file_id
@@ -407,7 +408,7 @@ fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &va
                 all_generics.push(own_generic)
             }
             ctx0.seed_generics(all_generics.clone())
-            ctx0.self_ty = impl_target_ty(struct_name, no_span(), ctx0.string_name())
+            ctx0.self_ty = impl_target_ty(struct_name, Span.none(), ctx0.string_name())
             // Which trait instantiation: a type implementing one trait at two
             // argument lists binds `Out` twice.
             ctx0.impl_trait = trait_name.clone()
@@ -417,7 +418,7 @@ fun register_impl_method(struct_name: String, impl_tps: List<TypeParam>, td: &va
             ret_ty.validate_dyn_placement(ret_tr.span, &var ctx0)
             var ptys = List.new<Type>()
             if !is_static {
-                ptys.push(Type { kind: TypeKind.Struct(intern(struct_name)), provenance: Provenance.Inferred(no_span()) })
+                ptys.push(Type { kind: TypeKind.Struct(intern(struct_name)), provenance: Provenance.Inferred(Span.none()) })
             }
             while p in &params {
                 val ty_ptr: Ptr<TypeRef> = p.ty
@@ -485,7 +486,7 @@ fun check_top_decl(td: &var TopDecl, _table: &var DeclTable, diags: &var Diagnos
                 check_method_body(struct_name.clone(), gnames, trait_name.clone(), trait_args.clone(), methods.at_mut(i), diags, sigs)
             }
             // Its own ctx, so the impl's generics are in scope.
-            var sig_ctx = new_type_ctx(Type.new_void(no_span()), diags, Option.None, sigs)
+            var sig_ctx = new_type_ctx(Type.new_void(Span.none()), diags, Option.None, sigs)
             sig_ctx.owner_crate = td.crate
             sig_ctx.owner_module = td.scope_module()
             sig_ctx.owner_file = td.span.file_id

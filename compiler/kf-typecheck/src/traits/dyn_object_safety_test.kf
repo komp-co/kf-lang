@@ -1,10 +1,9 @@
 import core.assert.*
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.Linkage
-import kf_core.ast.intern
-import kf_core.ast.new_module
+import kf_core.span.Span
+import kf_core.ast.declaration.Linkage
+import kf_core.ast.Module
 import kf_core.ast.types.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
@@ -14,6 +13,7 @@ import kf_core.ast.statement.StmtKind
 import kf_core.diagnostic.*
 import kf_resolve.*
 import kf_core.ast.dyn_meta.*
+import kf_core.intern.intern
 import kf_typecheck.new_sig_table
 import kf_typecheck.new_type_ctx
 import kf_typecheck.typecheck_module
@@ -23,7 +23,7 @@ import testing.test
 fun safety_method(name: str, ret: Type, generic: bool, static_method: bool, mutating_method: bool, has_default: bool): TraitMethodReq {
     return TraitMethodReq {
         name: String.from(name),
-        span: no_span(),
+        span: Span.none(),
         arity: 0,
         has_default: has_default,
         has_method_generics: generic,
@@ -38,7 +38,7 @@ fun safety_trait(name: str, methods: List<TraitMethodReq>, associated: List<Trai
     return TraitInfo {
         name: String.from(name),
         identity: intern(name), module: intern(""),
-        span: no_span(),
+        span: Span.none(),
         type_params: parameters,
         methods: methods,
         assoc_types: associated,
@@ -48,28 +48,28 @@ fun safety_trait(name: str, methods: List<TraitMethodReq>, associated: List<Trai
 
 fun safety_validate(info: TraitInfo, args: List<Type>): DynTraitLayout? {
     val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
-    unsafe { *diagnostics = new_diagnostics() }
+    unsafe { *diagnostics = Diagnostics.new() }
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signatures = new_sig_table() }
     unsafe { signatures.insert_trait(info) }
-    var ctx = new_type_ctx(Type.new_void(no_span()), unsafe { &var *diagnostics }, Option.None, signatures)
+    var ctx = new_type_ctx(Type.new_void(Span.none()), unsafe { &var *diagnostics }, Option.None, signatures)
     var object_args = List.new<Type>()
     while arg in &args {
         object_args.push(arg)
     }
-    val object = dyn_trait_type(info.identity, object_args, no_span())
-    return object.validate_dyn_trait(no_span(), &var ctx)
+    val object = Type.new_dyn_trait(info.identity, object_args, Span.none())
+    return object.validate_dyn_trait(Span.none(), &var ctx)
 }
 
 fun safety_message(info: TraitInfo): String {
     val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
-    unsafe { *diagnostics = new_diagnostics() }
+    unsafe { *diagnostics = Diagnostics.new() }
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signatures = new_sig_table() }
     unsafe { signatures.insert_trait(info) }
-    var ctx = new_type_ctx(Type.new_void(no_span()), unsafe { &var *diagnostics }, Option.None, signatures)
-    val object = dyn_trait_type(info.identity, List.new<Type>(), no_span())
-    val _layout = object.validate_dyn_trait(no_span(), &var ctx)
+    var ctx = new_type_ctx(Type.new_void(Span.none()), unsafe { &var *diagnostics }, Option.None, signatures)
+    val object = Type.new_dyn_trait(info.identity, List.new<Type>(), Span.none())
+    val _layout = object.validate_dyn_trait(Span.none(), &var ctx)
     return unsafe { diagnostics.at(0).primary.message }
 }
 
@@ -80,31 +80,31 @@ struct PlacementOutcome {
 
 fun safety_placement(wrapper: uint8): PlacementOutcome {
     var methods = List.new<TraitMethodReq>()
-    methods.push(safety_method("show", Type.new_int32(no_span()), false, false, false, false))
+    methods.push(safety_method("show", Type.new_int32(Span.none()), false, false, false, false))
     val info = safety_trait("Show", methods, List.new<TraitAssocReq>(), List.new<String>())
     val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
-    unsafe { *diagnostics = new_diagnostics() }
+    unsafe { *diagnostics = Diagnostics.new() }
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signatures = new_sig_table() }
     unsafe { signatures.insert_trait(info) }
     val owner: Ptr<TopDecl> = unsafe { alloc<TopDecl>() }
-    unsafe { *owner = new_top_decl(no_span(), String.from("use_show"), TopDeclKind.Poison) }
-    var ctx = new_type_ctx(Type.new_void(no_span()), unsafe { &var *diagnostics }, Option.None, signatures)
+    unsafe { *owner = TopDecl.new(Span.none(), String.from("use_show"), TopDeclKind.Poison) }
+    var ctx = new_type_ctx(Type.new_void(Span.none()), unsafe { &var *diagnostics }, Option.None, signatures)
     ctx.metadata_owner = owner
-    val dynamic = dyn_trait_type(info.identity, List.new<Type>(), no_span())
+    val dynamic = Type.new_dyn_trait(info.identity, List.new<Type>(), Span.none())
     var checked = dynamic
     if wrapper == 1 {
         val inner: Ptr<Type> = unsafe { alloc<Type>() }
         unsafe { *inner = dynamic }
-        checked = Type { kind: TypeKind.RefTo(false, inner), provenance: Provenance.Declared(no_span()) }
+        checked = Type { kind: TypeKind.RefTo(false, inner), provenance: Provenance.Declared(Span.none()) }
     }
     if wrapper == 3 {
         val inner: Ptr<Type> = unsafe { alloc<Type>() }
         unsafe { *inner = dynamic }
-        checked = Type { kind: TypeKind.RefTo(true, inner), provenance: Provenance.Declared(no_span()) }
+        checked = Type { kind: TypeKind.RefTo(true, inner), provenance: Provenance.Declared(Span.none()) }
     }
-    if wrapper == 2 { checked = Type.new_box(dynamic, no_span()) }
-    checked.validate_dyn_placement(no_span(), &var ctx)
+    if wrapper == 2 { checked = Type.new_box(dynamic, Span.none()) }
+    checked.validate_dyn_placement(Span.none(), &var ctx)
     return PlacementOutcome {
         diagnostics: unsafe { (*diagnostics).items.clone() },
         layout_count: unsafe { owner.dyn_layouts.size() }
@@ -113,42 +113,42 @@ fun safety_placement(wrapper: uint8): PlacementOutcome {
 
 @test fun dyn_object_safety_rejects_associated_type(): void {
     var associated = List.new<TraitAssocReq>()
-    associated.push(TraitAssocReq { name: String.from("Item"), span: no_span(), bounds: List.new<AssocBoundReq>() })
+    associated.push(TraitAssocReq { name: String.from("Item"), span: Span.none(), bounds: List.new<AssocBoundReq>() })
     val info = safety_trait("HasType", List.new<TraitMethodReq>(), associated, List.new<String>())
     assert_eq(safety_message(info).as_str(), "trait `HasType` cannot be used as dyn because it declares associated type `Item`", "associated types prevent object use")
 }
 
 @test fun dyn_object_safety_rejects_generic_method(): void {
     var methods = List.new<TraitMethodReq>()
-    methods.push(safety_method("map", Type.new_int32(no_span()), true, false, false, false))
+    methods.push(safety_method("map", Type.new_int32(Span.none()), true, false, false, false))
     val info = safety_trait("GenericMethod", methods, List.new<TraitAssocReq>(), List.new<String>())
     assert_eq(safety_message(info).as_str(), "trait method `map` cannot be used through dyn because it is generic", "generic methods have no fixed slot")
 }
 
 @test fun dyn_object_safety_rejects_static_method(): void {
     var methods = List.new<TraitMethodReq>()
-    methods.push(safety_method("make", Type.new_int32(no_span()), false, true, false, false))
+    methods.push(safety_method("make", Type.new_int32(Span.none()), false, true, false, false))
     val info = safety_trait("Factory", methods, List.new<TraitAssocReq>(), List.new<String>())
     assert_eq(safety_message(info).as_str(), "static trait method `make` has no dynamic receiver", "static methods cannot dispatch through an object")
 }
 
 @test fun dyn_object_safety_rejects_self_return(): void {
     var methods = List.new<TraitMethodReq>()
-    methods.push(safety_method("clone", Type.new_generic(String.from("Self"), no_span()), false, false, false, false))
+    methods.push(safety_method("clone", Type.new_generic(String.from("Self"), Span.none()), false, false, false, false))
     val info = safety_trait("Cloner", methods, List.new<TraitAssocReq>(), List.new<String>())
     assert_eq(safety_message(info).as_str(), "trait method `clone` exposes `Self` outside its receiver", "Self cannot escape a dynamic call")
 }
 
 @test fun dyn_object_safety_accepts_normal_method(): void {
     var methods = List.new<TraitMethodReq>()
-    methods.push(safety_method("show", Type.new_int32(no_span()), false, false, false, false))
+    methods.push(safety_method("show", Type.new_int32(Span.none()), false, false, false, false))
     val info = safety_trait("Show", methods, List.new<TraitAssocReq>(), List.new<String>())
     assert_eq(safety_validate(info, List.new<Type>()).is_some(), true, "ordinary receiver methods are object-safe")
 }
 
 @test fun dyn_object_safety_keeps_mutating_slot(): void {
     var methods = List.new<TraitMethodReq>()
-    methods.push(safety_method("clear", Type.new_void(no_span()), false, false, true, false))
+    methods.push(safety_method("clear", Type.new_void(Span.none()), false, false, true, false))
     val info = safety_trait("Clear", methods, List.new<TraitAssocReq>(), List.new<String>())
     when (safety_validate(info, List.new<Type>())) {
         Some(layout) => assert_eq(layout.methods.at(0).is_mutating, true, "mutating dispatch is recorded in its slot")
@@ -158,7 +158,7 @@ fun safety_placement(wrapper: uint8): PlacementOutcome {
 
 @test fun dyn_object_safety_accepts_default_method(): void {
     var methods = List.new<TraitMethodReq>()
-    methods.push(safety_method("show", Type.new_int32(no_span()), false, false, false, true))
+    methods.push(safety_method("show", Type.new_int32(Span.none()), false, false, false, true))
     val info = safety_trait("DefaultShow", methods, List.new<TraitAssocReq>(), List.new<String>())
     assert_eq(safety_validate(info, List.new<Type>()).is_some(), true, "a default body does not change object safety")
 }
@@ -167,24 +167,24 @@ fun safety_placement(wrapper: uint8): PlacementOutcome {
     var parameters = List.new<String>()
     parameters.push(String.from("T"))
     var method_parameters = List.new<Type>()
-    method_parameters.push(Type.new_generic(String.from("T"), no_span()))
+    method_parameters.push(Type.new_generic(String.from("T"), Span.none()))
     var methods = List.new<TraitMethodReq>()
     methods.push(TraitMethodReq {
         name: String.from("send"),
-        span: no_span(),
+        span: Span.none(),
         arity: 1,
         has_default: false,
         has_method_generics: false,
         is_static: false,
         params: method_parameters,
-        ret: Type.new_void(no_span()),
+        ret: Type.new_void(Span.none()),
         is_mutating: false
     })
     val info = safety_trait("Sink", methods, List.new<TraitAssocReq>(), parameters)
     var args = List.new<Type>()
-    args.push(Type.new_int32(no_span()))
+    args.push(Type.new_int32(Span.none()))
     when (safety_validate(info, args)) {
-        Some(layout) => assert_eq(type_eq(layout.methods.at(0).params.at(0), &Type.new_int32(no_span())), true, "trait parameters become object arguments")
+        Some(layout) => assert_eq(type_eq(layout.methods.at(0).params.at(0), &Type.new_int32(Span.none())), true, "trait parameters become object arguments")
         None => assert_eq(false, true, "generic traits can be object-safe")
     }
 }
@@ -211,44 +211,46 @@ fun safety_placement(wrapper: uint8): PlacementOutcome {
 
 fun dyn_vtable_type_ref(name: str): Ptr<TypeRef> {
     val result: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *result = TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
+    unsafe { *result = TypeRef.new(Span.none(), TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
     return result
 }
 
 fun borrowed_dyn_type_ref(name: str): Ptr<TypeRef> {
     val args = List.new<TypeRef>()
     val dynamic: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *dynamic = TypeRef.new(no_span(), TypeRefKind.DynTrait(intern(name), args)) }
+    unsafe { *dynamic = TypeRef.new(Span.none(), TypeRefKind.DynTrait(intern(name), args)) }
     val borrowed: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *borrowed = TypeRef.new(no_span(), TypeRefKind.Reference(false, dynamic)) }
+    unsafe { *borrowed = TypeRef.new(Span.none(), TypeRefKind.Reference(false, dynamic)) }
     return borrowed
 }
 
 fun dyn_vtable_trait_decl(): TopDecl {
-    val method = new_top_decl(no_span(), String.from("show"), TopDeclKind.Function(List.new<Param>(), dyn_vtable_type_ref("int32"), List.new<Stmt>(), true, false, false, false))
+    val method = TopDecl.new(Span.none(), String.from("show"), TopDeclKind.Function(List.new<Param>(), dyn_vtable_type_ref("int32"), List.new<Stmt>(), true, false, false, false))
     var methods = List.new<TopDecl>()
     methods.push(method)
-    return new_top_decl(no_span(), String.from("Show"), TopDeclKind.TraitDecl(methods, true, List.new<TypeRef>()))
+    return TopDecl.new(Span.none(), String.from("Show"), TopDeclKind.TraitDecl(methods, true, List.new<TypeRef>()))
 }
 
 fun dyn_vtable_impl_decl(): TopDecl {
     var body = List.new<Stmt>()
     val value: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *value = Expr.new(no_span(), ExprKind.LitInt(1)) }
-    body.push(Stmt.new(no_span(), StmtKind.Return(Option.Some(value))))
-    val method = new_top_decl(no_span(), String.from("show"), TopDeclKind.Function(List.new<Param>(), dyn_vtable_type_ref("int32"), body, true, false, false, false))
+    unsafe { *value = Expr.new(Span.none(), ExprKind.LitInt(1)) }
+    body.push(Stmt.new(Span.none(), StmtKind.Return(Option.Some(value))))
+    val method = TopDecl.new(Span.none(), String.from("show"), TopDeclKind.Function(List.new<Param>(), dyn_vtable_type_ref("int32"), body, true, false, false, false))
     var methods = List.new<TopDecl>()
     methods.push(method)
-    return new_top_decl(no_span(), String.from("Point"), TopDeclKind.TraitImpl(dyn_vtable_type_ref("Show"), methods))
+    return TopDecl.new(Span.none(), String.from("Point"), TopDeclKind.TraitImpl(dyn_vtable_type_ref("Show"), methods))
 }
 
 fun dyn_vtable_imported_impl_decl(): TopDecl {
-    var method = new_top_decl(no_span(), String.from("show"), TopDeclKind.Function(List.new<Param>(), dyn_vtable_type_ref("int32"), List.new<Stmt>(), true, false, false, false))
+    var method = TopDecl.new(Span.none(), String.from("show"), TopDeclKind.Function(List.new<Param>(), dyn_vtable_type_ref("int32"), List.new<Stmt>(), true, false, false, false))
     method.linkage = Linkage.ImportedCompiled
     method.link_name = intern("dep_exact_show")
     var methods = List.new<TopDecl>()
     methods.push(method)
-    var implementation = new_top_decl(no_span(), String.from("Point"), TopDeclKind.TraitImpl(dyn_vtable_type_ref("Show"), methods))
+    var implementation = TopDecl.new(
+        Span.none(), String.from("Point"), TopDeclKind.TraitImpl(dyn_vtable_type_ref("Show"), methods)
+    )
     implementation.linkage = Linkage.ImportedCompiled
     return implementation
 }
@@ -261,9 +263,9 @@ fun TopDecl.first_dyn_adapter(): String {
 }
 
 @test fun dyn_object_safety_records_non_generic_impl_vtable(): void {
-    var module = new_module(List.new<String>())
+    var module = Module.new(List.new<String>())
     module.decls.push(dyn_vtable_trait_decl())
-    module.decls.push(new_top_decl(no_span(), String.from("Point"), TopDeclKind.Struct(List.new<Field>(), true)))
+    module.decls.push(TopDecl.new(Span.none(), String.from("Point"), TopDeclKind.Struct(List.new<Field>(), true)))
     module.decls.push(dyn_vtable_impl_decl())
     var declarations = new_decl_table()
     resolve_module(&var module, &var declarations)
@@ -273,12 +275,12 @@ fun TopDecl.first_dyn_adapter(): String {
 
 @test fun dyn_object_safety_keeps_imported_adapter_symbol(): void {
     var methods = List.new<TraitMethodReq>()
-    methods.push(safety_method("show", Type.new_int32(no_span()), false, false, false, false))
+    methods.push(safety_method("show", Type.new_int32(Span.none()), false, false, false, false))
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signatures = new_sig_table() }
     unsafe { signatures.insert_trait(safety_trait("Show", methods, List.new<TraitAssocReq>(), List.new<String>())) }
     val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
-    unsafe { *diagnostics = new_diagnostics() }
+    unsafe { *diagnostics = Diagnostics.new() }
     var implementation = dyn_vtable_imported_impl_decl()
     implementation.register_dyn_vtable_decl(signatures, unsafe { &var *diagnostics })
     val adapter = implementation.first_dyn_adapter()
@@ -286,8 +288,8 @@ fun TopDecl.first_dyn_adapter(): String {
 }
 
 @test fun dyn_object_safety_records_function_signature_layout(): void {
-    var module = new_module(List.new<String>())
-    module.decls.push(new_top_decl(no_span(), String.from("make"), TopDeclKind.Function(List.new<Param>(), borrowed_dyn_type_ref("Show"), List.new<Stmt>(), true, false, false, false)))
+    var module = Module.new(List.new<String>())
+    module.decls.push(TopDecl.new(Span.none(), String.from("make"), TopDeclKind.Function(List.new<Param>(), borrowed_dyn_type_ref("Show"), List.new<Stmt>(), true, false, false, false)))
     module.decls.push(dyn_vtable_trait_decl())
     var declarations = new_decl_table()
     resolve_module(&var module, &var declarations)
@@ -297,9 +299,9 @@ fun TopDecl.first_dyn_adapter(): String {
 
 @test fun dyn_object_safety_records_field_layout_before_later_trait(): void {
     var fields = List.new<Field>()
-    fields.push(new_field(no_span(), String.from("shown"), borrowed_dyn_type_ref("Show"), false, true))
-    var module = new_module(List.new<String>())
-    module.decls.push(new_top_decl(no_span(), String.from("View"), TopDeclKind.Struct(fields, true)))
+    fields.push(Field.new(Span.none(), String.from("shown"), borrowed_dyn_type_ref("Show"), false, true))
+    var module = Module.new(List.new<String>())
+    module.decls.push(TopDecl.new(Span.none(), String.from("View"), TopDeclKind.Struct(fields, true)))
     module.decls.push(dyn_vtable_trait_decl())
     var declarations = new_decl_table()
     resolve_module(&var module, &var declarations)
@@ -309,11 +311,11 @@ fun TopDecl.first_dyn_adapter(): String {
 
 @test fun dyn_object_safety_records_local_annotation_layout(): void {
     val init: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *init = Expr.new(no_span(), ExprKind.LitInt(1)) }
+    unsafe { *init = Expr.new(Span.none(), ExprKind.LitInt(1)) }
     var body = List.new<Stmt>()
-    body.push(Stmt.new(no_span(), StmtKind.LetVal(intern("shown"), borrowed_dyn_type_ref("Show"), init)))
-    var module = new_module(List.new<String>())
-    module.decls.push(new_top_decl(no_span(), String.from("use_show"), TopDeclKind.Function(List.new<Param>(), dyn_vtable_type_ref("void"), body, true, false, false, false)))
+    body.push(Stmt.new(Span.none(), StmtKind.LetVal(intern("shown"), borrowed_dyn_type_ref("Show"), init)))
+    var module = Module.new(List.new<String>())
+    module.decls.push(TopDecl.new(Span.none(), String.from("use_show"), TopDeclKind.Function(List.new<Param>(), dyn_vtable_type_ref("void"), body, true, false, false, false)))
     module.decls.push(dyn_vtable_trait_decl())
     var declarations = new_decl_table()
     resolve_module(&var module, &var declarations)

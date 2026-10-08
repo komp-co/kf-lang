@@ -8,6 +8,7 @@ import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.*
 import kf_core.diagnostic.*
+import kf_core.ast.annotation.*
 import kf_typecheck.*
 
 /// Resolves names as `td`'s own declaration does.
@@ -24,9 +25,11 @@ pub fun MarkTarget.check_bounds(table: &SigTable, diags: &var List<Diagnostic>):
         while bound in &listed.bounds {
             val trait_name = bound.bare_name()
             if trait_name.as_str().equals("") {
-                diags.push(error_at(bound.span, "an annotation's bound names a trait without type arguments"))
+                diags.push(
+                    Diagnostic.error_at(bound.span, "an annotation's bound names a trait without type arguments")
+                )
             } else if table.find_trait(trait_name) == null {
-                diags.push(error_at(bound.span, "cannot find trait `${trait_name.as_str()}` for this bound"))
+                diags.push(Diagnostic.error_at(bound.span, "cannot find trait `${trait_name.as_str()}` for this bound"))
             }
         }
     }
@@ -55,7 +58,7 @@ pub fun TopDecl.fits_target(kind: str, declared: &DeclaredAnnotation, owner: &Me
                     return self.meets_bounds(kind, &listed.bounds, table, diags)
                 }
             }
-            diags.push(error_at(at, "`@${kind}` can only annotate ${kinds.phrase().as_str()}"))
+            diags.push(Diagnostic.error_at(at, "`@${kind}` can only annotate ${kinds.phrase().as_str()}"))
             return false
         }
         _ => return self.fits_signature(kind, declared, owner, table, sigs, pass_diags, bound, diags)
@@ -105,7 +108,7 @@ fun TopDecl.meets_bounds(kind: str, bounds: &List<TypeRef>, table: &SigTable, di
     val at = self.decl_name_span()
     if self.generics.size() > 0 {
         val why = "whether it meets the bounds depends on its arguments"
-        diags.push(error_at(at, "`@${kind}` cannot annotate a generic type: ${why}"))
+        diags.push(Diagnostic.error_at(at, "`@${kind}` cannot annotate a generic type: ${why}"))
         return false
     }
     var fits = true
@@ -113,7 +116,7 @@ fun TopDecl.meets_bounds(kind: str, bounds: &List<TypeRef>, table: &SigTable, di
         val trait_name = bound.bare_name()
         if !table.type_implements(self.name.as_str(), trait_name, "") {
             val message = "`${self.name.as_str()}` must implement `${trait_name.as_str()}` to carry `@${kind}`"
-            diags.push(error_at(at, message))
+            diags.push(Diagnostic.error_at(at, message))
             fits = false
         }
     }

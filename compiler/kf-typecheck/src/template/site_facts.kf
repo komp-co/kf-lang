@@ -2,7 +2,7 @@
 // template adds to is written, as literals, the file relative to the crate
 // root as an `annotated<A>()` entry gives it.
 
-import kf_core.ast.Sym
+import kf_core.intern.Sym
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 

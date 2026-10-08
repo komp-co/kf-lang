@@ -1,7 +1,7 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.diagnostic.*
 import testing.test
 
@@ -13,9 +13,9 @@ fun nothing_found_says_so(): void {
 @test
 fun each_lint_is_counted_by_name(): void {
     var diags = List.new<Diagnostic>()
-    diags.push(lint_at("wildcard_import", no_span(), String.from("a")))
-    diags.push(lint_at("unused_import", no_span(), String.from("b")))
-    diags.push(lint_at("unused_import", no_span(), String.from("c")))
+    diags.push(Diagnostic.lint_at("wildcard_import", Span.none(), String.from("a")))
+    diags.push(Diagnostic.lint_at("unused_import", Span.none(), String.from("b")))
+    diags.push(Diagnostic.lint_at("unused_import", Span.none(), String.from("c")))
     val expected = "lint: 0 errors, 3 warnings\n  unused_import    2\n  wildcard_import  1\n"
     assert_eq(lint_summary(&diags).as_str(), expected, "sorted by name, counts aligned")
 }
@@ -23,6 +23,6 @@ fun each_lint_is_counted_by_name(): void {
 @test
 fun an_error_without_a_lint_is_counted_as_an_error(): void {
     var diags = List.new<Diagnostic>()
-    diags.push(error_at(no_span(), "mismatched types"))
+    diags.push(Diagnostic.error_at(Span.none(), "mismatched types"))
     assert_eq(lint_summary(&diags).as_str(), "lint: 1 error, 0 warnings\n", "no lint row for it")
 }

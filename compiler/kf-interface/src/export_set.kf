@@ -2,6 +2,9 @@ import alloc.list.*
 
 import kf_core.ast.*
 import kf_core.ast.declaration.TopDecl
+import kf_core.intern.*
+import kf_core.lang.*
+import kf_core.names.CName
 import kf_interface.*
 
 // Public non-generic functions, structs, enums and traits, impls of exported
@@ -11,7 +14,7 @@ pub fun decl_is_exported(td: &TopDecl): bool {
     if td.generics.size() > 0 && !td.is_annotation_decl() { return false }
     // Sent as a template: a structured row cannot carry an associated type.
     if td.trait_declares_assoc_type() { return false }
-    if is_mangled_decl_name(td.name.as_str()) { return false }
+    if CName.is_mangled(td.name.as_str()) { return false }
     when (td.kind) {
         Function(_p, _r, _b, is_pub, _u, _mut, _st) => {
             if td.name.as_str() == "main" { return false }
@@ -33,7 +36,7 @@ pub fun decl_is_exported(td: &TopDecl): bool {
 /// them.
 pub fun decl_is_exported_template(td: &TopDecl): bool {
     if td.generics.size() == 0 && !td.trait_declares_assoc_type() && !td.is_constant() { return false }
-    if is_mangled_decl_name(td.name.as_str()) { return false }
+    if CName.is_mangled(td.name.as_str()) { return false }
     if td.decl_end == 0 as uint32 { return false }
     return when (td.kind) {
         Function(_p, _r, _b, is_pub, _u, _mut, _st) => is_pub
@@ -106,8 +109,8 @@ pub fun TopDecl.trait_declares_assoc_type(): bool {
 // An impl of a private type would reference a layout the interface never
 // carries.
 pub fun impl_target_is_exported(td: &TopDecl, m: &Module, crate: CrateId): bool {
-    val list_name = m.lang_type_name(lang_list_key())
-    val option_name = m.lang_type_name(lang_option_key())
+    val list_name = m.lang_type_name(LangItem.List)
+    val option_name = m.lang_type_name(LangItem.Option)
     var is_impl = false
     when (td.kind) {
         ImplBlock(_methods) => { is_impl = true }
@@ -115,7 +118,7 @@ pub fun impl_target_is_exported(td: &TopDecl, m: &Module, crate: CrateId): bool 
         _ => {}
     }
     if !is_impl { return true }
-    if is_runtime_type_name(td.name.as_str()) ||
+    if CName.is_runtime_type(td.name.as_str()) ||
         is_container_type_name(td.name.as_str(), list_name, option_name) { return true }
     while other in &m.decls {
         if other.crate.raw == crate.raw {
@@ -142,8 +145,8 @@ pub fun decl_crosses_interface(td: &TopDecl, m: &Module, crate: CrateId): bool {
 /// consumer side: functions (bodyless), types, traits, templates, and every
 /// hidden type's impls. First-reference order; each name enters once.
 pub fun Module.collect_hidden_support(crate: CrateId): List<String> {
-    val list_name = self.lang_type_name(lang_list_key())
-    val option_name = self.lang_type_name(lang_option_key())
+    val list_name = self.lang_type_name(LangItem.List)
+    val option_name = self.lang_type_name(LangItem.Option)
     var queue = List.new<String>()
     while td in &self.decls {
         if td.crate.raw == crate.raw {
@@ -160,9 +163,9 @@ pub fun Module.collect_hidden_support(crate: CrateId): List<String> {
     while q < queue.size() {
         val name = queue.at(q).clone()
         q = q + 1
-        if is_runtime_type_name(name) ||
+        if CName.is_runtime_type(name.as_str()) ||
             is_container_type_name(name, list_name, option_name) { continue }
-        if is_mangled_decl_name(name) { continue }
+        if CName.is_mangled(name.as_str()) { continue }
         if hidden_name_in(&hidden, name) { continue }
         var matched = false
         while other in &self.decls {
@@ -201,9 +204,9 @@ pub fun Module.collect_hidden_support(crate: CrateId): List<String> {
     while x < extra.size() {
         val name = extra.at(x).clone()
         x = x + 1
-        if is_runtime_type_name(name) ||
+        if CName.is_runtime_type(name.as_str()) ||
             is_container_type_name(name, list_name, option_name) { continue }
-        if is_mangled_decl_name(name) { continue }
+        if CName.is_mangled(name.as_str()) { continue }
         if hidden_name_in(&hidden, name) { continue }
         if self.same_crate_private_type_exists(crate, name) {
             hidden.push(name)

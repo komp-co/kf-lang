@@ -7,7 +7,6 @@
 
 import alloc.list.*
 
-import kf_core.ast.CrateId
 import kf_core.ast.Import
 import kf_core.ast.Module
 import kf_core.ast.types.TypeRef
@@ -16,6 +15,7 @@ import kf_core.ast.declaration.*
 import kf_codegen.emit.*
 import kf_core.ast.subst.subst_type_ref
 import kf_core.ast.subst.subst_stmt_list
+import kf_core.intern.CrateId
 import kf_codegen.concat_all
 import kf_codegen.emit.glue.deep_clone_top_decl
 
@@ -137,7 +137,7 @@ fun classify_out_of_view(td: &TopDecl, callees: &NameSet, type_refs: &NameSet, c
                 }
             }
             if matched.size() > 0 {
-                var filtered = new_top_decl(td.span, td.name.as_string(), TopDeclKind.ImplBlock(matched))
+                var filtered = TopDecl.new(td.span, td.name.as_string(), TopDeclKind.ImplBlock(matched))
                 filtered.crate = td.crate
                 callee_impls.push(filtered)
             }
@@ -280,24 +280,23 @@ pub fun InstanceSupport.emit_instance_bodies(payloads: &ArmPayloads): String {
 // A deep copy through the substitution walk with empty tables; every
 // side-channel is preserved.
 fun TopDecl.deep_copy_support_fn(): TopDecl {
-    var names = List.new<String>()
-    var repls = List.new<TypeRef>()
+    var subst = Substitution.new()
     when (self.kind) {
         Function(params, ret, body, is_pub, is_unsafe, is_mutating, is_static) => {
             var nparams = List.new<Param>()
             while p in &params {
                 val nty: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-                unsafe { *nty = subst_type_ref(&*p.ty, &var names, &var repls) }
+                unsafe { *nty = subst_type_ref(&*p.ty, &subst) }
                 nparams.push(p.retyped(nty))
             }
             val nret: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-            unsafe { *nret = subst_type_ref(&*ret, &var names, &var repls) }
-            val nbody = subst_stmt_list(body, &var names, &var repls)
-            var nd = new_top_decl(self.span, self.name.as_string(), TopDeclKind.Function(nparams, nret, nbody, is_pub, is_unsafe, is_mutating, is_static))
+            unsafe { *nret = subst_type_ref(&*ret, &subst) }
+            val nbody = subst_stmt_list(body, &subst)
+            var nd = TopDecl.new(self.span, self.name.as_string(), TopDeclKind.Function(nparams, nret, nbody, is_pub, is_unsafe, is_mutating, is_static))
             nd.crate = self.crate
             nd.linkage = self.linkage
             return nd
         }
-        _ => return new_top_decl(self.span, "", TopDeclKind.Poison)
+        _ => return TopDecl.new(self.span, "", TopDeclKind.Poison)
     }
 }

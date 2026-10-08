@@ -3,11 +3,10 @@
 // keeps the borrow as surely as `str`, and so does a view type. Passing a
 // borrow into a function is fine.
 
-import kf_core.ast.intern
-import kf_core.ast.type_ref_is_borrow
 import kf_core.ast.types.TypeRef
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
+import kf_core.intern.intern
 
 /// A borrow anywhere inside counts (`Box<&T>`, `List<str>`, `Option<&T>`).
 /// `Ptr<T>` is the unsafe exception.
@@ -20,7 +19,7 @@ pub fun TypeRef.validate_borrow_storage(position: str, ctx: &var TypeCtx): void 
 fun TypeRef.check_stored_type(outer: &TypeRef, position: str, ctx: &var TypeCtx): void {
     if self.stores_borrow(ctx) {
         val message = self.stored_borrow_message(outer, position, ctx)
-        ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+        ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
         return
     }
     when (self.kind) {
@@ -38,7 +37,7 @@ fun TypeRef.check_stored_type(outer: &TypeRef, position: str, ctx: &var TypeCtx)
 }
 
 fun TypeRef.stores_borrow(ctx: &var TypeCtx): bool {
-    return type_ref_is_borrow(self) || self.names_view_type(ctx)
+    return self.is_borrow() || self.names_view_type(ctx)
 }
 
 fun TypeRef.names_view_type(ctx: &var TypeCtx): bool {

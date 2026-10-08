@@ -3,7 +3,7 @@
 // in an enum's template: each item inside is marked with the loop, which
 // expansion writes out once per member.
 
-import kf_core.ast.intern
+import kf_core.intern.intern
 import kf_core.ast.declaration.MemberLoop
 import kf_parse.parser.*
 

@@ -4,10 +4,10 @@
 
 import alloc.list.*
 
-import kf_core.ast.Sym
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TypeParam
+import kf_core.intern.Sym
 import kf_parse.parser.*
 
 impl Parser {

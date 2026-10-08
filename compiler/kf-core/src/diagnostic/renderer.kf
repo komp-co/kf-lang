@@ -1,45 +1,47 @@
 import kf_core.span.*
 
-/// Renders:
-///   <file>:<line>:<col>: error: <primary.message>
-///       <the offending source line>
-///       ^~~~
-///   = note: <secondary[0].message> (at <file>:<line>:<col>)
-///         <that line's source>
-///         ^~~~
-///
-/// A span the map cannot place gets the bare `error: <message>` head.
-pub fun Diagnostic.render(smp: Ptr<SourceMap>): String {
-    return self.render_colored(smp, false)
-}
-
-/// With ANSI color when `color` is true; the driver decides. Color never
-/// moves a character of the plain rendering.
-pub fun Diagnostic.render_colored(smp: Ptr<SourceMap>, color: bool): String {
-    var out = ""
-    when (unsafe { smp.span_to_location(self.primary.span) }) {
-        Some(loc) => {
-            // Uncolored, so terminals can still turn it into a link.
-            out.append(loc.file_path)
-            out.append(":")
-            out.append_uint32(loc.line)
-            out.append(":")
-            out.append_uint32(loc.col)
-            out.append(": ")
-            out.append_head(self.severity, self.primary.message, color)
-            out.append_source_echo(smp, self.primary.span, loc.col, primary_indent(), severity_color(self.severity, color), color)
-        }
-        None => {
-            out.append_head(self.severity, self.primary.message, color)
-        }
+impl Diagnostic {
+    /// Renders:
+    ///   <file>:<line>:<col>: error: <primary.message>
+    ///       <the offending source line>
+    ///       ^~~~
+    ///   = note: <secondary[0].message> (at <file>:<line>:<col>)
+    ///         <that line's source>
+    ///         ^~~~
+    ///
+    /// A span the map cannot place gets the bare `error: <message>` head.
+    pub fun render(smp: Ptr<SourceMap>): String {
+        return self.render_colored(smp, false)
     }
 
-    while item in &self.secondary {
-        // CONSTRAINT: a separate function, because a local bound inside a
-        // while-with-when body gets its drop mis-emitted.
-        out.render_secondary(smp, item, color)
+    /// With ANSI color when `color` is true; the driver decides. Color never
+    /// moves a character of the plain rendering.
+    pub fun render_colored(smp: Ptr<SourceMap>, color: bool): String {
+        var out = ""
+        when (unsafe { smp.span_to_location(self.primary.span) }) {
+            Some(loc) => {
+                // Uncolored, so terminals can still turn it into a link.
+                out.append(loc.file_path)
+                out.append(":")
+                out.append_uint32(loc.line)
+                out.append(":")
+                out.append_uint32(loc.col)
+                out.append(": ")
+                out.append_head(self.severity, self.primary.message, color)
+                out.append_source_echo(smp, self.primary.span, loc.col, primary_indent(), severity_color(self.severity, color), color)
+            }
+            None => {
+                out.append_head(self.severity, self.primary.message, color)
+            }
+        }
+
+        while item in &self.secondary {
+            // CONSTRAINT: a separate function, because a local bound inside a
+            // while-with-when body gets its drop mis-emitted.
+            out.render_secondary(smp, item, color)
+        }
+        return out
     }
-    return out
 }
 
 mutating fun String.append_head(severity: Severity, message: str, color: bool): void {

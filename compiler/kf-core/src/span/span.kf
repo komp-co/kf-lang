@@ -7,6 +7,11 @@ pub struct Span {
 }
 
 impl Span {
+    /// No position: file id 0 is reserved for it, and real files start at 1.
+    pub static fun none(): Span {
+        return Span { file_id: 0, start: 0, end: 0 }
+    }
+
     pub fun len(): uint32 {
         return self.end - self.start
     }
@@ -32,9 +37,4 @@ impl Span {
         if other.end > e { e = other.end }
         return Span { file_id: self.file_id, start: s, end: e }
     }
-}
-
-/// File id 0 is reserved for this; real files start at 1.
-pub fun no_span(): Span {
-    return Span { file_id: 0, start: 0, end: 0 }
 }

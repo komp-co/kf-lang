@@ -4,7 +4,7 @@ import kf_core.ast.types.*
 import kf_core.ast.expression.Expr
 import kf_typecheck.types.*
 import kf_typecheck.check.*
-import kf_core.span.no_span
+import kf_core.span.Span
 
 import kf_typecheck.note_import_use
 
@@ -32,7 +32,7 @@ pub fun static_trait_method_callee(type_name: String, method_name: String, args:
                             // `static_call_params`.
                             var all_args = type_args.clone()
                             val n_recv = type_name.static_recv_arity(ctx)
-                            infer_static_method_type_args(&sig, n_recv, &var all_args, args, no_span(), ctx)
+                            infer_static_method_type_args(&sig, n_recv, &var all_args, args, Span.none(), ctx)
                             val sparams = sig.static_call_params(&all_args, ctx)
                             var fits = true
                             while j in 0..args.size() {
@@ -176,7 +176,7 @@ pub fun select_instance_trait_method(receiver_ty: Type, method_name: String, arg
     val type_name = recv.kind.trait_impl_owner_name()
     if type_name.as_str().equals("") { return no_trait_callee() }
     val base = mangle_base_name(type_name.clone())
-    val binding = recv_type_bindings(type_name.clone(), no_span(), ctx)
+    val binding = recv_type_bindings(type_name.clone(), Span.none(), ctx)
     var found = no_trait_callee()
     var i = 0
     while i < unsafe { (*ctx.sigs).trait_impls.size() } {

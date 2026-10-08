@@ -1,20 +1,21 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.ast.*
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
-import kf_core.span.no_span
 import testing.test
+import kf_core.span.Span
+import kf_core.intern.intern
+import kf_core.ast.pattern.*
 
 fun guarded_arm(kind: PatternKind, guard: ExprKind): Arm {
     val pattern: Box<Pattern> = unsafe { alloc<Pattern>() }
-    unsafe { *pattern = new_pattern(no_span(), kind) }
+    unsafe { *pattern = Pattern.new(Span.none(), kind) }
     val guard_ptr: Ptr<Expr> = unsafe { alloc<Expr>() }
-    unsafe { *guard_ptr = Expr.new(no_span(), guard) }
-    return new_arm(no_span(), pattern, Option.Some<Box<Expr>>(guard_ptr), List.new<Stmt>())
+    unsafe { *guard_ptr = Expr.new(Span.none(), guard) }
+    return Arm.new(Span.none(), pattern, Option.Some<Box<Expr>>(guard_ptr), List.new<Stmt>())
 }
 
 fun guard_diags(subject_name: str, guard: ExprKind): List<Diagnostic> {
@@ -92,8 +93,8 @@ fun literal_diags(subject_name: str, kind: PatternKind): List<Diagnostic> {
 
 fun alternatives_of(first: PatternKind, second: PatternKind): PatternKind {
     var alternatives = List.new<Pattern>()
-    alternatives.push(new_pattern(no_span(), first))
-    alternatives.push(new_pattern(no_span(), second))
+    alternatives.push(Pattern.new(Span.none(), first))
+    alternatives.push(Pattern.new(Span.none(), second))
     return PatternKind.Or(alternatives)
 }
 
@@ -131,9 +132,9 @@ fun alternatives_of(first: PatternKind, second: PatternKind): PatternKind {
 
 @test fun alternatives_naming_every_variant_close_the_when(): void {
     var alternatives = List.new<Pattern>()
-    alternatives.push(new_pattern(no_span(), PatternKind.Identifier(intern("Red"))))
-    alternatives.push(new_pattern(no_span(), PatternKind.Identifier(intern("Green"))))
-    alternatives.push(new_pattern(no_span(), PatternKind.Identifier(intern("Blue"))))
+    alternatives.push(Pattern.new(Span.none(), PatternKind.Identifier(intern("Red"))))
+    alternatives.push(Pattern.new(Span.none(), PatternKind.Identifier(intern("Green"))))
+    alternatives.push(Pattern.new(Span.none(), PatternKind.Identifier(intern("Blue"))))
     var arms = List.new<Arm>()
     arms.push(coverage_arm(PatternKind.Or(alternatives), false))
     assert_eq(coverage_diags("Color", arms, true).size(), 0, "Red | Green | Blue is exhaustive")

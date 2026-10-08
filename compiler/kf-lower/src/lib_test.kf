@@ -5,16 +5,18 @@ import kf_core.span.*
 import kf_core.ast.*
 import kf_core.ast.declaration.TopDecl
 import testing.test
+import kf_core.intern.CrateId
+import kf_core.lang.*
 
 @test fun lower_empty_module_runs_clean(): void {
     var m = Module {
-        crate: crate_id_poison(),
+        crate: CrateId.new_poison(),
         path: List.new<String>(),
         decls: List.new<TopDecl>(),
         imports: List.new<Import>()
     }
     val sm: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
-    unsafe { *sm = new_source_map() }
-    val diags = m.lower_module(sm, (&m).lang_type_name(lang_list_key()))
+    unsafe { *sm = SourceMap.new() }
+    val diags = m.lower_module(sm, (&m).lang_type_name(LangItem.List))
     assert_eq(diags.size() == 0, true, "empty module yields zero diagnostics")
 }

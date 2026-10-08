@@ -7,9 +7,8 @@ import alloc.hash_map.*
 
 import kf_core.ast.Module
 import kf_core.ast.NameIndex
-import kf_core.ast.decl_index
-import kf_core.ast.type_retain_fn
 import kf_core.ast.types.TypeRef
+import kf_core.names.CName
 
 import kf_codegen.concat_all
 import kf_codegen.emit.mangle_named
@@ -214,7 +213,7 @@ fun op_protos_for(name: String): String {
     parts.push(String.from("static inline "))
     parts.push(name.clone())
     parts.push(String.from(" "))
-    parts.push(type_retain_fn(name))
+    parts.push(CName.retain_fn(name.as_str()))
     parts.push(String.from("("))
     parts.push(name.clone())
     parts.push(String.from(" v);\n"))

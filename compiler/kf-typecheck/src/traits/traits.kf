@@ -156,8 +156,8 @@ fun trait_has_method(ti: TraitInfo, name: str): bool {
 }
 
 fun emit_trait_err(diags: &var Diagnostics, span: Span, msg: String): void {
-    val lab = new_label(span, msg)
-    diags.emit(new_diagnostic(Severity.Error, lab))
+    val lab = Label.new(span, msg)
+    diags.emit(Diagnostic.new(Severity.Error, lab))
 }
 
 /// `type Item` / `type Item = T`, which share the member list.

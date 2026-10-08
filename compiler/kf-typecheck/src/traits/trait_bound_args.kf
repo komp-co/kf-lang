@@ -1,7 +1,7 @@
 import alloc.list.*
 
-import kf_core.ast.borrow_frag
 import kf_core.ast.types.Type
+import kf_core.names.Frag
 
 fun Type.trait_arg_type_key(): String {
     return when (self.kind) {
@@ -23,7 +23,7 @@ fun Type.trait_arg_type_key(): String {
         Generic(n) => n.as_string()
         PtrTo(p) => "Ptr__${trait_arg_type_key(unsafe { &*p })}"
         BoxOf(p) => "Box__${trait_arg_type_key(unsafe { &*p })}"
-        RefTo(is_mut, p) => borrow_frag(is_mut, trait_arg_type_key(unsafe { &*p }).as_str())
+        RefTo(is_mut, p) => Frag.borrow(is_mut, trait_arg_type_key(unsafe { &*p }).as_str())
         _ => ""
     }
 }

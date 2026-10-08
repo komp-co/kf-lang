@@ -1,11 +1,12 @@
 // One arm per StmtKind; a `let` also declares its binding.
 
-import kf_core.ast.view
+import kf_core.ast.expression.view
+import kf_core.ast.types.view
 import kf_core.ast.types.*
 import kf_core.ast.expression.*
 import kf_core.ast.statement.Stmt
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
 import kf_core.span.*
 import kf_typecheck.types.*
 import kf_typecheck.traits.validate_dyn_placement
@@ -43,17 +44,19 @@ pub mutating fun Stmt.check_stmt(ctx: &var TypeCtx): void {
             if !writable_place(place_ptr, ctx) {
                 val bad_field = immutable_val_field(unsafe { *place_ptr }, ctx)
                 if !bad_field.as_str().equals("") {
-                    val lab = new_label(self.span, "cannot assign to field `${bad_field}"
+                    val lab = Label.new(self.span, "cannot assign to field `${bad_field}"
                         + String.from("`: it is declared `val`; declare it `var`"))
-                    ctx.emit(new_diagnostic(Severity.Error, lab))
+                    ctx.emit(Diagnostic.new(Severity.Error, lab))
                 } else if (&*place_ptr).is_computed_subscript() {
                     (&*place_ptr).report_write_to_computed_subscript(self.span, ctx)
                 } else if place_root_name(unsafe { *place_ptr }).as_str().equals("self") {
-                    val lab = new_label(self.span, String.from("cannot mutate `self` here; mark the enclosing method `mutating`"))
-                    ctx.emit(new_diagnostic(Severity.Error, lab))
+                    val lab = Label.new(
+                        self.span, String.from("cannot mutate `self` here; mark the enclosing method `mutating`")
+                    )
+                    ctx.emit(Diagnostic.new(Severity.Error, lab))
                 } else {
-                    val lab = new_label(self.span, String.from("cannot assign through an immutable place; declare it with `var` (or borrow with `&var`)"))
-                    ctx.emit(new_diagnostic(Severity.Error, lab))
+                    val lab = Label.new(self.span, String.from("cannot assign through an immutable place; declare it with `var` (or borrow with `&var`)"))
+                    ctx.emit(Diagnostic.new(Severity.Error, lab))
                 }
             }
         }
@@ -140,13 +143,13 @@ fun ty_is_void(t: Type): bool {
 }
 
 fun emit_return_err(span: Span, msg: String, ctx: &var TypeCtx): void {
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
 }
 
-/// The parser's `&` / `&var` tags; see coerce_written_amp.
-fun is_written_borrow(code: uint8): bool {
-    if code == coerce_written_amp() { return true }
-    return code == coerce_written_amp_var()
+/// The parser's `&` / `&var` tags; see Coercion.WrittenAmp.
+fun is_written_borrow(code: Coercion): bool {
+    if code == Coercion.WrittenAmp { return true }
+    return code == Coercion.WrittenAmpVar
 }
 
 pub fun borrow_of(inner: Type, mutable: bool, span: Span): Type {
@@ -179,8 +182,8 @@ fun check_let(name: String, ann: Ptr<TypeRef>?, init_ptr: Ptr<Expr>, mutable: bo
             if expect_or_reject(unsafe { &var *init_ptr }, declared.clone(), ctx) {
                 ty = declared
             } else {
-                val lab = new_label(init.span, String.from("init type doesn't match declared"))
-                ctx.emit(new_diagnostic(Severity.Error, lab))
+                val lab = Label.new(init.span, String.from("init type doesn't match declared"))
+                ctx.emit(Diagnostic.new(Severity.Error, lab))
                 ty = Type.new_poison()
             }
         }
@@ -195,12 +198,12 @@ fun check_let(name: String, ann: Ptr<TypeRef>?, init_ptr: Ptr<Expr>, mutable: bo
             // bound as is.
             if is_written_borrow(written) {
                 if !init.ty.is_poison() && init.ty.kind.kind_tag() != TAG_REF() {
-                    val mutable_borrow: bool = written == coerce_written_amp_var()
+                    val mutable_borrow: bool = written == Coercion.WrittenAmpVar
                     // The init node carries the borrow type too, since codegen
                     // reads it for an unannotated let.
                     ty = borrow_of(init.ty.clone(), mutable_borrow, init.span)
                     unsafe { init_ptr.ty = borrow_of(init.ty.clone(), mutable_borrow, init.span) }
-                    unsafe { init_ptr.coerce = coerce_addr_of() }
+                    unsafe { init_ptr.coerce = Coercion.AddrOf }
                 }
             }
         }
@@ -231,7 +234,7 @@ fun check_assign(name: String, expr_ptr: Ptr<Expr>, span: Span, ctx: &var TypeCt
             "it is not declared; declare it with `var ${name} = ...`"
         }
         val message = "cannot assign to `${name}`: ${fix}"
-        ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
+        ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
         return
     }
     val target = ctx.lookup(name)
@@ -241,11 +244,11 @@ fun check_assign(name: String, expr_ptr: Ptr<Expr>, span: Span, ctx: &var TypeCt
     // `x = v` needs a `var` binding.
     if !ctx.lookup_is_var(name) {
         if name.as_str().equals("self") {
-            val lab = new_label(span, String.from("cannot reassign `self` here; mark the enclosing method `mutating`"))
-            ctx.emit(new_diagnostic(Severity.Error, lab))
+            val lab = Label.new(span, String.from("cannot reassign `self` here; mark the enclosing method `mutating`"))
+            ctx.emit(Diagnostic.new(Severity.Error, lab))
         } else {
-            val lab = new_label(span, "cannot reassign `${name}`: it is not a `var` binding")
-            ctx.emit(new_diagnostic(Severity.Error, lab))
+            val lab = Label.new(span, "cannot reassign `${name}`: it is not a `var` binding")
+            ctx.emit(Diagnostic.new(Severity.Error, lab))
         }
     }
     val stored = ctx.decide_by_store(name, &expr, span, target)
@@ -274,7 +277,7 @@ fun emit_assign_mismatch(name: String, want: Type, got: Type, span: Span, ctx: &
     val want_s = mangle_type(want)
     val got_s = mangle_type(got)
     val msg = "cannot assign `${got_s.as_str()}` to `${name.as_str()}`, which is `${want_s.as_str()}`"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
 }
 
 fun is_lit_str_expr(e: &Expr): bool {

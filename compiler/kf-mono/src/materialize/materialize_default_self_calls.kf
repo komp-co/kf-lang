@@ -7,11 +7,10 @@
 
 import alloc.list.*
 
-import kf_core.ast.Intrinsic
-import kf_core.ast.intern
 import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.statement.Stmt
+import kf_core.intern.intern
 import kf_mono.mangle_method
 
 fun trait_method_names(defaults: &List<TopDecl>): List<String> {

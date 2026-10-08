@@ -5,7 +5,7 @@ import kf_core.diagnostic.*
 
 pub fun check_missing_docs(name: str, at: Span, text: str, start: uint64, walk: &var LintWalk): void {
     if has_doc_comment(text, start) { return }
-    walk.found.push(lint_at("missing_docs", at, "`${name}` is public and has no `///` comment"))
+    walk.found.push(Diagnostic.lint_at("missing_docs", at, "`${name}` is public and has no `///` comment"))
 }
 
 /// Whether the lines above `start`, past any `@` annotations, end in a

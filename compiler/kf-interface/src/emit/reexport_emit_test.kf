@@ -2,10 +2,9 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.ast.Module
-import kf_core.ast.new_reexport
-import kf_core.ast.new_renaming_reexport
-import kf_core.span.no_span
 import testing.test
+import kf_core.ast.Import
+import kf_core.span.Span
 
 fun reexporting_module(): Module {
     var m = interface_test_module()
@@ -13,7 +12,7 @@ fun reexporting_module(): Module {
     path.push(String.from("sample"))
     path.push(String.from("parse"))
     path.push(String.from("read"))
-    m.imports.push(new_reexport(no_span(), path, false, String.from("sample.api")))
+    m.imports.push(Import.new_reexport(Span.none(), path, false, String.from("sample.api")))
     return m
 }
 
@@ -28,7 +27,7 @@ fun reexporting_module(): Module {
     var path = List.new<String>()
     path.push(String.from("other"))
     path.push(String.from("thing"))
-    m.imports.push(new_reexport(no_span(), path, true, String.from("other")))
+    m.imports.push(Import.new_reexport(Span.none(), path, true, String.from("other")))
     val out = m.emit_interface(String.from("sample"), &List.new<String>())
     assert_eq(interface_contains(out, "other.thing"), false, "only this crate's re-exports")
 }
@@ -39,7 +38,7 @@ fun reexporting_module(): Module {
     path.push(String.from("sample"))
     path.push(String.from("parse"))
     path.push(String.from("read"))
-    var imp = new_renaming_reexport(no_span(), path, String.from("parse_file"))
+    var imp = Import.new_renaming_reexport(Span.none(), path, String.from("parse_file"))
     imp.owner = String.from("sample.api")
     m.imports.push(imp)
     val out = m.emit_interface(String.from("sample"), &List.new<String>())

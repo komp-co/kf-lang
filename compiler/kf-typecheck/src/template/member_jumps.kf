@@ -6,10 +6,9 @@
 import alloc.list.*
 
 import kf_core.span.Span
-import kf_core.ast.Arm
-import kf_core.ast.Sym
-import kf_core.ast.intern
-import kf_core.ast.rebuilt
+import kf_core.ast.pattern.Arm
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.expression.UnaryOp

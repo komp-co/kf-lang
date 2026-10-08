@@ -3,10 +3,9 @@
 
 import alloc.list.*
 
-import kf_core.ast.is_integer_type_name
-import kf_core.ast.value_type
+import kf_core.ast.declaration.is_integer_type_name
 import kf_core.ast.types.TypeRef
-import kf_core.diagnostic.error_at
+import kf_core.diagnostic.Diagnostic
 import kf_typecheck.types.display_type_ref
 import kf_typecheck.check.decl.bare_name
 
@@ -24,7 +23,7 @@ pub fun check_generic_arg_kinds(owner: str, params: &List<String>, args: &List<T
         } else if arg.is_value_argument(ctx) {
             val shown = arg.shown_argument()
             val message = "`${shown}` is a value, but `${param}` on `${ctx.shown_owner(owner)}` takes a type"
-            ctx.emit(error_at(arg.span, message))
+            ctx.emit(Diagnostic.error_at(arg.span, message))
             ok = false
         }
         i = i + 1
@@ -73,7 +72,7 @@ fun TypeRef.fits_value_param(owner: str, param: str, written: &TypeRef, params: 
     if self.is_wildcard() {
         val message = String.from("the array's length is left out here; only a binding initialized by a literal ") +
             String.from("or another array can leave it out, and any length is taken as a slice, `&T[]`")
-        ctx.emit(error_at(self.span, message))
+        ctx.emit(Diagnostic.error_at(self.span, message))
         return false
     }
     if value == null {
@@ -81,7 +80,7 @@ fun TypeRef.fits_value_param(owner: str, param: str, written: &TypeRef, params: 
         if self.names_generic_in_scope(ctx) { return true }
         val found = self.shown_argument()
         val message = "`${param}` on `${ctx.shown_owner(owner)}` takes a value, found the type `${found}`"
-        ctx.emit(error_at(self.span, message))
+        ctx.emit(Diagnostic.error_at(self.span, message))
         return false
     }
     val holder = written.integer_type_among(params, args) ?: return true
@@ -89,12 +88,12 @@ fun TypeRef.fits_value_param(owner: str, param: str, written: &TypeRef, params: 
     if !is_integer_type_name(holder) {
         val message = "`${param}` on `${ctx.shown_owner(owner)}` is a value of type `${written.shown_argument()}`, " +
             "which must be a primitive integer type, not `${holder}`"
-        ctx.emit(error_at(self.span, message))
+        ctx.emit(Diagnostic.error_at(self.span, message))
         return false
     }
     if !fits_integer_type(v, holder) {
         val message = "`${v}` does not fit in `${holder}`, the type of `${param}` on `${ctx.shown_owner(owner)}`"
-        ctx.emit(error_at(self.span, message))
+        ctx.emit(Diagnostic.error_at(self.span, message))
         return false
     }
     return true

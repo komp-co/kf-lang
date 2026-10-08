@@ -1,10 +1,10 @@
 // An argument naming a declaration, for a parameter of type `trait`,
 // `struct`, `enum` or `fun`: `Equal`, or `geo.Point` through a module.
 
-import kf_core.ast.CrateId
+import kf_core.intern.CrateId
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
-import kf_core.ast.declaration.MarkKind
+import kf_core.ast.annotation.MarkKind
 import kf_typecheck.*
 
 /// Whether `self` names a declaration of `kind` the table holds.

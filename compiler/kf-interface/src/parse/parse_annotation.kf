@@ -2,13 +2,12 @@
 
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.CrateId
+import kf_core.span.Span
 import kf_core.ast.types.TypeRef
 import kf_core.ast.declaration.*
 import kf_core.ast.annotation.mark_kind_of
-import kf_core.ast.annotation.name_param_type
-import kf_core.ast.annotation.variadic_param_type
+import kf_core.intern.CrateId
+import kf_core.ast.annotation.*
 import json.reader.*
 import kf_interface.parse.*
 
@@ -44,9 +43,9 @@ mutating fun JsonReader.load_annotation(crate: CrateId, path: str, hidden: bool)
     } else if kinds.size() > 0 {
         MarkTarget.Kinds(kinds)
     } else {
-        default_mark_target(no_span())
+        MarkTarget.new_default(Span.none())
     }
-    var decl = new_top_decl(no_span(), name, TopDeclKind.AnnotationDecl(defaults, target, is_pub))
+    var decl = TopDecl.new(Span.none(), name, TopDeclKind.AnnotationDecl(defaults, target, is_pub))
     decl.generics = type_params
     return stamp_imported(decl, crate, path, "", hidden)
 }
@@ -66,11 +65,11 @@ mutating fun JsonReader.load_shaped_params(): List<Param>? {
         val variadic = self.read_bool()
         if self.object_has_next() { return null }
         var ty = when (mark_kind_of(written)) {
-            Some(kind) => name_param_type(no_span(), kind)
+            Some(kind) => name_param_type(Span.none(), kind)
             None => parse_type_value(written)
         }
-        if variadic { ty = variadic_param_type(no_span(), ty) }
-        params.push(new_param(no_span(), name, Box.new(ty)))
+        if variadic { ty = variadic_param_type(Span.none(), ty) }
+        params.push(Param.new(Span.none(), name, Box.new(ty)))
     }
     return params
 }
@@ -102,7 +101,7 @@ mutating fun JsonReader.read_type_params(): List<TypeParam>? {
     if !self.begin_array() { return null }
     while self.array_has_next() {
         if !self.begin_object() || !self.expect_key("name") { return null }
-        var param = new_type_param(no_span(), self.read_string())
+        var param = TypeParam.new(Span.none(), self.read_string())
         if !self.expect_key("bounds") || !self.begin_array() { return null }
         while self.array_has_next() {
             // CONSTRAINT: a local, as for the function type above.

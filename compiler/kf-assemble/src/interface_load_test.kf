@@ -6,7 +6,7 @@ import testing.test
 
 fun test_source_map(): Ptr<SourceMap> {
     val smap: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
-    unsafe { *smap = new_source_map() }
+    unsafe { *smap = SourceMap.new() }
     return smap
 }
 

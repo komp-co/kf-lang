@@ -13,7 +13,7 @@ pub fun Diagnostic.render_json_diag(smap: Ptr<SourceMap>): String {
     writer.field_uint32("schema_version", 3)
     writer.field_string("severity", json_severity(self.severity))
     // The lint, or null; clients filter and suppress on it.
-    if diag_is_lint(self) {
+    if self.is_lint() {
         writer.field_string("code", self.code)
     } else {
         writer.field_null("code")
@@ -35,7 +35,7 @@ pub fun Diagnostic.render_json_diag(smap: Ptr<SourceMap>): String {
     }
     writer.field_raw("secondary", self.render_secondary_labels(smap).as_str())
     // Null on most diagnostics.
-    if fix_has_repair(&self.fix) {
+    if self.fix.has_repair() {
         writer.field_raw("fix", self.fix.render_fix(smap).as_str())
     } else {
         writer.field_null("fix")

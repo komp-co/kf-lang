@@ -6,10 +6,10 @@
 
 import alloc.list.*
 
-import kf_core.ast.Sym
-import kf_core.ast.intern
-import kf_core.ast.list_literal.array_literal_callee
-import kf_core.ast.list_literal.empty_list_literal_receiver
+import kf_core.intern.Sym
+import kf_core.intern.intern
+import kf_core.ast.expression.list_literal.array_literal_callee
+import kf_core.ast.expression.list_literal.empty_list_literal_receiver
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.expression.Expr

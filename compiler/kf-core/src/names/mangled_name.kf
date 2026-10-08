@@ -1,0 +1,62 @@
+// A mangled name as a value, so that only a name spelled by the mangler can
+// be read as one.
+
+import alloc.list.*
+
+/// A type's name as it is emitted: `int32`, `List__int32`,
+/// `Option__kf__ref__Level`. Made by the mangler (`Type.mangle_frag`,
+/// `TypeRef.mangle_tyref`) or, where a pass holds one as text, by `from`.
+///
+/// It reads as the `str` it holds, so every text method and every `str`
+/// parameter takes one, and `display()` gives the `String`. Nothing turns a
+/// `str` into one implicitly: an identity or a declared name has to be
+/// mangled to become one.
+@derive(Clone)
+pub struct MangledName {
+    val text: String
+}
+
+/// Text taken as already mangled: a name read back out of a `Sym`, an
+/// interface or a test. A caller holding a `str` writes
+/// `MangledName.from(String.from(text))`; a `From<str>` beside this one is
+/// not found by the compiler today.
+impl From<String> for MangledName {
+    static fun from(text: String): MangledName {
+        return MangledName { text: text }
+    }
+}
+
+impl MangledName {
+    /// Its `__`-separated fragments; a single `_` stays inside one.
+    pub fun segments(): List<String> {
+        return Frag.segments(self.text)
+    }
+
+    /// A generic instance's name, which holds the `__` separator.
+    pub fun is_instance(): bool {
+        return self.text.contains("__")
+    }
+
+    /// A cheap filter for a deferred projection; the segment walk decides.
+    pub fun may_hold_projection(): bool {
+        return MangledProjection.may_be_in(self.text)
+    }
+
+    /// `Owner.Member` in place of a projection's brackets, for diagnostics.
+    pub fun readable(): String {
+        return MangledProjection.display(self.text)
+    }
+}
+
+impl Deref for MangledName {
+    type Target = str
+    fun deref(): str { return self.text.as_str() }
+}
+
+impl Display for MangledName {
+    fun display(out: &var dyn Write): void { out.write_str(self.text) }
+}
+
+impl Equal for MangledName {
+    fun equals(other: &MangledName): bool { return self.text == other.text }
+}

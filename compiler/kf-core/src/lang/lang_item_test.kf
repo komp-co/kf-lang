@@ -1,0 +1,76 @@
+import core.assert.assert_eq
+import alloc.list.*
+import kf_core.span.Span
+import kf_core.ast.declaration.*
+import kf_core.ast.annotation.Annotation
+import kf_core.ast.*
+import kf_core.ast.types.*
+import kf_core.intern.*
+import testing.test
+
+fun marked_struct(name: str, lang_key: str): TopDecl {
+    var td = TopDecl.new(Span.none(), String.from(name), TopDeclKind.Struct([], true))
+    if lang_key != "" { td.annotations.push(Annotation.new(Span.none(), "lang", [String.from(lang_key)])) }
+    return td
+}
+
+fun module_of(decls: List<TopDecl>): Module {
+    return Module { crate: CrateId.new("alloc"), path: [], decls: decls, imports: [] }
+}
+
+@test fun the_lang_string_is_found_by_its_key_not_its_name(): void {
+    var decls = []
+    decls.push(marked_struct("Other", ""))
+    decls.push(marked_struct("Text", "string"))
+    val m = module_of(decls)
+    assert_eq((&m).lang_type_name(LangItem.String).as_str(), "Text", "whatever the library called it")
+}
+
+@test fun a_graph_without_the_item_has_no_name_for_it(): void {
+    var decls = []
+    decls.push(marked_struct("String", ""))
+    val m = module_of(decls)
+    assert_eq((&m).lang_type_name(LangItem.String).as_str(), "", "a type called String is not the lang string")
+}
+
+@test fun a_lang_struct_is_a_struct_of_that_name(): void {
+    val t = intern("Text").lang_struct_ty(Span.none())
+    assert_eq(t.is_poison(), false, "a real type")
+    assert_eq((&t).is_lang_struct(intern("Text")), true, "and the lang item it was made from")
+}
+
+@test fun a_qualified_identity_still_names_the_lang_struct(): void {
+    val t = Type { kind: TypeKind.Struct(intern("alloc::string::Text")), provenance: Provenance.Inferred(Span.none()) }
+    assert_eq((&t).is_lang_struct(intern("Text")), true, "a canonical identity displays as its name")
+}
+
+@test fun the_empty_name_matches_nothing(): void {
+    val t = intern("").lang_struct_ty(Span.none())
+    assert_eq((&t).is_lang_struct(intern("")), false, "no lang string in the graph means no string type")
+    assert_eq((&Type.new_str(Span.none())).is_lang_struct(intern("Text")), false, "a str is not the owned string")
+}
+
+@test fun a_placeholder_names_its_key_and_nothing_else_does(): void {
+    assert_eq(lang_placeholder(LangItem.String).lang_placeholder_key().as_str(), "string", "the key comes back")
+    assert_eq(intern("String").lang_placeholder_key().as_str(), "", "an ordinary name is no placeholder")
+    assert_eq(intern("lang::").lang_placeholder_key().as_str(), "", "a placeholder names a key")
+}
+
+@test fun every_item_is_found_by_its_own_key(): void {
+    while item in LangItem.all() {
+        assert_eq(LangItem.from_key(item.key()) == item, true, "an item round-trips through its key")
+    }
+}
+
+@test fun the_library_spellings_name_their_items(): void {
+    assert_eq(LangItem.from_key("array") == LangItem.Array, true, "core marks `Array` with `@lang(\"array\")`")
+    assert_eq(LangItem.from_key("slice") == LangItem.Slice, true, "a shared slice is a lang item")
+    assert_eq(LangItem.from_key("slice_mut") == LangItem.SliceMut, true, "a mutable slice is a lang item")
+    assert_eq(LangItem.from_key("deref") == LangItem.Deref, true, "deref is a lang item")
+    assert_eq(LangItem.from_key("deref_mut") == LangItem.DerefMut, true, "mutable deref is a lang item")
+}
+
+@test fun an_unknown_key_names_no_item(): void {
+    assert_eq(LangItem.from_key("strng").is_none(), true, "a typo is not an item")
+    assert_eq(LangItem.from_key("").is_none(), true, "nor is no key at all")
+}

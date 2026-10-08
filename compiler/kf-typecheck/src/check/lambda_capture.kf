@@ -4,16 +4,16 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.Intrinsic
-import kf_core.ast.intern
-import kf_core.ast.view
+import kf_core.ast.expression.view
+import kf_core.ast.types.view
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
-import kf_core.ast.expression.coerce_addr_of
+import kf_core.ast.expression.Coercion
 import kf_core.ast.declaration.Param
 import kf_core.ast.statement.Stmt
 import kf_core.diagnostic.*
+import kf_core.intern.intern
 import kf_typecheck.check.borrow.type_borrows
 
 pub enum CaptureMode {
@@ -167,8 +167,8 @@ pub fun own_stored_captures(captures: &var List<LambdaCapture>, span: Span, ctx:
         val ty = ctx.lookup(name)
         if ty.capture_type_cannot_escape(ctx.sigs) {
             val message = "stored lambda cannot capture borrow-typed `${name}`; pass the lambda directly to a call instead"
-            val label = new_label(span, message)
-            ctx.diags.emit(new_diagnostic(Severity.Error, label))
+            val label = Label.new(span, message)
+            ctx.diags.emit(Diagnostic.new(Severity.Error, label))
             return false
         }
         val owned_mode = when (mode) {
@@ -297,7 +297,7 @@ fun classify_capture_expr(p_opt: Ptr<Expr>?, consumed: bool, captures: &var List
 fun classify_capture_args(args: &List<Expr>, captures: &var List<LambdaCapture>, ctx: &var TypeCtx): void {
     while i in 0..args.size() {
         val arg = args.at(i)
-        classify_capture_expr(unsafe { arg as Ptr<Expr> }, arg.coerce != coerce_addr_of(), captures, ctx)
+        classify_capture_expr(unsafe { arg as Ptr<Expr> }, arg.coerce != Coercion.AddrOf, captures, ctx)
     }
 }
 

@@ -13,6 +13,10 @@ import kf_core.ast.types.Type
 import kf_core.ast.declaration.DeclId
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.statement.Stmt
+import kf_core.intern.*
+import kf_core.ast.pattern.*
+import kf_core.ast.expression.*
+import kf_core.ast.types.*
 
 /// Poison `decl` when it is not a top-level declaration.
 @derive(Copy)

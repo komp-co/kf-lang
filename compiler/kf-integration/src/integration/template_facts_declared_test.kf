@@ -20,8 +20,8 @@ fun core_facts(): String {
         Ok(text) => text
         Err(_e) => String.from("")
     }
-    var smap = new_source_map()
-    val file = smap.add_file(new_source_file(String.from("template.kf"), src.clone()))
+    var smap = SourceMap.new()
+    val file = smap.add_file(SourceFile.new(String.from("template.kf"), src.clone()))
     var parser = new_parser(tokenize(src, file))
     var path = List.new<String>()
     path.push(String.from("core"))

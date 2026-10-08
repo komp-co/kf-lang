@@ -4,25 +4,25 @@
 import core.assert.assert_eq
 import alloc.list.*
 
-import kf_core.span.no_span
-import kf_core.ast.intern
+import kf_core.span.Span
 import kf_core.diagnostic.*
+import kf_core.intern.intern
 import kf_typecheck.new_sig_table
 import testing.test
 
 fun shadow_trait(name: str, supers: List<String>, assocs: List<String>): TraitInfo {
     var reqs = List.new<SuperTraitReq>()
     while super in &supers {
-        reqs.push(SuperTraitReq { name: String.from(super.as_str()), args: "", span: no_span() })
+        reqs.push(SuperTraitReq { name: String.from(super.as_str()), args: "", span: Span.none() })
     }
     var assoc_reqs = List.new<TraitAssocReq>()
     while assoc in &assocs {
-        assoc_reqs.push(TraitAssocReq { name: String.from(assoc.as_str()), span: no_span(), bounds: List.new<AssocBoundReq>() })
+        assoc_reqs.push(TraitAssocReq { name: String.from(assoc.as_str()), span: Span.none(), bounds: List.new<AssocBoundReq>() })
     }
     return TraitInfo {
         name: String.from(name),
         identity: intern(name), module: intern(""),
-        span: no_span(),
+        span: Span.none(),
         type_params: List.new<String>(),
         methods: List.new<TraitMethodReq>(),
         assoc_types: assoc_reqs,
@@ -42,7 +42,7 @@ fun no_shadow_names(): List<String> {
 
 fun SigTable.shadow_diag_count(name: str): uint64 {
     val diagnostics: Ptr<Diagnostics> = unsafe { alloc<Diagnostics>() }
-    unsafe { *diagnostics = new_diagnostics() }
+    unsafe { *diagnostics = Diagnostics.new() }
     check_trait_assoc_shadowing(name, self, unsafe { &var *diagnostics })
     return unsafe { (*diagnostics).size() }
 }

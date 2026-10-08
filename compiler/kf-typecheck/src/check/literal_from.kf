@@ -3,19 +3,19 @@
 
 import alloc.list.*
 
-import kf_core.ast.intern
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
-import kf_core.ast.expression.coerce_addr_of
+import kf_core.ast.expression.Coercion
 import kf_core.ast.subst.subst_type_ref
 import kf_typecheck.types.note_open_call_typed
 import kf_typecheck.types.resolve_type_ref
 import kf_typecheck.types.type_eq
 import kf_typecheck.types.display_type
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
+import kf_core.intern.intern
 
 fun from_trait_name(): str { return "From" }
 
@@ -40,7 +40,7 @@ mutating fun Expr.convert_list_literal_from(slot: Type, ctx: &var TypeCtx): bool
     if !self.retarget_array_literal(array, ctx) || self.ty.is_poison() { return true }
     note_open_call_typed(span, ctx)
     self.become_from_call(expected, ctx)
-    if borrowed { self.coerce = coerce_addr_of() }
+    if borrowed { self.coerce = Coercion.AddrOf }
     return true
 }
 
@@ -54,7 +54,7 @@ fun Type.is_shared_borrow(): bool {
 mutating fun Expr.reject_unconvertible_literal(expected: &Type, ctx: &var TypeCtx): bool {
     val shown = expected.display_type(ctx)
     val message = "a list literal cannot build `${shown}`: it does not implement `${from_trait_name()}<T[N]>`"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
     self.ty = Type.new_poison()
     return true
 }
@@ -123,10 +123,9 @@ fun Type.array_element_for(generics: &List<String>, slot_args: &List<TypeRef>, c
     val inst = self.expected_inst(ctx) ?: return null
     if inst.base.as_str() != ctx.array_name().as_str() || inst.args.size() != 2 { return null }
     if generics.size() < slot_args.size() { return null }
-    var names = List.new<String>()
-    while i in 0..slot_args.size() { names.push(generics.at(i).clone()) }
-    var repls = slot_args.clone()
-    return inst.args.at(0).subst_type_ref(&var names, &var repls).resolve_type_ref(ctx)
+    var subst = Substitution.new()
+    while i in 0..slot_args.size() { subst.bind(generics.at(i).clone(), slot_args.at(i).clone()) }
+    return inst.args.at(0).subst_type_ref(&subst).resolve_type_ref(ctx)
 }
 
 /// `self` implements `From<argument>`, named by its key.

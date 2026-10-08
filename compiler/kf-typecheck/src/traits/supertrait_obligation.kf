@@ -5,11 +5,11 @@ import alloc.list.*
 
 import kf_core.diagnostic.*
 import kf_core.ast.Module
-import kf_core.ast.is_container_type_name
-import kf_core.ast.is_runtime_type_name
 import kf_core.ast.types.TypeIdentity
 import kf_core.ast.types.canonical_type_identity
 import kf_core.ast.declaration.TopDecl
+import kf_core.lang.is_container_type_name
+import kf_core.names.CName
 import kf_typecheck.types.trait_args_key
 
 /// Every implementor of a trait implements what it requires. Walks this
@@ -48,7 +48,7 @@ fun TopDecl.check_one_impl(trait_name: str, impl_args: str, sigs: &SigTable, dia
             message.append(shown)
             message.append(" for ")
             message.append(self.name.as_str())
-            diags.emit(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
+            diags.emit(Diagnostic.new(Severity.Error, Label.new(self.decl_name_span(), message)))
         }
     }
 }
@@ -99,7 +99,7 @@ fun TopDecl.receiver_implements(trait_name: str, needed_args: str, sigs: &SigTab
 
 /// Runtime types and `@no_mangle` types.
 fun shares_one_namespace(name: str, sigs: &SigTable): bool {
-    if is_runtime_type_name(name) { return true }
+    if CName.is_runtime_type(name) { return true }
     if is_container_type_name(name, sigs.lang_list, sigs.lang_option) { return true }
     while recorded in &sigs.no_mangle_types {
         if recorded.as_str().equals(name) { return true }
@@ -132,7 +132,7 @@ pub fun check_trait_assoc_shadowing(name: str, sigs: &SigTable, diags: &var Diag
                 while item in &required {
                     if sigs.trait_declares_assoc(item, own.name) {
                         val message = "trait ${name} redeclares associated type ${own.name.as_str()}, already declared by ${item.as_str()}"
-                        diags.emit(new_diagnostic(Severity.Error, new_label(own.span, message)))
+                        diags.emit(Diagnostic.new(Severity.Error, Label.new(own.span, message)))
                     }
                 }
             }
@@ -157,7 +157,7 @@ pub fun SigTable.check_supertrait_cycles(diags: &var Diagnostics): void {
     while info in &self.traits {
         if self.supertrait_cycle_from(info.name) {
             val message = "trait ${info.name.as_str()}'s supertraits form a cycle"
-            diags.emit(new_diagnostic(Severity.Error, new_label(info.span, message)))
+            diags.emit(Diagnostic.new(Severity.Error, Label.new(info.span, message)))
         }
     }
 }

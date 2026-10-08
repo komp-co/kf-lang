@@ -3,8 +3,8 @@
 
 import alloc.list.*
 
-import kf_core.ast.Sym
 import kf_core.ast.types.Type
+import kf_core.intern.Sym
 
 /// The other argument a type-parameter `declared` was inferred from, when
 /// argument `index` must agree with it; `count`, past every argument, marks

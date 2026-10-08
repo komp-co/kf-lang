@@ -5,19 +5,21 @@ import alloc.list.*
 import kf_core.ast.*
 import kf_core.ast.declaration.TopDecl
 import kf_core.diagnostic.*
+import kf_core.intern.*
+import kf_core.lang.*
 
 /// Only the standard library declares lang items.
 pub fun may_declare_lang_items(crate: CrateId): bool {
-    if crate.raw == new_crate_id("core").raw { return true }
-    if crate.raw == new_crate_id("alloc").raw { return true }
-    return crate.raw == new_crate_id("std").raw
+    if crate.raw == CrateId.new("core").raw { return true }
+    if crate.raw == CrateId.new("alloc").raw { return true }
+    return crate.raw == CrateId.new("std").raw
 }
 
 /// The registry already checked placement; this checks key and crate.
 pub fun TopDecl.validate_lang_annotation(diags: &var Diagnostics): void {
     val key = self.lang_key_of()
-    if !is_known_lang_key(key) {
-        self.report("unknown lang item `${key.as_str()}`: expected ${known_lang_keys_summary().as_str()}", diags)
+    if LangItem.from_key(key.as_str()).is_none() {
+        self.report("unknown lang item `${key.as_str()}`: expected ${LangItem.expected_keys().as_str()}", diags)
     } else if !may_declare_lang_items(self.crate) {
         self.report(String.from("`@lang(...)` is reserved for the standard library (core, alloc and std)"), diags)
     }
@@ -55,7 +57,7 @@ pub fun TopDecl.rejects_lang_type_name(lang_string: Sym, diags: &var Diagnostics
         _ => return false
     }
     if !self.name.as_str().equals(lang_string.as_str()) { return false }
-    if self.lang_key_of().as_str().equals(lang_string_key()) { return false }
+    if self.lang_key_of().as_str().equals(LangItem.String.key()) { return false }
     val name = self.name.as_str()
     self.report("`${name}` is the language's string type; a type cannot be declared with that name (rename it)", diags)
     return true
@@ -69,5 +71,5 @@ fun key_seen(keys: &List<String>, key: str): bool {
 }
 
 fun TopDecl.report(message: String, diags: &var Diagnostics): void {
-    diags.emit(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
+    diags.emit(Diagnostic.new(Severity.Error, Label.new(self.decl_name_span(), message)))
 }

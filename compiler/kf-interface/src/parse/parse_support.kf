@@ -1,11 +1,13 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.*
-import kf_core.ast.annotation.new_annotation
+import kf_core.ast.annotation.Annotation
+import kf_core.intern.*
+import kf_core.lang.lang_annotation
+import kf_core.ast.annotation.*
 import kf_parse.lexer.tokenize
 import kf_parse.parser.new_parser
 import json.reader.*
@@ -27,7 +29,7 @@ mutating fun JsonReader.load_extern_decl(crate: CrateId, path: str, hidden: bool
     val _borrows = self.read_int64()
     if self.object_has_next() { return poison_decl() }
     val kind = TopDeclKind.Extern(params, ret, is_pub, is_unsafe)
-    return stamp_imported(new_top_decl(no_span(), name.clone(), kind), crate, path, name, hidden)
+    return stamp_imported(TopDecl.new(Span.none(), name.clone(), kind), crate, path, name, hidden)
 }
 
 /// A module's declarations; the imports their templates bring join `imports`.
@@ -55,7 +57,7 @@ mutating fun JsonReader.load_generic(crate: CrateId, crate_name: str, path: str,
     var fragment_path = String.from(crate_name)
     fragment_path.append(".kfi:")
     fragment_path.append(path)
-    val fid = unsafe { smap.add_file(new_source_file(fragment_path, src.clone())) }
+    val fid = unsafe { smap.add_file(SourceFile.new(fragment_path, src.clone())) }
     val tokens = tokenize(src, fid)
     var parser = new_parser(tokens)
     val fragment = parser.parse_module(List.new<String>())
@@ -76,7 +78,7 @@ mutating fun JsonReader.load_generic(crate: CrateId, crate_name: str, path: str,
     }
     if td.name.as_str() != name.as_str() { return poison_decl() }
     while imp in &fragment.imports { imports.push(imp.clone()) }
-    stamp_decl_owner(&var td, crate, intern(path))
+    td.stamp_owner(crate, intern(path))
     td.linkage = Linkage.GenericTemplate
     return td
 }
@@ -89,7 +91,7 @@ mutating fun JsonReader.load_params(): List<Param> {
         val name = self.read_string()
         if !self.expect_key("type") { return params }
         val ty = parse_type_ptr(self.read_string().as_str())
-        var param = new_param(no_span(), name, ty)
+        var param = Param.new(Span.none(), name, ty)
         if self.object_has_next() {
             if self.read_key().as_str() != "default" { return params }
             param.default = Box.new(parse_default_source(self.read_string().as_str()))
@@ -102,7 +104,7 @@ mutating fun JsonReader.load_params(): List<Param> {
 
 fun stamp_imported(td: TopDecl, crate: CrateId, path: str, link_name: String, hidden: bool): TopDecl {
     var stamped = td
-    stamp_decl_owner(&var stamped, crate, intern(path))
+    stamped.stamp_owner(crate, intern(path))
     if hidden { stamped.linkage = Linkage.HiddenSupport } else { stamped.linkage = Linkage.ImportedCompiled }
     stamped.link_name = intern(link_name)
     return stamped
@@ -130,7 +132,7 @@ mutating fun JsonReader.read_c_naming(): CNaming? {
 
 fun mark_c_naming(td: TopDecl, naming: CNaming): TopDecl {
     var marked = td
-    if naming.unmangled { marked.annotations.push(new_annotation(no_span(), "no_mangle", List.new<String>())) }
+    if naming.unmangled { marked.annotations.push(Annotation.new(Span.none(), "no_mangle", List.new<String>())) }
     if !naming.lang.as_str().equals("") { marked.annotations.push(lang_annotation(naming.lang)) }
     marked.is_view = naming.view
     return marked
@@ -140,7 +142,7 @@ fun decl_is_poison(td: TopDecl): bool {
     when (td.kind) { Poison => return true _ => return false }
 }
 
-fun poison_decl(): TopDecl { return new_top_decl(no_span(), "", TopDeclKind.Poison) }
+fun poison_decl(): TopDecl { return TopDecl.new(Span.none(), "", TopDeclKind.Poison) }
 
 fun parse_type_ptr(source: str): Ptr<TypeRef> {
     val tokens = tokenize(source, 0)

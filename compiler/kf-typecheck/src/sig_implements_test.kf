@@ -1,12 +1,12 @@
 import core.assert.assert_eq
 
-import kf_core.ast.intern
-import kf_core.ast.lang_equal_key
+import kf_core.intern.intern
 import testing.test
+import kf_core.lang.LangItem
 
 fun equal_marked_table(): SigTable {
     var sigs = new_sig_table()
-    sigs.note_lang_trait(lang_equal_key(), intern("Equal"))
+    sigs.note_lang_trait(LangItem.Equal.key(), intern("Equal"))
     return sigs
 }
 

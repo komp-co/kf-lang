@@ -2,7 +2,6 @@
 
 import alloc.list.*
 
-import kf_core.ast.*
 import kf_core.ast.Module
 import kf_core.ast.declaration.DeclId
 import kf_resolve.DeclTable

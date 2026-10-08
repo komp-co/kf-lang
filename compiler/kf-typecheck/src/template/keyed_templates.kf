@@ -7,8 +7,8 @@
 import alloc.list.*
 
 import kf_core.ast.Module
-import kf_core.ast.Sym
-import kf_core.ast.intern
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.*
 import kf_core.ast.annotation.*
@@ -48,7 +48,7 @@ fun Module.key_is_owned(template: &TopDecl, annotation: uint64, diags: &var List
     val param = self.key_param(annotation)
     if param == null {
         val why = "it needs exactly one parameter taking a declaration's name"
-        diags.push(error_at(at, "`@${name}`'s template cannot be keyed: ${why}"))
+        diags.push(Diagnostic.error_at(at, "`@${name}`'s template cannot be keyed: ${why}"))
         return false
     }
     val found = param ?: return false
@@ -58,7 +58,7 @@ fun Module.key_is_owned(template: &TopDecl, annotation: uint64, diags: &var List
         if td.declares(kind) { return true }
     }
     val placed = "a keyed template lives in the crate declaring its key"
-    diags.push(error_at(at, "no `${kind.word()}` `${key}` in this crate: ${placed}"))
+    diags.push(Diagnostic.error_at(at, "no `${kind.word()}` `${key}` in this crate: ${placed}"))
     return false
 }
 
@@ -160,7 +160,7 @@ fun Module.report_missing_keys(templates: &List<TemplateAt>, diags: &var List<Di
                 val name = self.decls.at(annotation).name.as_str()
                 val written = value.key_name().as_str()
                 val on = td.marked_kind_word()
-                diags.push(error_at(value.span, "`${written}` has no `${name}` template on `${on}`"))
+                diags.push(Diagnostic.error_at(value.span, "`${written}` has no `${name}` template on `${on}`"))
             }
         }
     }

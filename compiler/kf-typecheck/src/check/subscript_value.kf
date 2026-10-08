@@ -1,13 +1,13 @@
 // `a[i]` on a type whose elements are computed: through `IndexValue` it is
 // `a.index_value(i)`, the element itself rather than a borrow of one.
 
-import kf_core.ast.intern
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.span.Span
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
+import kf_core.intern.intern
 import kf_typecheck.types.display_type
 
 /// CONSTRAINT: by name until a release's seed knows a lang key for it.
@@ -54,7 +54,7 @@ mutating fun Expr.report_two_subscripts(container: &Type, ctx: &var TypeCtx): vo
     val shown = container.display_type(ctx)
     val message = "`${shown}` implements both `Index` and `${index_value_trait_name()}`, so `[]` on it has two " +
         "meanings; implement one"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
     self.ty = Type.new_poison()
 }
 
@@ -70,5 +70,5 @@ pub fun Expr.is_computed_subscript(): bool {
 pub fun Expr.report_write_to_computed_subscript(span: Span, ctx: &var TypeCtx): void {
     val message = "cannot write through this subscript: its element is computed by `${index_value_trait_name()}`, " +
         "and has no place to write to"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
 }

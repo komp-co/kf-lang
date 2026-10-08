@@ -3,14 +3,15 @@
 // `__when_text if __when_text == "a" || __when_text == "b"`, with `.as_str()`
 // on a `String` binder. As a guarded arm it covers nothing for exhaustiveness.
 
-import kf_core.ast.*
 import kf_core.ast.types.Type
 import kf_core.ast.expression.BinOp
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
 import kf_core.span.Span
+import kf_core.intern.*
+import kf_core.ast.pattern.*
 import kf_typecheck.types.display_type
 
 /// CONSTRAINT: before the arm's pattern and guard are checked, so the
@@ -19,12 +20,12 @@ pub mutating fun Arm.desugar_string_pattern(texts: List<String>, subject_ty: Typ
     val span = unsafe { self.pattern.span }
     if !subject_ty.is_text(ctx) {
         val message = "this pattern is a string, but the subject is `${subject_ty.display_type(ctx)}`"
-        ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
-        unsafe { *self.pattern = pattern_poison(span) }
+        ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
+        unsafe { *self.pattern = Pattern.new_poison(span) }
         return
     }
     val binder = intern("__when_text")
-    unsafe { *self.pattern = new_pattern(span, PatternKind.Identifier(binder)) }
+    unsafe { *self.pattern = Pattern.new(span, PatternKind.Identifier(binder)) }
     var condition: Ptr<Expr> = text_equals(binder, texts.at(0).clone(), subject_ty, span, ctx)
     while i in 1..texts.size() {
         val next = text_equals(binder, texts.at(i).clone(), subject_ty, span, ctx)

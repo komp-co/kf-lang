@@ -9,13 +9,13 @@
 import alloc.list.*
 
 import kf_core.span.Span
-import kf_core.ast.Sym
-import kf_core.ast.intern
 import kf_core.ast.expression.BinOp
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import kf_core.intern.Sym
+import kf_core.intern.intern
 
 /// `range(start, end, 1)`, as the parser writes `a..b`. Asked before the
 /// subject is checked, while the callee has its parser name.

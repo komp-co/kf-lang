@@ -14,6 +14,7 @@ import kf_core.ast.declaration.Param
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.statement.Stmt
 import kf_core.ast.types.TypeRef
+import kf_core.intern.*
 
 struct TypeTarget {
     val name: Sym

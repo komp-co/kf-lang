@@ -3,6 +3,7 @@ import alloc.list.*
 import kf_core.ast.*
 import kf_core.diagnostic.*
 import kf_core.span.*
+import kf_core.intern.*
 
 /// Owned by the caller; validation and typecheck borrow it.
 pub fun new_import_syms(): Box<List<Sym>> {
@@ -63,7 +64,9 @@ pub fun validate_imports_per_module(m: &Module,
         if imp.alias.as_str() != "" {
             resolved = imp.resolve_wildcard(&module_paths, &file_paths)
             if resolved.id == 0 {
-                diags.push(error_at(imp.span, aliased_module_not_found(&imp, m.crate, &module_paths, &file_paths)))
+                diags.push(
+                    Diagnostic.error_at(imp.span, aliased_module_not_found(&imp, m.crate, &module_paths, &file_paths))
+                )
             } else {
                 admitted = alias_admission(imp.alias)
             }
@@ -75,7 +78,7 @@ pub fun validate_imports_per_module(m: &Module,
                 if qualified.resolve_wildcard(&module_paths, &file_paths).id != 0 {
                     msg.append(qualified.path_starts_with_crate_hint().as_str())
                 }
-                diags.push(error_at(imp.span, msg))
+                diags.push(Diagnostic.error_at(imp.span, msg))
             }
         } else {
             resolved = imp.resolve_specific(&module_paths, &decl_names, &file_paths)
@@ -88,7 +91,7 @@ pub fun validate_imports_per_module(m: &Module,
                 if qualified.resolve_specific(&module_paths, &decl_names, &file_paths).id != 0 {
                     msg.append(qualified.path_starts_with_crate_hint().as_str())
                 }
-                diags.push(error_at(imp.span, msg))
+                diags.push(Diagnostic.error_at(imp.span, msg))
             }
         }
         // An export names what the module offers, not what its file sees.

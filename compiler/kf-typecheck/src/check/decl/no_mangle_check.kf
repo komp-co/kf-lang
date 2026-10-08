@@ -13,7 +13,7 @@ pub fun Module.reject_colliding_no_mangle(diags: &var Diagnostics): void {
         if td.type_is_no_mangle_decl() {
             if list_has(&seen, td.name.as_str()) {
                 val message = "two types named `${td.name.as_str()}` are `@no_mangle`, so their C names collide"
-                diags.emit(new_diagnostic(Severity.Error, new_label((&td).decl_name_span(), message)))
+                diags.emit(Diagnostic.new(Severity.Error, Label.new((&td).decl_name_span(), message)))
             } else {
                 seen.push(td.name.as_string())
             }

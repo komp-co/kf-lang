@@ -1,12 +1,14 @@
 import alloc.list.*
 import core.assert.assert_eq
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
+import kf_core.intern.intern
+import kf_core.intern.CrateId
 
 import kf_codegen.runtime.emit_runtime_header
 import std.fs.scratch_path
@@ -24,35 +26,35 @@ extern "C" fun system(cmd: str): int32
 
 fun hdr_ty_ptr(name: str): Ptr<TypeRef> {
     val rp: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *rp = TypeRef.new(no_span(), TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
+    unsafe { *rp = TypeRef.new(Span.none(), TypeRefKind.Named(intern(name), List.new<TypeRef>())) }
     return rp
 }
 
 fun hdr_option_int32_ptr(): Ptr<TypeRef> {
     var args = List.new<TypeRef>()
-    args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    args.push(TypeRef.new(Span.none(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
     val rp: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *rp = TypeRef.new(no_span(), TypeRefKind.Named(intern("Option"), args)) }
+    unsafe { *rp = TypeRef.new(Span.none(), TypeRefKind.Named(intern("Option"), args)) }
     return rp
 }
 
 fun hdr_struct(name: str, fields: List<Field>, is_pub: bool): TopDecl {
-    return new_top_decl(no_span(), String.from(name), TopDeclKind.Struct(fields, is_pub))
+    return TopDecl.new(Span.none(), String.from(name), TopDeclKind.Struct(fields, is_pub))
 }
 
 fun hdr_fn(name: str, params: List<Param>, is_pub: bool): TopDecl {
-    return new_top_decl(no_span(), String.from(name), TopDeclKind.Function(params, hdr_ty_ptr("int32"), List.new<Stmt>(), is_pub, false, false, false))
+    return TopDecl.new(Span.none(), String.from(name), TopDeclKind.Function(params, hdr_ty_ptr("int32"), List.new<Stmt>(), is_pub, false, false, false))
 }
 
 pub fun hdr_view(): Module {
     var point_fields = List.new<Field>()
-    point_fields.push(new_field(no_span(), String.from("x"), hdr_ty_ptr("int32"), false, true))
-    point_fields.push(new_field(no_span(), String.from("inner"), hdr_ty_ptr("Inner"), false, false))
-    point_fields.push(new_field(no_span(), String.from("s"), hdr_ty_ptr("String"), false, true))
+    point_fields.push(Field.new(Span.none(), String.from("x"), hdr_ty_ptr("int32"), false, true))
+    point_fields.push(Field.new(Span.none(), String.from("inner"), hdr_ty_ptr("Inner"), false, false))
+    point_fields.push(Field.new(Span.none(), String.from("s"), hdr_ty_ptr("String"), false, true))
     var inner_fields = List.new<Field>()
-    inner_fields.push(new_field(no_span(), String.from("v"), hdr_ty_ptr("int32"), false, true))
+    inner_fields.push(Field.new(Span.none(), String.from("v"), hdr_ty_ptr("int32"), false, true))
     var hidden_fields = List.new<Field>()
-    hidden_fields.push(new_field(no_span(), String.from("v"), hdr_ty_ptr("int32"), false, true))
+    hidden_fields.push(Field.new(Span.none(), String.from("v"), hdr_ty_ptr("int32"), false, true))
     var methods = List.new<TopDecl>()
     methods.push(hdr_fn("sum", List.new<Param>(), true))
     methods.push(hdr_fn("secret", List.new<Param>(), false))
@@ -65,27 +67,27 @@ pub fun hdr_view(): Module {
     primitive_trait_method.from_trait_impl = true
     primitive_methods.push(primitive_trait_method)
     var pick_params = List.new<Param>()
-    pick_params.push(new_param(no_span(), String.from("o"), hdr_option_int32_ptr()))
+    pick_params.push(Param.new(Span.none(), String.from("o"), hdr_option_int32_ptr()))
     var decls = List.new<TopDecl>()
     decls.push(hdr_struct("Point", point_fields, true))
     decls.push(hdr_struct("Inner", inner_fields, false))
     decls.push(hdr_struct("Hidden", hidden_fields, false))
-    decls.push(new_top_decl(no_span(), String.from("Point"), TopDeclKind.ImplBlock(methods)))
-    decls.push(new_top_decl(no_span(), String.from("int32"), TopDeclKind.ImplBlock(primitive_methods)))
+    decls.push(TopDecl.new(Span.none(), String.from("Point"), TopDeclKind.ImplBlock(methods)))
+    decls.push(TopDecl.new(Span.none(), String.from("int32"), TopDeclKind.ImplBlock(primitive_methods)))
     decls.push(hdr_fn("pick", pick_params, true))
     decls.push(hdr_fn("internal", List.new<Param>(), false))
     // The materialized Option__int32 named by `pick`.
     decls.push(hdr_option_int32_enum())
-    return Module { crate: new_crate_id("aa"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
+    return Module { crate: CrateId.new("aa"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 }
 
 fun hdr_option_int32_enum(): TopDecl {
     var some_pay = List.new<TypeRef>()
-    some_pay.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
+    some_pay.push(TypeRef.new(Span.none(), TypeRefKind.Named(intern("int32"), List.new<TypeRef>())))
     var variants = List.new<Variant>()
-    variants.push(new_variant(no_span(), String.from("Some"), some_pay))
-    variants.push(new_variant(no_span(), String.from("None"), List.new<TypeRef>()))
-    var td = new_top_decl(no_span(), String.from("Option__int32"), TopDeclKind.EnumDecl(variants, true))
+    variants.push(Variant.new(Span.none(), String.from("Some"), some_pay))
+    variants.push(Variant.new(Span.none(), String.from("None"), List.new<TypeRef>()))
+    var td = TopDecl.new(Span.none(), String.from("Option__int32"), TopDeclKind.EnumDecl(variants, true))
     td.linkage = Linkage.GenericTemplate
     return td
 }
@@ -100,13 +102,13 @@ fun emit_hdr(): String {
 
 fun emit_private_method_hdr(): String {
     var fields = List.new<Field>()
-    fields.push(new_field(no_span(), String.from("v"), hdr_ty_ptr("int32"), false, true))
+    fields.push(Field.new(Span.none(), String.from("v"), hdr_ty_ptr("int32"), false, true))
     var methods = List.new<TopDecl>()
-    methods.push(new_top_decl(no_span(), String.from("copy"), TopDeclKind.Function(List.new<Param>(), hdr_ty_ptr("Widget"), List.new<Stmt>(), true, false, false, false)))
+    methods.push(TopDecl.new(Span.none(), String.from("copy"), TopDeclKind.Function(List.new<Param>(), hdr_ty_ptr("Widget"), List.new<Stmt>(), true, false, false, false)))
     var decls = List.new<TopDecl>()
     decls.push(hdr_struct("Widget", fields, false))
-    decls.push(new_top_decl(no_span(), String.from("Widget"), TopDeclKind.ImplBlock(methods)))
-    val view = Module { crate: new_crate_id("private_method"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
+    decls.push(TopDecl.new(Span.none(), String.from("Widget"), TopDeclKind.ImplBlock(methods)))
+    val view = Module { crate: CrateId.new("private_method"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
     val deps = List.new<String>()
     return view.emit_crate_header(String.from("private_method"), &deps)
 }
@@ -227,26 +229,26 @@ fun header_still_omits_private_inherent_methods(): void {
 // `Boxed* data`, so `Boxed` must be declared.
 fun hdr_pointer_reachable_view(): Module {
     var bag_rows = List.new<TypeRef>()
-    bag_rows.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("Boxed"), List.new<TypeRef>())))
+    bag_rows.push(TypeRef.new(Span.none(), TypeRefKind.Named(intern("Boxed"), List.new<TypeRef>())))
     val rows_ty: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *rows_ty = TypeRef.new(no_span(), TypeRefKind.Named(intern("List"), bag_rows)) }
+    unsafe { *rows_ty = TypeRef.new(Span.none(), TypeRefKind.Named(intern("List"), bag_rows)) }
     var bag_fields = List.new<Field>()
-    bag_fields.push(new_field(no_span(), String.from("rows"), rows_ty, true, true))
+    bag_fields.push(Field.new(Span.none(), String.from("rows"), rows_ty, true, true))
     var boxed_fields = List.new<Field>()
-    boxed_fields.push(new_field(no_span(), String.from("v"), hdr_ty_ptr("int32"), false, true))
+    boxed_fields.push(Field.new(Span.none(), String.from("v"), hdr_ty_ptr("int32"), false, true))
     var ptr_args = List.new<TypeRef>()
-    ptr_args.push(TypeRef.new(no_span(), TypeRefKind.Named(intern("Boxed"), List.new<TypeRef>())))
+    ptr_args.push(TypeRef.new(Span.none(), TypeRefKind.Named(intern("Boxed"), List.new<TypeRef>())))
     val data_ty: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
-    unsafe { *data_ty = TypeRef.new(no_span(), TypeRefKind.Named(intern("Ptr"), ptr_args)) }
+    unsafe { *data_ty = TypeRef.new(Span.none(), TypeRefKind.Named(intern("Ptr"), ptr_args)) }
     var list_fields = List.new<Field>()
-    list_fields.push(new_field(no_span(), String.from("data"), data_ty, true, true))
+    list_fields.push(Field.new(Span.none(), String.from("data"), data_ty, true, true))
     var list_decl = hdr_struct("List__Boxed", list_fields, true)
     list_decl.linkage = Linkage.GenericTemplate
     var decls = List.new<TopDecl>()
     decls.push(hdr_struct("Bag", bag_fields, true))
     decls.push(hdr_struct("Boxed", boxed_fields, false))
     decls.push(list_decl)
-    return Module { crate: new_crate_id("bb"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
+    return Module { crate: CrateId.new("bb"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 }
 
 @test

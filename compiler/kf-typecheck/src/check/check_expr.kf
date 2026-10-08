@@ -4,11 +4,12 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.*
+import kf_core.ast.statement.list_yields_value
 import kf_core.ast.types.Type
 import kf_core.ast.expression.*
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
+import kf_core.intern.*
 import kf_typecheck.types.*
 import kf_typecheck.check.borrow.check_deref
 import kf_typecheck.check.borrow.lint_deref_through_temporary
@@ -26,10 +27,10 @@ fun check_expr_kind(e: &var Expr, ctx: &var TypeCtx): void {
         return
     }
     // The parser's written-`&` tag is cleared here: Lower reads
-    // `coerce == none` before inserting an auto-clone.
+    // `coerce` is `Identity` before inserting an auto-clone.
     val written = e.coerce
-    if e.coerce == coerce_written_amp() { e.coerce = coerce_none() }
-    if e.coerce == coerce_written_amp_var() { e.coerce = coerce_none() }
+    if e.coerce == Coercion.WrittenAmp { e.coerce = Coercion.Identity }
+    if e.coerce == Coercion.WrittenAmpVar { e.coerce = Coercion.Identity }
     when (e.kind) {
         LitInt(value) => {
             e.ty = Type.new_int32(e.span)
@@ -192,13 +193,13 @@ fun check_expr_kind(e: &var Expr, ctx: &var TypeCtx): void {
         }
         Cast(inner_ptr, ty_ptr) => {
             val operand = unsafe { &var *inner_ptr }
-            val borrowed = operand.coerce == coerce_written_amp() || operand.coerce == coerce_written_amp_var()
+            val borrowed = operand.coerce == Coercion.WrittenAmp || operand.coerce == Coercion.WrittenAmpVar
             // The operand is typed so a nested receiver can be mangled.
             check_expr(operand, ctx)
             // `(&x) as Ptr<T>` is x's address; a reference or pointer is one
             // already.
             val tag = operand.ty.kind.kind_tag()
-            if borrowed && tag != TAG_REF() && tag != TAG_PTR() { operand.coerce = coerce_addr_of() }
+            if borrowed && tag != TAG_REF() && tag != TAG_PTR() { operand.coerce = Coercion.AddrOf }
             val tr = unsafe { *ty_ptr }
             e.ty = tr.resolve_type_ref(ctx)
             // The cast converts a literal of any width.
@@ -224,7 +225,7 @@ fun check_expr_kind(e: &var Expr, ctx: &var TypeCtx): void {
             if !list_yields_value(&stmts) {
                 // Reported here, where the block is, rather than at whatever
                 // reads its `void` later.
-                ctx.emit(new_diagnostic(Severity.Error, new_label(e.span, tail_no_value_msg(&stmts))))
+                ctx.emit(Diagnostic.new(Severity.Error, Label.new(e.span, tail_no_value_msg(&stmts))))
                 e.ty = Type.new_poison()
             } else {
                 val joined = list_tail_ty(&stmts, ctx.string_name())
@@ -334,10 +335,10 @@ fun BinOp.bitwise_trait_name(): str {
 // `+` is Add, `-` Sub, and so on.
 fun BinOp.arith_trait_name(ctx: &var TypeCtx): Sym {
     return when (self) {
-        Add => ctx.lang_trait_name(lang_add_key())
-        Sub => ctx.lang_trait_name(lang_sub_key())
-        Mul => ctx.lang_trait_name(lang_mul_key())
-        Div => ctx.lang_trait_name(lang_div_key())
+        Add => ctx.lang_trait_name(LangItem.Add)
+        Sub => ctx.lang_trait_name(LangItem.Sub)
+        Mul => ctx.lang_trait_name(LangItem.Mul)
+        Div => ctx.lang_trait_name(LangItem.Div)
         Mod => intern("Mod")
         _ => intern("")
     }
@@ -407,7 +408,7 @@ fun operator_type_implements(ty: Type, trait_name: str, ctx: &var TypeCtx): bool
 }
 
 fun comparison_op(lhs: &Expr, rhs: &Expr, span: Span, ctx: &var TypeCtx): Type {
-    val equal = ctx.lang_trait_name(lang_equal_key()).as_str()
+    val equal = ctx.lang_trait_name(LangItem.Equal).as_str()
     if !lhs.ty.type_eq(rhs.ty) {
         emit_operator_type_mismatch(lhs.ty, rhs.ty, span, ctx)
         return Type.new_poison()
@@ -441,7 +442,7 @@ fun comparison_op(lhs: &Expr, rhs: &Expr, span: Span, ctx: &var TypeCtx): Type {
 }
 
 fun relational_op(lhs: &Expr, rhs: &Expr, span: Span, ctx: &var TypeCtx): Type {
-    val compare = ctx.lang_trait_name(lang_compare_key()).as_str()
+    val compare = ctx.lang_trait_name(LangItem.Compare).as_str()
     if !lhs.ty.type_eq(rhs.ty) {
         emit_operator_type_mismatch(lhs.ty, rhs.ty, span, ctx)
         return Type.new_poison()
@@ -468,7 +469,7 @@ fun relational_op(lhs: &Expr, rhs: &Expr, span: Span, ctx: &var TypeCtx): Type {
 }
 
 fun logical_op(lhs: &Expr, rhs: &Expr, span: Span, ctx: &var TypeCtx): Type {
-    val bool_ty_val = Type.new_bool(no_span())
+    val bool_ty_val = Type.new_bool(Span.none())
     val is_bool_l = lhs.ty.type_eq(bool_ty_val)
     val is_bool_r = rhs.ty.type_eq(bool_ty_val)
     if !is_bool_l || !is_bool_r {

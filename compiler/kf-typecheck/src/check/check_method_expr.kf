@@ -1,17 +1,16 @@
-import kf_core.ast.Sym
-import kf_core.ast.intern
-import kf_core.ast.lang_display_key
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeRef
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
-import kf_core.ast.expression.coerce_addr_of
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.ast.expression.Coercion
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
 import kf_typecheck.types.*
 import kf_typecheck.traits.*
 import kf_typecheck.check.borrow.coerce_call_arg
 import kf_core.ast.subst.monomorphized_type_name
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_typecheck.note_import_use
 
 fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, args: &var List<Expr>, ctx: &var TypeCtx): void {
@@ -25,7 +24,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
     }
     // `String.of(&(self))` inside `Display.display` would recurse; this also
     // catches a `{self}` interpolation slot, which lowers to the same call.
-    if ctx.defining_trait_method(ctx.lang_trait_name(lang_display_key()).as_str(), "display") {
+    if ctx.defining_trait_method(ctx.lang_trait_name(LangItem.Display).as_str(), "display") {
         if method_name.as_str().equals("display") {
             if is_bare_self(&unsafe { *recv_ptr }) {
                 emit_self_recursive_operator("\${self}", "display", "render the fields", e.span, ctx)
@@ -72,8 +71,8 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                 check_call_argument(args.at_mut(ai), ctx)
             }
             if args.size() > 0 && expected_is_dyn_ref(&(*args.at(0)).ty) {
-                val lab = new_label(e.span, String.from("qualified calls on dynamic trait objects are not supported; call the method on the object value"))
-                ctx.emit(new_diagnostic(Severity.Error, lab))
+                val lab = Label.new(e.span, String.from("qualified calls on dynamic trait objects are not supported; call the method on the object value"))
+                ctx.emit(Diagnostic.new(Severity.Error, lab))
                 e.ty = Type.new_poison()
                 handled = true
             }
@@ -98,7 +97,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                         }
                         if valid {
                             val receiver_arg = args.at_mut(0)
-                            receiver_arg.coerce = coerce_addr_of()
+                            receiver_arg.coerce = Coercion.AddrOf
                             e.ty = sig.ret
                             note_import_use(ctx.sigs, ctx.owner_file, sig.owner_module)
                             e.mangled_callee = intern(selected)
@@ -110,8 +109,10 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                 }
             }
             if !handled {
-                val lab = new_label(e.span, "no matching `${qualified_trait}.${method_name}(receiver, ...)` implementation")
-                ctx.emit(new_diagnostic(Severity.Error, lab))
+                val lab = Label.new(
+                    e.span, "no matching `${qualified_trait}.${method_name}(receiver, ...)` implementation"
+                )
+                ctx.emit(Diagnostic.new(Severity.Error, lab))
                 e.ty = Type.new_poison()
                 handled = true
             }
@@ -261,14 +262,14 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                         var m = String.from("`")
                         m.append(method_name)
                         m.append("` is an instance method, so it needs a receiver — declare it `static fun` to call it on the type, or call it on a value")
-                        val lab = new_label(e.span, m)
-                        ctx.emit(new_diagnostic(Severity.Error, lab))
+                        val lab = Label.new(e.span, m)
+                        ctx.emit(Diagnostic.new(Severity.Error, lab))
                         e.ty = Type.new_poison()
                         handled = true
                     }
                 } else {
                     val missing = no_static_method_msg(rname, method_name, args, ctx)
-                    ctx.emit(new_diagnostic(Severity.Error, new_label(e.span, missing)))
+                    ctx.emit(Diagnostic.new(Severity.Error, Label.new(e.span, missing)))
                     e.ty = Type.new_poison()
                     handled = true
                 }
@@ -323,7 +324,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                 } else {
                     if !e.ty.is_poison() && ambiguous_trait_method(recv.ty, method_name_sym.as_string(), args, ctx) {
                         val amsg = e.no_fitting_impl_message(recv.ty, method_name_sym.as_string(), args, ctx)
-                        ctx.emit(new_diagnostic(Severity.Error, new_label(e.span, amsg)))
+                        ctx.emit(Diagnostic.new(Severity.Error, Label.new(e.span, amsg)))
                     }
                     // Through the borrow: `fun emit<W: Sink>(out: &W)` arrives
                     // as `RefTo(Generic("W"))`.
@@ -386,7 +387,7 @@ fun emit_type_arg_arity(base: String, expected: uint64, got: uint64, span: Span,
     message.append(" type arguments, but ")
     message.append(String.of(&((got as int64))).as_str())
     message.append(" was supplied")
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
 }
 
 /// Names the type as well as the method, as the call is written.
@@ -399,7 +400,7 @@ fun emit_static_call_arity(type_name: String, method_name: String, expected: uin
     msg.append(String.of(&((expected as int64))).as_str())
     msg.append(", found ")
     msg.append(String.of(&((found as int64))).as_str())
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
 }
 
 /// No static method of the type answers to the name with these arguments,

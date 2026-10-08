@@ -7,17 +7,18 @@ import kf_core.diagnostic.*
 import kf_core.ast.*
 import kf_core.ast.types.Type
 import kf_core.ast.declaration.TopDecl
-import kf_core.span.no_span
+import kf_core.span.Span
+import kf_core.intern.*
 import kf_typecheck.*
 import kf_typecheck.check.type_is_copy
 
 /// CONSTRAINT: runs after struct and trait registration, since a field's type
 /// and its Copy impl may both be declared below the impl being checked.
 pub fun Module.check_copy_impls(sigs: Ptr<SigTable>, table: Ptr<DeclTable>?, diags: &var Diagnostics): void {
-    val copy_name = unsafe { sigs.lang_trait_name(lang_copy_key()) }
+    val copy_name = unsafe { sigs.lang_trait_name(LangItem.Copy) }
     if copy_name.as_str().equals("") { return }
-    val drop_name = unsafe { sigs.lang_trait_name(lang_drop_key()) }
-    var ctx = new_type_ctx(Type.new_void(no_span()), diags, table, sigs)
+    val drop_name = unsafe { sigs.lang_trait_name(LangItem.Drop) }
+    var ctx = new_type_ctx(Type.new_void(Span.none()), diags, table, sigs)
     while td in &self.decls {
         when (td.kind) {
             TraitImpl(tref, _methods) => {
@@ -93,5 +94,5 @@ fun TopDecl.type_param_bounded_by(param: Sym, trait_name: str): bool {
 
 fun TopDecl.report_unsound_copy(why: str, diags: &var Diagnostics): void {
     val message = "`${self.name.as_str()}` cannot be Copy: ${why}"
-    diags.emit(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
+    diags.emit(Diagnostic.new(Severity.Error, Label.new(self.decl_name_span(), message)))
 }

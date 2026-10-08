@@ -20,6 +20,8 @@ import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TopDeclKind
 import kf_core.ast.declaration.keep_flagged
 import kf_core.ast.statement.Stmt
+import kf_core.intern.*
+import kf_core.ast.expression.*
 
 /// Indexed by Sym id, which the interner hands out densely.
 pub struct Reached {

@@ -1,6 +1,6 @@
 import alloc.list.*
-import kf_core.ast.Sym
 import kf_core.ast.declaration.Param
+import kf_core.intern.Sym
 
 /// A name the lambda body reads from the enclosing scope, captured shared
 /// until the body shows it needs more.

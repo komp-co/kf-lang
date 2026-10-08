@@ -1,15 +1,17 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.Intrinsic
-import kf_core.ast.view
+import kf_core.ast.expression.view
+import kf_core.ast.types.view
 import kf_core.ast.types.Type
 import kf_core.ast.types.type_identity_display
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
-import kf_core.ast.expression.coerce_clone
+import kf_core.ast.expression.Coercion
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import kf_core.lang.Intrinsic
+import kf_lower.ownership.names_contains
 
 /// A hand-written `.clone()` is fresh whatever its receiver.
 fun Expr.expr_is_clone_call(): bool {
@@ -21,7 +23,7 @@ fun Expr.expr_is_clone_call(): bool {
 
 fun is_fresh_owned_producer(rev: &Expr, ctx: &var RcCtx): bool {
     // The auto-clone coerce is fresh too.
-    if rev.coerce == coerce_clone() { return true }
+    if rev.coerce == Coercion.Clone { return true }
     if rev.expr_is_clone_call() { return true }
     val rev_ty = rev.ty
     if !(&rev_ty).is_lang_struct(ctx.string_name) { return false }
@@ -51,7 +53,7 @@ pub fun rc_insert_stmts(stmts: &var List<Stmt>, ctx: &var RcCtx): void {
         stmts.at_mut(i).rc_insert_in_list(&var before, &var after, ctx)
         laid_out.extend(before)
         slots.push(n + laid_out.size())
-        laid_out.push(Stmt.new(no_span(), StmtKind.Break))
+        laid_out.push(Stmt.new(Span.none(), StmtKind.Break))
         laid_out.extend(after)
     }
     splice_into_slots(stmts, laid_out, &slots)
@@ -172,7 +174,7 @@ fun is_fresh_binary(init: &Expr, ctx: &var RcCtx): bool {
 /// view, as it is when bound directly.
 fun if_branch_is_owned(bp: Ptr<Expr>, ctx: &var RcCtx): bool {
     val e = unsafe { *bp }
-    if e.coerce == coerce_clone() { return true }
+    if e.coerce == Coercion.Clone { return true }
     if is_deref_init(e) { return false }
     return when (e.kind) {
         FieldAccess(_, _) => false
@@ -195,7 +197,7 @@ fun is_move_only_if_expr(init: &Expr, ctx: &var RcCtx): bool {
 fun classify_binding(init: &Expr, ctx: &var RcCtx): BindingMode {
     // Must come first: an auto-cloned init owns a fresh copy and must not mark
     // its source moved.
-    if init.coerce == coerce_clone() { return BindingMode.OwnedFresh }
+    if init.coerce == Coercion.Clone { return BindingMode.OwnedFresh }
     // A trait-object coercion packages a borrow; it transfers nothing.
     when (init.kind) {
         DynCoerce(_, _) => return BindingMode.Borrowed
@@ -205,7 +207,7 @@ fun classify_binding(init: &Expr, ctx: &var RcCtx): BindingMode {
     val msrc = move_source_name(init)
     if !msrc.as_str().equals("") { return BindingMode.Moved }
     // Retaining a clone would copy twice.
-    if init.coerce == coerce_clone() { return BindingMode.OwnedFresh }
+    if init.coerce == Coercion.Clone { return BindingMode.OwnedFresh }
     if init.expr_is_clone_call() { return BindingMode.OwnedFresh }
     if is_fresh_alloc(init) { return BindingMode.OwnedFresh }
     // Before the move-only borrow rule.

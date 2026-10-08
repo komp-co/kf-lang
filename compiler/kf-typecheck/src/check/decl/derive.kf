@@ -6,10 +6,10 @@ import alloc.list.*
 
 import kf_core.ast.*
 import kf_core.ast.declaration.*
-import kf_core.ast.annotation.annotation_target_allows
-import kf_core.ast.annotation.lookup_annotation
 import kf_core.diagnostic.*
-import kf_core.ast.annotation.annotation_target_phrase
+import kf_core.intern.*
+import kf_core.lang.*
+import kf_core.ast.annotation.*
 
 pub fun Module.validate_annotations(diags: &var Diagnostics): void {
     while td in &self.decls {
@@ -24,12 +24,11 @@ pub fun Module.validate_annotations(diags: &var Diagnostics): void {
 fun TopDecl.validate_one_annotation(annotation: &Annotation, diags: &var Diagnostics): void {
     val kind = annotation.name
     if kind.as_str().equals("") { return }
-    val info = lookup_annotation(kind.as_str())
     // Any other name is a declared annotation, resolved once imports are.
-    if info.name.as_str().equals("") { return }
-    if !annotation_target_allows(info.target, self) {
-        val message = "`@${kind.as_str()}` can only annotate ${annotation_target_phrase(info.target).as_str()}"
-        diags.emit(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
+    val info = AnnotationInfo.named(kind.as_str()) ?: return
+    if !info.target.allows(self) {
+        val message = "`@${kind.as_str()}` can only annotate ${info.target.phrase().as_str()}"
+        diags.emit(Diagnostic.new(Severity.Error, Label.new(self.decl_name_span(), message)))
         return
     }
     when kind.as_str() {
@@ -47,42 +46,42 @@ fun TopDecl.validate_derive_options(options: &List<String>, diags: &var Diagnost
     while item in &options {
         val name = item.as_str()
         val ok = when (self.kind) {
-            Struct(_fields, _pub) => derivable_on_struct(name)
-            EnumDecl(_variants, _pub) => derivable_on_enum(name)
+            Struct(_fields, _pub) => (DeriveInfo.named(name)?.struct_ok ?: false)
+            EnumDecl(_variants, _pub) => (DeriveInfo.named(name)?.enum_ok ?: false)
             _ => false
         }
         if !ok { bad = true }
     }
     if !bad { return }
     val expected = when (self.kind) {
-        Struct(_fields, _pub) => struct_derive_summary()
-        EnumDecl(_variants, _pub) => enum_derive_summary()
+        Struct(_fields, _pub) => DeriveInfo.expected_on_structs()
+        EnumDecl(_variants, _pub) => DeriveInfo.expected_on_enums()
         _ => String.from("")
     }
     val message = "unsupported `@derive` option: expected ${expected.as_str()}"
-    diags.emit(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
+    diags.emit(Diagnostic.new(Severity.Error, Label.new(self.decl_name_span(), message)))
 }
 
 /// An `@allow` naming no registered lint suppresses nothing silently.
 fun TopDecl.validate_allow_names(names: &List<String>, diags: &var Diagnostics): void {
     while name in &names {
-        if !lint_exists(name) {
+        if !LintInfo.exists(name.as_str()) {
             val message = "`@allow(...)` names no lint `${name}`"
-            diags.emit(new_diagnostic(Severity.Error, new_label(self.decl_name_span(), message)))
+            diags.emit(Diagnostic.new(Severity.Error, Label.new(self.decl_name_span(), message)))
         }
     }
 }
 
 pub mutating fun Module.expand_derives(): void {
-    val clone_sym = self.lang_trait_name(lang_clone_key())
+    val clone_sym = self.lang_trait_name(LangItem.Clone)
     val cloned = self.types_with_impl_of(clone_sym)
     var synth = List.new<TopDecl>()
     while td in &self.decls {
         val options = (&td).annotation_words("derive")
         while option in &options {
-            val entry = lookup_derive(option)
-            if !entry.name.as_str().equals("") && derive_admits(entry, &td) {
-                val trait_sym = self.lang_trait_name(entry.lang_key)
+            val entry = DeriveInfo.named(option.as_str()) ?: continue
+            if derive_admits(entry, &td) {
+                val trait_sym = self.lang_trait_name(entry.lang)
                 synth.push(expand_one_derive(entry.expander, &td, trait_sym))
             }
         }
@@ -153,8 +152,8 @@ fun expand_one_derive(expander: DeriveExpander, td: &TopDecl, trait_sym: Sym): T
             Clone => synth_clone_impl(td.name.as_string(), td.span, td.crate, td.module_path, trait_sym)
             Copy => synth_copy_impl(td.name.as_string(), td.span, td.decl_name_span(), td.crate,
                 td.module_path, trait_sym)
-            _ => new_top_decl(td.span, String.from(""), TopDeclKind.Poison)
+            _ => TopDecl.new(td.span, String.from(""), TopDeclKind.Poison)
         }
-        _ => new_top_decl(td.span, String.from(""), TopDeclKind.Poison)
+        _ => TopDecl.new(td.span, String.from(""), TopDeclKind.Poison)
     }
 }

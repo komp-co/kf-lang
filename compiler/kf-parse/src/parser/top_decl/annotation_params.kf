@@ -31,7 +31,7 @@ impl Parser {
         self.advance()
         if !self.take_op(Operator.Colon) {
             self.parse_err(self.peek().span, String.from("expected `:` and a type after the parameter name"))
-            return new_param(at, name, poison_type_ref_at(at))
+            return Param.new(at, name, poison_type_ref_at(at))
         }
         val kind = self.peek_name_kind()
         var ty = when (kind) {
@@ -46,7 +46,7 @@ impl Parser {
             self.advance()
             ty = variadic_param_type(ty.span, ty)
         }
-        var param = new_param(at, name, Box.new(ty))
+        var param = Param.new(at, name, Box.new(ty))
         if self.take_op(Operator.Eq) { param.default = Box.new(self.parse_expr()) }
         return param
     }

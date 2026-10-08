@@ -12,7 +12,9 @@ import kf_core.diagnostic.*
 /// or -1.
 pub fun check_manual_index_loop(at: Span, counter: int64, body: &List<Stmt>, walk: &var LintWalk): void {
     if counter < 0 || body.is_empty() || !body[body.size() - 1].steps_by_one(counter) { return }
-    walk.found.push(lint_at("manual_index_loop", at, String.from("this loop counts by hand; write `while i in 0..n`")))
+    walk.found.push(
+        Diagnostic.lint_at("manual_index_loop", at, String.from("this loop counts by hand; write `while i in 0..n`"))
+    )
 }
 
 /// `i = i + 1` for the variable `counter`.

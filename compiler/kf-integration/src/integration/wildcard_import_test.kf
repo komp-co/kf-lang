@@ -68,7 +68,7 @@ fun check_wildcard_fixture(name: str): int32 {
 fun wildcard_fixture_diags(name: str): List<Diagnostic> {
     val dir = "${scratch_root()}/${name}_app"
     val smap = fresh_source_map()
-    var pdiags = new_diagnostics()
+    var pdiags = Diagnostics.new()
     var merged = assemble_project(dir, smap, &var pdiags)
     return merged.collect_module_diags(smap)
 }

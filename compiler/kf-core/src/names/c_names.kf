@@ -1,0 +1,86 @@
+// Emitted C names that must not collide with a user's name or with one the C
+// implementation has taken. Generated names use the reserved prefix `kf__`.
+//
+// In kf-core because kf-interface writes the same glue names into a `.kfi`
+// and cannot see kf-codegen; two spellings would drift into a link error.
+
+import alloc.list.*
+
+/// Types whose C identity the runtime fixes.
+val RUNTIME_TYPE_NAMES: str[] = [
+    "str", "Box", "Ptr", "bool", "char", "void", "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32",
+    "uint64", "float32", "float64"
+]
+
+/// What GCC reserves when it follows `__`: its keyword aliases and the
+/// preprocessor's predefined names.
+val GCC_ALIASES: str[] = [
+    "alignof", "asm", "attribute", "auto_type", "complex", "const", "extension", "float128", "imag", "inline",
+    "int128", "label", "real", "restrict", "signed", "thread", "typeof", "volatile", "DATE", "FILE", "FUNCTION",
+    "LINE", "PRETTY_FUNCTION", "STDC", "TIME", "VA_ARGS", "func"
+]
+
+/// The C23 keywords a KFlat identifier can spell, listed explicitly: a missed
+/// keyword is a cc error, an extra one a needless rename.
+val C_KEYWORDS: str[] = [
+    "auto", "char", "const", "double", "extern", "float", "inline", "int", "long", "register", "restrict", "short",
+    "signed", "static", "typedef", "union", "unsigned", "void", "volatile", "break", "case", "continue", "default",
+    "do", "else", "enum", "for", "goto", "if", "return", "sizeof", "struct", "switch", "while", "alignas",
+    "alignof", "bool", "constexpr", "false", "nullptr", "static_assert", "thread_local", "true", "typeof"
+]
+
+/// The spelling of each kind of C identifier the compiler emits.
+pub struct CName {}
+
+impl CName {
+    /// A type whose C identity the runtime fixes: never crate-qualified or
+    /// carried as hidden support. Containers are lang items; ask
+    /// `is_container_type_name`.
+    pub static fun is_runtime_type(name: str): bool {
+        return RUNTIME_TYPE_NAMES.contains(&name)
+    }
+
+    /// A generic instance's name, which holds the `__` separator.
+    pub static fun is_mangled(name: str): bool {
+        return name.contains("__")
+    }
+
+    /// Locals are emitted as `__<name>`, except where that is a GCC keyword alias
+    /// (`__signed`), which takes `__kf__<name>` instead.
+    pub static fun local(name: str): String {
+        val prefix = if CName.is_gcc_alias(name) { "__kf__" } else { "__" }
+        return "${prefix}${name}"
+    }
+
+    /// A field keeps its KFlat name unless it is a C keyword, in which case it is
+    /// escaped: `int32_t signed;` does not compile.
+    pub static fun field(name: str): String {
+        return if C_KEYWORDS.contains(&name) { "kf__f__${name}" } else { String.from(name) }
+    }
+
+    /// `kf__tag__<E>`, reserved-prefixed so it cannot collide with a method.
+    pub static fun enum_tag_type(name: str): String {
+        return "kf__tag__${name}"
+    }
+
+    /// `kf__tag__<E>__<V>`. `<E>_Tag_<V>` would be the mangle of a method named
+    /// `Tag_<V>`.
+    pub static fun enum_tag_const(ename: str, vname: str): String {
+        return "${CName.enum_tag_type(ename)}__${vname}"
+    }
+
+    /// `kf__retain__<T>`. `<T>_retain` would be the mangle of a method named
+    /// `retain`.
+    pub static fun retain_fn(name: str): String {
+        return "kf__retain__${name}"
+    }
+
+    /// `__<name>` is one of GCC's keyword aliases. GCC spells each both `__x`
+    /// and `__x__`, so a trailing `__` is dropped before the lookup, and
+    /// `__builtin_*` is a family, matched by prefix.
+    static fun is_gcc_alias(name: str): bool {
+        if name.starts_with("builtin_") { return true }
+        val bare = if name.ends_with("__") { name.substring(0, name.byte_len() - 2) } else { String.from(name) }
+        return GCC_ALIASES.contains(&bare.as_str())
+    }
+}

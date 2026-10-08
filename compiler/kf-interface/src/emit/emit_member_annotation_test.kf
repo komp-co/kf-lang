@@ -1,32 +1,35 @@
 import alloc.list.*
 import core.assert.assert_eq
 
-import kf_core.span.no_span
+import kf_core.span.Span
 import kf_core.ast.*
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.declaration.*
-import kf_core.ast.annotation.new_annotation
+import kf_core.ast.annotation.Annotation
+import kf_core.intern.intern
+import kf_core.intern.CrateId
+import kf_core.ast.annotation.*
 import kf_interface.parse.parse_interface
 import testing.test
 
 /// `@rename("id")`.
 fun rename_use(): Annotation {
     var args = List.new<AnnotationArg>()
-    val value = Expr.new(no_span(), ExprKind.LitStr(String.from("id")))
+    val value = Expr.new(Span.none(), ExprKind.LitStr(String.from("id")))
     args.push(AnnotationArg { name: intern(""), value: Box.new(value) })
-    return Annotation { name: intern("rename"), args: args, has_parens: true, span: no_span() }
+    return Annotation { name: intern("rename"), args: args, has_parens: true, span: Span.none() }
 }
 
 fun member_module(kind: TopDeclKind): Module {
-    var decl = new_top_decl(no_span(), String.from("User"), kind)
-    decl.crate = new_crate_id("sample")
+    var decl = TopDecl.new(Span.none(), String.from("User"), kind)
+    decl.crate = CrateId.new("sample")
     decl.module_path = intern("sample")
     var decls = List.new<TopDecl>()
     decls.push(decl)
-    return Module { crate: new_crate_id("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
+    return Module { crate: CrateId.new("sample"), path: List.new<String>(), decls: decls, imports: List.new<Import>() }
 }
 
 /// The first member's uses as `m` reads back, each as written.
@@ -52,10 +55,10 @@ fun round_trip_member_uses(m: Module): String {
 
 @test
 fun a_field_annotation_crosses_the_interface(): void {
-    var field = new_field(no_span(), String.from("user_id"), Box.new(TypeRef.new(no_span(),
+    var field = Field.new(Span.none(), String.from("user_id"), Box.new(TypeRef.new(Span.none(),
         TypeRefKind.Named(intern("int64"), List.new<TypeRef>()))), false, true)
     field.annotations.push(rename_use())
-    field.annotations.push(new_annotation(no_span(), "skip", List.new<String>()))
+    field.annotations.push(Annotation.new(Span.none(), "skip", List.new<String>()))
     var fields = List.new<Field>()
     fields.push(field)
     val text = round_trip_member_uses(member_module(TopDeclKind.Struct(fields, true)))
@@ -64,7 +67,7 @@ fun a_field_annotation_crosses_the_interface(): void {
 
 @test
 fun a_variant_annotation_crosses_the_interface(): void {
-    var variant = new_variant(no_span(), String.from("Circle"), List.new<TypeRef>())
+    var variant = Variant.new(Span.none(), String.from("Circle"), List.new<TypeRef>())
     variant.annotations.push(rename_use())
     var variants = List.new<Variant>()
     variants.push(variant)

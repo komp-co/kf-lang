@@ -14,9 +14,9 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.Intrinsic
 import kf_core.ast.Module
-import kf_core.ast.view
+import kf_core.ast.expression.view
+import kf_core.ast.types.view
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.TopDecl
@@ -192,7 +192,7 @@ fun report_conflicts(claims: &List<Claim>, at: Span, diags: &var Diagnostics): v
 
 fun Claim.emit_conflict(b: &Claim, at: Span, diags: &var Diagnostics): void {
     val message = self.conflict_message(b)
-    diags.emit(new_diagnostic(Severity.Error, new_label(at, message)))
+    diags.emit(Diagnostic.new(Severity.Error, Label.new(at, message)))
 }
 
 fun Claim.conflict_message(b: &Claim): String {

@@ -5,7 +5,7 @@ import alloc.list.*
 
 import kf_core.span.*
 import kf_core.diagnostic.*
-import kf_core.ast.new_module
+import kf_core.ast.Module
 import kf_lower.new_reached
 import testing.test
 
@@ -61,7 +61,7 @@ fun fresh_warn_state(): WarnState {
 }
 
 @test fun a_module_with_no_main_filters_nothing(): void {
-    val m = new_module(List.new<String>())
+    val m = Module.new(List.new<String>())
     val w = m.new_warn_state()
     assert_eq(w.prune, false, "a library's exports ARE its API, so nothing is unreachable")
 }

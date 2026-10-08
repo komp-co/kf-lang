@@ -3,7 +3,7 @@
 // in what a template adds. Its arguments, the template's code, are checked
 // there too.
 
-import kf_core.ast.Sym
+import kf_core.intern.Sym
 import kf_core.ast.expression.Expr
 
 /// Where names resolved before a scoped call.

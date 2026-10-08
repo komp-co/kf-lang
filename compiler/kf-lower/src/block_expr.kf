@@ -23,6 +23,11 @@ import kf_core.ast.declaration.TopDecl
 import kf_core.ast.declaration.TopDeclKind
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
+import kf_core.intern.*
+import kf_core.ast.pattern.*
+import kf_core.ast.statement.*
+import kf_core.ast.expression.*
+import kf_core.ast.types.*
 import kf_typecheck.types.type_to_type_ref
 
 /// Per-function counter, so two block values get distinct temporaries.
@@ -224,7 +229,7 @@ fun some_arm_tail_branches(arms: &List<Arm>): bool {
     while a in &arms {
         val n = a.body.size()
         if n > 0 {
-            if stmt_value_expr(a.body.at(n - 1)).is_none() {
+            if a.body.at(n - 1).value_expr().is_none() {
                 if list_yields_value(&a.body) { return true }
             }
         }

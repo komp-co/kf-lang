@@ -12,6 +12,8 @@ import kf_core.ast.expression.Expr
 import kf_core.ast.declaration.Param
 import kf_core.ast.declaration.TopDecl
 import kf_core.ast.statement.Stmt
+import kf_core.intern.*
+import kf_core.ast.pattern.*
 
 struct Binding {
     val name: Sym

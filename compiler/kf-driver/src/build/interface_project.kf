@@ -4,8 +4,8 @@
 import alloc.list.*
 
 import kf_core.ast.Module
-import kf_core.ast.new_crate_id
 import kf_core.diagnostic.*
+import kf_core.intern.CrateId
 import kf_assemble.*
 import kf_codegen.*
 import kf_interface.export_closure_diagnostics
@@ -56,7 +56,7 @@ pub struct CrateCheck {
 /// before Resolve.
 pub fun CompileUnit.check_crate(interfaces: &InterfaceLookup, overlay: &Overlay, cfg: &LintConfig): CrateCheck {
     val smap = fresh_source_map()
-    var parse_diags = new_diagnostics()
+    var parse_diags = Diagnostics.new()
     var modules = List.new<Module>()
     while dependency in &self.loads {
         val path = interfaces.path_of(dependency)
@@ -74,7 +74,7 @@ pub fun CompileUnit.check_crate(interfaces: &InterfaceLookup, overlay: &Overlay,
     if parsed.size() > 0 { return CrateCheck { failure: "", diagnostics: parsed, smap: smap } }
     var merged = merge_module_list(modules)
     // The checked crate, or every "is this file mine?" lint returns nothing.
-    merged.crate = new_crate_id(self.name)
+    merged.crate = CrateId.new(self.name.as_str())
     val source_lints = apply_lint_levels(lint_module(&merged, &*smap, &cfg.options), &merged, cfg)
     var diagnostics = merged.checked_diagnostics(smap, cfg)
     while d in &source_lints { diagnostics.push(d.clone()) }
@@ -114,7 +114,7 @@ pub fun CompileUnit.compile_test_crate_against_interfaces(artifacts: str, entry_
 fun CompileUnit.compile_crate_mode(artifacts: str, is_bin_root: bool, include_tests: bool, entry_file: str,
     errors: &var Diagnostics): CrateCompileResult {
     val smap = fresh_source_map()
-    var diagnostics = new_diagnostics()
+    var diagnostics = Diagnostics.new()
     var modules = List.new<Module>()
     while dependency in &self.loads {
         val path = crate_interface_path(artifacts, dependency)
@@ -141,9 +141,9 @@ fun CompileUnit.compile_crate_mode(artifacts: str, is_bin_root: bool, include_te
     add_entry_file(&var modules, entry_file, self.name, smap)
     var merged = merge_module_list(modules)
     // Separate mode: instances become this TU's static support.
-    merged.crate = new_crate_id(self.name)
+    merged.crate = CrateId.new(self.name.as_str())
     merged.run_interface_passes(errors, smap)
-    val own = new_crate_id(self.name)
+    val own = CrateId.new(self.name.as_str())
     val closure_errors = export_closure_diagnostics(&merged, own)
     while closure_error in &closure_errors {
         runtime_println(closure_error)

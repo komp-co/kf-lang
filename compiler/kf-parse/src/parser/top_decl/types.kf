@@ -1,11 +1,11 @@
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.ast.intern
 import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.*
 import kf_core.ast.statement.Stmt
+import kf_core.intern.intern
 import kf_parse.parser.*
 
 impl Parser {
@@ -47,7 +47,7 @@ impl Parser {
         val tps = self.parse_type_params() // optional <...> on the trait
         val supers = self.parse_supertraits() // optional `: A, B`
         val methods = self.parse_brace_methods()
-        var td = new_top_decl(span, name, TopDeclKind.TraitDecl(methods, is_pub, supers))
+        var td = TopDecl.new(span, name, TopDeclKind.TraitDecl(methods, is_pub, supers))
         td.name_span = name_at
         td.generics = tps
         return td
@@ -91,7 +91,7 @@ impl Parser {
             val name_span = self.peek().span
             val name = self.expect_name("type parameter")
             unsafe { self.advance() }
-            var tp = new_type_param(name_span, name)
+            var tp = TypeParam.new(name_span, name)
             self.skip_newlines()
             if is_op(self.peek(), Operator.Colon) {
                 unsafe { self.advance() } // consume `:`
@@ -152,10 +152,10 @@ impl Parser {
         val params = self.parse_param_list()
         val ret = self.parse_fun_ret(span)
         val body = self.parse_fun_body(ret)
-        var td = new_top_decl(span, name, TopDeclKind.Function(params, ret, body, is_pub, false, is_mutating, is_static))
+        var td = TopDecl.new(span, name, TopDeclKind.Function(params, ret, body, is_pub, false, is_mutating, is_static))
         td.name_span = name_at
         td.generics = tps
-        if !has_name { return new_top_decl(span, "", TopDeclKind.Poison) }
+        if !has_name { return TopDecl.new(span, "", TopDeclKind.Poison) }
         return td
     }
 
@@ -216,7 +216,7 @@ impl Parser {
         unsafe { self.advance() }
         if is_op(self.peek(), Operator.Colon) {
             unsafe { self.advance() }
-            var param = new_param(name_tok_span, name, self.parse_type_ref_ptr())
+            var param = Param.new(name_tok_span, name, self.parse_type_ref_ptr())
             self.reject_variadic()
             if is_op(self.peek(), Operator.Eq) {
                 unsafe { self.advance() }
@@ -225,7 +225,7 @@ impl Parser {
             return param
         }
         self.parse_err(self.peek().span, String.from("expected `:` and a type after the parameter name (every parameter needs a type annotation)"))
-        return new_param(name_tok_span, name, poison_type_ref_at(name_tok_span))
+        return Param.new(name_tok_span, name, poison_type_ref_at(name_tok_span))
     }
 
     /// `struct Name { val field1: Type, var field2: Type }`, consuming
@@ -273,7 +273,7 @@ impl Parser {
         }
         self.member_loop = outer
 
-        var td = new_top_decl(span, name, TopDeclKind.Struct(fields, is_pub))
+        var td = TopDecl.new(span, name, TopDeclKind.Struct(fields, is_pub))
         td.name_span = name_at
         td.generics = tps
         return td
@@ -315,7 +315,7 @@ impl Parser {
             self.parse_err(self.peek().span, "expected `{` to open the enum body, found ${tok_str(self.peek())}")
         }
 
-        var td = new_top_decl(span, name, TopDeclKind.EnumDecl(variants, is_pub))
+        var td = TopDecl.new(span, name, TopDeclKind.EnumDecl(variants, is_pub))
         td.name_span = name_at
         td.generics = tps
         return td
@@ -344,7 +344,7 @@ impl Parser {
             }
         }
 
-        return new_variant(name_span, name, payloads)
+        return Variant.new(name_span, name, payloads)
     }
 
     /// `[pub] (val|var) name: Type`.
@@ -369,11 +369,11 @@ impl Parser {
 
         if is_op(self.peek(), Operator.Colon) {
             unsafe { self.advance() }
-            var field = new_field(name_span, name, self.parse_type_ref_ptr(), is_var, is_field_pub)
+            var field = Field.new(name_span, name, self.parse_type_ref_ptr(), is_var, is_field_pub)
             field.is_internal = is_field_internal
             return field
         }
         self.parse_err(self.peek().span, String.from("expected `:` and a type after the field name (every field needs a type annotation)"))
-        return new_field(name_span, name, poison_type_ref_at(name_span), is_var, is_field_pub)
+        return Field.new(name_span, name, poison_type_ref_at(name_span), is_var, is_field_pub)
     }
 }

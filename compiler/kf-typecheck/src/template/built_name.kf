@@ -5,8 +5,8 @@
 import alloc.list.*
 
 import kf_core.span.Span
-import kf_core.ast.Sym
-import kf_core.ast.intern
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.declaration.TopDecl
@@ -99,5 +99,5 @@ fun TopDecl.report_built_names(diags: &var List<Diagnostic>): void {
 }
 
 fun report_built(at: Span, name: Sym, diags: &var List<Diagnostic>): void {
-    diags.push(error_at(at, "`${name.as_str()}` is built from facts, which only a template's code can do"))
+    diags.push(Diagnostic.error_at(at, "`${name.as_str()}` is built from facts, which only a template's code can do"))
 }

@@ -8,9 +8,8 @@ import kf_core.ast.types.TypeRef
 import kf_core.ast.types.TypeRefKind
 import kf_core.ast.declaration.Param
 import kf_core.ast.declaration.TopDecl
-import kf_core.ast.declaration.new_param
 import kf_interface.emit.tyref_to_source
-import kf_core.diagnostic.new_diagnostics
+import kf_core.diagnostic.Diagnostics
 import kf_typecheck.new_type_ctx
 import kf_typecheck.check.extensions_callable_on
 
@@ -50,7 +49,7 @@ pub fun extension_call_params(params: &List<Param>, td: &TopDecl): List<Param> {
     }
     val slot: Ptr<TypeRef> = unsafe { alloc<TypeRef>() }
     unsafe { *slot = shown }
-    out.push(new_param(first.span, String.from("self"), slot))
+    out.push(Param.new(first.span, String.from("self"), slot))
     while p in &extension_written_params(params) {
         out.push(p.clone())
     }
@@ -74,7 +73,7 @@ pub fun written_as_function(src: str, start: uint32, name: str): bool {
 /// The hidden names of the extensions a call on `receiver` would pick: the
 /// checker's verdict, so a bound the receiver does not meet rules one out.
 pub fun TypedCrate.callable_extensions(receiver: &Type): List<String> {
-    var sink = new_diagnostics()
+    var sink = Diagnostics.new()
     var ctx = new_type_ctx(Type.new_poison(), &var sink, null, self.sigs)
     // Visibility is judged from the queried file's module.
     while td in &self.module.decls {

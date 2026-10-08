@@ -1,13 +1,13 @@
 import alloc.list.*
 
-import kf_core.ast.*
 import kf_core.ast.types.Type
 import kf_core.ast.types.TypeKind
 import kf_core.ast.types.type_identity_display
 import kf_core.ast.expression.Expr
-import kf_core.diagnostic.new_label
-import kf_core.diagnostic.new_diagnostic
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
 import kf_core.span.*
+import kf_core.ast.pattern.*
 import kf_typecheck.types.join_arm_types
 import kf_typecheck.types.type_eq
 import kf_typecheck.types.mangle_type
@@ -65,7 +65,7 @@ fun check_when_guard(guard: Ptr<Expr>, ctx: &var TypeCtx): void {
     }
     if is_bool { return }
     val message = "a `when` guard must be a `bool`, found `${ty.display_type(ctx)}`"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(unsafe { guard.span }, message)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(unsafe { guard.span }, message)))
 }
 
 /// The join of every arm's type, then every arm made to carry it. Two passes,
@@ -128,7 +128,7 @@ pub fun check_if_expr(cond_ptr: Ptr<Expr>, then_ptr: Ptr<Expr>, else_ptr: Ptr<Ex
     check_expr(unsafe { &var *cond_ptr }, ctx)
     check_expr(unsafe { &var *then_ptr }, ctx)
     if expr_is_empty_block(unsafe { &*else_ptr }) {
-        ctx.emit(new_diagnostic(Severity.Error, new_label(span, String.from("this `if` is used as a value, so it needs an `else` branch that produces one (both paths must)"))))
+        ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, String.from("this `if` is used as a value, so it needs an `else` branch that produces one (both paths must)"))))
         return Type.new_poison()
     }
     check_expr(unsafe { &var *else_ptr }, ctx)
@@ -164,7 +164,7 @@ fun emit_if_arm_mismatch(want: Type, got: Type, span: Span, ctx: &var TypeCtx): 
     msg.append("`, but the other yields `")
     msg.append(mangle_type(want).as_str())
     msg.append("` — both branches of an `if` used as a value have one type")
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
 }
 
 fun emit_when_arm_mismatch(want: Type, got: Type, span: Span, ctx: &var TypeCtx): void {
@@ -175,7 +175,7 @@ fun emit_when_arm_mismatch(want: Type, got: Type, span: Span, ctx: &var TypeCtx)
     msg.append("`, but an earlier arm yields `")
     msg.append(mangle_type(want).as_str())
     msg.append("` — every arm of a `when` expression has one type")
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, msg)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
 }
 
 /// A bare identifier as a whole arm pattern binds; it never compares.
@@ -192,7 +192,7 @@ fun Pattern.report_shadowing_pattern(ctx: &var TypeCtx): void {
                     var msg = String.from("`")
                     msg.append(text)
                     msg.append("` is already a binding here, and a bare name in a pattern BINDS rather than compares — this arm matches everything. Compare with a guard or an `if`, or rename the pattern to bind a new value")
-                    ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, msg)))
+                    ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, msg)))
                 }
             }
         }
@@ -239,7 +239,7 @@ fun Pattern.check_literal_pattern(subject_ty: Type, literal: str, ctx: &var Type
     }
     if fits { return }
     val message = "this pattern is ${literal}, but the subject is `${subject_ty.display_type(ctx)}`"
-    ctx.emit(new_diagnostic(Severity.Error, new_label(self.span, message)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(self.span, message)))
 }
 
 fun PatternKind.is_int_literal(): bool {
@@ -271,14 +271,14 @@ fun Pattern.reclassify_ident_variant(): Pattern? {
     when (self.kind) {
         Identifier(name) => {
             if !is_variant_spelling(name.as_str()) { return null }
-            return new_pattern(self.span, PatternKind.Variant(name, List.new<Pattern>()))
+            return Pattern.new(self.span, PatternKind.Variant(name, List.new<Pattern>()))
         }
         Or(alternatives) => {
             var rewritten = List.new<Pattern>()
             while alternative in &alternatives {
                 rewritten.push(alternative.reclassify_ident_variant() ?: alternative.clone())
             }
-            return new_pattern(self.span, PatternKind.Or(rewritten))
+            return Pattern.new(self.span, PatternKind.Or(rewritten))
         }
         _ => return null
     }
@@ -365,7 +365,7 @@ fun report_missing_variant(variant_name: String, subject_ty: Type, span: Span, c
     if variant_name.as_str() == "Some" || variant_name.as_str() == "None" {
         message.append(" — `Some`, `None` and `?:` take an optional (`T?`)")
     }
-    ctx.emit(new_diagnostic(Severity.Error, new_label(span, message)))
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
 }
 
 /// A scalar, `str` or `void`: no pattern naming a variant can match it.

@@ -2,14 +2,14 @@ import core.assert.assert_eq
 import alloc.list.*
 
 import kf_core.span.*
-import kf_core.diagnostic.error_at
+import kf_core.diagnostic.Diagnostic
 import kf_resolve.*
 import testing.test
 
 fun deferring_ctx(): TypeCtx {
     val signatures: Ptr<SigTable> = unsafe { alloc<SigTable>() }
     unsafe { *signatures = new_sig_table() }
-    return new_type_ctx(Type.new_void(no_span()), unsafe { &var *leaked_diagnostics() }, Option.None, signatures)
+    return new_type_ctx(Type.new_void(Span.none()), unsafe { &var *leaked_diagnostics() }, Option.None, signatures)
 }
 
 fun literal_at(offset: uint32): Span {
@@ -18,7 +18,7 @@ fun literal_at(offset: uint32): Span {
 
 fun mismatch_in(ctx: &var TypeCtx, literal: Span): void {
     val mark = ctx.reported()
-    ctx.emit(error_at(literal, String.from("this element is `bool`, but the array holds `int32`")))
+    ctx.emit(Diagnostic.error_at(literal, String.from("this element is `bool`, but the array holds `int32`")))
     ctx.defer_since(mark, literal)
 }
 
