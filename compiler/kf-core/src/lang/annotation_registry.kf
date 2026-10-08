@@ -54,6 +54,13 @@ impl AnnotationInfo {
         return AnnotationInfo.named(kind).is_some()
     }
 
+    /// A built-in a crate may declare itself: a use that finds a declaration
+    /// is that annotation, and the built-in answers only where none is seen.
+    /// Core declares `derive`, with a template per derivable trait.
+    pub static fun may_be_declared(kind: str): bool {
+        return kind == "derive"
+    }
+
     /// Every one as it is written, as the end of an "expected ..." message.
     pub static fun expected(): String {
         val written = AnnotationInfo.all().map(|known: AnnotationInfo| known.written())

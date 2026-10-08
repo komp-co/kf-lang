@@ -499,6 +499,42 @@ you asked for rather than something that happened to work.
 `Copy` is checked where it is derived: every field must itself be `Copy`, and
 the type must not implement `Drop`. See [Copy](memory.md#copy).
 
+### Declaring `derive`
+
+`derive` is the one built-in a crate may declare itself, as an ordinary
+annotation taking trait names, with a [keyed template](templates.md#keyed-templates)
+for each trait it derives. A use that sees the declaration expands those
+templates instead, and a listed trait with no template is an error at its name.
+`Clone` and `Copy` still come from the compiler, which does the copying, but a
+declared `derive` lists them only if it has a template for them, which may be
+empty:
+
+```kflat
+annotation derive(traits: trait..) on <struct, enum>
+
+trait Counted {
+    fun count(): int64
+}
+
+template derive(Counted) on struct T {
+    impl Counted for T {
+        fun count(): int64 { return T.fields.size() }
+    }
+}
+
+@derive(Counted)
+struct Point {
+    val x: int32
+    val y: int32
+}
+
+fun main(): int32 { return (Point { x: 1, y: 2 }.count() - 2) as int32 }
+```
+
+Core is to declare `derive` this way, with a template for each trait the table
+above lists, so that deriving is code a library writes rather than the
+compiler's.
+
 ## @allow
 
 `@allow(...)` silences the named lints for diagnostics inside the declaration
