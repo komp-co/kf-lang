@@ -52,7 +52,13 @@ fun Stmt.expand_into(x: &var Expansion, out: &var List<Stmt>): void {
                 return
             }
             val taken = if chosen ?: false { expand_stmts(&then_body, x) } else { expand_stmts(&else_body, x) }
-            out.push(self.scope(taken))
+            // A lone value stands where the `if` did, so it is still the
+            // value of an arm or block that ends with it.
+            if taken.is_lone_value() {
+                out.push(taken.at(0).clone())
+            } else {
+                out.push(self.scope(taken))
+            }
         }
         When(subject, arms) => {
             val decided = subject.expanded(x)
@@ -131,5 +137,13 @@ fun expanded_opt_type(ty: &Box<TypeRef>?, x: &var Expansion): Box<TypeRef>? {
     return when (ty) {
         Some(inner) => Option.Some(Box.new(inner.expanded_type(x)))
         None => null
+    }
+}
+
+fun List<Stmt>.is_lone_value(): bool {
+    if self.size() != 1 { return false }
+    return when (self.at(0).kind) {
+        Expression(_value) => true
+        _ => false
     }
 }
