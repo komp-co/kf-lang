@@ -1,0 +1,65 @@
+// A template's code reaches the template's own private helpers from a
+// member loop or `T.build`, in the crate it expands into.
+
+import core.assert.assert_eq
+import kf_integration.harness.komp_build_unity
+import kf_integration.harness.komp_run
+import testing.test
+
+fun helping_library(): str {
+    return """pub annotation helped on struct
+
+pub trait Zeroed {
+    static fun zero(): Self
+}
+
+impl Zeroed for int32 {
+    static fun zero(): int32 { return 0 }
+}
+
+fun plain(): int32 { return 7 }
+fun zero_of<D: Zeroed>(): D { return D.zero() }
+
+template helped on struct T {
+    impl T {
+        static fun looped(): int32 {
+            var total = 0
+            while field in T.fields {
+                total = total + plain()
+            }
+            return total
+        }
+        static fun zeroed(): T { return T.build(|field| zero_of<field.type>()) }
+    }
+}
+"""
+}
+
+fun helped_app(lib: str): String {
+    return """import ${lib}.helped
+
+@helped
+struct P {
+    val x: int32
+    val y: int32
+}
+
+fun main(): int32 { return P.looped() - 14 + P.zeroed().x }
+"""
+}
+
+@test
+fun a_template_reaches_its_private_helpers_from_another_crate(): void {
+    write_across_crate("th_lib", "lib", "", helping_library())
+    val deps = "\n[dependencies]\nth_lib = { path = \"../kf_template_across_th_lib\" }\n"
+    write_across_crate("th_app", "bin", deps, helped_app("th_lib").as_str())
+    assert_eq(komp_run(across_dir("th_app")), 0, "from a member loop and from `T.build`'s lambda")
+}
+
+@test
+fun a_unity_build_reaches_a_template_s_private_helpers(): void {
+    write_across_crate("thu_lib", "lib", "", helping_library())
+    val deps = "\n[dependencies]\nthu_lib = { path = \"../kf_template_across_thu_lib\" }\n"
+    write_across_crate("thu_app", "bin", deps, helped_app("thu_lib").as_str())
+    assert_eq(komp_build_unity(across_dir("thu_app")), 0, "and in one unit")
+}
