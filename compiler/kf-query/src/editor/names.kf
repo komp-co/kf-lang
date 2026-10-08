@@ -252,8 +252,10 @@ fun Expr.record_name(found: &var List<NameSpan>): void {
     found.push(NameSpan { span: span, decl: self.decl, role: intern(role), is_decl: false, member: self.member_key() })
 }
 
-/// `Red` of `Color.Red` and `Some` of `Option.Some(x)` or `Some(x)`.
+/// `Red` of `Color.Red` and `Some` of `Option.Some(x)` or `Some(x)`. A
+/// constructor the checker wrote, `None` for a `null`, names nothing.
 fun Expr.record_variant(found: &var List<NameSpan>): void {
+    if self.name_span.is_none() { return }
     val span = when (self.kind) {
         Call(_n, _args) => self.written_name_span()
         MethodCall(_r, _m, _args) => self.written_name_span()
