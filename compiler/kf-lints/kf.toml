@@ -1,5 +1,5 @@
 [project]
-name = "kf_lint"
+name = "kf_lints"
 version = "0.1.0"
 kind = "lib"
 
@@ -7,6 +7,7 @@ kind = "lib"
 core = { path = "../../libs/core" }
 alloc = { path = "../../libs/alloc" }
 kf_core = { path = "../kf-core" }
+kf_parse = { path = "../kf-parse" }
 
 [dev-dependencies]
 testing = { path = "../../libs/testing" }

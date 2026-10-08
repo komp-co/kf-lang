@@ -7,11 +7,13 @@ import alloc.list.*
 pub struct LintOptions {
     var names: List<String>
     var values: List<int64>
+    /// How far past its limit each file already is, for the ratchet lints.
+    pub var baseline: LintBaseline
 }
 
 impl LintOptions {
     pub static fun none(): LintOptions {
-        return LintOptions { names: [], values: List.new<int64>() }
+        return LintOptions { names: [], values: List.new<int64>(), baseline: LintBaseline.none() }
     }
 
     pub mutating fun set(lint: str, key: str, value: int64): void {

@@ -26,11 +26,16 @@ pub struct LintConfig {
     pub var deny_warnings: bool
     /// lint.toml's option rows, over the registry's defaults.
     pub var options: LintOptions
+    /// `--lint-baseline`'s file, absolute; "" for none.
+    pub var baseline_path: String
+    /// `--update-lint-baseline`: rewrite the checked crate's rows.
+    pub var update_baseline: bool
 }
 
 pub fun new_lint_config(): LintConfig {
     return LintConfig {
-        names: List.new<String>(), levels: List.new<LintLevel>(), deny_warnings: false, options: LintOptions.none()
+        names: List.new<String>(), levels: List.new<LintLevel>(), deny_warnings: false, options: LintOptions.none(),
+        baseline_path: String.from(""), update_baseline: false
     }
 }
 
@@ -280,5 +285,6 @@ pub fun project_lint_config(diags: &var List<Diagnostic>): LintConfig {
     var cfg = new_lint_config()
     cfg.apply_table_lint_flags(diags)
     cfg.apply_cli_lint_flags(diags)
+    cfg.load_baseline(diags)
     return cfg
 }

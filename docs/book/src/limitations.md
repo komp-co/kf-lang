@@ -121,8 +121,6 @@ on a struct holding one ([#299]). Compare or print the elements instead.
 
 ## Templates
 
-- A [template](lang/templates.md) does not add to a generic struct or enum
-  ([#296]).
 - An annotation's [name argument](lang/annotations.md#names-and-the-rest) is
   checked to name a declaration of its kind, not that the use can see it
   ([#188]).
@@ -216,7 +214,6 @@ not agree with it in every case.
 [#190]: https://github.com/komp-co/komp/issues/190
 [#194]: https://github.com/komp-co/komp/issues/194
 [#216]: https://github.com/komp-co/komp/issues/216
-[#296]: https://github.com/komp-co/komp/issues/296
 [#187]: https://github.com/komp-co/kf-lang/issues/187
 [#188]: https://github.com/komp-co/kf-lang/issues/188
 [#297]: https://github.com/komp-co/komp/issues/297

@@ -52,6 +52,16 @@ impl DeriveInfo {
         ]
     }
 
+    /// `Clone` or `Copy`: the compiler copies, so it derives these even where
+    /// a declared `derive` expands templates for the rest.
+    pub fun is_copying(): bool {
+        return when (self.expander) {
+            Clone => true
+            Copy => true
+            _ => false
+        }
+    }
+
     /// None when nothing answers to `name`.
     pub static fun named(name: str): DeriveInfo? {
         return DeriveInfo.all().find(|option: &DeriveInfo| option.name.as_str() == name)

@@ -1,0 +1,159 @@
+// A name fact in another case: `field.name.snake_case()` is `"user_id"` for
+// a field `userId`, written out as the template expands. The name splits
+// into words at `_` and `-`, before an upper-case letter that follows a
+// lower-case one or a digit, and before the last upper-case letter of a run
+// followed by a lower-case one: `HTTPServer` is `HTTP`, `Server`. A digit
+// stays with the word before it, so `Utf8Error` is `Utf8`, `Error`.
+
+import alloc.list.*
+
+import core.text.byte_at
+import kf_core.intern.Sym
+import kf_core.intern.intern
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+
+/// The case methods, in the order a message lists them, with the
+/// `NameCase` variant `in_case(c)` names each by.
+fun name_cases(): List<String> {
+    return [
+        "snake_case", "kebab_case", "camel_case", "pascal_case", "shouting_snake_case", "lower_case", "upper_case"
+    ]
+}
+
+/// The case method `NameCase.<variant>` stands for; "" for `AsWritten` and
+/// for a name no case has.
+fun case_of_variant(variant: str): str {
+    return when variant {
+        "Snake" => "snake_case"
+        "Kebab" => "kebab_case"
+        "Camel" => "camel_case"
+        "Pascal" => "pascal_case"
+        "ShoutingSnake" => "shouting_snake_case"
+        "Lower" => "lower_case"
+        "Upper" => "upper_case"
+        _ => ""
+    }
+}
+
+/// Whether `method` is one of the case methods.
+fun is_name_case(method: str): bool {
+    while each in &name_cases() {
+        if each.as_str() == method { return true }
+    }
+    return false
+}
+
+/// `name` in the case `method` names; `name` itself for "".
+fun in_case(name: str, method: str): String {
+    if method == "" { return String.from(name) }
+    val words = name_words(name)
+    var out = String.from("")
+    while i in 0..words.size() {
+        val word = words.at(i).as_str()
+        when method {
+            "snake_case" => out.append_word(word, i, "_", WordCase.Lower)
+            "kebab_case" => out.append_word(word, i, "-", WordCase.Lower)
+            "shouting_snake_case" => out.append_word(word, i, "_", WordCase.Upper)
+            "camel_case" => out.append_word(word, i, "", if i == 0 { WordCase.Lower } else { WordCase.Title })
+            "pascal_case" => out.append_word(word, i, "", WordCase.Title)
+            "lower_case" => out.append_word(word, i, "", WordCase.Lower)
+            "upper_case" => out.append_word(word, i, "", WordCase.Upper)
+            _ => out.append(word)
+        }
+    }
+    return out
+}
+
+enum WordCase {
+    Lower
+    Upper
+    Title
+}
+
+mutating fun String.append_word(word: str, index: uint64, separator: str, case: WordCase): void {
+    if index > 0 { self.append(separator) }
+    while i in 0..word.byte_len() {
+        val b = word.byte_at(i)
+        val upper = when (case) {
+            Lower => false
+            Upper => true
+            Title => i == 0
+        }
+        self.push_byte(if upper { to_upper_byte(b) } else { to_lower_byte(b) })
+    }
+}
+
+/// The words of an identifier, as the file comment says.
+fun name_words(name: str): List<String> {
+    var words = List.new<String>()
+    var word = String.from("")
+    val n = name.byte_len()
+    while i in 0..n {
+        val b = name.byte_at(i)
+        if b == 95 || b == 45 {
+            words.push_word(&var word)
+            continue
+        }
+        if name_byte_upper(b) && word.byte_len() > 0 {
+            val before = name.byte_at(i - 1)
+            val next_lower = i + 1 < n && name_byte_lower(name.byte_at(i + 1))
+            val after_run = name_byte_upper(before) && next_lower
+            if name_byte_lower(before) || name_byte_digit(before) || after_run { words.push_word(&var word) }
+        }
+        word.push_byte(b)
+    }
+    words.push_word(&var word)
+    return words
+}
+
+mutating fun List<String>.push_word(word: &var String): void {
+    if word.byte_len() == 0 { return }
+    self.push(word.clone())
+    *word = String.from("")
+}
+
+fun name_byte_upper(b: uint8): bool { return b >= 65 && b <= 90 }
+fun name_byte_lower(b: uint8): bool { return b >= 97 && b <= 122 }
+fun name_byte_digit(b: uint8): bool { return b >= 48 && b <= 57 }
+fun to_upper_byte(b: uint8): uint8 { return if name_byte_lower(b) { b - 32 } else { b } }
+fun to_lower_byte(b: uint8): uint8 { return if name_byte_upper(b) { b + 32 } else { b } }
+
+/// `field.name.snake_case()`, `T.name.in_case(args.case)`: the name in that
+/// case as a literal; null when `self` is no such call.
+fun Expr.name_in_case(receiver: &Expr, method: Sym, args: &List<Expr>, x: &var Expansion): Expr? {
+    val written = method.as_str()
+    if written != "in_case" && !is_name_case(written) { return null }
+    if !receiver.is_name_fact(x) { return null }
+    val name = receiver.expanded(x).text_literal() ?: return null
+    if written != "in_case" {
+        if args.size() > 0 { x.report(self.span, "`${written}()` takes nothing") }
+        return self.fact(ExprKind.LitStr(in_case(name, written)))
+    }
+    val case = if args.size() == 1 { args.at(0).expanded(x).key_name() } else { intern("") }
+    val chosen = case_of_variant(case.as_str())
+    if chosen == "" && case.as_str() != "AsWritten" {
+        x.report(self.span, "`in_case` takes a `NameCase`, such as `NameCase.Snake`, known while the program compiles")
+        return self.fact(ExprKind.Poison)
+    }
+    return self.fact(ExprKind.LitStr(in_case(name, chosen)))
+}
+
+/// `T.name`, or the `name` of a field or variant a binder stands for.
+fun Expr.is_name_fact(x: &Expansion): bool {
+    return when (self.kind) {
+        FieldAccess(owner, member) => {
+            member.as_str() == "name" && (owner.is_variable(x.marked) || owner.bound_member(x) != null)
+        }
+        _ => false
+    }
+}
+
+/// `name` or `name.snake_case()` after a fact's owner in a built name: the
+/// case method, "" for `name` alone, or null for anything else.
+fun case_suffix(member: str): String? {
+    if member == "name" { return String.from("") }
+    if !member.starts_with("name.") || !member.ends_with("()") { return null }
+    val method = member.substring(5, member.byte_len() - 2)
+    return if is_name_case(method) { method } else { null }
+}

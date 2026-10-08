@@ -20,9 +20,7 @@ fun TypeRef.expanded_type(x: &var Expansion): TypeRef {
     if given != null { return given ?: self.clone() }
     when (self.kind) {
         Named(name, args) => {
-            if name.id == x.marked.id && args.size() == 0 {
-                return TypeRef.new(self.span, TypeRefKind.Named(x.type_name, List.new<TypeRef>()))
-            }
+            if name.id == x.marked.id && args.size() == 0 { return x.marked_type(self.span) }
             return TypeRef.new(self.span, TypeRefKind.Named(x.built(name, self.span), expanded_types(&args, x)))
         }
         Projection(owner, member) => {
@@ -127,6 +125,8 @@ fun Expr.expanded_kind(x: &var Expansion): Expr {
             if by_argument != null { return by_argument ?: self.clone() }
             val listed = self.field_list_call(&*receiver, method.as_str(), &args, x)
             if listed != null { return listed ?: self.clone() }
+            val cased = self.name_in_case(&*receiver, method, &args, x)
+            if cased != null { return cased ?: self.clone() }
             val fact = self.member_fact(&*receiver, method, &args, x)
             if fact != null { return fact ?: self.clone() }
             val called = x.built(method, self.span)

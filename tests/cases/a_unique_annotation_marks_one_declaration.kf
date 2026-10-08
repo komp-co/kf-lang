@@ -1,0 +1,18 @@
+//! build: fail
+//! deps: core
+// `unique`: an annotation a crate may use once. A second use is an error
+// naming the first.
+
+annotation registry unique on struct
+
+@registry
+struct First {
+    val x: int32
+}
+
+@registry
+struct Second {
+    val x: int32
+}
+
+fun main(): int32 { return 0 }

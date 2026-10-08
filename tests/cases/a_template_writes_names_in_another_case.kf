@@ -1,0 +1,59 @@
+//! run: exit 0
+//! deps: core, alloc
+// `field.name.snake_case()` and the other cases are written out as the
+// template expands, in code and in built names; `in_case` takes the case as
+// an argument.
+
+enum NameCase { AsWritten, Snake, Kebab, Camel, Pascal, ShoutingSnake, Lower, Upper }
+
+annotation spelled(case: NameCase = NameCase.AsWritten) on enum
+annotation keyed on struct
+
+template spelled on enum T {
+    fun T.spelling(): str {
+        return when (self) {
+            while variant in T.variants {
+                ${variant.name} => variant.name.in_case(args.case)
+            }
+        }
+    }
+}
+
+template keyed on struct T {
+    fun T.keys(): String {
+        var out = String.from("")
+        while field in T.fields {
+            out.append("${field.name.snake_case()} ${field.name.kebab_case()} ${field.name.camel_case()} ")
+            out.append("${field.name.pascal_case()} ${field.name.shouting_snake_case()};")
+        }
+        return out
+    }
+
+    impl T {
+        while field in T.fields {
+            fun get_${field.name.snake_case()}(): int32 { return field.of(self) }
+        }
+    }
+}
+
+@spelled(case = NameCase.Kebab)
+enum Flag {
+    DryRun
+    HTTPProxy
+    Utf8Only
+}
+
+@keyed
+struct Row {
+    val userId: int32
+    val HTTPCode: int32
+}
+
+fun main(): int32 {
+    if Flag.DryRun.spelling() != "dry-run" || Flag.HTTPProxy.spelling() != "http-proxy" { return 1 }
+    if Flag.Utf8Only.spelling() != "utf8-only" { return 2 }
+    val r = Row { userId: 1, HTTPCode: 2 }
+    val want = "user_id user-id userId UserId USER_ID;http_code http-code httpCode HttpCode HTTP_CODE;"
+    if r.keys() != want { return 3 }
+    return r.get_user_id() + r.get_http_code() - 3
+}

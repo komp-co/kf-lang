@@ -12,6 +12,7 @@ import kf_core.ast.expression.FieldInit
 import kf_core.ast.annotation.Annotation
 import kf_core.diagnostic.*
 import kf_core.intern.Sym
+import kf_core.ast.declaration.TypeParam
 
 /// A field or a variant, as a template reads it. A variant has no `ty`,
 /// and a field no `payloads`.
@@ -55,6 +56,9 @@ struct Expansion {
     /// `T`.
     val marked: Sym
     val type_name: Sym
+    /// The marked declaration's type parameters, which what the template
+    /// adds is generic over.
+    val params: List<TypeParam>
     /// The template is on an enum: its members are variants.
     val on_enum: bool
     /// The struct's module, which owns what the template adds, and its file.
@@ -63,6 +67,10 @@ struct Expansion {
     /// Where the marked declaration's name is: `site.file`, `.line` and
     /// `.column`.
     val site: Location
+    /// The template's name and the marked declaration's, for a report from
+    /// `compile_error` outside a member loop.
+    val template_at: Span
+    val marked_at: Span
     val fields: List<FieldFacts>
     /// `args.p`: each parameter's value at this use.
     val args: List<FieldInit>
@@ -73,6 +81,9 @@ struct Expansion {
     var rests: List<Sym>
     /// The binders standing for one value of a variadic argument.
     var values: List<ValueBound>
+    /// How many branches decided only when the program runs enclose the
+    /// statement being expanded.
+    var undecided: uint32
     var diags: List<Diagnostic>
 }
 

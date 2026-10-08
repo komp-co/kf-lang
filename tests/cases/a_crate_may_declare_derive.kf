@@ -1,0 +1,41 @@
+//! run: exit 0
+//! deps: core
+// `derive` is the one built-in a crate may declare: a use that sees the
+// declaration expands its keyed templates, and the compiler derives nothing
+// for it.
+
+annotation derive(traits: trait..) on <struct, enum>
+
+trait Counted {
+    fun count(): int64
+}
+
+template derive(Counted) on struct T {
+    impl Counted for T {
+        fun count(): int64 { return T.fields.size() }
+    }
+}
+
+template derive(Counted) on enum T {
+    impl Counted for T {
+        fun count(): int64 { return T.variants.size() }
+    }
+}
+
+@derive(Counted)
+struct Point {
+    val x: int32
+    val y: int32
+}
+
+@derive(Counted)
+enum Side {
+    Left
+    Right
+    Middle
+}
+
+fun main(): int32 {
+    val p = Point { x: 1, y: 2 }
+    return (p.count() + Side.Left.count() - 5) as int32
+}

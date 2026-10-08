@@ -1,0 +1,37 @@
+// `where T.fields: Equal + Hash` after an impl's target, in a template: the
+// bounds the impl takes for each member the list keeps, which expansion
+// puts on the type parameters a member's type names.
+
+import alloc.list.*
+
+import kf_core.ast.declaration.MemberBound
+import kf_core.ast.types.TypeRef
+import kf_parse.parser.*
+
+impl Parser {
+    /// Each `LIST: TRAIT + TRAIT` after `where`, comma-separated; none
+    /// outside a template or without `where`.
+    mutating fun parse_member_bounds(): List<MemberBound> {
+        var out = List.new<MemberBound>()
+        if self.template_param.as_str().byte_len() == 0 || !self.at_word("where") { return out }
+        self.advance() // consume `where`
+        while true {
+            val at = self.peek().span
+            val outer = self.no_struct_lit
+            self.no_struct_lit = true
+            val members = self.parse_expr()
+            self.no_struct_lit = outer
+            if !self.expect_op(Operator.Colon, "`where` bound") { return out }
+            var traits = List.new<TypeRef>()
+            traits.push(self.parse_type_ref())
+            while is_op(self.peek(), Operator.Plus) {
+                self.advance()
+                traits.push(self.parse_type_ref())
+            }
+            out.push(MemberBound { span: at, members: members, traits: traits })
+            if !is_op(self.peek(), Operator.Comma) { return out }
+            self.advance()
+        }
+        return out
+    }
+}

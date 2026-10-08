@@ -1,0 +1,36 @@
+//! run: exit 0
+//! deps: core
+// On a generic struct, what a template adds is generic over its parameters,
+// and `where` bounds only the ones a kept field names: `M` sits under a
+// skipped field, so a type with no `Equal` may fill it.
+
+annotation same on struct
+annotation skip on field
+
+template same on struct T {
+    impl Equal for T where T.fields.filter(|field| !field.has<skip>()): Equal {
+        fun equals(other: &T): bool {
+            return T.fields.filter(|field| !field.has<skip>()).all(|field| field.of(self) == field.of(other))
+        }
+    }
+
+    fun T.count(): int64 { return T.fields.size() }
+}
+
+struct Handle {
+    val fd: int32
+}
+
+@same
+struct Tagged<V, M> {
+    val value: V
+    @skip
+    val meta: M
+}
+
+fun main(): int32 {
+    val a = Tagged { value: 7, meta: Handle { fd: 1 } }
+    val b = Tagged { value: 7, meta: Handle { fd: 2 } }
+    if !(a == b) { return 1 }
+    return (a.count() - 2) as int32
+}

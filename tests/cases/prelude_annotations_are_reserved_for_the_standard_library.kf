@@ -1,0 +1,9 @@
+//! build: fail
+//! deps: core
+// `@prelude` may mark an annotation declaration, but, as on a function, only
+// in core, alloc or std.
+
+@prelude
+pub annotation everywhere on struct
+
+fun main(): int32 { return 0 }

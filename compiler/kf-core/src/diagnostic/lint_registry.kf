@@ -137,6 +137,8 @@ impl LintInfo {
                 "a copy is inserted into a type that does not implement `Clone`"),
             LintInfo.new("deref_through_temporary", "suspicious", LintLevel.Warn,
                 "`*` through a `Box` owned by a call's result, freed at the end of the statement"),
+            LintInfo.new("template_warning", "suspicious", LintLevel.Warn,
+                "a warning a template reports with `compile_warning`, at the code it adds to"),
             LintInfo.new("empty_if", "suspicious", LintLevel.Warn,
                 "an `if` whose branches are both empty"),
             LintInfo.new("self_assignment", "suspicious", LintLevel.Warn,
@@ -205,8 +207,11 @@ impl LintInfo {
                 "a line wider than `max_columns` characters")
                 .with_option("max_columns", 120, "the most characters a line may hold"),
             LintInfo.new("long_file", "restriction", LintLevel.Allow,
-                "a file longer than `max_lines` lines")
-                .with_option("max_lines", 400, "the most lines a file may hold"),
+                "a file longer than `max_lines` lines of code, imports and comment-only lines aside")
+                .with_option("max_lines", 400, "the most lines of code a file may hold"),
+            LintInfo.new("unsafe_block", "restriction", LintLevel.Allow,
+                "an `unsafe` block; a baseline holds each file to the count it has")
+                .with_option("tests", 1, "1 to count `_test.kf` files, 0 to leave them out"),
             LintInfo.new("magic_number", "restriction", LintLevel.Allow,
                 "a number past `max_plain` written where it is used; tests, constants, ranges and indexes aside")
                 .with_option("max_plain", 2, "the largest number that may be written without a name"),

@@ -1,0 +1,125 @@
+// A template on a generic struct or enum: what it adds is generic over the
+// same parameters. `T` is `Pair<A, B>`, an impl or extension function takes
+// `<A, B>`, and `where T.fields: Equal` bounds each parameter a kept
+// member's type names, so a phantom parameter or a skipped field asks for
+// nothing.
+
+import alloc.list.*
+
+import kf_core.span.Span
+import kf_core.ast.types.TypeRef
+import kf_core.ast.types.TypeRefKind
+import kf_core.ast.declaration.*
+import kf_core.intern.Sym
+
+impl Expansion {
+    /// `T` as a type: the marked name with its parameters as arguments.
+    fun marked_type(span: Span): TypeRef {
+        var args = List.new<TypeRef>()
+        while param in &self.params {
+            args.push(TypeRef.new(span, TypeRefKind.Named(param.name, List.new<TypeRef>())))
+        }
+        return TypeRef.new(span, TypeRefKind.Named(self.type_name, args))
+    }
+
+    /// The marked parameters with their own bounds and what `bounds` asks of
+    /// each, then the declaration's own.
+    mutating fun generics_for(own: &List<TypeParam>, bounds: &List<MemberBound>): List<TypeParam> {
+        var out = self.params.clone()
+        while bound in &bounds {
+            self.add_member_bound(&var out, bound)
+        }
+        while param in &own {
+            out.push(param.clone())
+        }
+        return out
+    }
+
+    /// `bound`'s traits on each parameter a kept member's type names.
+    mutating fun add_member_bound(params: &var List<TypeParam>, bound: &MemberBound): void {
+        val listed = bound.members.selected_fields(self)
+        if listed == null {
+            val lists = "`${self.marked.as_str()}.${self.members_name()}`, or a `filter` of it"
+            self.report(bound.span, "`where` bounds the members of ${lists}")
+            return
+        }
+        val selection = listed ?: return
+        var types = List.new<TypeRef>()
+        while member in &selection.kept {
+            val facts = self.fields.at(member)
+            if self.on_enum {
+                while payload in &facts.payloads {
+                    types.push(payload.clone())
+                }
+            } else {
+                types.push(facts.ty.clone())
+            }
+        }
+        while ty in &types {
+            var named = List.new<Sym>()
+            ty.parameters_named(&self.params, &var named)
+            while name in &named {
+                params.bound_by(name, &bound.traits)
+            }
+        }
+    }
+}
+
+/// Each of `params` this type names, in it or its arguments.
+fun TypeRef.parameters_named(params: &List<TypeParam>, out: &var List<Sym>): void {
+    when (self.kind) {
+        Named(name, args) => {
+            while param in params {
+                if param.name.id == name.id && args.size() == 0 && !out.holds_sym(name) { out.push(name) }
+            }
+            while arg in &args {
+                arg.parameters_named(params, out)
+            }
+        }
+        Reference(_mutable, inner) => inner.parameters_named(params, out)
+        Array(element, _count) => element.parameters_named(params, out)
+        Function(args, result) => {
+            while arg in &args {
+                arg.parameters_named(params, out)
+            }
+            result.parameters_named(params, out)
+        }
+        _ => {}
+    }
+}
+
+/// `traits` added to the parameter `name`, each once.
+mutating fun List<TypeParam>.bound_by(name: Sym, traits: &List<TypeRef>): void {
+    while i in 0..self.size() {
+        if self.at(i).name.id != name.id { continue }
+        var param = self.at(i).clone()
+        while each in traits {
+            if !param.bounds.holds_trait(each) { param.bounds.push(each.clone()) }
+        }
+        self.set(i, param)
+    }
+}
+
+fun TypeRef.same_trait(other: &TypeRef): bool {
+    return when (self.kind) {
+        Named(name, _args) => when (other.kind) {
+            Named(other_name, _other_args) => name.id == other_name.id
+            _ => false
+        }
+        _ => false
+    }
+}
+
+fun List<Sym>.holds_sym(name: Sym): bool {
+    while each in &self {
+        if each.id == name.id { return true }
+    }
+    return false
+}
+
+fun List<TypeRef>.holds_trait(trait_ref: &TypeRef): bool {
+    while each in &self {
+        if each.same_trait(trait_ref) { return true }
+    }
+    return false
+}

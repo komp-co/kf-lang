@@ -1,0 +1,66 @@
+// `unsafe_block`: each `unsafe` block, counted from the file's tokens, as
+// the AST keeps no trace of the block. `unsafe` in a string or a comment is
+// not a block; neither is `unsafe fun`.
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.diagnostic.*
+import kf_parse.lexer.*
+
+/// `unsafe_block` over the file `file_id` at `path`.
+pub fun check_unsafe_blocks(file_id: uint32, path: str, text: str, options: &LintOptions,
+    out: &var List<Diagnostic>): void {
+    val count = unsafe_block_count(file_id, path, text, options) ?: return
+    val blocks = unsafe_blocks(file_id, text)
+    var messages: List<String> = []
+    while _block in &blocks { messages.push(String.from("an `unsafe` block")) }
+    report_ratchet(&count, &blocks, &messages, "`unsafe` blocks", options, out)
+}
+
+/// What `unsafe_block` counts in the file; None for a test file it skips.
+pub fun unsafe_block_count(file_id: uint32, path: str, text: str, options: &LintOptions): RatchetCount? {
+    if path.ends_with("_test.kf") && options.get("unsafe_block", "tests") == 0 { return null }
+    val count = unsafe_blocks(file_id, text).size() as int64
+    return RatchetCount { lint: String.from("unsafe_block"), file_id: file_id, count: count, limit: 0 }
+}
+
+/// The `unsafe` of each block.
+fun unsafe_blocks(file_id: uint32, text: str): List<Span> {
+    val tokens = tokenize(text, file_id)
+    var out: List<Span> = []
+    while i in 0..tokens.size() {
+        if !tokens[i].is_unsafe() { continue }
+        var next = i + 1
+        while next < tokens.size() && tokens[next].is_newline() { next = next + 1 }
+        if next < tokens.size() && tokens[next].is_open_brace() { out.push(tokens[i].span) }
+    }
+    return out
+}
+
+fun Token.is_unsafe(): bool {
+    return when (self.kind) {
+        KeywordTok(keyword) => when (keyword) {
+            Unsafe => true
+            _ => false
+        }
+        _ => false
+    }
+}
+
+fun Token.is_newline(): bool {
+    return when (self.kind) {
+        Newline => true
+        _ => false
+    }
+}
+
+fun Token.is_open_brace(): bool {
+    return when (self.kind) {
+        Op(operator) => when (operator) {
+            LBrace => true
+            _ => false
+        }
+        _ => false
+    }
+}

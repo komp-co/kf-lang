@@ -232,7 +232,10 @@ impl Default for String {
     static fun default(): String { return String.from("") }
 }
 
+// CONSTRAINT: `self.as_str()` until the seed compiler lends a trait impl's
+// `self` as a `str` (#189); this crate is built by it. `Hash` below too.
 impl Display for String {
+    @allow(needless_deref)
     fun display(out: &var dyn Write): void { out.write_str(self.as_str()) }
 }
 
@@ -243,47 +246,48 @@ impl Write for String {
 
 // The same bytes as `str`, so a `String` key and its `str` spelling agree.
 impl Hash for String {
+    @allow(needless_deref)
     fun hash(): uint64 { return hash_bytes(self.as_str()) }
 }
 
 // The core text surface on the owning type, delegating to core's known-length
 // forms: one implementation, and no `strlen`.
 @prelude
-pub fun String.is_blank(): bool { return self.as_str().is_blank_in(self.byte_len()) }
+pub fun String.is_blank(): bool { return self.is_blank_in(self.byte_len()) }
 @prelude
-pub fun String.byte_at(i: uint64): uint8 { return self.as_str().byte_at_in(self.byte_len(), i) }
+pub fun String.byte_at(i: uint64): uint8 { return self.byte_at_in(self.byte_len(), i) }
 
 @prelude
 pub fun String.starts_with(prefix: str): bool {
-    return self.as_str().starts_with_in(self.byte_len(), prefix)
+    return self.starts_with_in(self.byte_len(), prefix)
 }
 @prelude
 pub fun String.ends_with(suffix: str): bool {
-    return self.as_str().ends_with_in(self.byte_len(), suffix)
+    return self.ends_with_in(self.byte_len(), suffix)
 }
 @prelude
 pub fun String.contains(needle: str): bool {
-    return self.as_str().contains_in(self.byte_len(), needle)
+    return self.contains_in(self.byte_len(), needle)
 }
 @prelude
 pub fun String.index_of(needle: str): uint64? {
-    return self.as_str().index_of_from_in(self.byte_len(), needle, 0)
+    return self.index_of_from_in(self.byte_len(), needle, 0)
 }
 @prelude
 pub fun String.index_of_from(needle: str, from: uint64): uint64? {
-    return self.as_str().index_of_from_in(self.byte_len(), needle, from)
+    return self.index_of_from_in(self.byte_len(), needle, from)
 }
 pub fun String.last_index_of(needle: str): uint64? {
-    return self.as_str().last_index_of_in(self.byte_len(), needle)
+    return self.last_index_of_in(self.byte_len(), needle)
 }
 pub fun String.count_of(needle: str): uint64 {
-    return self.as_str().count_of_in(self.byte_len(), needle)
+    return self.count_of_in(self.byte_len(), needle)
 }
 
 /// `byte_at` under the dissolved `Text` trait's name, for a sibling crate not
 /// yet moved across.
 @prelude
-pub fun String.byte(i: uint64): uint8 { return self.as_str().byte_at_in(self.byte_len(), i) }
+pub fun String.byte(i: uint64): uint8 { return self.byte_at_in(self.byte_len(), i) }
 
 /// Appends one character as UTF-8. A scalar UTF-8 cannot represent appends
 /// nothing, not U+FFFD.
