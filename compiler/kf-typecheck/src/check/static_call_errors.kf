@@ -1,0 +1,57 @@
+// What a static call that does not fit its method says: too many or too few
+// arguments, or type arguments, or one of the wrong type.
+
+import alloc.list.*
+
+import kf_core.span.*
+import kf_core.ast.types.Type
+import kf_core.ast.expression.Expr
+import kf_core.diagnostic.Label
+import kf_core.diagnostic.Diagnostic
+import kf_typecheck.types.display_type
+
+/// Names both counts.
+fun emit_type_arg_arity(base: String, expected: uint64, got: uint64, span: Span, ctx: &var TypeCtx): void {
+    var message = String.from("`")
+    message.append(base)
+    message.append("` takes ")
+    message.append(String.of(&((expected as int64))).as_str())
+    message.append(" type arguments, but ")
+    message.append(String.of(&((got as int64))).as_str())
+    message.append(" was supplied")
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
+}
+
+/// An argument of the wrong type, named by the call as it is written.
+fun report_static_argument(type_name: &String, method_name: &String, index: uint64, expected: &Type, actual: &Type,
+    span: Span, ctx: &var TypeCtx): void {
+    val call = "`${type_name}.${method_name}`"
+    val types = "expected `${expected.display_type(ctx)}`, found `${actual.display_type(ctx)}`"
+    ctx.emit(Diagnostic.error_at(span, "wrong type for argument ${index + 1} of ${call}: ${types}"))
+}
+
+/// Names the type as well as the method, as the call is written.
+fun emit_static_call_arity(type_name: String, method_name: String, expected: uint64, found: uint64, span: Span,
+    ctx: &var TypeCtx): void {
+    var msg = String.from("wrong number of arguments to `")
+    msg.append(type_name)
+    msg.append(".")
+    msg.append(method_name)
+    msg.append("`: expected ")
+    msg.append(String.of(&((expected as int64))).as_str())
+    msg.append(", found ")
+    msg.append(String.of(&((found as int64))).as_str())
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
+}
+
+/// No static method of the type answers to the name with these arguments,
+/// which may be a `From<S>` the type does not implement.
+fun no_static_method_msg(type_name: str, method: str, args: &List<Expr>, ctx: &TypeCtx): String {
+    if args.is_empty() { return "`${type_name}` has no static method `${method}` that takes no arguments" }
+    var shown = String.from("")
+    while a in args {
+        if !shown.is_empty() { shown.append(", ") }
+        shown.append("`${a.ty.display_type(ctx)}`")
+    }
+    return "`${type_name}` has no static method `${method}` that takes ${shown}"
+}

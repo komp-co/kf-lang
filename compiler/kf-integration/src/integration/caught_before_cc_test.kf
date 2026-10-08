@@ -106,7 +106,8 @@ fun main(): int32 {
     return pick(true).byte_len() as int32
 }
 """)
-    assert_eq(errors.contains("a `str` value does not become a `String` on its own"), true, "`out` holds a `str` (#161)")
+    val refused = errors.contains("a `str` value does not become a `String` on its own")
+    assert_eq(refused, true, "`out` holds a `str` (#161)")
 }
 
 @test
