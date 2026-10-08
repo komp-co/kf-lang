@@ -207,9 +207,12 @@ pub fun Diagnostic.print_diag(smap: Ptr<SourceMap>): void {
 }
 
 /// Warnings about other crates are hidden. Canonicalized, since a command
-/// takes a root like `.`.
+/// takes a root like `.`, and ending in `/`, so `compiler/kf-lint` does not
+/// claim `compiler/kf-lints`' files.
 pub fun note_crate_being_built(root: str): void {
-    unsafe { kf_set_local_root(absolute(root).normalized().raw.as_str()) }
+    val dir = absolute(root).normalized().raw
+    val with_slash = if dir.ends_with("/") { dir } else { "${dir}/" }
+    unsafe { kf_set_local_root(with_slash.as_str()) }
 }
 
 /// A consumer cannot edit its dependencies. Kept visible: errors (filtered by
