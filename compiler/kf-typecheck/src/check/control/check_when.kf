@@ -160,9 +160,9 @@ fun emit_if_arm_mismatch(want: Type, got: Type, span: Span, ctx: &var TypeCtx): 
     if want.is_poison() { return }
     if got.is_poison() { return }
     var msg = String.from("this branch yields `")
-    msg.append(mangle_type(got).as_str())
+    msg.append(got.display_type(ctx))
     msg.append("`, but the other yields `")
-    msg.append(mangle_type(want).as_str())
+    msg.append(want.display_type(ctx))
     msg.append("` — both branches of an `if` used as a value have one type")
     ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
 }
@@ -171,9 +171,9 @@ fun emit_when_arm_mismatch(want: Type, got: Type, span: Span, ctx: &var TypeCtx)
     if want.is_poison() { return }
     if got.is_poison() { return }
     var msg = String.from("this arm yields `")
-    msg.append(mangle_type(got).as_str())
+    msg.append(got.display_type(ctx))
     msg.append("`, but an earlier arm yields `")
-    msg.append(mangle_type(want).as_str())
+    msg.append(want.display_type(ctx))
     msg.append("` — every arm of a `when` expression has one type")
     ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
 }

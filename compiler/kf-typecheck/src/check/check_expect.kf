@@ -225,7 +225,7 @@ pub fun wrap_safe_call_value(subject_ty: Type, arms: &var List<Arm>, span: Span,
     if !subject_ty.is_poison() {
         if !subject_ty.type_is_option(ctx) {
             var msg = String.from("the receiver of `?.` must be optional, but this is `")
-            msg.append(mangle_type(subject_ty.clone()).as_str())
+            msg.append(subject_ty.display_type(ctx))
             msg.append("` — a value that is always present is reached with `.`")
             ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
             // One error per mistake: the absent arm's `null` is not reported.

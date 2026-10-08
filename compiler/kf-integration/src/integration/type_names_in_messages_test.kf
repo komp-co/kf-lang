@@ -1,0 +1,42 @@
+// A message names a type as it is written, `List<int32>`, never as the C
+// name it is mangled to, `List__int32` (#144).
+
+import core.assert.assert_eq
+import kf_integration.harness.check_messages
+import testing.test
+
+fun generic_misuses(): String {
+    return check_messages("messages_type_names", """import alloc.list.*
+
+struct Pair<T> {
+    val a: T
+}
+
+fun main(): int32 {
+    val xs: List<int32> = [1, 2]
+    val p = Pair<int32> { a: 1 }
+    val n = if xs.size() > 0 { xs } else { p }
+    return xs.sise() as int32 + p.b
+}
+""")
+}
+
+@test
+fun a_missing_method_names_the_generic_type_as_written(): void {
+    val said = generic_misuses()
+    val near = said.contains("no method `sise` on `List<int32>` (did you mean `size`?)")
+    assert_eq(near, true, "the near miss still found")
+    assert_eq(said.contains("List__int32"), false, "no C name anywhere")
+}
+
+@test
+fun a_missing_field_names_the_generic_type_as_written(): void {
+    assert_eq(generic_misuses().contains("no field `b` on `Pair<int32>`"), true, "the struct's instance as written")
+}
+
+@test
+fun branch_types_are_named_as_written(): void {
+    val said = generic_misuses()
+    val branches = said.contains("this branch yields `Pair<int32>`, but the other yields `List<int32>`")
+    assert_eq(branches, true, "an `if`'s branches")
+}

@@ -107,8 +107,9 @@
 9 compiler/kf-parse/src/parser/lambda.kf
 5 compiler/kf-parse/src/parser/module.kf
 2 compiler/kf-parse/src/parser/parser.kf
+1 compiler/kf-parse/src/parser/statement/arm_pattern.kf
 30 compiler/kf-parse/src/parser/statement/bindings.kf
-45 compiler/kf-parse/src/parser/statement/control.kf
+44 compiler/kf-parse/src/parser/statement/control.kf
 18 compiler/kf-parse/src/parser/statement/statement.kf
 2 compiler/kf-parse/src/parser/statement/terminator.kf
 5 compiler/kf-parse/src/parser/top_decl/annotation_decl.kf
