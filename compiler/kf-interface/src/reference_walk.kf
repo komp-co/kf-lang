@@ -277,7 +277,7 @@ fun Expr.collect_expr_names(out: &var List<String>): void {
             collect_expr_names(&*subj, out)
             while arm in &arms {
                 when (arm.guard) {
-                    Some(guard) => collect_expr_names(unsafe { &*guard }, out)
+                    Some(guard) => collect_expr_names(&*guard, out)
                     None => { }
                 }
                 collect_stmt_list_names(&arm.body, out)
