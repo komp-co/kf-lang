@@ -151,13 +151,12 @@ fun is_vowel(c: char): bool {
     }
 }
 
-fun is_comparison(op: Op): bool {
+fun is_additive(op: Op): bool {
     return when op {
-        Less
-        | LessEq
-        | Greater
-        | GreaterEq => true
-        _ => false
+        Plus
+        | Minus => true
+        Star
+        | Slash => false
     }
 }
 ```
