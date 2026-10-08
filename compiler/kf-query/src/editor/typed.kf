@@ -127,12 +127,13 @@ pub fun typed_crate_cached(file_path: str, overlay: &Overlay, crates: &List<Crat
     val callers = new_import_files()
     val targets = new_import_syms()
     val names = new_import_syms()
+    val expanded = merged.expand_templates_first(smap)
     val _import_diags = validate_imports_per_module(&var merged, callers, targets, names, smap)
     // Boxed, so the view `sigs` keeps stays where it points.
     var table = Box.new(new_decl_table())
     table.note_imports(&*callers, &*targets, &*names)
     resolve_module(&var merged, &var *table)
-    val typed = typecheck_module_typed(&var merged, &var *table, callers, targets, names, smap)
+    val typed = typecheck_module_expanded(&var merged, &var *table, callers, targets, names, smap, expanded)
     // The table stays where its box put it when `typed` moves into the crate.
     val sigs: Ptr<SigTable> = typed.sigs
 

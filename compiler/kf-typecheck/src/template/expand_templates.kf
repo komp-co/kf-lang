@@ -1,8 +1,8 @@
 // `template NAME on struct T { ... }` or `on enum T`: its declarations,
 // expanded for each struct or enum of this crate marked `@NAME`, or once
-// `per crate`, join the module and the decl table. A
-// template stays, for the interface to carry. Runs before anything
-// registers, so what it adds is checked like code written by hand.
+// `per crate`, join the module. A template stays, for the interface to
+// carry. Runs before import validation and Resolve, so what it adds is
+// imported and resolved like code written by hand.
 
 import alloc.list.*
 
@@ -22,8 +22,7 @@ struct TemplateAt {
     val annotation: uint64
 }
 
-pub mutating fun Module.expand_templates(table: &var DeclTable, diags: &var List<Diagnostic>,
-    smap: Ptr<SourceMap>): List<ExpansionSite> {
+pub mutating fun Module.expand_templates(diags: &var List<Diagnostic>, smap: Ptr<SourceMap>): List<ExpansionSite> {
     var sites = List.new<ExpansionSite>()
     while td in &self.decls {
         if td.crate.raw == self.crate.raw && !td.is_template() { td.report_built_names(diags) }
@@ -51,12 +50,19 @@ pub mutating fun Module.expand_templates(table: &var DeclTable, diags: &var List
     self.report_missing_keys(&templates, diags)
     var kept = self.decls.clone()
     while item in &added {
-        var joined = item.clone()
-        if joined.should_register_decl() { joined.decl = table.register(&joined) }
-        kept.push(joined)
+        kept.push(item.clone())
     }
     self.decls = kept
     return sites
+}
+
+/// Each declaration from `first` on joins the decl table, for templates
+/// expanded after Resolve registered the rest.
+pub mutating fun Module.register_from(first: uint64, table: &var DeclTable): void {
+    while i in first..self.decls.size() {
+        val joined = self.decls.at_mut(i)
+        if joined.should_register_decl() { joined.decl = table.register(joined) }
+    }
 }
 
 fun Module.has_templates(): bool {

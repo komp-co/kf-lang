@@ -515,7 +515,10 @@ differs, one unkeyed template calls the name from `args`.
 ## Where the code lives
 
 What a template adds belongs to the marked struct's module: an extension
-function it adds is called there without an import. Names in the template
+function it adds is called there without an import, and another module
+imports a `pub` one by name, as it would one written by hand. Templates
+expand before imports are checked, so `import app.shapes.field_count` finds
+the `field_count` a template added to `app.shapes`. Names in the template
 resolve where the template is written, so it can call its own module's
 private helpers, and a user of the annotation imports only the annotation.
 
@@ -744,5 +747,4 @@ an annotation may have one beside its templates per use.
 
 ## Limits
 
-A `pub` extension function a template adds cannot be imported by another
-module. [Limitations](../limitations.md#templates) lists each with its issue.
+[Limitations](../limitations.md#templates) lists each with its issue.

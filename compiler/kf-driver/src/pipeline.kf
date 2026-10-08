@@ -8,7 +8,8 @@ import kf_core.diagnostic.*
 import kf_core.lang.*
 
 import kf_resolve.*
-import kf_typecheck.typecheck_module_with_imports
+import kf_typecheck.expand_templates_first
+import kf_typecheck.typecheck_module_expanded
 import kf_mono.mono_module
 import kf_lower.*
 import kf_lower.ownership.borrow_liveness_module
@@ -115,11 +116,12 @@ pub mutating fun Module.resolve_typecheck_diagnostics(smap: Ptr<SourceMap>): Lis
     val callers = new_import_files()
     val targets = new_import_syms()
     val names = new_import_syms()
+    val expanded = self.expand_templates_first(smap)
     var out = validate_imports_per_module(self, callers, targets, names, smap)
     var table = new_decl_table()
     table.note_imports(&*callers, &*targets, &*names)
     resolve_module(self, &var table)
-    val checked = typecheck_module_with_imports(self, &var table, callers, targets, names, smap)
+    val checked = typecheck_module_expanded(self, &var table, callers, targets, names, smap, expanded).diags
     while d in &apply_lint_levels(checked, self, &build_lint_config()) { out.push(d.clone()) }
     return out
 }
@@ -148,11 +150,12 @@ pub mutating fun Module.checked_diagnostics(smap: Ptr<SourceMap>, cfg: &LintConf
     val callers = new_import_files()
     val targets = new_import_syms()
     val names = new_import_syms()
+    val expanded = self.expand_templates_first(smap)
     var out = validate_imports_per_module(self, callers, targets, names, smap)
     var table = new_decl_table()
     table.note_imports(&*callers, &*targets, &*names)
     resolve_module(self, &var table)
-    val checked = typecheck_module_with_imports(self, &var table, callers, targets, names, smap)
+    val checked = typecheck_module_expanded(self, &var table, callers, targets, names, smap, expanded).diags
     val diags = apply_lint_levels(checked, self, cfg)
     while d in &diags { out.push(d.clone()) }
     if count_errors(&out) > 0 { return out }
@@ -178,11 +181,12 @@ pub mutating fun Module.collect_module_diags(smap: Ptr<SourceMap>): List<Diagnos
     val callers = new_import_files()
     val targets = new_import_syms()
     val names = new_import_syms()
+    val expanded = self.expand_templates_first(smap)
     var out = validate_imports_per_module(self, callers, targets, names, smap)
     var table = new_decl_table()
     table.note_imports(&*callers, &*targets, &*names)
     resolve_module(self, &var table)
-    val diags = typecheck_module_with_imports(self, &var table, callers, targets, names, smap)
+    val diags = typecheck_module_expanded(self, &var table, callers, targets, names, smap, expanded).diags
     while diag in &diags {
         out.push(diag)
     }
