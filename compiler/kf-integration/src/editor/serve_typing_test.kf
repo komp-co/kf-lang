@@ -31,8 +31,10 @@ fun other_path(): str {
 /// }
 /// ```
 fun prepare_serve_fixture(): void {
-    unsafe { system("rm -rf ${Dir.scratch_path("kf_serve_typing")} && mkdir -p ${Dir.scratch_path("kf_serve_typing/src")}") }
-    File.write(Dir.scratch_path("kf_serve_typing/kf.toml"), "[project]\nname = \"serve_typing\"\nkind = \"lib\"\n").unwrap()
+    val _cleared = Dir.remove_all(Dir.scratch_path("kf_serve_typing"))
+    val _made = Dir.create_all(Dir.scratch_path("kf_serve_typing/src"))
+    File.write(Dir.scratch_path("kf_serve_typing/kf.toml"),
+        "[project]\nname = \"serve_typing\"\nkind = \"lib\"\n").unwrap()
     val lib = """fun helper(n: int32): int32 {
     return n + 1
 }

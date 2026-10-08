@@ -26,7 +26,8 @@ fun references_fixture_path(): str {
 /// }
 /// ```
 fun prepare_references_fixture(): void {
-    unsafe { system("rm -rf ${Dir.scratch_path("kf_query_refs")} && mkdir -p ${Dir.scratch_path("kf_query_refs/src")}") }
+    val _cleared = Dir.remove_all(Dir.scratch_path("kf_query_refs"))
+    val _made = Dir.create_all(Dir.scratch_path("kf_query_refs/src"))
     File.write(Dir.scratch_path("kf_query_refs/kf.toml"), "[project]\nname = \"query_refs\"\nkind = \"lib\"\n").unwrap()
     var lib = """fun helper(n: int32): int32 {
     return n + 1

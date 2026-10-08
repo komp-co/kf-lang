@@ -58,7 +58,8 @@ fun Crate.crate_declares(name: str): bool {
 fun prepare_overlay_crate(): void {
     val _mk = unsafe { kf_create_dir_all(Dir.scratch_path("kf_assemble_overlay/src")) }
     File.write(Dir.scratch_path("kf_assemble_overlay/src/lib.kf"), "pub fun on_disk(): int32 { return 42 }\n").unwrap()
-    File.write(Dir.scratch_path("kf_assemble_overlay/src/other.kf"), "pub fun untouched(): int32 { return 7 }\n").unwrap()
+    File.write(Dir.scratch_path("kf_assemble_overlay/src/other.kf"),
+        "pub fun untouched(): int32 { return 7 }\n").unwrap()
 }
 
 fun staged_lib(): Overlay {
@@ -70,7 +71,8 @@ fun Overlay.assemble_overlay_crate(): Crate {
     val smap: Ptr<SourceMap> = unsafe { alloc<SourceMap>() }
     unsafe { *smap = SourceMap.new() }
     var pdiags = Diagnostics.new()
-    return assemble_crate_inc(Dir.scratch_path("kf_assemble_overlay"), String.from("staged"), smap, &var pdiags, true, self)
+    val root = Dir.scratch_path("kf_assemble_overlay")
+    return assemble_crate_inc(root, String.from("staged"), smap, &var pdiags, true, self)
 }
 
 @test fun an_overlay_is_parsed_in_place_of_the_file_it_names(): void {

@@ -18,7 +18,8 @@ fun prepare_reexport_fixture(name: str, main: str): int32 {
     val prep = unsafe { system("rm -rf ${lib} ${app} && mkdir -p ${lib}/src/emit ${lib}/src/parse ${app}/src") }
     if prep != 0 { return prep }
     File.write("${lib}/kf.toml", "[project]\nname = \"reex_lib\"\nversion = \"0.1.0\"\nkind = \"lib\"\n").unwrap()
-    File.write("${lib}/src/lib.kf", "export * from reex_lib.emit\nexport read, raw as parse_raw from reex_lib.parse\n").unwrap()
+    File.write("${lib}/src/lib.kf",
+        "export * from reex_lib.emit\nexport read, raw as parse_raw from reex_lib.parse\n").unwrap()
     File.write("${lib}/src/emit/emit.kf", "pub fun write_it(): int32 { return 10 }\n").unwrap()
     val read = "pub fun read(): int32 { return 20 }\n"
     val parse = "${read}\npub fun other(): int32 { return 30 }\n\npub fun raw(): int32 { return 5 }\n"
@@ -112,6 +113,7 @@ fun an_export_does_not_import_into_its_own_file(): void {
     assert_eq(prep, 0, "scratch prepared")
     File.write("${root}/kf.toml", "[project]\nname = \"reex_own\"\nversion = \"0.1.0\"\nkind = \"bin\"\n").unwrap()
     File.write("${root}/src/parts/parts.kf", "pub fun part(): int32 { return 4 }\n").unwrap()
-    File.write("${root}/src/main.kf", "export part from reex_own.parts\n\nfun main(): int32 { return part() - 4 }\n").unwrap()
+    File.write("${root}/src/main.kf",
+        "export part from reex_own.parts\n\nfun main(): int32 { return part() - 4 }\n").unwrap()
     assert_eq(check_project(root) != 0, true, "the file writing the export imports `part` separately")
 }

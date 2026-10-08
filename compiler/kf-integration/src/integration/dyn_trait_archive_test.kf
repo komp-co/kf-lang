@@ -94,8 +94,10 @@ fun dyn_archive_contains(text: str, needle: str): bool {
 fun prepare_generic_dyn_archive_fixture(): int32 {
     val prep = unsafe { system("rm -rf ${Dir.scratch_path("kf_dyn_gen_api")} ${Dir.scratch_path("kf_dyn_gen_dep")} ${Dir.scratch_path("kf_dyn_gen_left")} ${Dir.scratch_path("kf_dyn_gen_right")} ${Dir.scratch_path("kf_dyn_gen_app")} && mkdir -p ${Dir.scratch_path("kf_dyn_gen_api/src")} ${Dir.scratch_path("kf_dyn_gen_dep/src")} ${Dir.scratch_path("kf_dyn_gen_left/src")} ${Dir.scratch_path("kf_dyn_gen_right/src")} ${Dir.scratch_path("kf_dyn_gen_app/src")}") }
     if prep != 0 { return prep }
-    File.write(Dir.scratch_path("kf_dyn_gen_api/kf.toml"), "[project]\nname = \"dyn_gen_api\"\nkind = \"lib\"\n").unwrap()
-    File.write(Dir.scratch_path("kf_dyn_gen_api/src/lib.kf"), "pub trait Describe {\n    fun describe(): int32\n}\n").unwrap()
+    File.write(Dir.scratch_path("kf_dyn_gen_api/kf.toml"),
+        "[project]\nname = \"dyn_gen_api\"\nkind = \"lib\"\n").unwrap()
+    File.write(Dir.scratch_path("kf_dyn_gen_api/src/lib.kf"),
+        "pub trait Describe {\n    fun describe(): int32\n}\n").unwrap()
     File.write(Dir.scratch_path("kf_dyn_gen_dep/kf.toml"), """[project]
 name = "dyn_gen_dep"
 kind = "lib"
@@ -189,7 +191,8 @@ fun main(): int32 {
 fun prepare_unused_dyn_archive_fixture(): int32 {
     val prep = unsafe { system("rm -rf ${Dir.scratch_path("kf_dyn_quiet_lib")} ${Dir.scratch_path("kf_dyn_quiet_app")} && mkdir -p ${Dir.scratch_path("kf_dyn_quiet_lib/src")} ${Dir.scratch_path("kf_dyn_quiet_app/src")}") }
     if prep != 0 { return prep }
-    File.write(Dir.scratch_path("kf_dyn_quiet_lib/kf.toml"), "[project]\nname = \"quiet_lib\"\nkind = \"lib\"\n").unwrap()
+    File.write(Dir.scratch_path("kf_dyn_quiet_lib/kf.toml"),
+        "[project]\nname = \"quiet_lib\"\nkind = \"lib\"\n").unwrap()
     var library = String.from("pub trait Score {\n    fun score(): int32\n}\n\n")
     library.append("pub struct Token {\n    pub val value: int32\n}\n\n")
     library.append("impl Score for Token {\n    pub fun score(): int32 { return self.value + 1 }\n}\n\n")

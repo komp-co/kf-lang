@@ -65,6 +65,7 @@ fun read_line_on_empty_input_reads_nothing(): void {
     File.write(Dir.scratch_path("kf_stdin_io/empty.txt"), "").unwrap()
     var run = Command.new("/bin/sh")
     run.arg("-c")
-    run.arg("${Dir.scratch_path("kf_stdin_io/reader/target/kflat/reader")} < ${Dir.scratch_path("kf_stdin_io/empty.txt")}")
+    val reader = Dir.scratch_path("kf_stdin_io/reader/target/kflat/reader")
+    run.arg("${reader} < ${Dir.scratch_path("kf_stdin_io/empty.txt")}")
     assert_eq(run.status().exit_code(), 0, "no input is zero lines, not one empty one")
 }

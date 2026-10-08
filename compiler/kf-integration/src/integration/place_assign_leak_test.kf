@@ -12,7 +12,8 @@ extern "C" fun system(cmd: str): int32
 fun prepare_place_assign_fixture(): int32 {
     val prep = unsafe { system("rm -rf ${Dir.scratch_path("kf_place_assign")} && mkdir -p ${Dir.scratch_path("kf_place_assign/src")}") }
     if prep != 0 { return prep }
-    File.write(Dir.scratch_path("kf_place_assign/kf.toml"), "[project]\nname = \"placeassign\"\nkind = \"bin\"\n").unwrap()
+    File.write(Dir.scratch_path("kf_place_assign/kf.toml"),
+        "[project]\nname = \"placeassign\"\nkind = \"bin\"\n").unwrap()
     File.write(Dir.scratch_path("kf_place_assign/src/main.kf"), """struct Holder { pub var s: String }
 
 fun main(): int32 {

@@ -31,5 +31,6 @@ fun writing_into_the_copy_leaves_the_original_alone(): void {
     assert_eq(prepared, 0, "a symlink to a real directory is prepared")
     assert_eq(copy_tree_by_content(link, destination), 0, "the copy succeeds")
     File.write("${destination}/kf.toml".as_str(), "rewritten\n").unwrap()
-    assert_eq(File.read("${original}/kf.toml".as_str()).unwrap_or("").as_str(), "original\n", "the original project is untouched")
+    val manifest = File.read("${original}/kf.toml".as_str()).unwrap_or("")
+    assert_eq(manifest.as_str(), "original\n", "the original project is untouched")
 }

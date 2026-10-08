@@ -7,7 +7,8 @@ extern "C" fun system(cmd: str): int32
 fun prepare_ownership_archive_fixture(early_return: bool): int32 {
     val prep = unsafe { system("rm -rf ${Dir.scratch_path("kf_sc5_parcel_lib")} ${Dir.scratch_path("kf_sc5_parcel_app")} && mkdir -p ${Dir.scratch_path("kf_sc5_parcel_lib/src")} ${Dir.scratch_path("kf_sc5_parcel_app/src")}") }
     if prep != 0 { return prep }
-    File.write(Dir.scratch_path("kf_sc5_parcel_lib/kf.toml"), "[project]\nname = \"parcel_lib\"\nkind = \"lib\"\n").unwrap()
+    File.write(Dir.scratch_path("kf_sc5_parcel_lib/kf.toml"),
+        "[project]\nname = \"parcel_lib\"\nkind = \"lib\"\n").unwrap()
     File.write(Dir.scratch_path("kf_sc5_parcel_lib/src/lib.kf"), """pub struct Parcel {
     pub val label: String
 }

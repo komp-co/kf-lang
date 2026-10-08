@@ -93,7 +93,8 @@ fun an_aliased_import_admits_no_bare_name(): void {
 
 fun main(): int32 { return seven() - 7 }
 """), 0, "fixture prepared")
-    assert_eq(check_project(Dir.scratch_path("kf_alias_bare_app")) != 0, true, "`seven` is reached only as `parts.seven`")
+    val checked = check_project(Dir.scratch_path("kf_alias_bare_app"))
+    assert_eq(checked != 0, true, "`seven` is reached only as `parts.seven`")
 }
 
 @test

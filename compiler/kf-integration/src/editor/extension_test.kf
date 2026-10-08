@@ -32,7 +32,8 @@ fun extension_fixture_path(): str {
 fun extension_crate(): TypedCrate {
     val root = Dir.scratch_path("kf_query_extension")
     unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
-    File.write(Dir.scratch_path("kf_query_extension/kf.toml"), "[project]\nname = \"query_extension\"\nkind = \"lib\"\n").unwrap()
+    File.write(Dir.scratch_path("kf_query_extension/kf.toml"),
+        "[project]\nname = \"query_extension\"\nkind = \"lib\"\n").unwrap()
     File.write(extension_fixture_path(), extension_fixture_source()).unwrap()
     return typed_crate_for(extension_fixture_path())
 }
@@ -183,7 +184,8 @@ pub fun probe(): int32 {
 fun bounded_crate(): TypedCrate {
     val root = Dir.scratch_path("kf_query_bounded")
     unsafe { system("rm -rf ${root} && mkdir -p ${root}/src") }
-    File.write(Dir.scratch_path("kf_query_bounded/kf.toml"), "[project]\nname = \"query_bounded\"\nkind = \"lib\"\n").unwrap()
+    File.write(Dir.scratch_path("kf_query_bounded/kf.toml"),
+        "[project]\nname = \"query_bounded\"\nkind = \"lib\"\n").unwrap()
     File.write(Dir.scratch_path("kf_query_bounded/src/main.kf"), bounded_source()).unwrap()
     return typed_crate_for(Dir.scratch_path("kf_query_bounded/src/main.kf"))
 }

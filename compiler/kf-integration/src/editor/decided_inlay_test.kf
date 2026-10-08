@@ -15,8 +15,10 @@ fun decided_fixture_path(): str {
 
 /// `n + n` decides nothing, so `wide(n)` decides `n`, and `doubled` with it.
 fun prepare_decided_fixture(): void {
-    unsafe { system("rm -rf ${Dir.scratch_path("kf_query_decided")} && mkdir -p ${Dir.scratch_path("kf_query_decided/src")}") }
-    File.write(Dir.scratch_path("kf_query_decided/kf.toml"), "[project]\nname = \"query_decided\"\nkind = \"lib\"\n").unwrap()
+    val _cleared = Dir.remove_all(Dir.scratch_path("kf_query_decided"))
+    val _made = Dir.create_all(Dir.scratch_path("kf_query_decided/src"))
+    File.write(Dir.scratch_path("kf_query_decided/kf.toml"),
+        "[project]\nname = \"query_decided\"\nkind = \"lib\"\n").unwrap()
     val src = """fun wide(x: uint64): uint64 {
     return x
 }

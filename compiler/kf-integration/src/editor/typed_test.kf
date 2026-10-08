@@ -17,6 +17,12 @@ import kf_query.editor.render_inlays_json
 import kf_integration.harness.assemble_project
 import testing.test
 
+/// An empty project `name` in scratch space, holding only `src/`.
+fun fresh_project(name: str): void {
+    val _cleared = Dir.remove_all(Dir.scratch_path(name))
+    val _made = Dir.create_all(Dir.scratch_path("${name}/src"))
+}
+
 extern "C" fun system(cmd: str): int32
 
 fun typed_fixture_path(): str {
@@ -39,8 +45,9 @@ fun run(): int32 {
 }
 
 fun prepare_typed_fixture(): void {
-    unsafe { system("rm -rf ${Dir.scratch_path("kf_query_typed")} && mkdir -p ${Dir.scratch_path("kf_query_typed/src")}") }
-    File.write(Dir.scratch_path("kf_query_typed/kf.toml"), "[project]\nname = \"query_typed\"\nkind = \"lib\"\n").unwrap()
+    fresh_project("kf_query_typed")
+    File.write(Dir.scratch_path("kf_query_typed/kf.toml"),
+        "[project]\nname = \"query_typed\"\nkind = \"lib\"\n").unwrap()
     File.write(typed_fixture_path(), typed_fixture_source().as_str()).unwrap()
 }
 
@@ -111,7 +118,7 @@ fun loop_fixture_path(): str {
 
 /// `while i in 0..3`, whose expansion mints bindings carrying the loop's span.
 fun prepare_loop_fixture(): void {
-    unsafe { system("rm -rf ${Dir.scratch_path("kf_query_loop")} && mkdir -p ${Dir.scratch_path("kf_query_loop/src")}") }
+    fresh_project("kf_query_loop")
     File.write(Dir.scratch_path("kf_query_loop/kf.toml"), "[project]\nname = \"query_loop\"\nkind = \"lib\"\n").unwrap()
     var src = """fun count(): int32 {
     var sum = 0
@@ -215,8 +222,9 @@ fun generic_fix_fixture_path(): str {
 
 /// `unwrp` for `unwrap`, within budget, on a fixture-declared `Cell<int32>`.
 fun prepare_generic_fix_fixture(): void {
-    unsafe { system("rm -rf ${Dir.scratch_path("kf_diag_fix_generic")} && mkdir -p ${Dir.scratch_path("kf_diag_fix_generic/src")}") }
-    File.write(Dir.scratch_path("kf_diag_fix_generic/kf.toml"), "[project]\nname = \"diag_fix_generic\"\nkind = \"lib\"\n").unwrap()
+    fresh_project("kf_diag_fix_generic")
+    File.write(Dir.scratch_path("kf_diag_fix_generic/kf.toml"),
+        "[project]\nname = \"diag_fix_generic\"\nkind = \"lib\"\n").unwrap()
     var src = String.from("pub struct Cell<T> {\n")
     src.append("    pub val item: T\n")
     src.append("}\n")
@@ -269,8 +277,9 @@ fun a_near_miss_on_a_generic_instance_carries_a_fix(): void {
 @test
 fun a_far_off_name_on_a_generic_instance_stays_silent(): void {
     // The fallback widens the candidates, never the budget.
-    unsafe { system("rm -rf ${Dir.scratch_path("kf_diag_fix_far")} && mkdir -p ${Dir.scratch_path("kf_diag_fix_far/src")}") }
-    File.write(Dir.scratch_path("kf_diag_fix_far/kf.toml"), "[project]\nname = \"diag_fix_far\"\nkind = \"lib\"\n").unwrap()
+    fresh_project("kf_diag_fix_far")
+    File.write(Dir.scratch_path("kf_diag_fix_far/kf.toml"),
+        "[project]\nname = \"diag_fix_far\"\nkind = \"lib\"\n").unwrap()
     var src = String.from("pub struct Cell<T> {\n")
     src.append("    pub val item: T\n")
     src.append("}\n")
@@ -304,13 +313,17 @@ fun a_far_off_name_on_a_generic_instance_stays_silent(): void {
 /// `Pair` comes from `helper`; nothing names anything from `spare`.
 fun prepare_unused_fixture(): void {
     unsafe { system("rm -rf ${Dir.scratch_path("kf_unused_import")} && mkdir -p ${Dir.scratch_path("kf_unused_import/src/helper")} ${Dir.scratch_path("kf_unused_import/src/spare")}") }
-    File.write(Dir.scratch_path("kf_unused_import/kf.toml"), "[project]\nname = \"unused_import\"\nkind = \"lib\"\n").unwrap()
-    File.write(Dir.scratch_path("kf_unused_import/src/helper/helper.kf"), "pub struct Pair {\n    pub val a: int32\n}\n").unwrap()
-    File.write(Dir.scratch_path("kf_unused_import/src/spare/spare.kf"), "pub struct Unwanted {\n    pub val b: int32\n}\n").unwrap()
+    File.write(Dir.scratch_path("kf_unused_import/kf.toml"),
+        "[project]\nname = \"unused_import\"\nkind = \"lib\"\n").unwrap()
+    File.write(Dir.scratch_path("kf_unused_import/src/helper/helper.kf"),
+        "pub struct Pair {\n    pub val a: int32\n}\n").unwrap()
+    File.write(Dir.scratch_path("kf_unused_import/src/spare/spare.kf"),
+        "pub struct Unwanted {\n    pub val b: int32\n}\n").unwrap()
     var src = """import unused_import.helper.*
 import unused_import.spare.*
 import kf_query.editor.path_for_file_id
 import kf_query.editor.render_inlays_json
+
 
 pub fun probe(): int32 {
     val p = Pair { a: 1 }
@@ -438,8 +451,9 @@ fun subst_fixture_path(): str {
 }
 
 fun prepare_subst_fixture(): void {
-    unsafe { system("rm -rf ${Dir.scratch_path("kf_query_subst")} && mkdir -p ${Dir.scratch_path("kf_query_subst/src")}") }
-    File.write(Dir.scratch_path("kf_query_subst/kf.toml"), "[project]\nname = \"query_subst\"\nkind = \"lib\"\n").unwrap()
+    fresh_project("kf_query_subst")
+    File.write(Dir.scratch_path("kf_query_subst/kf.toml"),
+        "[project]\nname = \"query_subst\"\nkind = \"lib\"\n").unwrap()
     var src = String.from("struct Cell<A> {\n")
     src.append("    val item: A\n")
     src.append("}\n")
@@ -495,7 +509,7 @@ fun arity_fixture_path(): str {
 
 /// `Pair` takes two type parameters and the call supplies one.
 fun prepare_arity_fixture(): void {
-    unsafe { system("rm -rf ${Dir.scratch_path("kf_diag_arity")} && mkdir -p ${Dir.scratch_path("kf_diag_arity/src")}") }
+    fresh_project("kf_diag_arity")
     File.write(Dir.scratch_path("kf_diag_arity/kf.toml"), "[project]\nname = \"diag_arity\"\nkind = \"lib\"\n").unwrap()
     var src = String.from("pub enum Pair<A, B> {\n")
     src.append("    L(A)\n")
@@ -554,7 +568,7 @@ fun field_fixture_path(): str {
 
 /// A method read as a field, and a name that is neither.
 fun prepare_field_fixture(): void {
-    unsafe { system("rm -rf ${Dir.scratch_path("kf_diag_field")} && mkdir -p ${Dir.scratch_path("kf_diag_field/src")}") }
+    fresh_project("kf_diag_field")
     File.write(Dir.scratch_path("kf_diag_field/kf.toml"), "[project]\nname = \"diag_field\"\nkind = \"lib\"\n").unwrap()
     var src = String.from("pub struct Bag {\n")
     src.append("    pub val n: int32\n")
@@ -615,8 +629,9 @@ fun static_arity_fixture_path(): str {
 
 /// A static method called with too few arguments.
 fun prepare_static_arity_fixture(): void {
-    unsafe { system("rm -rf ${Dir.scratch_path("kf_diag_static_arity")} && mkdir -p ${Dir.scratch_path("kf_diag_static_arity/src")}") }
-    File.write(Dir.scratch_path("kf_diag_static_arity/kf.toml"), "[project]\nname = \"diag_static_arity\"\nkind = \"lib\"\n").unwrap()
+    fresh_project("kf_diag_static_arity")
+    File.write(Dir.scratch_path("kf_diag_static_arity/kf.toml"),
+        "[project]\nname = \"diag_static_arity\"\nkind = \"lib\"\n").unwrap()
     var src = String.from("pub struct Thing {\n")
     src.append("    pub val n: int32\n")
     src.append("}\n")

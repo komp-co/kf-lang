@@ -19,7 +19,8 @@ import testing.test
 fun prepare_two_helpers(): void {
     val root = Dir.scratch_path("kf_two_helpers")
     unsafe { system("rm -rf ${root} && mkdir -p ${root}/src/a ${root}/src/b") }
-    File.write(Dir.scratch_path("kf_two_helpers/kf.toml"), "[project]\nname = \"two_helpers\"\nkind = \"lib\"\n").unwrap()
+    File.write(Dir.scratch_path("kf_two_helpers/kf.toml"),
+        "[project]\nname = \"two_helpers\"\nkind = \"lib\"\n").unwrap()
     File.write(Dir.scratch_path("kf_two_helpers/src/a/a.kf"), helper_module("1", "from_a").as_str()).unwrap()
     File.write(Dir.scratch_path("kf_two_helpers/src/b/b.kf"), helper_module("2", "from_b").as_str()).unwrap()
 }

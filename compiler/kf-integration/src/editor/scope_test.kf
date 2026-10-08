@@ -69,7 +69,8 @@ fun a_helper_a_test_calls(): int32 {
 }
 
 fun prepare_scope_fixture(): void {
-    unsafe { system("rm -rf ${Dir.scratch_path("kf_query_scope")} && mkdir -p ${Dir.scratch_path("kf_query_scope/src")}") }
+    val _cleared = Dir.remove_all(Dir.scratch_path("kf_query_scope"))
+    val _made = Dir.create_all(Dir.scratch_path("kf_query_scope/src"))
     File.write(Dir.scratch_path("kf_query_scope/kf.toml"), """[project]
 name = "query_scope"
 kind = "lib"

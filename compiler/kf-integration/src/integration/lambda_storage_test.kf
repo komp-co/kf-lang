@@ -7,7 +7,8 @@ extern "C" fun system(cmd: str): int32
 fun run_stored_lambda_under_asan(): int32 {
     val prep = unsafe { system("rm -rf ${Dir.scratch_path("kf_lambda_storage")} && mkdir -p ${Dir.scratch_path("kf_lambda_storage/src")}") }
     if prep != 0 { return prep }
-    File.write(Dir.scratch_path("kf_lambda_storage/kf.toml"), "[project]\nname = \"lambda_storage\"\nkind = \"bin\"\n").unwrap()
+    File.write(Dir.scratch_path("kf_lambda_storage/kf.toml"),
+        "[project]\nname = \"lambda_storage\"\nkind = \"bin\"\n").unwrap()
     File.write(Dir.scratch_path("kf_lambda_storage/src/main.kf"), """fun main(): int32 {
     val text = String.from("owned")
     val length = || text.len()

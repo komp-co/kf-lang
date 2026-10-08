@@ -183,7 +183,7 @@ fun FixtureGraph.compile_graph_outputs_with_interfaces(errors: &var Diagnostics,
             &dependency_hashes, smap)
         emitted_names.push(String.from(interface_crate.name.as_str()))
         // As komp names an interface: the text's bytes, hashed.
-        emitted_hashes.push("${hash_bytes(encoded.as_str())}")
+        emitted_hashes.push("${encoded.as_str().hash()}")
         unsafe { interfaces.push(encoded) }
     }
     if !merged.run_middle_passes(separate_passes(), errors, smap) { return out }

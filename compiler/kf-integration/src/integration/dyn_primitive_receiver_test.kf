@@ -19,8 +19,10 @@ kind = "lib"
 c_sources = ["native/core.c"]
 hosted_c_sources = ["native/core_hosted.c"]
 """).unwrap()
-    File.write(Dir.scratch_path("kf_dyn_prim_core/native/core.c"), File.read("libs/core/native/core.c").unwrap_or("").as_str()).unwrap()
-    File.write(Dir.scratch_path("kf_dyn_prim_core/native/core_hosted.c"), File.read("libs/core/native/core_hosted.c").unwrap_or("").as_str()).unwrap()
+    File.write(Dir.scratch_path("kf_dyn_prim_core/native/core.c"),
+        File.read("libs/core/native/core.c").unwrap_or("").as_str()).unwrap()
+    File.write(Dir.scratch_path("kf_dyn_prim_core/native/core_hosted.c"),
+        File.read("libs/core/native/core_hosted.c").unwrap_or("").as_str()).unwrap()
     File.write(Dir.scratch_path("kf_dyn_prim_app/kf.toml"), """[project]
 name = "dyn_prim_app"
 kind = "bin"
