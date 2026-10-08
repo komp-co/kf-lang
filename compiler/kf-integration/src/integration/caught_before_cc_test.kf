@@ -1,0 +1,136 @@
+// Programs `komp check` once passed and cc then refused: each is now an
+// error from the checker, with what to write instead.
+
+import core.assert.assert_eq
+import alloc.list.*
+import alloc.path.Path
+import std.fs.absolute
+
+import kf_core.diagnostic.Diagnostics
+import kf_driver.fresh_source_map
+import kf_driver.new_lint_config
+import kf_driver.checked_diagnostics
+import kf_integration.harness.assemble_project
+import std.fs.create_dir_all
+import std.fs.remove_dir_all
+import std.fs.scratch_path
+import std.fs.write_text
+import testing.test
+
+/// What checking `source` as a one-file bin reports, a message a line.
+fun errors_of(name: str, source: str): String {
+    val dir = scratch_path(name)
+    val _cleared = remove_dir_all(dir)
+    val _made = create_dir_all(Path.new("${dir}/src"))
+    val libs = absolute("libs").normalized().raw
+    val deps = "[dependencies]\ncore = { path = \"${libs}/core\" }\nalloc = { path = \"${libs}/alloc\" }\n"
+    val _manifest = write_text("${dir}/kf.toml", "[project]\nname = \"${name}\"\nkind = \"bin\"\n${deps}")
+    val _source = write_text("${dir}/src/main.kf", source)
+    val smap = fresh_source_map()
+    var pdiags = Diagnostics.new()
+    var merged = assemble_project(dir, smap, &var pdiags)
+    var out = String.from("")
+    while d in &merged.checked_diagnostics(smap, &new_lint_config()) {
+        out.append("${d.primary.message}\n")
+    }
+    return out
+}
+
+@test
+fun a_struct_cast_to_a_number_is_an_error(): void {
+    val errors = errors_of("caught_struct_cast", """struct Point {
+    val x: int32
+}
+
+fun main(): int32 {
+    val p = Point { x: 1 }
+    return p as int32
+}
+""")
+    assert_eq(errors.contains("`Point` is a struct and cannot be cast to `int32`"), true, "read a field instead (#179)")
+}
+
+@test
+fun a_number_cast_to_a_struct_is_an_error(): void {
+    val errors = errors_of("caught_cast_to_struct", """struct Point {
+    val x: int32
+}
+
+fun main(): int32 {
+    val p = 1 as Point
+    return p.x
+}
+""")
+    assert_eq(errors.contains("cannot be cast to `Point`, a struct"), true, "construct it instead (#179)")
+}
+
+@test
+fun a_temporary_string_returned_as_a_str_is_an_error(): void {
+    // `String.from`, not an interpolation, which this test's own string would
+    // take: both make a temporary `String`.
+    val errors = errors_of("caught_returned_temporary", """import alloc.string.*
+
+fun greeting(name: str): str {
+    return String.from(name)
+}
+
+fun main(): int32 {
+    return if greeting("a").byte_len() == 7 { 0 } else { 1 }
+}
+""")
+    assert_eq(errors.contains("this `String` is freed as the function returns"), true, "return `String` (#180)")
+}
+
+@test
+fun a_value_lent_as_a_str_does_not_become_a_string_binding(): void {
+    val errors = errors_of("caught_lent_store", """import alloc.string.*
+
+struct Label {
+    val text: String
+}
+
+impl Deref for Label {
+    type Target = str
+    fun deref(): str { return self.text.as_str() }
+}
+
+fun label(): Label {
+    return Label { text: String.from("kept") }
+}
+
+fun pick(short: bool): String {
+    var out = ""
+    if short {
+        out = label()
+    }
+    return out
+}
+
+fun main(): int32 {
+    return pick(true).byte_len() as int32
+}
+""")
+    val refused = errors.contains("a `str` value does not become a `String` on its own")
+    assert_eq(refused, true, "`out` holds a `str` (#161)")
+}
+
+@test
+fun a_static_method_checks_its_argument_types(): void {
+    val errors = errors_of("caught_static_args", """struct Tag {}
+
+impl Tag {
+    static fun size(text: str): uint64 { return text.byte_len() }
+    static fun pair(a: int32, b: bool): int32 { return if b { a } else { 0 } }
+}
+
+fun main(): int32 {
+    val a = Tag.size(5)
+    val b = Tag.pair("text", 7)
+    return a as int32 + b
+}
+""")
+    assert_eq(errors.contains("wrong type for argument 1 of `Tag.size`: expected `str`, found `int32`"), true,
+        "as a free function's (#163)")
+    assert_eq(errors.contains("wrong type for argument 2 of `Tag.pair`: expected `bool`, found `int32`"), true,
+        "each argument, not the first alone")
+}

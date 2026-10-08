@@ -186,8 +186,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                         val sparams = ssig.static_call_params(e.type_args, ctx)
                         // Matched and well-formed are separate: once matched, a
                         // failure must be reported, or codegen emits an instance
-                        // call with a type as receiver. Arity is checked; argument
-                        // types are not, since `can_coerce` would reject valid code.
+                        // call with a type as receiver.
                         var call_valid = true
                         if args.size() != sparams.size() {
                             emit_static_call_arity(rname.clone(), method_name.clone(), sparams.size(), args.size(), e.span, ctx)
@@ -207,6 +206,10 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                                     call_valid = false
                                 } else if !outcome.coerced && !actual.ty.type_eq(expected) && !ctx.fits(actual.ty, expected) {
                                     call_valid = false
+                                    if !actual.ty.is_poison() {
+                                        val at = actual.span
+                                        report_static_argument(&rname, &method_name, ci, &expected, &actual.ty, at, ctx)
+                                    }
                                 }
                             }
                         }
@@ -376,41 +379,4 @@ fun String.subst_static_trait_suffix(sig: &FnSignature, type_args: &List<TypeRef
     // Past the leading `__`.
     val body = raw.substring(2, n)
     return "__${subst_trait_args(body.as_str(), &names, &types, true)}"
-}
-
-/// Names both counts.
-fun emit_type_arg_arity(base: String, expected: uint64, got: uint64, span: Span, ctx: &var TypeCtx): void {
-    var message = String.from("`")
-    message.append(base)
-    message.append("` takes ")
-    message.append(String.of(&((expected as int64))).as_str())
-    message.append(" type arguments, but ")
-    message.append(String.of(&((got as int64))).as_str())
-    message.append(" was supplied")
-    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
-}
-
-/// Names the type as well as the method, as the call is written.
-fun emit_static_call_arity(type_name: String, method_name: String, expected: uint64, found: uint64, span: Span, ctx: &var TypeCtx): void {
-    var msg = String.from("wrong number of arguments to `")
-    msg.append(type_name)
-    msg.append(".")
-    msg.append(method_name)
-    msg.append("`: expected ")
-    msg.append(String.of(&((expected as int64))).as_str())
-    msg.append(", found ")
-    msg.append(String.of(&((found as int64))).as_str())
-    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
-}
-
-/// No static method of the type answers to the name with these arguments,
-/// which may be a `From<S>` the type does not implement.
-fun no_static_method_msg(type_name: str, method: str, args: &List<Expr>, ctx: &TypeCtx): String {
-    if args.is_empty() { return "`${type_name}` has no static method `${method}` that takes no arguments" }
-    var shown = String.from("")
-    while a in args {
-        if !shown.is_empty() { shown.append(", ") }
-        shown.append("`${a.ty.display_type(ctx)}`")
-    }
-    return "`${type_name}` has no static method `${method}` that takes ${shown}"
 }

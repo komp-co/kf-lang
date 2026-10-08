@@ -33,17 +33,24 @@ pub fun rename_lookup(name: str, subst: &Substitution): String {
 /// the first entry, so a dependency's type of the same name would otherwise
 /// capture the program's.
 pub fun Module.collect_type_renames(subst: &var Substitution): void {
-    self.collect_type_renames_pass(false, subst)
-    self.collect_type_renames_pass(true, subst)
+    self.collect_type_renames_pass(false, false, subst)
+    self.collect_type_renames_pass(true, false, subst)
 }
 
-fun Module.collect_type_renames_pass(imported: bool, subst: &var Substitution): void {
+/// As `collect_type_renames`, for the types whose name C has taken alone.
+pub fun Module.collect_taken_type_renames(subst: &var Substitution): void {
+    self.collect_type_renames_pass(false, true, subst)
+    self.collect_type_renames_pass(true, true, subst)
+}
+
+fun Module.collect_type_renames_pass(imported: bool, taken_only: bool, subst: &var Substitution): void {
     val list_name = self.lang_type_name(LangItem.List)
     val option_name = self.lang_type_name(LangItem.Option)
     val decls = self.decls
     while td in &decls {
         if td.linkage.is_imported() == imported {
-            if type_decl_qualifies(td, list_name, option_name) {
+            val wanted = !taken_only || CName.is_taken_by_c(td.name.as_str())
+            if wanted && type_decl_qualifies(td, list_name, option_name) {
                 val prefixed_name = td.crate.symbol_prefix()
                 var new_name = prefixed_name.clone()
                 new_name.append(td.name.as_str())

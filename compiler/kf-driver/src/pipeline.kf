@@ -19,6 +19,7 @@ import kf_codegen.emit_module_unit
 import kf_driver.cli.print_json_diag
 import kf_driver.cli.color_enabled
 import kf_codegen.emit.symbols.qualify_type_symbols
+import kf_codegen.emit.symbols.qualify_taken_type_symbols
 import kf_codegen.emit.symbols.qualify_function_symbols
 import std.fs.absolute
 
@@ -80,7 +81,7 @@ pub fun separate_passes(): MiddlePasses {
 /// tree, so the caller writes nothing.
 pub mutating fun Module.run_middle_passes(mode: MiddlePasses, errors: &var Diagnostics, smap: Ptr<SourceMap>): bool {
     if errors.has_errors() { return false }
-    if mode.qualify { qualify_type_symbols(self) }
+    if mode.qualify { qualify_type_symbols(self) } else { qualify_taken_type_symbols(self) }
     val list_name = self.lang_type_name(LangItem.List)
     self.report_template_copies(errors, smap)
     mono_module(self)

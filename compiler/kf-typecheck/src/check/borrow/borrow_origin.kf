@@ -76,6 +76,7 @@ pub fun reject_unsayable_origin(params: &List<Type>, ret: &Type, has_self: bool,
 /// is itself a borrow is fine.
 pub fun Expr.check_returned_borrow(span: Span, ctx: &var TypeCtx): void {
     if !ctx.return_ty.type_borrows(ctx.sigs) { return }
+    if self.returns_a_temporary_string(span, ctx) { return }
     val root = self.borrow_root()
     if root.as_str() == "" { return }
     if ctx.ctx_is_param(root) { return }
@@ -91,4 +92,17 @@ fun TypeCtx.ctx_is_param(name: str): bool {
         if param.as_str() == name { return true }
     }
     return false
+}
+
+/// `return "hello ${name}"` from a `str` function: the `String` is freed as
+/// the function returns, so the `str` read from it would dangle.
+fun Expr.returns_a_temporary_string(span: Span, ctx: &var TypeCtx): bool {
+    when (ctx.return_ty.kind) {
+        StrTy => { }
+        _ => return false
+    }
+    if !self.ty.is_lang_struct(ctx.string_name()) || self.is_place() { return false }
+    val message = "this `String` is freed as the function returns, so it cannot be returned as a `str`: return `String`"
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
+    return true
 }

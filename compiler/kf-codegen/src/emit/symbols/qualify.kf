@@ -5,7 +5,8 @@
 //   qualify_function_symbols  after Lower, through each call's
 //                             mangled_callee, which is assignable in place.
 //
-// Unity builds call neither. Folded intrinsic callees (`alloc__T`) keep
+// Unity builds call neither, only qualify_taken_type_symbols for the types
+// C's own names would collide with. Folded intrinsic callees (`alloc__T`) keep
 // unqualified fragments, and generic templates are not qualified.
 
 import alloc.list.*
@@ -24,6 +25,17 @@ import kf_core.intern.intern_string
 pub mutating fun Module.qualify_type_symbols(): void {
     var subst = Substitution.new()
     self.collect_type_renames(&var subst)
+    if subst.names.size() == 0 { return }
+    while i in 0..self.decls.size() {
+        qualify_decl(self.decls.at_mut(i), &subst, true)
+    }
+}
+
+/// A unity build's types keep their bare names, except one C has taken: a
+/// struct named `main` beside the program's `int main`.
+pub mutating fun Module.qualify_taken_type_symbols(): void {
+    var subst = Substitution.new()
+    self.collect_taken_type_renames(&var subst)
     if subst.names.size() == 0 { return }
     while i in 0..self.decls.size() {
         qualify_decl(self.decls.at_mut(i), &subst, true)
