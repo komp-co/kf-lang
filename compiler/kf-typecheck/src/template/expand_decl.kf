@@ -35,12 +35,15 @@ fun Module.expand_for(template: &TopDecl, marked: &TopDecl, annotation: uint64, 
         home: marked.module_path,
         home_file: marked.span.file_id,
         site: place_in(smap, marked.decl_name_span(), marked.module_path),
+        template_at: template.decl_name_span(),
+        marked_at: marked.decl_name_span(),
         fields: marked.field_facts(smap),
         args: self.use_arguments(marked, annotation),
         shapes: self.annotation_shapes(),
         bound: List.new<Bound>(),
         rests: List.new<Sym>(),
         values: List.new<ValueBound>(),
+        undecided: 0,
         diags: List.new<Diagnostic>()
     }
     when (template.kind) {

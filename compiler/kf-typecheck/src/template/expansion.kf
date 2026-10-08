@@ -63,6 +63,10 @@ struct Expansion {
     /// Where the marked declaration's name is: `site.file`, `.line` and
     /// `.column`.
     val site: Location
+    /// The template's name and the marked declaration's, for a report from
+    /// `compile_error` outside a member loop.
+    val template_at: Span
+    val marked_at: Span
     val fields: List<FieldFacts>
     /// `args.p`: each parameter's value at this use.
     val args: List<FieldInit>
@@ -73,6 +77,9 @@ struct Expansion {
     var rests: List<Sym>
     /// The binders standing for one value of a variadic argument.
     var values: List<ValueBound>
+    /// How many branches decided only when the program runs enclose the
+    /// statement being expanded.
+    var undecided: uint32
     var diags: List<Diagnostic>
 }
 

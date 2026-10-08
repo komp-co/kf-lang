@@ -1,0 +1,22 @@
+//! build: fail
+//! deps: core
+// Only a branch the facts decide may report while the program compiles: one
+// decided by a value when the program runs is an error.
+
+annotation checked on struct
+
+template checked on struct T {
+    fun T.check(n: int32): int32 {
+        if n > 2 {
+            compile_error("too big")
+        }
+        return n
+    }
+}
+
+@checked
+struct Point {
+    val x: int32
+}
+
+fun main(): int32 { return Point { x: 1 }.check(0) }

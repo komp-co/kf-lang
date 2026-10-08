@@ -1,0 +1,32 @@
+//! run: exit 0
+//! deps: core, alloc
+// A branch the facts drop is never expanded, so its `compile_error` never
+// reports; a `compile_warning` warns and the build goes on.
+
+annotation summed on struct
+annotation label on field
+
+template summed on struct T {
+    fun T.total(): int64 {
+        var sum: int64 = 0
+        while field in T.fields {
+            if field.has<label>() {
+                compile_error("`${field.name}` is a label, which `@summed` cannot add")
+            } else {
+                sum = sum + field.of(self) as int64
+            }
+        }
+        if T.fields.size() > 1 {
+            compile_warning("`${T.name}` sums ${T.fields.size()} fields")
+        }
+        return sum
+    }
+}
+
+@summed
+struct Point {
+    val x: int32
+    val y: int32
+}
+
+fun main(): int32 { return (Point { x: 1, y: 2 }.total() - 3) as int32 }

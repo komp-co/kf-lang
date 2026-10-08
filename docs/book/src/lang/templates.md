@@ -582,6 +582,50 @@ src/main.kf:20:9: error: operator requires `impl Equal for Handle`
 Any other error in a template's code is reported in the template, with a note
 naming the struct it was adding to.
 
+### Reporting from a template
+
+A template can say what is wrong in its own words. `compile_error(message)`
+stops the build and `compile_warning(message)` warns, both while the template
+expands, at the field or variant a member loop is on, or else at the marked
+struct or enum:
+
+```kflat
+annotation summed on struct
+annotation label on field
+
+template summed on struct T {
+    fun T.total(): int64 {
+        var sum: int64 = 0
+        while field in T.fields {
+            if field.has<label>() {
+                compile_error("`${field.name}` is a label, which `@summed` cannot add")
+            } else {
+                sum = sum + field.of(self) as int64
+            }
+        }
+        if T.fields.size() > 8 {
+            compile_warning("`${T.name}` sums ${T.fields.size()} fields")
+        }
+        return sum
+    }
+}
+
+@summed
+struct Point {
+    val x: int32
+    val y: int32
+}
+
+fun main(): int32 { return (Point { x: 1, y: 2 }.total() - 3) as int32 }
+```
+
+Only a branch the facts decide may hold one, so it reports for the fields
+whose facts take it: `@label` on a field of `Point` would stop the build there.
+In a branch decided when the program runs, or with a message that is not
+literals and facts, either is an error, and outside a template neither exists.
+A warning is the lint `template_warning`, which `@allow` and `lint.toml` turn
+down like any other.
+
 ## Limits
 
 A template does not add to a generic struct or enum. A `pub` extension function a

@@ -1,0 +1,94 @@
+// `compile_error(message)` and `compile_warning(message)` in a template: a
+// diagnostic reported as the template expands, in the words of the library
+// that wrote it, at the field or variant a member loop is on, or else at the
+// marked declaration. Only a branch the facts decide may hold one, so a
+// dropped branch never reports.
+
+import alloc.list.*
+
+import kf_core.ast.expression.Expr
+import kf_core.ast.expression.ExprKind
+import kf_core.ast.expression.BinOp
+import kf_core.diagnostic.*
+
+/// The lint a template's warning is reported as, so `@allow` and `lint.toml`
+/// reach it.
+pub fun template_warning_lint(): str { return "template_warning" }
+
+/// `compile_error` or `compile_warning`, or "" for any other call.
+fun Expr.compile_report_name(): str {
+    return when (self.kind) {
+        Call(name, _args) => {
+            if name.as_str() == "compile_error" {
+                "compile_error"
+            } else if name.as_str() == "compile_warning" { "compile_warning" } else { "" }
+        }
+        _ => ""
+    }
+}
+
+/// The text `self` has while the program compiles: a literal, or literals
+/// and facts joined as an interpolated string; null for anything else.
+fun Expr.compile_text(): String? {
+    return when (self.kind) {
+        LitStr(text) => text.clone()
+        LitInt(n) => "${n}"
+        LitBool(b) => if b { String.from("true") } else { String.from("false") }
+        Binary(left, op, right) => {
+            val joins = when (op) {
+                Add => true
+                _ => false
+            }
+            if !joins { return null }
+            val head = left.compile_text() ?: return null
+            val tail = right.compile_text() ?: return null
+            var joined = head
+            joined.append(tail)
+            joined
+        }
+        // `String.from("a")` and `String.of(&(fact))`, as interpolation lexes.
+        MethodCall(_owner, _method, args) => if args.size() == 1 { args.at(0).compile_text() } else { null }
+        _ => null
+    }
+}
+
+impl Expansion {
+    /// Reports `value` when it is `compile_error(...)` or `compile_warning(...)`;
+    /// false, reporting nothing, for any other expression.
+    mutating fun reported(value: &Expr): bool {
+        val name = value.compile_report_name()
+        if name == "" { return false }
+        val args = when (value.kind) {
+            Call(_name, written) => written.clone()
+            _ => List.new<Expr>()
+        }
+        if args.size() != 1 {
+            self.report(value.span, "`${name}` takes one message")
+            return true
+        }
+        if self.undecided > 0 {
+            val why = "only a branch the facts decide may report while the program compiles"
+            self.report(value.span, "`${name}` is in a branch decided when the program runs: ${why}")
+            return true
+        }
+        val text = args.at(0).expanded(self).compile_text()
+        if text == null {
+            val why = "literals and facts, such as `field.name`"
+            self.report(args.at(0).span, "`${name}`'s message must be known while the program compiles: ${why}")
+            return true
+        }
+        val message = text ?: String.from("")
+        val at = if self.in_member() { self.field().span } else { self.marked_at }
+        var diag = if name == "compile_error" {
+            Diagnostic.error_at(at, message)
+        } else {
+            Diagnostic.lint_at(template_warning_lint(), at, message)
+        }
+        // A member's span already gets the expansion's note.
+        if !self.in_member() {
+            diag.secondary.push(Label.new(self.template_at, "reported by `@${self.annotation.as_str()}`'s template"))
+        }
+        self.diags.push(diag)
+        return true
+    }
+}

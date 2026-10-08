@@ -43,6 +43,7 @@ fun point_expansion_with(args: List<FieldInit>): Expansion {
     return Expansion {
         annotation: intern("shown"), marked: intern("T"), type_name: intern("Point"), on_enum: false,
         home: intern("app"), home_file: 0, site: Location { file_path: String.from("src/main.kf"), line: 3, col: 8 },
+        template_at: Span.none(), marked_at: Span.none(), undecided: 0,
         fields: fields, args: args, shapes: List.new<AnnotationShape>(), bound: on_label(),
         rests: List.new<Sym>(), values: List.new<ValueBound>(), diags: List.new<Diagnostic>()
     }

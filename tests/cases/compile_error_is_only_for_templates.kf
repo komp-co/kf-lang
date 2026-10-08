@@ -1,0 +1,9 @@
+//! build: fail
+//! deps: core
+// Outside a template there is no expansion to report from, so
+// `compile_error` is an error of its own.
+
+fun main(): int32 {
+    compile_error("not in a template")
+    return 0
+}

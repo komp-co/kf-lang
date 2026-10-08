@@ -36,13 +36,18 @@ fun Stmt.expand_into(x: &var Expansion, out: &var List<Stmt>): void {
                 self.unroll(binder, &selection, &body, x, out)
                 return
             }
-            out.push(self.rekinded(StmtKind.ForEach(binder, Box.new(subject.expanded(x)), expand_stmts(&body, x))))
+            x.undecided = x.undecided + 1
+            val repeated = expand_stmts(&body, x)
+            x.undecided = x.undecided - 1
+            out.push(self.rekinded(StmtKind.ForEach(binder, Box.new(subject.expanded(x)), repeated)))
         }
         If(condition, then_body, else_body) => {
             val decided = condition.expanded(x)
             val chosen = decided.decided_bool()
             if chosen == null {
+                x.undecided = x.undecided + 1
                 val kind = StmtKind.If(Box.new(decided), expand_stmts(&then_body, x), expand_stmts(&else_body, x))
+                x.undecided = x.undecided - 1
                 out.push(self.rekinded(kind))
                 return
             }
@@ -57,7 +62,10 @@ fun Stmt.expand_into(x: &var Expansion, out: &var List<Stmt>): void {
                 out.push(self.scope(expand_stmts(&arms.at(index).body, x)))
                 return
             }
-            out.push(self.rekinded(StmtKind.When(Box.new(decided), expanded_arms(&arms, x))))
+            x.undecided = x.undecided + 1
+            val kept = expanded_arms(&arms, x)
+            x.undecided = x.undecided - 1
+            out.push(self.rekinded(StmtKind.When(Box.new(decided), kept)))
         }
         LetVal(name, ty, init) => out.push(self.rekinded(StmtKind.LetVal(x.built(name, self.span),
             expanded_opt_type(&ty, x), expanded_opt_expr(&init, x))))
@@ -71,9 +79,15 @@ fun Stmt.expand_into(x: &var Expansion, out: &var List<Stmt>): void {
         }
         Return(value) => out.push(self.rekinded(StmtKind.Return(expanded_opt_expr(&value, x))))
         While(condition, body) => {
-            out.push(self.rekinded(StmtKind.While(Box.new(condition.expanded(x)), expand_stmts(&body, x))))
+            x.undecided = x.undecided + 1
+            val repeated = expand_stmts(&body, x)
+            x.undecided = x.undecided - 1
+            out.push(self.rekinded(StmtKind.While(Box.new(condition.expanded(x)), repeated)))
         }
-        Expression(value) => out.push(self.rekinded(StmtKind.Expression(Box.new(value.expanded(x)))))
+        Expression(value) => {
+            if x.reported(&value) { return }
+            out.push(self.rekinded(StmtKind.Expression(Box.new(value.expanded(x)))))
+        }
         _ => out.push(self.clone())
     }
 }
