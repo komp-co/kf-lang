@@ -77,6 +77,7 @@ pub fun reject_unsayable_origin(params: &List<Type>, ret: &Type, has_self: bool,
 pub fun Expr.check_returned_borrow(span: Span, ctx: &var TypeCtx): void {
     if !ctx.return_ty.type_borrows(ctx.sigs) { return }
     if self.returns_a_temporary_string(span, ctx) { return }
+    if self.returns_a_borrowed_temporary_array(ctx) { return }
     val root = self.borrow_root()
     if root.as_str() == "" { return }
     if ctx.ctx_is_param(root) { return }
@@ -105,4 +106,34 @@ fun Expr.returns_a_temporary_string(span: Span, ctx: &var TypeCtx): bool {
     val message = "this `String` is freed as the function returns, so it cannot be returned as a `str`: return `String`"
     ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
     return true
+}
+
+/// `return Numbers { values: &[1, 2, 3] }`: the array is built in this
+/// function's frame, so a slice of it in what the function returns dangles.
+fun Expr.returns_a_borrowed_temporary_array(ctx: &var TypeCtx): bool {
+    val lent = self.temporary_array_lent() ?: return false
+    val why = "this array is built in the function and freed as it returns"
+    val fix = "return an owned `List`, or keep the array where the caller can see it"
+    val message = "${why}, so what the function returns cannot borrow it: ${fix}"
+    ctx.emit(Diagnostic.new(Severity.Error, Label.new(lent, message)))
+    return true
+}
+
+/// Where the value, or a field of the struct it builds, lends a temporary
+/// array as a slice.
+fun Expr.temporary_array_lent(): Span? {
+    when (self.kind) {
+        MethodCall(receiver, method, _args) => {
+            val lends = method.as_str() == "as_slice" || method.as_str() == "as_slice_mut"
+            if lends && !receiver.is_place() { return receiver.span }
+        }
+        StructLit(_name, fields) => {
+            while field in &fields {
+                val found = field.value.temporary_array_lent()
+                if found != null { return found }
+            }
+        }
+        _ => { }
+    }
+    return null
 }

@@ -1,0 +1,76 @@
+// An annotation argument naming a `fun` follows the rules any call in its
+// file does: another module's private function is an error at the argument
+// (#188). Needs two modules, so not a tests/cases file.
+
+import core.assert.assert_eq
+import alloc.path.Path
+import std.fs.absolute
+
+import kf_integration.harness.komp_check
+import std.fs.create_dir_all
+import std.fs.remove_dir_all
+import std.fs.scratch_path
+import std.fs.write_text
+import testing.test
+
+/// A bin whose `rules` module holds a private `hidden` and a `pub` `shown`,
+/// with `main` as its main file, where an unused import is an error.
+fun write_ruled(name: str, main: str): String {
+    val dir = scratch_path(name)
+    val _cleared = remove_dir_all(dir)
+    val _made = create_dir_all(Path.new("${dir}/src/rules"))
+    val libs = absolute("libs").normalized().raw
+    val deps = "[dependencies]\ncore = { path = \"${libs}/core\" }\nalloc = { path = \"${libs}/alloc\" }\n"
+    val _manifest = write_text("${dir}/kf.toml", "[project]\nname = \"${name}\"\nkind = \"bin\"\n${deps}")
+    val _lints = write_text("${dir}/lint.toml", "[lints]\nunused_import = \"deny\"\n")
+    val rules = """fun hidden(n: int64): bool { return n > 0 }
+pub fun shown(n: int64): bool { return n > 0 }
+"""
+    val _rules = write_text("${dir}/src/rules/rules.kf", rules)
+    val _main = write_text("${dir}/src/main.kf", main)
+    return String.from(dir)
+}
+
+@test
+fun a_name_argument_must_be_visible_where_it_is_written(): void {
+    val listed = write_ruled("annotation_name_listed", """import annotation_name_listed.rules.shown
+
+annotation checked(rules: fun..) on struct
+
+@checked(shown, hidden)
+struct Reading {
+    val a: int32
+}
+
+fun main(): int32 { return 0 }
+""")
+    assert_eq(komp_check(listed) != 0, true, "`hidden` is private to `rules`, as a variadic argument")
+    val named = write_ruled("annotation_name_named", """import annotation_name_named.rules.shown
+
+annotation scored(by: fun, also: fun) on struct
+
+@scored(shown, also = hidden)
+struct Reading {
+    val a: int32
+}
+
+fun main(): int32 { return 0 }
+""")
+    assert_eq(komp_check(named) != 0, true, "and as a named one")
+}
+
+@test
+fun a_visible_name_argument_counts_as_a_use_of_its_import(): void {
+    val dir = write_ruled("annotation_name_shown", """import annotation_name_shown.rules.shown
+
+annotation scored(by: fun) on struct
+
+@scored(shown)
+struct Reading {
+    val a: int32
+}
+
+fun main(): int32 { return 0 }
+""")
+    assert_eq(komp_check(dir), 0, "naming `shown` uses its import")
+}

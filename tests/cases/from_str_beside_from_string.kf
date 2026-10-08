@@ -1,0 +1,28 @@
+//! run: exit 0
+//! deps: core, alloc
+// A type may implement `From<str>` and `From<String>` together: a `str`
+// fits both, the second by a copy, so the exact one is chosen (#162).
+
+import alloc.string.*
+
+struct Label {
+    val text: String
+    val owned: bool
+}
+
+impl From<str> for Label {
+    static fun from(text: str): Label { return Label { text: String.from(text), owned: false } }
+}
+
+impl From<String> for Label {
+    static fun from(text: String): Label { return Label { text: text, owned: true } }
+}
+
+fun main(): int32 {
+    val view = "four"
+    val a = Label.from("four")
+    val b = Label.from(view)
+    val c = Label.from(String.from("sixsix"))
+    if a.owned || b.owned || !c.owned { return 1 }
+    return (a.text.byte_len() + b.text.byte_len() + c.text.byte_len()) as int32 - 14
+}

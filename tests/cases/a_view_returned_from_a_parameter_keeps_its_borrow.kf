@@ -1,0 +1,25 @@
+//! run: exit 0
+//! deps: core
+// A view may borrow what its function was handed, and a call may borrow a
+// temporary array for its own duration; only a view of an array built in the
+// function it returns from dangles (#187).
+
+view struct Numbers {
+    val values: &int64[]
+}
+
+fun total(xs: &int64[]): int64 {
+    var t: int64 = 0
+    while v in xs { t = t + v }
+    return t
+}
+
+fun view_of(xs: &int64[]): Numbers {
+    return Numbers { values: xs }
+}
+
+fun main(): int32 {
+    val held: int64[3] = [1, 2, 3]
+    val n = view_of(&held)
+    return if total(&[1, 2, 3]) + total(n.values) == 12 { 0 } else { 1 }
+}

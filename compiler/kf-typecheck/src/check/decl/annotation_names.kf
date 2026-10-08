@@ -1,10 +1,17 @@
 // An argument naming a declaration, for a parameter of type `trait`,
 // `struct`, `enum` or `fun`: `Equal`, or `geo.Point` through a module.
 
+import alloc.list.*
+
 import kf_core.intern.CrateId
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.ExprKind
 import kf_core.ast.annotation.MarkKind
+import kf_core.ast.annotation.Annotation
+import kf_core.ast.declaration.Param
+import kf_core.diagnostic.*
+import kf_core.intern.Sym
+import kf_core.intern.intern
 import kf_typecheck.*
 
 /// Whether `self` names a declaration of `kind` the table holds.
@@ -40,4 +47,45 @@ pub fun Expr.written_name(): String? {
 pub fun Expr.name_text(): Expr {
     val written = self.written_name() ?: String.from("")
     return Expr.new(self.span, ExprKind.LitStr(written))
+}
+
+/// Each argument naming a `fun` names one the use can see, where it is
+/// written in `file`, in `crate`'s `module`: the rules any call there
+/// follows (#188). One it can see counts as a use of its import.
+pub fun Annotation.check_names_visible(params: &List<Param>, table: &SigTable, sigs: Ptr<SigTable>, crate: CrateId,
+    file: uint32, module: Sym, diags: &var List<Diagnostic>): void {
+    if !table.has_scope() || params.size() == 0 { return }
+    val variadic = (*params.at(params.size() - 1).ty).variadic_element() != null
+    val last = params.size() - 1
+    while i in 0..self.args.size() {
+        val arg = self.args.at(i)
+        var p = if arg.name.as_str().equals("") { i } else { params.position_of(arg.name.as_str()) }
+        if p > last && variadic { p = last }
+        if p > last { continue }
+        val admits = (*params.at(p).ty).param_kind(table, crate)
+        if !admits.takes_a_function() { continue }
+        val value = &*arg.value
+        val name = when (value.kind) {
+            Variable(written) => written.as_string()
+            _ => continue
+        }
+        val seen = table.scope_signature(name, file, crate, module)
+        if seen != null {
+            val sig = seen ?: continue
+            note_import_use_named(sigs, file, sig.owner_module, intern(name))
+            continue
+        }
+        val why = "it is private to its module, or the file does not import it"
+        diags.push(Diagnostic.error_at(value.span, "cannot find function `${name}` in this scope: ${why}"))
+    }
+}
+
+fun ParamKind.takes_a_function(): bool {
+    return when (self) {
+        Name(kind) => when (kind) {
+            Function => true
+            _ => false
+        }
+        _ => false
+    }
 }

@@ -57,6 +57,7 @@ fun TopDecl.check_member_use(annotation: &Annotation, member: MarkKind, at: Span
     note_import_use_named(sigs, file, declared.module, declared.name)
     val arguments = annotation.arguments_in_order(&declared.params, table, self.crate, diags)
     if !arguments.ok { return }
+    annotation.check_names_visible(&declared.params, table, sigs, self.crate, file, self.scope_module(), diags)
     val kinds = declared.target.kinds()
     while listed in &kinds {
         if listed.kind == member { return }

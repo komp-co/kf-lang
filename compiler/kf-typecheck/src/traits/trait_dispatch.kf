@@ -13,6 +13,11 @@ import kf_typecheck.note_import_use
 pub fun static_trait_method_callee(type_name: String, method_name: String, args: &List<Expr>, type_args: &List<TypeRef>, ctx: &var TypeCtx): String {
     val base = mangle_base_name(type_name.clone())
     var found = ""
+    // Fitting by its exact types: `From<str>` beside `From<String>`, which a
+    // `str` also fits, is the one a `str` argument means.
+    var exact = ""
+    var ambiguous = false
+    var exact_ambiguous = false
     var i = 0
     while i < unsafe { (*ctx.sigs).trait_impls.size() } {
         val trait_impl = unsafe { *(*ctx.sigs).trait_impls.at(i) }
@@ -35,9 +40,11 @@ pub fun static_trait_method_callee(type_name: String, method_name: String, args:
                             infer_static_method_type_args(&sig, n_recv, &var all_args, args, Span.none(), ctx)
                             val sparams = sig.static_call_params(&all_args, ctx)
                             var fits = true
+                            var same = true
                             while j in 0..args.size() {
                                 val arg = *args.at(j)
                                 val expected = *sparams.at(j)
+                                if !arg.ty.type_eq(expected) { same = false }
                                 if !arg.ty.type_eq(expected) && !ctx.fits(arg.ty, expected) {
                                     // A re-bindable generic call is applicable (see
                                     // the instance path), and so is an argument
@@ -48,8 +55,12 @@ pub fun static_trait_method_callee(type_name: String, method_name: String, args:
                                 }
                             }
                             if fits {
-                                if !found.as_str().equals("") { return "" }
-                                found = candidate
+                                if !found.as_str().equals("") { ambiguous = true }
+                                found = candidate.clone()
+                            }
+                            if fits && same {
+                                if !exact.as_str().equals("") { exact_ambiguous = true }
+                                exact = candidate
                             }
                         }
                     }
@@ -59,6 +70,8 @@ pub fun static_trait_method_callee(type_name: String, method_name: String, args:
         }
         i = i + 1
     }
+    if !exact.as_str().equals("") && !exact_ambiguous { return exact }
+    if ambiguous { return "" }
     return found
 }
 
