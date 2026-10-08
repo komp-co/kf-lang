@@ -108,3 +108,24 @@ fun main(): int32 {
 """)
     assert_eq(errors.contains("a `str` value does not become a `String` on its own"), true, "`out` holds a `str` (#161)")
 }
+
+@test
+fun a_static_method_checks_its_argument_types(): void {
+    val errors = errors_of("caught_static_args", """struct Tag {}
+
+impl Tag {
+    static fun size(text: str): uint64 { return text.byte_len() }
+    static fun pair(a: int32, b: bool): int32 { return if b { a } else { 0 } }
+}
+
+fun main(): int32 {
+    val a = Tag.size(5)
+    val b = Tag.pair("text", 7)
+    return a as int32 + b
+}
+""")
+    assert_eq(errors.contains("wrong type for argument 1 of `Tag.size`: expected `str`, found `int32`"), true,
+        "as a free function's (#163)")
+    assert_eq(errors.contains("wrong type for argument 2 of `Tag.pair`: expected `bool`, found `int32`"), true,
+        "each argument, not the first alone")
+}

@@ -186,8 +186,7 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                         val sparams = ssig.static_call_params(e.type_args, ctx)
                         // Matched and well-formed are separate: once matched, a
                         // failure must be reported, or codegen emits an instance
-                        // call with a type as receiver. Arity is checked; argument
-                        // types are not, since `can_coerce` would reject valid code.
+                        // call with a type as receiver.
                         var call_valid = true
                         if args.size() != sparams.size() {
                             emit_static_call_arity(rname.clone(), method_name.clone(), sparams.size(), args.size(), e.span, ctx)
@@ -207,6 +206,9 @@ fun check_method_expr(e: &var Expr, recv_ptr: Ptr<Expr>, method_name_sym: Sym, a
                                     call_valid = false
                                 } else if !outcome.coerced && !actual.ty.type_eq(expected) && !ctx.fits(actual.ty, expected) {
                                     call_valid = false
+                                    if !actual.ty.is_poison() {
+                                        report_static_argument(&rname, &method_name, ci, &expected, &actual.ty, actual.span, ctx)
+                                    }
                                 }
                             }
                         }
@@ -388,6 +390,14 @@ fun emit_type_arg_arity(base: String, expected: uint64, got: uint64, span: Span,
     message.append(String.of(&((got as int64))).as_str())
     message.append(" was supplied")
     ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, message)))
+}
+
+/// An argument of the wrong type, named by the call as it is written.
+fun report_static_argument(type_name: &String, method_name: &String, index: uint64, expected: &Type, actual: &Type,
+    span: Span, ctx: &var TypeCtx): void {
+    val call = "`${type_name}.${method_name}`"
+    val types = "expected `${expected.display_type(ctx)}`, found `${actual.display_type(ctx)}`"
+    ctx.emit(Diagnostic.error_at(span, "wrong type for argument ${index + 1} of ${call}: ${types}"))
 }
 
 /// Names the type as well as the method, as the call is written.
