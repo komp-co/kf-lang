@@ -96,3 +96,10 @@ fun list_of(name: str, element: str, lang: bool): TopDecl {
     decls.push(TopDecl.new(Span.none(), String.from("Holder"), TopDeclKind.Struct(fields, true)))
     assert_eq(free_names_of(decls).contains("Holder"), true, "a list of owned strings owns them")
 }
+
+@test fun a_name_two_types_share_holds_a_borrow_when_either_does(): void {
+    var decls = List.new<TopDecl>()
+    decls.push(struct_of("Twice", "uint32"))
+    decls.push(struct_of("Twice", "str"))
+    assert_eq(free_names_of(decls).contains("Twice"), false, "one of them borrows, and the walk ends")
+}

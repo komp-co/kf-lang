@@ -22,22 +22,32 @@ pub fun Module.borrow_free_names(string_name: Sym, list_name: Sym): TypeNameSet 
     while td in &self.decls {
         if td.is_struct_or_enum() { free.add(td.name.as_string()) }
     }
+    // A name two declarations share stays only while both hold no borrow, and
+    // each round drops at least one name, so the loop ends.
     var changed = true
     while changed {
+        var dropped = new_type_name_set()
         changed = false
-        var kept = new_type_name_set()
         while td in &self.decls {
-            if td.is_struct_or_enum() && free.contains(td.name.as_str()) {
-                if td.name == string_name || td.fields_hold_no_borrow(&free, string_name, list_name) {
-                    kept.add(td.name.as_string())
-                } else {
+            if td.is_struct_or_enum() && free.contains(td.name.as_str()) && !dropped.contains(td.name.as_str()) {
+                if td.name != string_name && !td.fields_hold_no_borrow(&free, string_name, list_name) {
+                    dropped.add(td.name.as_string())
                     changed = true
                 }
             }
         }
-        free = kept
+        if changed { free = self.free_names_without(&free, &dropped) }
     }
     return free
+}
+
+fun Module.free_names_without(free: &TypeNameSet, dropped: &TypeNameSet): TypeNameSet {
+    var kept = new_type_name_set()
+    while td in &self.decls {
+        val name = td.name.as_str()
+        if td.is_struct_or_enum() && free.contains(name) && !dropped.contains(name) { kept.add(td.name.as_string()) }
+    }
+    return kept
 }
 
 fun TopDecl.is_struct_or_enum(): bool {

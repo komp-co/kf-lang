@@ -62,3 +62,5 @@ impl Bounded for int32 {
     static fun min_value(): int32 { return 0 - 2147483647 - 1 }
     static fun max_value(): int32 { return 2147483647 }
 }
+
+impl Default for int32 { static fun default(): int32 { return 0 } }

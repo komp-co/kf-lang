@@ -25,3 +25,5 @@ impl Display for char {
         out.write_str(e.as_str())
     }
 }
+
+impl Default for char { static fun default(): char { return 0 as char } }
