@@ -232,8 +232,11 @@ impl Default for String {
     static fun default(): String { return String.from("") }
 }
 
+// CONSTRAINT: `self.as_str()` until the seed compiler lends a trait impl's
+// `self` as a `str` (#189); this crate is built by it. `Hash` below too.
 impl Display for String {
-    fun display(out: &var dyn Write): void { out.write_str(self) }
+    @allow(needless_deref)
+    fun display(out: &var dyn Write): void { out.write_str(self.as_str()) }
 }
 
 /// The sink `String.of` collects into.
@@ -243,7 +246,8 @@ impl Write for String {
 
 // The same bytes as `str`, so a `String` key and its `str` spelling agree.
 impl Hash for String {
-    fun hash(): uint64 { return hash_bytes(self) }
+    @allow(needless_deref)
+    fun hash(): uint64 { return hash_bytes(self.as_str()) }
 }
 
 // The core text surface on the owning type, delegating to core's known-length
