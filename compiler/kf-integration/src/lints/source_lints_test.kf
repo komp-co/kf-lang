@@ -10,7 +10,7 @@ import kf_core.intern.CrateId
 import kf_parse.lexer.tokenize
 import kf_parse.parser.*
 import kf_assemble.stamp_module_owner
-import kf_lint.lint_module
+import kf_lints.lint_module
 import testing.test
 
 /// The codes the source lints report over `src`, in order, space-separated.
