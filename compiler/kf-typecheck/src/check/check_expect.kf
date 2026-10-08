@@ -308,14 +308,15 @@ fun type_names_equal(a: Type, b: Type): bool {
 }
 
 /// `null` in an Option slot becomes `Option.None` in place. `null` is a
-/// childless Variable, so overwriting `e.kind` aliases nothing.
+/// childless Variable, so overwriting `e.kind` aliases nothing. The `Option`
+/// is no written name, so it has no span.
 mutating fun Expr.rewrite_null_to_none(inst: &GenericInst, ctx: &var TypeCtx): void {
     val span = self.span
     // Gives the `null` its type, so report_untyped_nulls stays quiet.
     note_null_typed(span, ctx)
     val base = ctx.option_name().as_string()
     val concrete = concrete_enum_name(base.clone(), &inst.args, ctx)
-    val recv = Box.new(Expr.new(span, ExprKind.Variable(ctx.option_name())))
+    val recv = Box.new(Expr.new(Span.none(), ExprKind.Variable(ctx.option_name())))
     self.type_args = clone_type_args(&inst.args)
     self.ty = enum_ty_of(concrete.clone(), span)
     self.kind = ExprKind.FieldAccess(recv, intern("None"))
@@ -348,7 +349,7 @@ mutating fun Expr.wrap_in_some(inst: &GenericInst, ctx: &var TypeCtx): void {
     var payload_args = List.new<Expr>()
     payload_args.push(snapshot)
     val coerced = coerce_ctor_payloads(concrete.clone(), String.from("Some"), payload_args, ctx)
-    val recv = Box.new(Expr.new(span, ExprKind.Variable(ctx.option_name())))
+    val recv = Box.new(Expr.new(Span.none(), ExprKind.Variable(ctx.option_name())))
     self.type_args = clone_type_args(&inst.args)
     self.ty = enum_ty_of(concrete.clone(), span)
     self.kind = ExprKind.MethodCall(recv, intern("Some"), coerced)
@@ -362,6 +363,9 @@ mutating fun Expr.wrap_in_some(inst: &GenericInst, ctx: &var TypeCtx): void {
 mutating fun Expr.reset_call_annotations(): void {
     // Spelled out: a field assignment carries no expected type to a `null`.
     self.decl = Option.None<DeclId>()
+    // The rewritten node names nothing the author wrote: `Some` around
+    // `a?.line` is not `line`, and an editor would color it as a variant.
+    self.name_span = Span.none()
     self.mangled_callee = intern("")
     self.coerce = Coercion.Identity
     self.is_static_call = false
