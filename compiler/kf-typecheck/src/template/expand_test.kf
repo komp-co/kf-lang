@@ -11,6 +11,7 @@ import kf_core.ast.expression.ExprKind
 import kf_core.ast.expression.FieldInit
 import kf_core.ast.annotation.Annotation
 import kf_core.ast.declaration.Param
+import kf_core.ast.declaration.TypeParam
 import kf_core.ast.statement.Stmt
 import kf_core.ast.statement.StmtKind
 import testing.test
@@ -41,7 +42,8 @@ fun point_expansion_with(args: List<FieldInit>): Expansion {
         annotations: List.new<Annotation>(), span: Span.none(), line: 0
     })
     return Expansion {
-        annotation: intern("shown"), marked: intern("T"), type_name: intern("Point"), on_enum: false,
+        annotation: intern("shown"), marked: intern("T"), type_name: intern("Point"), params: List.new<TypeParam>(),
+        on_enum: false,
         home: intern("app"), home_file: 0, site: Location { file_path: String.from("src/main.kf"), line: 3, col: 8 },
         template_at: Span.none(), marked_at: Span.none(), undecided: 0,
         fields: fields, args: args, shapes: List.new<AnnotationShape>(), bound: on_label(),

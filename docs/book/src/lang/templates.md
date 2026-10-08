@@ -372,6 +372,52 @@ fun main(): int32 { return if Shape.default() == Shape.Empty { 0 } else { 1 } }
 An enum with no such variant gets a `default` that does not return, which is
 reported with a note naming the enum.
 
+## Generic structs and enums
+
+On a generic struct or enum, what a template adds is generic over the same
+parameters: `T` is `Pair<A, B>`, and an impl or extension function on `T`
+takes `<A, B>`. The code it adds is checked once for every `A`, so it may only
+ask of `A` what its bounds promise. `where` on the impl states them per member:
+
+```kflat
+annotation same on struct
+annotation skip on field
+
+template same on struct T {
+    impl Equal for T where T.fields.filter(|field| !field.has<skip>()): Equal {
+        fun equals(other: &T): bool {
+            return T.fields.filter(|field| !field.has<skip>()).all(|field| field.of(self) == field.of(other))
+        }
+    }
+}
+
+struct Handle {
+    val fd: int32
+}
+
+@same
+struct Tagged<V, M> {
+    val value: V
+    @skip
+    val meta: M
+}
+
+fun main(): int32 {
+    val a = Tagged { value: 7, meta: Handle { fd: 1 } }
+    val b = Tagged { value: 7, meta: Handle { fd: 2 } }
+    return if a == b { 0 } else { 1 }
+}
+```
+
+`where LIST: Trait + Trait` bounds each type parameter that a kept member's
+type names, here `V`, so `impl<V: Equal, M> Equal for Tagged<V, M>` is added.
+`M` is named only by a skipped field and gets nothing, which is why `Handle`,
+with no `Equal`, may sit there. On an enum, `T.variants` bounds what its
+payloads name. A field whose type is not a parameter needs no `where`: the code
+written for it is checked as it is. A bound the code needs and no `where` gives
+is reported at the field, with the template's note. A struct's own bounds come
+along, and several `where` lists are separated by commas.
+
 ## Arguments as code
 
 `args.p` is the value the annotation's use gave `p`. A parameter taking a
@@ -628,6 +674,5 @@ down like any other.
 
 ## Limits
 
-A template does not add to a generic struct or enum. A `pub` extension function a
-template adds cannot be imported by another module. [Limitations](../limitations.md#templates)
-lists each with its issue.
+A `pub` extension function a template adds cannot be imported by another
+module. [Limitations](../limitations.md#templates) lists each with its issue.

@@ -20,17 +20,11 @@ import kf_core.names.CName
 fun Module.expand_for(template: &TopDecl, marked: &TopDecl, annotation: uint64, diags: &var List<Diagnostic>,
     sites: &var List<ExpansionSite>, smap: Ptr<SourceMap>): List<TopDecl> {
     var out = List.new<TopDecl>()
-    val name = template.name.as_str()
-    if marked.generics.size() > 0 {
-        val why = "it has type parameters"
-        val message = "`@${name}`'s template cannot add to `${marked.name.as_str()}`: ${why}"
-        diags.push(Diagnostic.error_at(marked.decl_name_span(), message))
-        return out
-    }
     var x = Expansion {
         annotation: template.name,
         marked: template.template_param(),
         type_name: marked.name,
+        params: marked.generics.clone(),
         on_enum: template.template_kind() == MarkKind.Enum,
         home: marked.module_path,
         home_file: marked.span.file_id,
@@ -179,10 +173,19 @@ fun TopDecl.expanded_decl(x: &var Expansion): TopDecl {
             }
             out.kind = TopDeclKind.Function(expanded, Box.new(ret.expanded_type(x)), expand_stmts(&body, x), is_pub,
                 is_unsafe, is_mutating, is_static)
+            if self.ext_name.as_str().byte_len() > 0 && expanded.size() > 0 {
+                if expanded.at(0).ty.through_reference().names_type(x.type_name) {
+                    out.generics = x.generics_for(&self.generics, &self.member_bounds)
+                }
+            }
         }
-        ImplBlock(methods) => out.kind = TopDeclKind.ImplBlock(expanded_decls(&methods, x))
+        ImplBlock(methods) => {
+            out.kind = TopDeclKind.ImplBlock(expanded_decls(&methods, x))
+            if self.name.id == x.marked.id { out.generics = x.generics_for(&self.generics, &self.member_bounds) }
+        }
         TraitImpl(trait_ref, methods) => {
             out.kind = TopDeclKind.TraitImpl(Box.new(trait_ref.expanded_type(x)), expanded_decls(&methods, x))
+            if self.name.id == x.marked.id { out.generics = x.generics_for(&self.generics, &self.member_bounds) }
         }
         Struct(fields, is_pub) => out.kind = TopDeclKind.Struct(expanded_fields(&fields, x), is_pub)
         _ => {}
@@ -252,5 +255,12 @@ fun TypeRef.impl_trait_name(): String {
     return when (self.kind) {
         Named(name, _args) => name.as_string()
         _ => String.from("")
+    }
+}
+
+fun TypeRef.names_type(name: Sym): bool {
+    return when (self.kind) {
+        Named(written, _args) => written.id == name.id
+        _ => false
     }
 }

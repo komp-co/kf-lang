@@ -20,9 +20,7 @@ fun TypeRef.expanded_type(x: &var Expansion): TypeRef {
     if given != null { return given ?: self.clone() }
     when (self.kind) {
         Named(name, args) => {
-            if name.id == x.marked.id && args.size() == 0 {
-                return TypeRef.new(self.span, TypeRefKind.Named(x.type_name, List.new<TypeRef>()))
-            }
+            if name.id == x.marked.id && args.size() == 0 { return x.marked_type(self.span) }
             return TypeRef.new(self.span, TypeRefKind.Named(x.built(name, self.span), expanded_types(&args, x)))
         }
         Projection(owner, member) => {

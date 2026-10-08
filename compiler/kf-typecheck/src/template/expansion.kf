@@ -12,6 +12,7 @@ import kf_core.ast.expression.FieldInit
 import kf_core.ast.annotation.Annotation
 import kf_core.diagnostic.*
 import kf_core.intern.Sym
+import kf_core.ast.declaration.TypeParam
 
 /// A field or a variant, as a template reads it. A variant has no `ty`,
 /// and a field no `payloads`.
@@ -55,6 +56,9 @@ struct Expansion {
     /// `T`.
     val marked: Sym
     val type_name: Sym
+    /// The marked declaration's type parameters, which what the template
+    /// adds is generic over.
+    val params: List<TypeParam>
     /// The template is on an enum: its members are variants.
     val on_enum: bool
     /// The struct's module, which owns what the template adds, and its file.
