@@ -5,7 +5,6 @@
 
 import kf_core.intern.Sym
 import kf_core.span.Span
-import kf_core.lang.LangItem
 import kf_core.ast.types.Type
 import kf_core.ast.expression.Expr
 import kf_core.ast.expression.Coercion
