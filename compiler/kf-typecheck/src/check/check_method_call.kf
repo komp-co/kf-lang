@@ -39,7 +39,6 @@ fun TypeKind.is_primitive_kind(): bool {
     }
 }
 
-
 struct NearMethod {
     val name: String
     /// Another method is equally close.
