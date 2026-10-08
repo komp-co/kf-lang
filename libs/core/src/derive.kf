@@ -84,7 +84,7 @@ template derive(Hash) on enum T {
 template derive(Default) on struct T {
     impl Default for T where T.fields: Default {
         static fun default(): T {
-            return T.build(|field| default_of<field.type>())
+            return T.build(|field| derived_default_of<field.type>())
         }
     }
 }
@@ -103,5 +103,7 @@ template derive(Default) on enum T {
     }
 }
 
-/// `D`'s default, for a template naming a field's type.
-fun default_of<D: Default>(): D { return D.default() }
+/// `D`'s default, for a template naming a field's type. In the prelude
+/// because the template expands in the crate that derives.
+@prelude
+pub fun derived_default_of<D: Default>(): D { return D.default() }
