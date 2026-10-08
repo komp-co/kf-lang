@@ -1,0 +1,31 @@
+// `annotation main unique on () -> int32`: an annotation a crate may use at
+// most once. A second use is an error naming the first. It is checked per
+// crate, as everything about annotations is.
+
+import alloc.list.*
+
+import kf_core.ast.Module
+import kf_core.diagnostic.*
+
+/// Each second use in this crate of a `unique` annotation, reported with
+/// the first.
+pub fun Module.reject_repeated_unique(diags: &var List<Diagnostic>): void {
+    while i in 0..self.decls.size() {
+        val declared = self.decls.at(i)
+        if !declared.is_annotation() || !declared.is_unique { continue }
+        var first: uint64? = null
+        while j in 0..self.decls.size() {
+            val td = self.decls.at(j)
+            if td.is_annotation() || !self.is_marked_by_any(td, i) { continue }
+            if first == null {
+                first = Option.Some(j)
+                continue
+            }
+            val name = declared.name.as_str()
+            var diag = Diagnostic.error_at(td.decl_name_span(), "`@${name}` is unique: a crate may use it once")
+            val earlier = self.decls.at(first ?: 0)
+            diag.secondary.push(Label.new(earlier.decl_name_span(), "the first use"))
+            diags.push(diag)
+        }
+    }
+}

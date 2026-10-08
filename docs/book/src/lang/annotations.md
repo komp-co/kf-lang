@@ -416,9 +416,27 @@ calling `annotated<bench>()` sees `measure`'s functions, not the ones of the
 crate that imported `bench`. A [template's](templates.md#where-the-code-lives)
 code is written into each crate it expands in, so there it sees that crate's.
 
-The name of a built-in annotation cannot be declared. `annotation`, `on`
-and `any` are not reserved words; they are read this way only in an
-annotation's declaration.
+The name of a built-in annotation cannot be declared, except
+[`derive`](#declaring-derive). `annotation`, `on`, `any` and `unique` are not
+reserved words; they are read this way only in an annotation's declaration.
+
+### Used once
+
+`unique` before the target makes an annotation one a crate may use at most
+once. A second use is an error naming the first:
+
+```kflat
+annotation registry unique on struct
+
+@registry
+struct Plugins {
+    val count: int32
+}
+
+fun main(): int32 { return Plugins { count: 0 }.count }
+```
+
+It is checked per crate, so two crates may each use it once.
 
 ## @test
 

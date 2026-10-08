@@ -140,6 +140,7 @@ fun TopDecl.copied_top_decl(kind: TopDeclKind): TopDecl {
     out.deref_via = self.deref_via
     out.template_key = self.template_key
     out.member_bounds = self.member_bounds.clone()
+    out.is_unique = self.is_unique
     return out
 }
 
