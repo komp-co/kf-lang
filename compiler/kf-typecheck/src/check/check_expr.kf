@@ -205,6 +205,8 @@ fun check_expr_kind(e: &var Expr, ctx: &var TypeCtx): void {
             // The cast converts a literal of any width.
             if is_integer_literal(operand) { note_literal_sized(operand.span, ctx) }
             reject_enum_to_number_cast(operand.ty.clone(), e.ty.clone(), e.span, ctx)
+            // `(&p) as Ptr<T>` casts p's address, not p.
+            if !borrowed { reject_struct_cast(&operand.ty, &e.ty, e.span, ctx) }
             val names_an_address = borrowed || is_integer_literal(operand)
             if !names_an_address { reject_integer_to_pointer_cast(&operand.ty, &e.ty, e.span, ctx) }
         }

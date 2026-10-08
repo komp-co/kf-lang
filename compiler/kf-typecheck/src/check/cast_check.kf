@@ -6,6 +6,9 @@ import kf_typecheck.types.TAG_PTR
 import kf_typecheck.types.kind_tag
 import kf_typecheck.types.mangle_type
 import kf_typecheck.types.display_type
+import kf_typecheck.types.type_eq
+import kf_typecheck.types.TAG_STRUCT
+import kf_typecheck.types.struct_name
 
 // Casts `as` refuses although C would perform them.
 
@@ -33,4 +36,27 @@ fun reject_integer_to_pointer_cast(from: &Type, to: &Type, span: Span, ctx: &var
     val msg = "only a `uint64` casts to a pointer, and this is `${from.display_type(ctx)}`; " +
         "to take an address, write `(&x) as Ptr<T>`"
     ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
+}
+
+/// A struct is no number, and no number is a struct: C refuses the cast,
+/// so it is refused here, with the field to read instead. A cast to the
+/// type the value has is `redundant_cast`'s.
+fun reject_struct_cast(from: &Type, to: &Type, span: Span, ctx: &var TypeCtx): void {
+    if from.is_poison() || to.is_poison() || from.type_eq(to) { return }
+    val shown_from = from.display_type(ctx)
+    val shown_to = to.display_type(ctx)
+    if from.type_is_struct_layout(ctx) {
+        val msg = "`${shown_from}` is a struct and cannot be cast to `${shown_to}`: cast one of its fields"
+        ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
+    } else if to.type_is_struct_layout(ctx) {
+        val msg = "`${shown_from}` cannot be cast to `${shown_to}`, a struct: construct it instead"
+        ctx.emit(Diagnostic.new(Severity.Error, Label.new(span, msg)))
+    }
+}
+
+/// A struct, not an enum: user types all resolve to `Struct(name)`.
+fun Type.type_is_struct_layout(ctx: &var TypeCtx): bool {
+    if self.kind.kind_tag() != TAG_STRUCT() { return false }
+    val sp = ctx.sigs
+    return unsafe { sp.find_struct(self.kind.struct_name(), ctx.owner_crate) }.is_some()
 }

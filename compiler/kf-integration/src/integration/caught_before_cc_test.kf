@@ -1,0 +1,65 @@
+// Programs `komp check` once passed and cc then refused: each is now an
+// error from the checker, with what to write instead.
+
+import core.assert.assert_eq
+import alloc.list.*
+import alloc.path.Path
+import std.fs.absolute
+
+import kf_core.diagnostic.Diagnostics
+import kf_driver.fresh_source_map
+import kf_driver.new_lint_config
+import kf_driver.checked_diagnostics
+import kf_integration.harness.assemble_project
+import std.fs.create_dir_all
+import std.fs.remove_dir_all
+import std.fs.scratch_path
+import std.fs.write_text
+import testing.test
+
+/// What checking `source` as a one-file bin reports, a message a line.
+fun errors_of(name: str, source: str): String {
+    val dir = scratch_path(name)
+    val _cleared = remove_dir_all(dir)
+    val _made = create_dir_all(Path.new("${dir}/src"))
+    val libs = absolute("libs").normalized().raw
+    val deps = "[dependencies]\ncore = { path = \"${libs}/core\" }\nalloc = { path = \"${libs}/alloc\" }\n"
+    val _manifest = write_text("${dir}/kf.toml", "[project]\nname = \"${name}\"\nkind = \"bin\"\n${deps}")
+    val _source = write_text("${dir}/src/main.kf", source)
+    val smap = fresh_source_map()
+    var pdiags = Diagnostics.new()
+    var merged = assemble_project(dir, smap, &var pdiags)
+    var out = String.from("")
+    while d in &merged.checked_diagnostics(smap, &new_lint_config()) {
+        out.append("${d.primary.message}\n")
+    }
+    return out
+}
+
+@test
+fun a_struct_cast_to_a_number_is_an_error(): void {
+    val errors = errors_of("caught_struct_cast", """struct Point {
+    val x: int32
+}
+
+fun main(): int32 {
+    val p = Point { x: 1 }
+    return p as int32
+}
+""")
+    assert_eq(errors.contains("`Point` is a struct and cannot be cast to `int32`"), true, "read a field instead (#179)")
+}
+
+@test
+fun a_number_cast_to_a_struct_is_an_error(): void {
+    val errors = errors_of("caught_cast_to_struct", """struct Point {
+    val x: int32
+}
+
+fun main(): int32 {
+    val p = 1 as Point
+    return p.x
+}
+""")
+    assert_eq(errors.contains("cannot be cast to `Point`, a struct"), true, "construct it instead (#179)")
+}
