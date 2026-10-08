@@ -63,3 +63,16 @@ fun main(): int32 {
 """)
     assert_eq(errors.contains("cannot be cast to `Point`, a struct"), true, "construct it instead (#179)")
 }
+
+@test
+fun a_temporary_string_returned_as_a_str_is_an_error(): void {
+    val errors = errors_of("caught_returned_temporary", """fun greeting(name: str): str {
+    return "hello ${name}"
+}
+
+fun main(): int32 {
+    return if greeting("a").byte_len() == 7 { 0 } else { 1 }
+}
+""")
+    assert_eq(errors.contains("this `String` is freed as the function returns"), true, "return `String` (#180)")
+}
