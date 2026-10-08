@@ -10,7 +10,7 @@ members = [
     "kf-lower",
     "kf-codegen",
     "kf-interface",
-    "kf-lint",
+    "kf-lints",
     "kf-driver",
     "kf-query",
     "kf-integration",

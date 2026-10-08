@@ -1,5 +1,5 @@
 [project]
-name = "kf_lint"
+name = "kf_lints"
 version = "0.1.0"
 kind = "lib"
 

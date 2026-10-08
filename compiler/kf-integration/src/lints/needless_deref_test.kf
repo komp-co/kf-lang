@@ -8,7 +8,7 @@ import std.fs.absolute
 
 import kf_core.diagnostic.*
 import kf_driver.*
-import kf_lint.lint_typed_module
+import kf_lints.lint_typed_module
 import std.fs.create_dir_all
 import std.fs.remove_dir_all
 import std.fs.scratch_path
