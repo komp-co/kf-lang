@@ -125,6 +125,8 @@ fun Expr.expanded_kind(x: &var Expansion): Expr {
             if by_argument != null { return by_argument ?: self.clone() }
             val listed = self.field_list_call(&*receiver, method.as_str(), &args, x)
             if listed != null { return listed ?: self.clone() }
+            val cased = self.name_in_case(&*receiver, method, &args, x)
+            if cased != null { return cased ?: self.clone() }
             val fact = self.member_fact(&*receiver, method, &args, x)
             if fact != null { return fact ?: self.clone() }
             val called = x.built(method, self.span)

@@ -13,7 +13,10 @@
 /// A struct's field, as `while field in T.fields`, `T.fields.map(|field| e)`
 /// and the other member lists stand for it.
 pub view struct TemplateField {
-    /// Its name as written, `"user_id"`.
+    /// Its name as written, `"user_id"`. `name.snake_case()`, `kebab_case()`,
+    /// `camel_case()`, `pascal_case()`, `shouting_snake_case()`,
+    /// `lower_case()`, `upper_case()` and `in_case(c)` give it in another
+    /// case, also written out as the template expands.
     pub val name: str
     /// Its position among the struct's fields, from 0.
     pub val index: uint64
@@ -39,7 +42,8 @@ impl TemplateField {
 /// written once per variant among a `when`'s arms too.
 pub view struct TemplateVariant {
     /// Its name as written, `"Circle"`, for `${variant.name}(..a)` in a
-    /// pattern and `T.${variant.name}` in an expression.
+    /// pattern and `T.${variant.name}` in an expression. The cases a field's
+    /// `name` has, it has too.
     pub val name: str
     /// Its position among the enum's variants, from 0.
     pub val index: uint64

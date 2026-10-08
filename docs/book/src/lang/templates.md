@@ -604,12 +604,53 @@ fun main(): int32 {
 ```
 
 A name is built from `T.name`, a member loop's `field.name` or
-`variant.name`, and text in
-`args`; nothing else, and no casing or other change to them. Any name in a
+`variant.name`, either in a [case](#names-in-another-case), and text in
+`args`; nothing else. Any name in a
 template may be built: a declaration, a parameter or a field, a variable, and
 a name that refers to one of them, in a type too. A type is never built from a
 field: `field.type` is the field's type. Outside a template a built name is an
 error, since nothing writes it out.
+
+### Names in another case
+
+`T.name`, `field.name` and `variant.name` can be had in another case, written
+out as the template expands: `snake_case()`, `kebab_case()`, `camel_case()`,
+`pascal_case()`, `shouting_snake_case()`, `lower_case()` and `upper_case()`.
+`in_case(c)` takes the case as a value known while the program compiles, a
+`NameCase` variant from `Snake` to `Upper`, or `AsWritten`, so an annotation
+can let its user choose:
+
+```kflat
+enum NameCase { AsWritten, Snake, Kebab, Camel, Pascal, ShoutingSnake, Lower, Upper }
+
+annotation spelled(case: NameCase = NameCase.AsWritten) on enum
+
+template spelled on enum T {
+    fun T.spelling(): str {
+        return when (self) {
+            while variant in T.variants {
+                ${variant.name} => variant.name.in_case(args.case)
+            }
+        }
+    }
+}
+
+@spelled(case = NameCase.Kebab)
+enum Flag {
+    DryRun
+    HTTPProxy
+}
+
+fun main(): int32 {
+    return if Flag.DryRun.spelling() == "dry-run" && Flag.HTTPProxy.spelling() == "http-proxy" { 0 } else { 1 }
+}
+```
+
+A name splits into words at `_` and `-`, where a lower-case letter or a digit
+meets an upper-case one, and before the last letter of an upper-case run that
+a lower-case letter follows: `HTTPProxy` is `HTTP` and `Proxy`. A digit stays
+with the word before it, so `Utf8Error` is `utf8_error`. A built name may use
+a case too, `get_${field.name.snake_case()}`.
 
 ## Errors
 
