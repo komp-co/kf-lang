@@ -127,6 +127,8 @@ impl LintInfo {
         return [
             LintInfo.new("unused_import", "style", LintLevel.Warn,
                 "an import whose module contributes no name this file writes"),
+            LintInfo.new("duplicate_import", "style", LintLevel.Warn,
+                "an import a line above in the same file already makes"),
             LintInfo.new("wildcard_import", "style", LintLevel.Warn,
                 "a `.*` import supplying few enough names to write out"),
             LintInfo.new("implicit_copy", "perf", LintLevel.Warn,

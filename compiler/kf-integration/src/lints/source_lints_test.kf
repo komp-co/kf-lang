@@ -298,3 +298,15 @@ fun a_float_with_no_name_is_magic(): void {
 fun a_whole_float_within_max_plain_is_not(): void {
     assert_eq(lint_codes("fun f(): float64 {\n    return 1.0\n}\n").as_str(), "", "1.0 reads plainly")
 }
+
+@test
+fun an_import_repeated_in_one_file_is_reported(): void {
+    val src = "import a.b.f\nimport a.b.f\nimport a.b.g\n\nfun h(): int32 {\n    return 0\n}\n"
+    assert_eq(lint_codes(src).as_str(), "duplicate_import", "the second line, and only it (#152)")
+}
+
+@test
+fun the_same_module_imported_two_ways_is_not_a_duplicate(): void {
+    val src = "import a.b.*\nimport a.b as ab\n\nfun h(): int32 {\n    return 0\n}\n"
+    assert_eq(lint_codes(src).as_str(), "", "a wildcard and an alias say different things")
+}
